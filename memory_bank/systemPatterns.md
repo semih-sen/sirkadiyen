@@ -18,7 +18,7 @@ ASP.NET Core API
           ▼
       Background jobs
           │
-          ├── Google Sheets
+          ├── Google Sheets / Drive / HTTPS files
           ├── Python Parser
           └── Google Calendar
 ```
@@ -151,13 +151,19 @@ A source poll result must distinguish:
 - malformed
 - rate-limited
 
+Source transport and document format are separate concerns. A source catalog
+selects a transport adapter (`GoogleSheets`, `GoogleDriveFile`, or `HttpFile`),
+then a format converter (`GoogleSheetsGrid`, `Xlsx`, or `Docx`) produces the
+versioned normalized snapshot. Parser profiles depend only on the snapshot
+contract, never on the acquisition transport.
+
 ## 5. Snapshot pattern
 
 A source snapshot is immutable and includes:
 
 - source ID
 - acquisition timestamp
-- spreadsheet ID
+- external document ID and source URI
 - sheet identifiers
 - requested ranges
 - raw values

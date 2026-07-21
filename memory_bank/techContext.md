@@ -178,6 +178,19 @@ must be composed with the read-only spreadsheets scope. Authentication
 composition remains a worker/infrastructure concern and is not owned by the
 snapshot mapper.
 
+Unattended source polling supports exactly one credential mode: an OAuth client
+ID/secret plus an offline refresh token, or a service-account credential file.
+A client ID and client secret alone cannot authorize background polling. Source
+access uses only the read-only spreadsheets scope and is independent from each
+student's Google Calendar authorization.
+
+### Spreadsheet files
+
+Collected `.xlsx` fixtures are read with `DocumentFormat.OpenXml` 3.5.1. The
+local converter is development-only and emits an explicit fixture diagnostic.
+Production Google Drive and HTTP transports still require acquisition adapters;
+after download, they may reuse the format conversion boundary.
+
 ### Google Calendar API
 
 Used by .NET for:

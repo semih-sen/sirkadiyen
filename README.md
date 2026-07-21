@@ -2,13 +2,16 @@
 
 Sirkadiyen is a personal academic schedule synchronization platform for Istanbul Faculty of Medicine students.
 
-It parses several irregular Google Sheets schedules, converts them into a canonical internal schedule model, determines which lessons apply to each student, and synchronizes only the changed events with the student's Google Calendar.
+It parses irregular schedules published through Google Sheets, Google Drive
+files, and direct spreadsheet downloads; converts them into a canonical internal
+schedule model; determines which lessons apply to each student; and synchronizes
+only the changed events with the student's Google Calendar.
 
 ## Core goals
 
 - Support first-, second-, and third-year students.
 - Support Turkish and English programs.
-- Parse irregular and frequently changing Google Sheets.
+- Parse irregular and frequently changing schedule documents.
 - Detect source changes quickly.
 - Update only affected Google Calendar events.
 - Preserve a complete audit trail for every parsed lesson and synchronization action.
@@ -80,9 +83,11 @@ The API currently exposes `GET /health`. The Python parser service foundation,
 versioned transport models, and profile registry exist, but actual parser
 profiles are not implemented yet. The .NET ingestion layer can acquire a Google
 Sheets v4 response and deterministically normalize values, formulas, formatting,
-merges, and hidden dimensions into the snapshot contract. Authentication,
-snapshot persistence, polling, and the remaining business capabilities are not
-implemented yet.
+merges, and hidden dimensions into the snapshot contract. A typed catalog now
+records the 18 confirmed mixed-transport sources. A fixture-only Open XML tool
+normalizes local `.xlsx` files, and the first annual and practice snapshots are
+committed. Production snapshot persistence, polling, Drive/HTTP acquisition,
+parser profiles, and the remaining business capabilities are not implemented.
 
 ## Local development
 
@@ -106,3 +111,16 @@ Copy `.env.example` to a local untracked environment file when configuration is
 introduced. Never commit real credentials or tokens.
 
 Parser setup and commands are documented in `src/parser/README.md`.
+
+Generate a deterministic local snapshot from a catalog fixture:
+
+```powershell
+dotnet run --project tools/Sirkadiyen.SnapshotTool -- `
+  --repository-root . `
+  --source-id G1-TR-ANNUAL `
+  --output src/parser/tests/fixtures/real/g1-tr-annual.snapshot.json `
+  --acquired-at-utc 2026-07-21T00:00:00Z
+```
+
+This command is for fixture development only. Production ingestion uses
+transport-specific adapters and persists immutable snapshots before parsing.

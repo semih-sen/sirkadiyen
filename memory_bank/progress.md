@@ -70,11 +70,13 @@
 - [ ] Add third-year source fixtures
 - [ ] Add weekly amphitheatre fixtures
 - [ ] Document every source
+- [x] Add confirmed mixed-transport source catalog
 - [x] Implement Google Sheets client
 - [x] Implement value acquisition
 - [x] Implement merge and metadata acquisition
 - [x] Implement normalized snapshot contract
 - [x] Implement snapshot hashing
+- [x] Implement local XLSX snapshot converter
 - [ ] Persist immutable snapshots
 - [ ] Add polling worker
 - [ ] Add unchanged-source short circuit
@@ -180,18 +182,12 @@
 
 ## Current next action
 
-The production Google Sheets response-to-snapshot path now exists, including
-deterministic content hashing. Capturing the first real normalized snapshot is
-**blocked on external configuration**: the repository does not contain source
-spreadsheet IDs or Google credentials, and credentials must not be committed.
+The 18 confirmed sources now have a typed catalog, and the first annual and
+practice XLSX fixtures have deterministic normalized snapshots. Next implement
+`grade1_yearly_v1` and `grade1_practice_v1` with real-fixture golden files.
 
-Next, compose the authenticated read-only `SheetsService` in the worker, add
-source configuration, and capture immutable snapshots for the collected annual
-and practice sources. If access to the live sources is not yet available, add a
-strictly local `.xlsx` fixture converter instead so profile development can
-proceed without turning that converter into a production acquisition path.
-
-Then implement the first annual and practice profiles using the shared
-primitives and golden-file harness. In parallel, obtain raw Google Sheets
-snapshots for the DOCX-only and still-missing sources in
-`sheets/source-manifest.md`.
+In parallel, obtain either an offline source refresh token or a service-account
+credential with access to the Sheets sources. Then compose the worker polling
+workflow, persist changed snapshots immutably in PostgreSQL, and implement the
+unchanged-source short circuit. Drive/HTTP acquisition adapters and DOCX
+conversion follow the same transport/format boundary.

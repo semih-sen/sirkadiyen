@@ -20,4 +20,15 @@
     <ProjectReference Include="../../src/Sirkadiyen.Contracts/Sirkadiyen.Contracts.csproj" />
     <ProjectReference Include="../../src/Sirkadiyen.Infrastructure/Sirkadiyen.Infrastructure.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="../../config/schedule-sources.json" Link="fixtures/schedule-sources.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="../../sheets/donem-1-tr/xlsx/2025-2026 D1 Türkçe Tıp Ders Programı.xlsx" Link="fixtures/g1-tr-annual.xlsx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="../../sheets/donem-1-tr/xlsx/2025-2026 Dönem 1 Türkçe Uygulama Tablosu (1).xlsx" Link="fixtures/g1-tr-practice.xlsx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

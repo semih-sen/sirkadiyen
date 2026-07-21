@@ -244,7 +244,7 @@ public sealed class GoogleSheetsSnapshotMapperTests
                 },
                 Merges =
                 [
-                    new Google.Apis.Sheets.v4.Data.GridRange
+                    new global::Google.Apis.Sheets.v4.Data.GridRange
                     {
                         SheetId = 42,
                         StartRowIndex = 10,

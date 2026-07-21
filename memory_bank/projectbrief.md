@@ -8,7 +8,10 @@ Sirkadiyen
 
 Sirkadiyen converts the complex and frequently changing academic schedules of Istanbul Faculty of Medicine into personalized Google Calendar events.
 
-The source schedules are maintained as multiple online Google Sheets with irregular formatting. Students should not need to inspect all source tables manually or repeatedly rebuild their calendars.
+The source schedules are published through a mix of Google Sheets, Google Drive
+XLSX/DOCX files, and direct HTTP spreadsheet downloads with irregular
+formatting. Students should not need to inspect all source documents manually
+or repeatedly rebuild their calendars.
 
 ## Current historical context
 

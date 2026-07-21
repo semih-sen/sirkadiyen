@@ -414,3 +414,57 @@ responses into the v1 normalized snapshot contract before calculating a hash.
   worker composition, and immutable persistence.
 - The local `.xlsx` fixtures remain unable to drive profiles until live snapshots
   are captured or a clearly separated development converter is added.
+
+---
+
+## ADR-015: Separate source transport from document format
+
+**Status:** Accepted
+**Date:** 2026-07-21
+
+### Context
+
+The confirmed inventory contains seven Google Sheets sources, Google Drive XLSX
+and DOCX files, and a direct HTTP XLSX download. A parser profile should not need
+to know how its evidence was transported.
+
+### Decision
+
+Maintain a versioned source catalog that separately records transport, document
+format, parser profile, and fixture mapping. Transport adapters acquire bytes or
+grid data; format converters produce the normalized snapshot contract. The
+local XLSX converter is fixture-only, emits an explicit diagnostic, and trims
+formatting-only worksheet tails using a semantic used range.
+
+### Consequences
+
+- New transports and formats can evolve independently.
+- Parser profiles consume one stable snapshot contract.
+- Drive/HTTP adapters and DOCX conversion remain implementation work.
+- Real XLSX fixtures can unblock parser-profile development without presenting
+  local conversion as a production acquisition path.
+
+---
+
+## ADR-016: Require an unattended source credential
+
+**Status:** Accepted
+**Date:** 2026-07-21
+
+### Context
+
+Worker polling has no interactive browser session. A Google OAuth client ID and
+client secret identify the application but do not authorize unattended access.
+
+### Decision
+
+Configure exactly one source-access mode: OAuth with an offline refresh token,
+or a service-account credential file. Request only the read-only spreadsheets
+scope. Never commit or log credential material, and keep source ingestion
+credentials separate from end-user Calendar grants.
+
+### Consequences
+
+- The current environment still needs a source refresh token or service account.
+- A service account is preferred when the faculty can share sources with it.
+- Revocation and invalid-grant failures must become explicit poll outcomes.

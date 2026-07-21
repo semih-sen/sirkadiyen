@@ -11,4 +11,7 @@
     <Project Path="tests/Sirkadiyen.Contracts.UnitTests/Sirkadiyen.Contracts.UnitTests.csproj" />
     <Project Path="tests/Sirkadiyen.Infrastructure.UnitTests/Sirkadiyen.Infrastructure.UnitTests.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Sirkadiyen.SnapshotTool/Sirkadiyen.SnapshotTool.csproj" />
+  </Folder>
 </Solution>

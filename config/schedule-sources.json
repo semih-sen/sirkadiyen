@@ -1,0 +1,212 @@
+{
+  "catalogVersion": "1.0",
+  "sources": [
+    {
+      "sourceId": "G1-TR-ANNUAL",
+      "displayName": "Dönem 1 Türkçe yıllık program",
+      "transport": "googleSheets",
+      "documentFormat": "googleSheet",
+      "sourceUri": "https://docs.google.com/spreadsheets/d/1Xwqz2bXHvH2oQ_utv_WIVzPFvLZyJEXHvwey-bVDt7A/edit?gid=1054469518",
+      "externalId": "1Xwqz2bXHvH2oQ_utv_WIVzPFvLZyJEXHvwey-bVDt7A",
+      "sheetGid": 1054469518,
+      "parserProfile": "grade1_yearly_v1",
+      "parserProfileVersion": "1.0.0",
+      "fixturePath": "sheets/donem-1-tr/xlsx/2025-2026 D1 Türkçe Tıp Ders Programı.xlsx"
+    },
+    {
+      "sourceId": "G1-TR-PRACTICE",
+      "displayName": "Dönem 1 Türkçe uygulama programı",
+      "transport": "googleSheets",
+      "documentFormat": "googleSheet",
+      "sourceUri": "https://docs.google.com/spreadsheets/d/1N-FQBRdcvWUMlu5BtZ7EqXqUFRuGLFFvYGmT4ZCEwnA/edit?gid=692451545",
+      "externalId": "1N-FQBRdcvWUMlu5BtZ7EqXqUFRuGLFFvYGmT4ZCEwnA",
+      "sheetGid": 692451545,
+      "parserProfile": "grade1_practice_v1",
+      "parserProfileVersion": "1.0.0",
+      "fixturePath": "sheets/donem-1-tr/xlsx/2025-2026 Dönem 1 Türkçe Uygulama Tablosu (1).xlsx"
+    },
+    {
+      "sourceId": "G1-EN-ANNUAL",
+      "displayName": "Dönem 1 İngilizce yıllık program",
+      "transport": "googleSheets",
+      "documentFormat": "googleSheet",
+      "sourceUri": "https://docs.google.com/spreadsheets/d/1jYmLzKgvvk_GiSpZ2G0H4XN1irm4ONdYp1ySpzeHMxw/edit?gid=159866267",
+      "externalId": "1jYmLzKgvvk_GiSpZ2G0H4XN1irm4ONdYp1ySpzeHMxw",
+      "sheetGid": 159866267,
+      "parserProfile": "grade1_yearly_v1",
+      "parserProfileVersion": "1.0.0",
+      "fixturePath": "sheets/donem-1-ing/xlsx/2025-2026 Term 1 Medicine Program in English Course Program.xlsx"
+    },
+    {
+      "sourceId": "G1-EN-PRACTICE",
+      "displayName": "Dönem 1 İngilizce uygulama programı",
+      "transport": "googleDriveFile",
+      "documentFormat": "xlsx",
+      "sourceUri": "https://drive.google.com/file/d/1mY7J99QVfMzniV-6lLQksqAHm9MlRhgi/view",
+      "externalId": "1mY7J99QVfMzniV-6lLQksqAHm9MlRhgi",
+      "parserProfile": "grade1_practice_v1",
+      "parserProfileVersion": "1.0.0",
+      "fixturePath": "sheets/donem-1-ing/xlsx/2025-2026 Term 1 Medicine Program in English-Med. Skill Practices.xlsx"
+    },
+    {
+      "sourceId": "G2-TR-ANNUAL",
+      "displayName": "Dönem 2 Türkçe yıllık program",
+      "transport": "googleSheets",
+      "documentFormat": "googleSheet",
+      "sourceUri": "https://docs.google.com/spreadsheets/d/1pLL5eF_k9McDF6IzlMMBzz_NDVUySqARCbUmtO7TS8A/edit?gid=370969780",
+      "externalId": "1pLL5eF_k9McDF6IzlMMBzz_NDVUySqARCbUmtO7TS8A",
+      "sheetGid": 370969780,
+      "parserProfile": "grade2_yearly_v1",
+      "parserProfileVersion": "1.0.0",
+      "fixturePath": "sheets/donem-2-tr/xlsx/2025-2026 Dönem 2 Türkçe Tıp Programı Ders Programı.xlsx"
+    },
+    {
+      "sourceId": "G2-TR-PRACTICE",
+      "displayName": "Dönem 2 Türkçe uygulama programı",
+      "transport": "googleSheets",
+      "documentFormat": "googleSheet",
+      "sourceUri": "https://docs.google.com/spreadsheets/d/1dyCMtRRN9gVkQxdgZU9aeYzMYPc6tyxk680HboAEzlU/edit?gid=77218153",
+      "externalId": "1dyCMtRRN9gVkQxdgZU9aeYzMYPc6tyxk680HboAEzlU",
+      "sheetGid": 77218153,
+      "parserProfile": "grade2_practice_v1",
+      "parserProfileVersion": "1.0.0",
+      "fixturePath": "sheets/donem-2-tr/xlsx/2025-2026 Dönem 2 Türkçe Tıp Programı Uygulama Tablosu (1).xlsx"
+    },
+    {
+      "sourceId": "G2-VERTICAL-SPRING",
+      "displayName": "Dönem 2 dikey koridor beceri uygulamaları bahar",
+      "transport": "googleDriveFile",
+      "documentFormat": "docx",
+      "sourceUri": "https://drive.google.com/file/d/1ItUSpg1uDHLiqokyVFLEMHdGT0reLZeQ/view",
+      "externalId": "1ItUSpg1uDHLiqokyVFLEMHdGT0reLZeQ",
+      "parserProfile": "grade2_vertical_corridor_v1",
+      "parserProfileVersion": "1.0.0",
+      "fixturePath": "sheets/donem-2-tr/Dönem 2 Beceri Uyg BAHAR Takvim 26.01.2025.docx"
+    },
+    {
+      "sourceId": "G2-VERTICAL-AUTUMN",
+      "displayName": "Dönem 2 dikey koridor beceri uygulamaları güz",
+      "transport": "googleDriveFile",
+      "documentFormat": "docx",
+      "sourceUri": "https://drive.google.com/file/d/1VyDtK-p2qtTkT2H6KUQ-5_k4MuZzkZqe/view",
+      "externalId": "1VyDtK-p2qtTkT2H6KUQ-5_k4MuZzkZqe",
+      "parserProfile": "grade2_vertical_corridor_v1",
+      "parserProfileVersion": "1.0.0",
+      "fixturePath": "sheets/donem-2-tr/Dönem 2 Beceri uygulama takvimi güz.docx"
+    },
+    {
+      "sourceId": "G2-EN-ANNUAL",
+      "displayName": "Dönem 2 İngilizce yıllık program",
+      "transport": "googleSheets",
+      "documentFormat": "googleSheet",
+      "sourceUri": "https://docs.google.com/spreadsheets/d/1ff3F_ol8spKAmq0-veG-4rfvvIoRyJNa7fOd5V3sC3c/edit?gid=198851210",
+      "externalId": "1ff3F_ol8spKAmq0-veG-4rfvvIoRyJNa7fOd5V3sC3c",
+      "sheetGid": 198851210,
+      "parserProfile": "grade2_yearly_v1",
+      "parserProfileVersion": "1.0.0",
+      "fixturePath": "sheets/donem-2-ing/xlsx/2025-2026 Term 2 Medicine Program in English Course Program.....xlsx"
+    },
+    {
+      "sourceId": "G2-EN-PRACTICE",
+      "displayName": "Dönem 2 İngilizce uygulama programı",
+      "transport": "googleSheets",
+      "documentFormat": "googleSheet",
+      "sourceUri": "https://docs.google.com/spreadsheets/d/1YPWACCifZGY5-7IJ5_Yzzya4aqubziKN5LlnMx1ST_8/edit?gid=1629561847",
+      "externalId": "1YPWACCifZGY5-7IJ5_Yzzya4aqubziKN5LlnMx1ST_8",
+      "sheetGid": 1629561847,
+      "parserProfile": "grade2_practice_v1",
+      "parserProfileVersion": "1.0.0",
+      "fixturePath": "sheets/donem-2-ing/xlsx/2024-2025 Term 2 Medicine Program in English PRACTICUM TABLE.xlsx",
+      "notes": "Committed fixture is from 2024-2025; capture a current snapshot before publication."
+    },
+    {
+      "sourceId": "G3-TR-A-ANNUAL",
+      "displayName": "Dönem 3 Türkçe A yıllık program",
+      "transport": "googleDriveFile",
+      "documentFormat": "xlsx",
+      "sourceUri": "https://drive.google.com/file/d/1SPyiys93ZZHk48Nn7YoVcVK4PTcC-IZG/view",
+      "externalId": "1SPyiys93ZZHk48Nn7YoVcVK4PTcC-IZG",
+      "parserProfile": "grade3_yearly_v1",
+      "parserProfileVersion": "1.0.0",
+      "fixturePath": "sheets/donem-3-tr-A/2025-2026 Dönem 3 A Türkçe Tıp Ders Programı.xlsx"
+    },
+    {
+      "sourceId": "G3-TR-B-ANNUAL",
+      "displayName": "Dönem 3 Türkçe B yıllık program",
+      "transport": "googleDriveFile",
+      "documentFormat": "xlsx",
+      "sourceUri": "https://drive.google.com/file/d/17pSe_EAdCEPb4DLYWEWxuV4RdGjuVZ3G/view",
+      "externalId": "17pSe_EAdCEPb4DLYWEWxuV4RdGjuVZ3G",
+      "parserProfile": "grade3_yearly_v1",
+      "parserProfileVersion": "1.0.0",
+      "fixturePath": "sheets/donem-3-tr-B/2025-2026 Dönem 3 B Türkçe Tıp Ders Programı.xlsx"
+    },
+    {
+      "sourceId": "G3-TR-A-BEDSIDE",
+      "displayName": "Dönem 3 Türkçe A hasta başı uygulama",
+      "transport": "googleDriveFile",
+      "documentFormat": "docx",
+      "sourceUri": "https://drive.google.com/file/d/1N4Py12QhISWqGVezaTUWmjSwJYzMgj3W/view",
+      "externalId": "1N4Py12QhISWqGVezaTUWmjSwJYzMgj3W",
+      "parserProfile": "grade3_bedside_v1",
+      "parserProfileVersion": "1.0.0",
+      "fixturePath": "sheets/donem-3-tr-A/2025-2026 Dönem 3 HASTA BAŞI A GRUBU UYGULAMA KONULARI VE TABLOSU.docx"
+    },
+    {
+      "sourceId": "G3-TR-B-BEDSIDE",
+      "displayName": "Dönem 3 Türkçe B hasta başı uygulama",
+      "transport": "googleDriveFile",
+      "documentFormat": "docx",
+      "sourceUri": "https://drive.google.com/file/d/1qtP_Mtunsyo4Pua9B-2aPhyBBuuDUJRK/view",
+      "externalId": "1qtP_Mtunsyo4Pua9B-2aPhyBBuuDUJRK",
+      "parserProfile": "grade3_bedside_v1",
+      "parserProfileVersion": "1.0.0",
+      "fixturePath": "sheets/donem-3-tr-B/2025-2026 Dönem 3 HASTA BAŞI B GRUBU UYGULAMA KONULARI VE TABLOSU.docx"
+    },
+    {
+      "sourceId": "G3-TR-A-FACULTY",
+      "displayName": "Dönem 3 Türkçe A öğretim üyesi uygulama",
+      "transport": "googleDriveFile",
+      "documentFormat": "xlsx",
+      "sourceUri": "https://drive.google.com/file/d/17f1vYw7GrnDDsMMis_gPTFatyAwtMKh2/view",
+      "externalId": "17f1vYw7GrnDDsMMis_gPTFatyAwtMKh2",
+      "parserProfile": "grade3_faculty_practice_v1",
+      "parserProfileVersion": "1.0.0",
+      "fixturePath": "sheets/donem-3-tr-A/Dönem 3 ÖĞRETİM ÜYESİ A GRUBU UYGULAMA TABLOSU VE KONULARI 2025-2026 (1).xlsx"
+    },
+    {
+      "sourceId": "G3-TR-B-FACULTY",
+      "displayName": "Dönem 3 Türkçe B öğretim üyesi uygulama",
+      "transport": "googleDriveFile",
+      "documentFormat": "xlsx",
+      "sourceUri": "https://drive.google.com/file/d/1wlna2fWvaIBN9bVo16Sy3_paN7SzKoqN/view",
+      "externalId": "1wlna2fWvaIBN9bVo16Sy3_paN7SzKoqN",
+      "parserProfile": "grade3_faculty_practice_v1",
+      "parserProfileVersion": "1.0.0",
+      "fixturePath": "sheets/donem-3-tr-B/Dönem 3 ÖĞRETİM ÜYESİ B GRUBU UYGULAMA TABLOSU VE KONULARI 2025-2026 (2).xlsx"
+    },
+    {
+      "sourceId": "G3-FACULTY-LOCATIONS",
+      "displayName": "Dönem 3 öğretim üyesi uygulama yerleri",
+      "transport": "googleDriveFile",
+      "documentFormat": "xlsx",
+      "sourceUri": "https://drive.google.com/file/d/1nSoPX9o2Ble-HhSYR3tTtkJMysHHsjPg/view",
+      "externalId": "1nSoPX9o2Ble-HhSYR3tTtkJMysHHsjPg",
+      "parserProfile": "grade3_faculty_practice_v1",
+      "parserProfileVersion": "1.0.0",
+      "fixturePath": "sheets/donem-3-tr-A/2025-2026 Dönem 3 ÖĞRETİM ÜYESİ UYGULAMASI PRATİK YERLERİ (1).xlsx",
+      "notes": "Lookup/enrichment source shared by A and B faculty-practice programs."
+    },
+    {
+      "sourceId": "SHARED-AMPHI",
+      "displayName": "Haftalık amfi programı",
+      "transport": "httpFile",
+      "documentFormat": "xlsx",
+      "sourceUri": "https://cdn.istanbul.edu.tr/FileHandler2.ashx?f=20-24-temmuz-2026--amfi.xlsx",
+      "parserProfile": "weekly_amphitheatre_v1",
+      "parserProfileVersion": "1.0.0",
+      "fixturePath": "sheets/amfi/20-24-temmuz-2026--amfi.xlsx",
+      "notes": "The dated URL must be advanced by source discovery; the current endpoint rejects generic HEAD/download probes with HTTP 403."
+    }
+  ]
+}

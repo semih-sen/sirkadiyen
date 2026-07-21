@@ -2,7 +2,9 @@
 
 ## The problem
 
-The faculty publishes academic schedules through many Google Sheets. These sheets vary by class year, language, curriculum group, practice group, semester, and lesson type.
+The faculty publishes academic schedules through Google Sheets, Google Drive
+files, and direct spreadsheet downloads. These documents vary by class year,
+language, curriculum group, practice group, semester, and lesson type.
 
 The tables are designed for human reading, not software integration. They may contain:
 

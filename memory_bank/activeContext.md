@@ -2,14 +2,31 @@
 
 ## Current phase
 
-Source ingestion foundation.
+Source inventory and fixture acquisition.
 
-The initial .NET 10 solution and clean-layer project boundaries exist. The
-Google Sheets response-to-normalized-snapshot production path is implemented,
-but authentication composition, persistence, polling, frontend, and production
-parser profiles do not exist yet.
+The 18 confirmed sources now have a typed mixed-transport catalog. Google Sheets
+responses and local XLSX fixtures can be normalized deterministically, and the
+first annual and practice snapshots exist. Credential factories support offline
+OAuth refresh tokens or service accounts, but the local environment currently
+contains only a client ID and secret. Persistence, polling, Drive/HTTP adapters,
+frontend, and production parser profiles do not exist yet.
 
 ## Latest implementation session
+
+- Added `config/schedule-sources.json` with all 18 supplied source IDs, URLs,
+  transports, document formats, parser profiles, and fixture mappings.
+- Verified representative Google Sheets and Drive exports against collected
+  fixture bytes; the amphitheatre CDN rejects a generic probe with HTTP 403.
+- Added a deterministic Open XML fixture converter and snapshot CLI with
+  semantic used-range trimming.
+- Generated and contract-validated the Grade 1 Turkish annual and practice
+  normalized snapshots.
+- Added read-only Google credential composition for either an offline refresh
+  token or a service account; client ID/secret alone remains insufficient.
+- Added six .NET regression tests and two Python real-snapshot contract tests;
+  all 15 .NET tests and all 139 Python tests pass.
+
+## Previous ingestion implementation session
 
 - Added the application-layer `ISpreadsheetSnapshotAcquirer` port with explicit
   source, snapshot, spreadsheet, acquisition-time, and range inputs.
@@ -78,7 +95,7 @@ parser profiles do not exist yet.
 - support for first, second, and third years
 - support for Turkish and English programs where sources exist
 - Python is parser-only
-- source schedules are online Google Sheets
+- source schedules mix Google Sheets, Drive XLSX/DOCX files, and HTTP XLSX files
 - sources may change daily
 - polling and change detection are required
 - only changed calendar events should be modified
@@ -92,24 +109,18 @@ parser profiles do not exist yet.
 
 ## Immediate objectives
 
-1. Compose an authenticated, read-only Google `SheetsService` in the worker and
-   configure real source spreadsheet IDs and ranges without committing secrets.
-2. Capture and persist the first immutable normalized annual and practice
-   snapshots. If live access is unavailable, add a local-only `.xlsx` fixture
-   converter to unblock parser work.
-3. Implement the first fixture-backed annual and practice parser profiles.
-4. Define the initial canonical schedule domain schema.
-5. Establish .NET architecture tests.
-6. Acquire the missing Grade 1 anatomy fixture and raw Google Sheets snapshots
-   for DOCX-only source references.
-7. Acquire missing Grade 3 English and raw bedside Google Sheets fixtures.
-8. Add Docker Compose for PostgreSQL and Redis development dependencies.
-9. Add CI quality gates.
-10. Decide frontend technology and authentication session flow before frontend work.
-11. Define domain entities and state machines.
-12. Define license redemption rules.
-13. Define initial synchronization workflow.
-14. Decide the Google managed-calendar strategy.
+1. Implement `grade1_yearly_v1` and `grade1_practice_v1` with real-fixture
+   golden files.
+2. Obtain an offline source refresh token or a service-account credential; do
+   not reuse end-user Calendar authorization for source ingestion.
+3. Persist immutable snapshots in PostgreSQL and add the unchanged short circuit.
+4. Add worker polling for Google Sheets, then Drive and HTTP sources.
+5. Define the initial canonical schedule domain schema.
+6. Establish .NET architecture tests.
+7. Acquire the missing Grade 1 anatomy and Grade 3 English fixtures.
+8. Add DOCX conversion for the confirmed special-program sources.
+9. Add Docker Compose and CI quality gates.
+10. Decide frontend, session, licensing, initial-sync, and managed-calendar rules.
 
 ## Important unresolved decisions
 
@@ -137,11 +148,12 @@ Preferred direction is one dedicated managed Sirkadiyen calendar per user, but t
 
 Preferred direction is backend-managed secure cookie for the web application.
 
-### Source acquisition
+### Source acquisition operations
 
-- Google Sheets API snapshots only
-- periodic exported `.xlsx` snapshots as backup
+- polling interval and retry policy per transport
 - whether Google Drive metadata is used for a preliminary change signal
+- discovery strategy for the dated amphitheatre CDN URL, whose generic probe
+  currently returns HTTP 403
 
 ### Publication governance
 

@@ -1,5 +1,10 @@
 # Source Manifest
 
+The deployable source IDs, URLs, transport types, document formats, parser
+profiles, and fixture mappings are maintained in
+`config/schedule-sources.json`. This manifest remains the human-readable
+inventory and records missing source families and structural observations.
+
 Complete this file when adding real source fixtures.
 
 ## Status values

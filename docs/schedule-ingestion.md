@@ -15,10 +15,11 @@ deterministic and avoids generating domain metadata inside infrastructure code.
 - delegates the API response to `GoogleSheetsSnapshotMapper`;
 - expects an authenticated `SheetsService` to be supplied by composition.
 
-The authentication composition is intentionally not fixed in this stage. When
-it is added, use the least-privilege
-`https://www.googleapis.com/auth/spreadsheets.readonly` scope and keep all
-credentials outside source control.
+`GoogleSheetsServiceFactory` supports either an offline OAuth refresh token or a
+service-account credential and always uses the least-privilege
+`https://www.googleapis.com/auth/spreadsheets.readonly` scope. Worker
+configuration binding and orchestration are not wired yet. Credentials remain
+outside source control.
 
 ## Preserved evidence
 
@@ -53,9 +54,23 @@ snapshot must still be persisted immutably whenever the hash is new.
 
 ## Remaining integration work
 
-Before real snapshots can be captured, the worker still needs:
+Production ingestion still needs:
 
-1. source configuration containing spreadsheet IDs and optional ranges;
-2. an authenticated `SheetsService` composition using read-only access;
-3. immutable snapshot persistence;
-4. polling and unchanged-source orchestration.
+1. worker binding for one unattended source credential mode;
+2. immutable snapshot persistence;
+3. polling and unchanged-source orchestration;
+4. Google Drive and HTTP acquisition adapters plus DOCX conversion.
+
+## Local XLSX fixture conversion
+
+`LocalXlsxSnapshotConverter` and `tools/Sirkadiyen.SnapshotTool` are development
+tools for turning collected `.xlsx` fixtures into the same normalized contract.
+They preserve typed and formatted values, formulas, legacy comments, number
+formats, merges, hidden dimensions, and frozen panes.
+
+The converter calculates a semantic used range from cell content, comments, and
+merge ranges. This deliberately drops formatting-only worksheet tails while
+retaining formatting evidence inside the meaningful boundary. It emits the
+`snapshot.local_xlsx_fixture` diagnostic so local fixtures cannot be mistaken
+for live API acquisitions. Workbooks using the Excel 1904 date system produce
+an error diagnostic until that date basis is explicitly supported.
