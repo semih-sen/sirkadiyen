@@ -6,7 +6,7 @@ This file is append-only. Do not erase historical decisions. Mark decisions as s
 
 ## ADR-001: Use a .NET primary backend
 
-**Status:** Accepted  
+**Status:** Accepted
 **Date:** 2026-07-21
 
 ### Context
@@ -193,3 +193,39 @@ The following require future ADRs:
 - automatic publication thresholds
 - profile schema and supported group combinations
 - snapshot retention policy
+
+---
+
+## ADR-009: Use a versioned normalized snapshot and parser JSON contract
+
+**Status:** Accepted
+**Date:** 2026-07-21
+
+### Context
+
+The inspected spreadsheet families contain Excel date serials, fractional time
+values, merged headings, formatting-dependent structure, multiple meaningful
+worksheets, and separate lookup tables. Sending only displayed cell text would
+lose evidence and make deterministic parsing unreliable.
+
+### Decision
+
+Use an explicit versioned JSON contract between .NET ingestion and the Python
+parser.
+
+- JSON properties use camel case and enums use camel-case strings.
+- Worksheet coordinates are zero-based and range ends are exclusive.
+- Snapshots preserve user-entered, effective typed, formula, formatted, note,
+  merge, hidden-dimension, and relevant formatting data.
+- Parser responses echo correlation and source identifiers and include canonical
+  candidates, evidence, warnings, metrics, and confidence indicators.
+- Transport contract versions and parser-profile versions evolve independently.
+
+### Consequences
+
+- C# and Pydantic models must remain contract-compatible.
+- Contract serialization requires regression tests.
+- Snapshot payloads are larger than value-only grids.
+- Acquisition may use sparse cells but must retain structurally meaningful blank
+  cells.
+- Breaking wire changes require a new contract version.

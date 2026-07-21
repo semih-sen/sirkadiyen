@@ -31,7 +31,7 @@
 - [ ] Define Google connection model
 - [ ] Define schedule source model
 - [ ] Define immutable snapshot model
-- [ ] Define parser request and response contracts
+- [x] Define parser request and response contracts
 - [ ] Define canonical schedule model
 - [ ] Define schedule revision model
 - [ ] Define semantic diff model
@@ -73,7 +73,7 @@
 - [ ] Implement Google Sheets client
 - [ ] Implement value acquisition
 - [ ] Implement merge and metadata acquisition
-- [ ] Implement normalized snapshot contract
+- [x] Implement normalized snapshot contract
 - [ ] Implement snapshot hashing
 - [ ] Persist immutable snapshots
 - [ ] Add polling worker
@@ -180,8 +180,8 @@
 
 ## Current next action
 
-Reconcile the existing representative source files under `sheets/` with
-`sheets/source-manifest.md`, including known gaps and source-specific notes.
+Mirror the v1 snapshot and parser contracts with Pydantic models, then add a
+cross-language JSON fixture test and the initial parser profile registry.
 
-Then define the normalized snapshot contract and parser profile inventory from the
-actual fixtures, followed by the .NET and Python test foundations.
+In parallel with implementation, obtain and classify the fixtures listed as
+missing or unconfirmed in `sheets/source-manifest.md`.

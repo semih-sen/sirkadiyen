@@ -17,28 +17,28 @@ Validated
 
 | ID | Class | Language | Source type | Curriculum group | Semester | Fixture path | Parser profile | Status | Notes |
 |---|---:|---|---|---|---|---|---|---|---|
-| G1-TR-ANNUAL | 1 | TR | Annual | All | Annual |  | grade1_yearly_v1 | Missing | |
-| G1-TR-PRACTICE | 1 | TR | Practice | Dynamic | Annual |  | grade1_practice_v1 | Missing | |
-| G1-EN-ANNUAL | 1 | EN | Annual | All | Annual |  | grade1_yearly_v1 | Missing | |
-| G1-EN-PRACTICE | 1 | EN | Practice | Dynamic | Annual |  | grade1_practice_v1 | Missing | |
-| G1-ANATOMY | 1 | Dynamic | Anatomy practice | Dynamic | Annual |  | grade1_anatomy_v1 | Missing | |
-| G2-TR-ANNUAL | 2 | TR | Annual | All | Annual |  | grade2_yearly_v1 | Missing | |
-| G2-TR-PRACTICE | 2 | TR | Practice | Dynamic | Annual |  | grade2_practice_v1 | Missing | |
-| G2-EN-ANNUAL | 2 | EN | Annual | All | Annual |  | grade2_yearly_v1 | Missing | |
-| G2-EN-PRACTICE | 2 | EN | Practice | Dynamic | Annual |  | grade2_practice_v1 | Missing | |
+| G1-TR-ANNUAL | 1 | TR | Annual | All | Annual | `donem-1-tr/xlsx/2025-2026 D1 Türkçe Tıp Ders Programı.xlsx` | grade1_yearly_v1 | Collected | Worksheet `DÖNEM 1`, used range `A1:M942` |
+| G1-TR-PRACTICE | 1 | TR | Practice | Dynamic | Annual | `donem-1-tr/xlsx/2025-2026 Dönem 1 Türkçe Uygulama Tablosu (1).xlsx` | grade1_practice_v1 | Collected | Worksheet `Sayfa1`, used range `A1:N335` |
+| G1-EN-ANNUAL | 1 | EN | Annual | All | Annual | `donem-1-ing/xlsx/2025-2026 Term 1 Medicine Program in English Course Program.xlsx` | grade1_yearly_v1 | Collected | Main worksheet `CLASS 1`; separate location lookup worksheet exists |
+| G1-EN-PRACTICE | 1 | EN | Practice | Dynamic | Annual | `donem-1-ing/xlsx/2025-2026 Term 1 Medicine Program in English-Med. Skill Practices.xlsx` | grade1_practice_v1 | Collected | Worksheet `Sayfa1`, used range `A1:O278` |
+| G1-ANATOMY | 1 | Dynamic | Anatomy practice | Dynamic | Annual |  | grade1_anatomy_v1 | Missing | No confidently identified fixture |
+| G2-TR-ANNUAL | 2 | TR | Annual | All | Annual | `donem-2-tr/xlsx/2025-2026 Dönem 2 Türkçe Tıp Programı Ders Programı.xlsx` | grade2_yearly_v1 | Collected | Worksheet `DÖNEM 2`, used range `A1:G1157` |
+| G2-TR-PRACTICE | 2 | TR | Practice | Dynamic | Annual | `donem-2-tr/xlsx/2025-2026 Dönem 2 Türkçe Tıp Programı Uygulama Tablosu (1).xlsx` | grade2_practice_v1 | Collected | Worksheet `Sayfa1`, used range `A1:S265` |
+| G2-EN-ANNUAL | 2 | EN | Annual | All | Annual | `donem-2-ing/xlsx/2025-2026 Term 2 Medicine Program in English Course Program.....xlsx` | grade2_yearly_v1 | Collected | Worksheet `CLASS 2`, used range `A1:I1253` |
+| G2-EN-PRACTICE | 2 | EN | Practice | Dynamic | Annual | `donem-2-ing/xlsx/2024-2025 Term 2 Medicine Program in English PRACTICUM TABLE.xlsx` | grade2_practice_v1 | Collected | Fixture belongs to the prior academic year |
 | G2-ANATOMY-AUTUMN | 2 | Dynamic | Anatomy practice | Dynamic | Autumn |  | grade2_anatomy_autumn_v1 | Missing | |
 | G2-ANATOMY-SPRING | 2 | Dynamic | Anatomy practice | Dynamic | Spring |  | grade2_anatomy_spring_v1 | Missing | |
 | G2-VERTICAL | 2 | Dynamic | Vertical corridor | Dynamic | Annual |  | grade2_vertical_corridor_v1 | Missing | |
-| G3-TR-A-ANNUAL | 3 | TR | Annual | A | Annual |  | grade3_yearly_v1 | Missing | |
-| G3-TR-A-BEDSIDE | 3 | TR | Bedside practice | A | Annual |  | grade3_bedside_v1 | Missing | |
-| G3-TR-A-FACULTY | 3 | TR | Faculty practice | A | Annual |  | grade3_faculty_practice_v1 | Missing | |
-| G3-TR-B-ANNUAL | 3 | TR | Annual | B | Annual |  | grade3_yearly_v1 | Missing | |
-| G3-TR-B-BEDSIDE | 3 | TR | Bedside practice | B | Annual |  | grade3_bedside_v1 | Missing | |
-| G3-TR-B-FACULTY | 3 | TR | Faculty practice | B | Annual |  | grade3_faculty_practice_v1 | Missing | |
+| G3-TR-A-ANNUAL | 3 | TR | Annual | A | Annual | `donem-3-tr-A/2025-2026 Dönem 3 A Türkçe Tıp Ders Programı.xlsx` | grade3_yearly_v1 | Collected | Worksheet `A GRUBU`, used range `A1:G1283` |
+| G3-TR-A-BEDSIDE | 3 | TR | Bedside practice | A | Annual | `donem-3-tr-A/2025-2026 Dönem 3 HASTA BAŞI A GRUBU UYGULAMA KONULARI VE TABLOSU.docx` | grade3_bedside_v1 | Collected | DOCX reference only; normalized Google Sheets snapshot still required |
+| G3-TR-A-FACULTY | 3 | TR | Faculty practice | A | Annual | `donem-3-tr-A/Dönem 3 ÖĞRETİM ÜYESİ A GRUBU UYGULAMA TABLOSU VE KONULARI 2025-2026 (1).xlsx` | grade3_faculty_practice_v1 | Collected | Requires the separate practical-location lookup workbook in the same directory |
+| G3-TR-B-ANNUAL | 3 | TR | Annual | B | Annual | `donem-3-tr-B/2025-2026 Dönem 3 B Türkçe Tıp Ders Programı.xlsx` | grade3_yearly_v1 | Collected | Worksheet `B GRUBU`, used range `A1:H1287` |
+| G3-TR-B-BEDSIDE | 3 | TR | Bedside practice | B | Annual | `donem-3-tr-B/2025-2026 Dönem 3 HASTA BAŞI B GRUBU UYGULAMA KONULARI VE TABLOSU.docx` | grade3_bedside_v1 | Collected | DOCX reference only; normalized Google Sheets snapshot still required |
+| G3-TR-B-FACULTY | 3 | TR | Faculty practice | B | Annual | `donem-3-tr-B/Dönem 3 ÖĞRETİM ÜYESİ B GRUBU UYGULAMA TABLOSU VE KONULARI 2025-2026 (2).xlsx` | grade3_faculty_practice_v1 | Collected | Requires the separate practical-location lookup workbook in the same directory |
 | G3-EN-ANNUAL | 3 | EN | Annual | TBD | Annual |  | grade3_yearly_v1 | Missing | Confirm exact group layout |
 | G3-EN-BEDSIDE | 3 | EN | Bedside practice | TBD | Annual |  | grade3_bedside_v1 | Missing | Confirm exact group layout |
 | G3-EN-FACULTY | 3 | EN | Faculty practice | TBD | Annual |  | grade3_faculty_practice_v1 | Missing | Confirm exact group layout |
-| SHARED-AMPHI | Shared | Dynamic | Amphitheatre assignment | Dynamic | Weekly |  | weekly_amphitheatre_v1 | Missing | Enrichment source |
+| SHARED-AMPHI | Shared | Dynamic | Amphitheatre assignment | Dynamic | Weekly | `amfi/` | weekly_amphitheatre_v1 | Collected | Three weekly versions; room-oriented multi-worksheet layout |
 
 ## Questions to answer per fixture
 

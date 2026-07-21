@@ -18,6 +18,13 @@ parser implementation exists yet.
 - Added a minimal API health endpoint and cancellable worker host.
 - Verified a Release build with zero warnings and zero errors.
 - Verified formatting with `dotnet format --verify-no-changes`.
+- Reconciled the source manifest with all currently identifiable fixtures.
+- Inspected all 17 XLSX fixtures and documented the annual, practice, and weekly
+  amphitheatre structural families and known fixture gaps.
+- Added the v1 normalized spreadsheet snapshot and parser request/response
+  contracts.
+- Added camel-case JSON serialization with camel-case string enums.
+- Added the first .NET unit test project and contract serialization tests.
 
 ## Current confirmed requirements
 
@@ -37,12 +44,12 @@ parser implementation exists yet.
 
 ## Immediate objectives
 
-1. Reconcile `sheets/source-manifest.md` with the fixtures already under `sheets/`.
-2. Define the normalized Google Sheets snapshot contract.
-3. Define the parser HTTP request and response contracts.
-4. Define the initial canonical schedule schema.
-5. Establish .NET unit and architecture test projects.
-6. Add the Python parser service and test foundations.
+1. Mirror the v1 parser contract in Pydantic and add cross-language fixture tests.
+2. Add the Python parser service, profile registry, and golden-file test harness.
+3. Define the initial canonical schedule domain schema.
+4. Establish .NET architecture tests.
+5. Classify the unconfirmed Grade 1 anatomy and Grade 2 special-program fixtures.
+6. Acquire missing Grade 3 English and raw bedside Google Sheets fixtures.
 7. Add Docker Compose for PostgreSQL and Redis development dependencies.
 8. Add CI quality gates.
 9. Decide frontend technology and authentication session flow before frontend work.

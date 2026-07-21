@@ -7,4 +7,7 @@
     <Project Path="src/Sirkadiyen.Infrastructure/Sirkadiyen.Infrastructure.csproj" />
     <Project Path="src/Sirkadiyen.Worker/Sirkadiyen.Worker.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Sirkadiyen.Contracts.UnitTests/Sirkadiyen.Contracts.UnitTests.csproj" />
+  </Folder>
 </Solution>
