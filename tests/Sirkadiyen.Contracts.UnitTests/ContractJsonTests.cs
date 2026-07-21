@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Sirkadiyen.Contracts.Parsing;
 using Sirkadiyen.Contracts.Serialization;
 using Sirkadiyen.Contracts.Spreadsheets;
 using Xunit;
@@ -32,6 +33,28 @@ public sealed class ContractJsonTests
         Assert.Contains("\"contractVersion\":\"1.0\"", json, StringComparison.Ordinal);
         Assert.Contains("\"kind\":\"number\"", json, StringComparison.Ordinal);
         Assert.DoesNotContain("\"ContractVersion\"", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void SharedParserRequestFixtureIsAccepted()
+    {
+        string fixturePath = Path.Combine(
+            AppContext.BaseDirectory,
+            "contracts",
+            "v1",
+            "parse-request.json");
+        string json = File.ReadAllText(fixturePath);
+
+        ParseSnapshotRequest? request = JsonSerializer.Deserialize<ParseSnapshotRequest>(
+            json,
+            ContractJson.CreateOptions());
+
+        Assert.NotNull(request);
+        Assert.Equal("G2-ANATOMY-AUTUMN", request.Snapshot.SourceId);
+        Assert.Equal("grade2_anatomy_autumn_v1", request.ParserProfile.Name);
+        Assert.Equal(
+            CellScalarKind.Number,
+            Assert.Single(Assert.Single(request.Snapshot.Worksheets).Cells).EffectiveValue?.Kind);
     }
 
     private static NormalizedSpreadsheetSnapshot CreateSnapshot() => new()

@@ -229,3 +229,38 @@ parser.
 - Acquisition may use sparse cells but must retain structurally meaningful blank
   cells.
 - Breaking wire changes require a new contract version.
+
+---
+
+## ADR-010: Model anatomy group independently from general practice group
+
+**Status:** Accepted
+**Date:** 2026-07-21
+
+### Context
+
+First- and second-year students have an anatomy assignment that does not follow
+their normal practice-group assignment. The confirmed Grade 2 autumn and spring
+source lists rotate anatomy groups `1`, `2`, and `3`. The Grade 1 anatomy source
+uses the same or a very similar grouping model.
+
+### Decision
+
+Represent anatomy group as an independent student-profile and schedule-audience
+dimension with supported values `1`, `2`, and `3` for the confirmed Grade 1 and
+Grade 2 model.
+
+Grade 2 anatomy and vertical-corridor sources apply to both Turkish and English
+programs. During source joining, `Diseksiyon` identifies anatomy entries in the
+annual program, while `Uygulama` identifies vertical-corridor and other practice
+entries that require source-specific disambiguation.
+
+### Consequences
+
+- General practice group must never be reused as anatomy group.
+- Profile validation must request and validate anatomy group separately.
+- Audience selectors need an `anatomyGroup` dimension.
+- Annual and special-program sources must enrich the same logical lesson rather
+  than publish duplicates.
+- `Uygulama` alone is insufficient to identify vertical-corridor lessons; parser
+  profile context and joined evidence are required.

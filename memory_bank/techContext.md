@@ -86,10 +86,10 @@ Preferred baseline:
 
 ### Runtime
 
-- Python 3.13 or current repository-pinned supported version
-- FastAPI
-- Pydantic
-- Uvicorn
+- Python 3.13
+- FastAPI 0.139.2
+- Pydantic 2.13.4
+- Uvicorn 0.51.0
 
 ### Supporting libraries
 
@@ -106,9 +106,10 @@ The parser should generally receive a normalized snapshot contract from .NET rat
 
 ### Quality tooling
 
-- Ruff
-- MyPy
-- Pytest
+- Ruff 0.15.22
+- MyPy 2.3.0
+- Pytest 9.1.1
+- HTTPX2 2.7.0 for ASGI test clients
 - coverage
 - golden-file tests
 

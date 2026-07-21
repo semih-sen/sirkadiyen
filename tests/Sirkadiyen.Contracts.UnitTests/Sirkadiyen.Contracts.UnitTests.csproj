@@ -18,4 +18,9 @@
   <ItemGroup>
     <ProjectReference Include="../../src/Sirkadiyen.Contracts/Sirkadiyen.Contracts.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="../contracts/v1/parse-request.json" Link="contracts/v1/parse-request.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>

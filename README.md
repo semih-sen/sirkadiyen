@@ -76,8 +76,10 @@ The .NET 10 solution foundation is initialized with the following projects:
 - `Sirkadiyen.Api`
 - `Sirkadiyen.Worker`
 
-The API currently exposes `GET /health`. Business capabilities, persistence,
-Google integrations, and the Python parser have not been implemented yet.
+The API currently exposes `GET /health`. The Python parser service foundation,
+versioned transport models, and profile registry exist, but actual parser
+profiles are not implemented yet. Business capabilities, persistence, and Google
+integrations have not been implemented.
 
 ## Local development
 
@@ -99,3 +101,5 @@ dotnet run --project src/Sirkadiyen.Worker
 
 Copy `.env.example` to a local untracked environment file when configuration is
 introduced. Never commit real credentials or tokens.
+
+Parser setup and commands are documented in `src/parser/README.md`.

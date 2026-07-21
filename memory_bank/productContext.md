@@ -162,6 +162,11 @@ Conditional fields may include:
 - faculty-member practice group
 - elective selections
 
+Anatomy group is a separate profile dimension from the general practice group.
+For the confirmed first- and second-year model it uses values `1`, `2`, and `3`.
+The same anatomy and vertical-corridor source schedules may apply to both Turkish
+and English programs.
+
 The frontend should request only fields applicable to the selected class year and program.
 
 The backend must validate every combination against supported options.

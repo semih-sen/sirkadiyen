@@ -1,0 +1,38 @@
+{
+  "contractVersion": "1.0",
+  "correlationId": "correlation-001",
+  "parserProfile": {
+    "name": "grade2_anatomy_autumn_v1",
+    "version": "1.0.0"
+  },
+  "snapshot": {
+    "contractVersion": "1.0",
+    "sourceId": "G2-ANATOMY-AUTUMN",
+    "snapshotId": "snapshot-001",
+    "spreadsheetId": "spreadsheet-001",
+    "acquiredAtUtc": "2026-07-21T09:00:00Z",
+    "contentHash": "sha256:example",
+    "contentHashAlgorithm": "SHA-256",
+    "worksheets": [
+      {
+        "sheetId": "sheet-001",
+        "title": "Anatomi Güz",
+        "index": 0,
+        "rowCount": 49,
+        "columnCount": 3,
+        "cells": [
+          {
+            "rowIndex": 1,
+            "columnIndex": 2,
+            "a1Address": "C2",
+            "effectiveValue": {
+              "kind": "number",
+              "numberValue": 1
+            },
+            "formattedValue": "1"
+          }
+        ]
+      }
+    ]
+  }
+}

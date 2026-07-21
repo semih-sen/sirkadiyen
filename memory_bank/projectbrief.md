@@ -55,6 +55,14 @@ Initially:
 - anatomy spring program
 - vertical corridor practice program
 
+The anatomy and vertical-corridor sources are shared by Turkish and English
+students. Anatomy groups are numbered `1`, `2`, and `3` and are independent from
+the normal practice group. Anatomy entries appear as `Diseksiyon` in the annual
+program; vertical-corridor and other practice entries appear as `Uygulama`.
+
+The first-year anatomy grouping follows the same or a very similar `1`/`2`/`3`
+model and is also independent from the normal practice group.
+
 ### Third year
 
 For each supported Turkish or English curriculum group:

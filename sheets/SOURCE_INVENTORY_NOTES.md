@@ -52,14 +52,28 @@ and the requested week before producing enrichment candidates.
 ## Known gaps
 
 - No Grade 1 anatomy-practice fixture has been confidently identified.
-- Grade 2 anatomy autumn, anatomy spring, and vertical-corridor fixtures remain
-  unclassified. Several DOCX files are candidates but require source-owner
-  confirmation.
 - Grade 3 English annual, bedside, and faculty-practice fixtures are missing.
 - Grade 3 bedside fixtures currently exist only as DOCX references; raw Google
   Sheets snapshots are still needed.
 - The Grade 2 English practice fixture is from academic year 2024-2025 while the
   other primary fixtures are mostly 2025-2026.
+
+## Confirmed Grade 1 and Grade 2 special-program rules
+
+- Grade 2 autumn and spring `SALON GRUP SAATLERİ` documents are the anatomy
+  group lists.
+- Anatomy groups are `1`, `2`, and `3` and are independent from a student's
+  normal practice group.
+- Grade 1 anatomy uses the same or a very similar structural model and the same
+  independent `1`/`2`/`3` grouping scheme.
+- Anatomy lessons are represented as `Diseksiyon` in the annual program.
+- Grade 2 `Beceri uygulama takvimi` documents are the vertical-corridor program.
+- Vertical-corridor and other practice lessons are represented as `Uygulama` in
+  the annual program.
+- The Grade 2 anatomy and vertical-corridor sources apply to both Turkish and
+  English programs.
+- The special-program documents enrich or disambiguate annual-program entries;
+  they must not create duplicate logical lessons when joined.
 
 ## Parser implications
 

@@ -81,9 +81,9 @@
 
 ## Phase 5: Python parser foundation
 
-- [ ] Initialize FastAPI parser service
-- [ ] Add Pydantic contracts
-- [ ] Add parser registry
+- [x] Initialize FastAPI parser service
+- [x] Add Pydantic contracts
+- [x] Add parser registry
 - [ ] Add shared cell normalization
 - [ ] Add merged-cell expansion
 - [ ] Add date resolver
@@ -180,8 +180,9 @@
 
 ## Current next action
 
-Mirror the v1 snapshot and parser contracts with Pydantic models, then add a
-cross-language JSON fixture test and the initial parser profile registry.
+Add shared normalization primitives and the golden-file test harness, then
+implement the first fixture-backed annual and practice parser profiles.
 
-In parallel with implementation, obtain and classify the fixtures listed as
-missing or unconfirmed in `sheets/source-manifest.md`.
+In parallel with implementation, obtain raw Google Sheets snapshots for the
+DOCX-only source references and the fixtures still listed as missing in
+`sheets/source-manifest.md`.

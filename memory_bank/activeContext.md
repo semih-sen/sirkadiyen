@@ -25,6 +25,14 @@ parser implementation exists yet.
   contracts.
 - Added camel-case JSON serialization with camel-case string enums.
 - Added the first .NET unit test project and contract serialization tests.
+- Confirmed the Grade 2 anatomy and vertical-corridor DOCX source families and
+  recorded their cross-program and annual-program matching rules.
+- Added the Python 3.13 FastAPI parser service foundation and strict Pydantic v1
+  transport models mirroring the C# contracts.
+- Added the versioned parser profile registry, including independent
+  `anatomyGroup` selectors and annual `Diseksiyon`/`Uygulama` markers.
+- Added a shared JSON fixture validated by both .NET and Python tests.
+- Added Ruff, Mypy, pytest, and HTTP endpoint quality gates.
 
 ## Current confirmed requirements
 
@@ -41,14 +49,20 @@ parser implementation exists yet.
 - only changed calendar events should be modified
 - source formats are irregular and require specialized parser profiles
 - raw source fixtures will be placed under `sheets/`
+- first- and second-year anatomy groups use `1`, `2`, and `3`
+- anatomy group is independent from the normal practice group
+- second-year anatomy and vertical-corridor schedules are shared by Turkish and English programs
+- annual programs label anatomy lessons as `Diseksiyon`
+- annual programs label vertical-corridor and other practice lessons as `Uygulama`
 
 ## Immediate objectives
 
-1. Mirror the v1 parser contract in Pydantic and add cross-language fixture tests.
-2. Add the Python parser service, profile registry, and golden-file test harness.
+1. Add shared parser normalization primitives and the golden-file test harness.
+2. Implement the first fixture-backed annual and practice parser profiles.
 3. Define the initial canonical schedule domain schema.
 4. Establish .NET architecture tests.
-5. Classify the unconfirmed Grade 1 anatomy and Grade 2 special-program fixtures.
+5. Acquire the missing Grade 1 anatomy fixture and raw Google Sheets snapshots
+   for DOCX-only source references.
 6. Acquire missing Grade 3 English and raw bedside Google Sheets fixtures.
 7. Add Docker Compose for PostgreSQL and Redis development dependencies.
 8. Add CI quality gates.

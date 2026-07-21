@@ -11,6 +11,7 @@ __pycache__/
 .ruff_cache/
 .venv/
 *.py[cod]
+*.egg-info/
 
 ## Frontend
 node_modules/
