@@ -78,8 +78,11 @@ The .NET 10 solution foundation is initialized with the following projects:
 
 The API currently exposes `GET /health`. The Python parser service foundation,
 versioned transport models, and profile registry exist, but actual parser
-profiles are not implemented yet. Business capabilities, persistence, and Google
-integrations have not been implemented.
+profiles are not implemented yet. The .NET ingestion layer can acquire a Google
+Sheets v4 response and deterministically normalize values, formulas, formatting,
+merges, and hidden dimensions into the snapshot contract. Authentication,
+snapshot persistence, polling, and the remaining business capabilities are not
+implemented yet.
 
 ## Local development
 

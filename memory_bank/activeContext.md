@@ -2,13 +2,28 @@
 
 ## Current phase
 
-Repository foundation and architecture definition.
+Source ingestion foundation.
 
-The initial .NET 10 solution and accepted clean-layer project boundaries now exist.
-No production business capability, persistence, external integration, frontend, or
-parser implementation exists yet.
+The initial .NET 10 solution and clean-layer project boundaries exist. The
+Google Sheets response-to-normalized-snapshot production path is implemented,
+but authentication composition, persistence, polling, frontend, and production
+parser profiles do not exist yet.
 
 ## Latest implementation session
+
+- Added the application-layer `ISpreadsheetSnapshotAcquirer` port with explicit
+  source, snapshot, spreadsheet, acquisition-time, and range inputs.
+- Added the Google Sheets v4 production adapter and pinned
+  `Google.Apis.Sheets.v4` 1.75.0.4178.
+- Added deterministic normalization of typed values, formulas, notes, effective
+  formatting, merges, hidden dimensions, sparse cells, requested ranges, and A1
+  evidence addresses.
+- Added overlap-conflict diagnostics and SHA-256 content hashing over normalized
+  content plus acquisition diagnostics (ADR-014).
+- Added a dedicated infrastructure test project with six mapper/hash regression
+  tests; the Release build and all nine .NET tests pass.
+
+## Previous parser implementation session
 
 - Added the shared parser normalization primitives under
   `src/parser/sirkadiyen_parser/normalization/`: text folding and identity keys,
@@ -77,24 +92,24 @@ parser implementation exists yet.
 
 ## Immediate objectives
 
-1. Decide how to obtain normalized snapshot JSON for the existing fixtures, so
-   parser profiles can be written against real source structure. Either
-   implement the .NET Google Sheets acquisition path, or add a clearly separated
-   local `.xlsx` to snapshot development converter. This currently blocks all
-   fixture-backed profile work.
-2. Implement the first fixture-backed annual and practice parser profiles.
-3. Define the initial canonical schedule domain schema.
-4. Establish .NET architecture tests.
-5. Acquire the missing Grade 1 anatomy fixture and raw Google Sheets snapshots
+1. Compose an authenticated, read-only Google `SheetsService` in the worker and
+   configure real source spreadsheet IDs and ranges without committing secrets.
+2. Capture and persist the first immutable normalized annual and practice
+   snapshots. If live access is unavailable, add a local-only `.xlsx` fixture
+   converter to unblock parser work.
+3. Implement the first fixture-backed annual and practice parser profiles.
+4. Define the initial canonical schedule domain schema.
+5. Establish .NET architecture tests.
+6. Acquire the missing Grade 1 anatomy fixture and raw Google Sheets snapshots
    for DOCX-only source references.
-6. Acquire missing Grade 3 English and raw bedside Google Sheets fixtures.
-7. Add Docker Compose for PostgreSQL and Redis development dependencies.
-8. Add CI quality gates.
-9. Decide frontend technology and authentication session flow before frontend work.
-10. Define domain entities and state machines.
-11. Define license redemption rules.
-12. Define initial synchronization workflow.
-13. Decide the Google managed-calendar strategy.
+7. Acquire missing Grade 3 English and raw bedside Google Sheets fixtures.
+8. Add Docker Compose for PostgreSQL and Redis development dependencies.
+9. Add CI quality gates.
+10. Decide frontend technology and authentication session flow before frontend work.
+11. Define domain entities and state machines.
+12. Define license redemption rules.
+13. Define initial synchronization workflow.
+14. Decide the Google managed-calendar strategy.
 
 ## Important unresolved decisions
 

@@ -173,6 +173,11 @@ Used by the .NET ingestion layer for:
 - merged ranges
 - relevant formatting or grid information
 
+The production adapter uses `Google.Apis.Sheets.v4` version `1.75.0.4178` and
+must be composed with the read-only spreadsheets scope. Authentication
+composition remains a worker/infrastructure concern and is not owned by the
+snapshot mapper.
+
 ### Google Calendar API
 
 Used by .NET for:

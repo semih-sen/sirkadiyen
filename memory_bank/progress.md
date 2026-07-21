@@ -70,11 +70,11 @@
 - [ ] Add third-year source fixtures
 - [ ] Add weekly amphitheatre fixtures
 - [ ] Document every source
-- [ ] Implement Google Sheets client
-- [ ] Implement value acquisition
-- [ ] Implement merge and metadata acquisition
+- [x] Implement Google Sheets client
+- [x] Implement value acquisition
+- [x] Implement merge and metadata acquisition
 - [x] Implement normalized snapshot contract
-- [ ] Implement snapshot hashing
+- [x] Implement snapshot hashing
 - [ ] Persist immutable snapshots
 - [ ] Add polling worker
 - [ ] Add unchanged-source short circuit
@@ -180,21 +180,18 @@
 
 ## Current next action
 
-Implementing the first fixture-backed annual and practice parser profiles is
-**blocked**: profiles need normalized snapshot JSON, and nothing produces it yet.
-The `sheets/` fixtures are `.xlsx` and `.docx`, not snapshots.
+The production Google Sheets response-to-snapshot path now exists, including
+deterministic content hashing. Capturing the first real normalized snapshot is
+**blocked on external configuration**: the repository does not contain source
+spreadsheet IDs or Google credentials, and credentials must not be committed.
 
-Unblock it by choosing one of:
+Next, compose the authenticated read-only `SheetsService` in the worker, add
+source configuration, and capture immutable snapshots for the collected annual
+and practice sources. If access to the live sources is not yet available, add a
+strictly local `.xlsx` fixture converter instead so profile development can
+proceed without turning that converter into a production acquisition path.
 
-1. implement the .NET Google Sheets acquisition path and capture real snapshots,
-   which is the production path and also closes Phase 4, or
-2. add a local development converter from an `.xlsx` fixture to a normalized
-   snapshot, which unblocks profile work sooner but is not the production path
-   and must not become one.
-
-Then implement the first annual and practice profiles against those snapshots,
-using the shared primitives and the golden-file harness that now exist.
-
-In parallel, obtain raw Google Sheets snapshots for the DOCX-only source
-references and the fixtures still listed as missing in
+Then implement the first annual and practice profiles using the shared
+primitives and golden-file harness. In parallel, obtain raw Google Sheets
+snapshots for the DOCX-only and still-missing sources in
 `sheets/source-manifest.md`.

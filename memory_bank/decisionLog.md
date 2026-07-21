@@ -368,3 +368,49 @@ names while still serializing camel case.
 - The wire format is unchanged in both directions.
 - Tests construct snapshot models through the same camel-case validation path a
   real producer would use.
+
+---
+
+## ADR-014: Normalize Google Sheets responses before hashing
+
+**Status:** Accepted
+**Date:** 2026-07-21
+
+### Context
+
+Parser profiles require normalized snapshot JSON, but the production acquisition
+path did not exist. Google Sheets responses can return sparse and offset grid
+segments, repeated cells from overlapping ranges, typed and formatted values,
+merge metadata, and hidden dimensions. Hashing the raw response would couple
+change detection to API response order and incidental acquisition metadata.
+
+### Decision
+
+The .NET infrastructure layer uses the official Google Sheets v4 client and maps
+responses into the v1 normalized snapshot contract before calculating a hash.
+
+- The application port receives snapshot identity and acquisition time from its
+  caller; infrastructure does not invent them.
+- Worksheets, merges, cells, dimensions, and requested ranges are put in a
+  deterministic order.
+- Identical repeated cells are deduplicated. Conflicting repeated cells are
+  omitted and produce an error diagnostic, so API response order cannot choose
+  an arbitrary value and the conflict is never silently accepted.
+- Theme colors remain explicit as `theme:{name}` when no resolved RGB value is
+  available.
+- The lowercase `sha256:` hash covers contract version, normalized worksheets,
+  and acquisition diagnostics, but excludes source ID, snapshot ID, and
+  acquisition time.
+- Authentication is supplied at composition time and must use the read-only
+  spreadsheets scope; credentials never enter snapshot mapping.
+
+### Consequences
+
+- Reacquiring identical content produces the same content hash even when API
+  collections or acquisition metadata differ.
+- Structural, range-scope, cell-content, formatting, and diagnostic changes are
+  detectable by the future polling workflow.
+- Real snapshot capture still requires source configuration, authenticated
+  worker composition, and immutable persistence.
+- The local `.xlsx` fixtures remain unable to drive profiles until live snapshots
+  are captured or a clearly separated development converter is added.
