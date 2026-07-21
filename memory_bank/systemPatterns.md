@@ -1,0 +1,429 @@
+# System Patterns
+
+## 1. Overall architecture
+
+Sirkadiyen uses a modular monolith for the primary .NET system, plus an isolated Python parsing service.
+
+```text
+Frontend
+   │
+   ▼
+ASP.NET Core API
+   │
+   ├── Application layer
+   ├── Domain layer
+   ├── Infrastructure layer
+   └── PostgreSQL
+          │
+          ▼
+      Background jobs
+          │
+          ├── Google Sheets
+          ├── Python Parser
+          └── Google Calendar
+```
+
+The architecture should remain deployable as a small number of containers while preserving clean module boundaries.
+
+## 2. .NET project boundaries
+
+Recommended projects:
+
+```text
+Sirkadiyen.Api
+Sirkadiyen.Application
+Sirkadiyen.Domain
+Sirkadiyen.Infrastructure
+Sirkadiyen.Worker
+Sirkadiyen.Contracts
+```
+
+### Domain
+
+Contains:
+
+- entities
+- value objects
+- domain services
+- domain rules
+- domain events
+- repository abstractions only where justified
+
+Must not reference:
+
+- ASP.NET Core
+- Entity Framework Core
+- Google SDKs
+- Redis
+- Hangfire
+- HTTP clients
+
+### Application
+
+Contains:
+
+- use cases
+- commands and queries
+- validation
+- authorization policies
+- orchestration
+- interfaces for infrastructure services
+- transaction boundaries
+
+### Infrastructure
+
+Contains:
+
+- EF Core
+- PostgreSQL implementation
+- Google API adapters
+- token encryption
+- Redis
+- Hangfire persistence
+- parser HTTP client
+- system clock
+- external service implementations
+
+### API
+
+Contains:
+
+- HTTP endpoints
+- authentication middleware
+- request mapping
+- response mapping
+- API-level exception translation
+- OpenAPI configuration
+
+Controllers or endpoints must be thin.
+
+### Worker
+
+Contains:
+
+- scheduled jobs
+- queue consumers
+- retry orchestration
+- source polling
+- parsing pipeline execution
+- calendar sync execution
+- reconciliation jobs
+
+## 3. Main modules
+
+Suggested logical modules:
+
+```text
+Identity
+Licensing
+StudentProfiles
+GoogleConnections
+ScheduleSources
+ScheduleIngestion
+ScheduleParsing
+SchedulePublication
+ScheduleDiffing
+CalendarSynchronization
+Administration
+Observability
+```
+
+Cross-module access should use application interfaces or explicit contracts, not arbitrary database access.
+
+## 4. Source ingestion pattern
+
+```text
+Poll source
+→ fetch values and structural metadata
+→ normalize transport representation
+→ calculate snapshot hash
+→ if unchanged, stop
+→ persist immutable snapshot
+→ enqueue parse job
+```
+
+A source poll result must distinguish:
+
+- unchanged
+- changed
+- unavailable
+- unauthorized
+- malformed
+- rate-limited
+
+## 5. Snapshot pattern
+
+A source snapshot is immutable and includes:
+
+- source ID
+- acquisition timestamp
+- spreadsheet ID
+- sheet identifiers
+- requested ranges
+- raw values
+- merge metadata
+- relevant formatting metadata
+- normalized transport payload
+- snapshot hash
+- acquisition diagnostics
+
+The snapshot is evidence. Never rewrite it after parsing.
+
+## 6. Parser profile pattern
+
+Parser behavior must be selected through a named, versioned parser profile.
+
+Examples:
+
+```text
+grade1_yearly_v1
+grade1_practice_v1
+grade2_anatomy_fall_v1
+grade2_vertical_corridor_v1
+grade3_bedside_v1
+grade3_faculty_practice_v1
+weekly_amphitheatre_v1
+```
+
+A parser profile may contain:
+
+- structural detector
+- header aliases
+- date propagation rules
+- time-slot rules
+- group syntax rules
+- ignored region rules
+- enrichment behavior
+- validation thresholds
+
+Do not branch primarily on spreadsheet ID inside general parser code. Spreadsheet IDs belong in configuration; parser profiles describe structure.
+
+## 7. Canonical schedule pattern
+
+The canonical model isolates business logic from source layout.
+
+Core concepts:
+
+```text
+CanonicalScheduleRecord
+ScheduleAudience
+ScheduleLocation
+ScheduleInstructor
+SourceEvidence
+StableIdentity
+ContentHash
+ScheduleRevision
+```
+
+The model should support field-level provenance where practical.
+
+## 8. Stable identity pattern
+
+A stable identity identifies the logical lesson across revisions.
+
+It must not depend solely on:
+
+- spreadsheet row number
+- cell address
+- parser output index
+- Google event ID
+
+Identity generation should use normalized academic and lesson attributes.
+
+When exact identity is not possible, the diff engine may use deterministic weighted matching.
+
+Ambiguous matches must remain ambiguous.
+
+## 9. Revision pattern
+
+Every successful parse creates a candidate revision.
+
+Revision states:
+
+```text
+Received
+Parsing
+Parsed
+Validating
+ReviewRequired
+Published
+Rejected
+Failed
+Superseded
+```
+
+Only one published revision per source scope should be current.
+
+Publishing a revision must be transactional.
+
+## 10. Validation pattern
+
+Validation has multiple levels:
+
+### Record validation
+
+Examples:
+
+- date exists
+- start precedes end
+- supported group syntax
+- supported class year
+- valid event type
+
+### Revision validation
+
+Examples:
+
+- event count anomaly
+- deletion ratio
+- date distribution anomaly
+- excessive ambiguity
+- overlap anomaly
+- sudden unknown-course increase
+
+### Cross-source validation
+
+Examples:
+
+- room enrichment references no annual lesson
+- practice program conflicts with annual program
+- group appears in unsupported program
+
+## 11. Semantic diff pattern
+
+Diff uses:
+
+1. exact stable identity match
+2. content hash comparison
+3. deterministic secondary matching for unmatched records
+4. ambiguity quarantine
+
+Output:
+
+```text
+Created
+Updated
+Deleted
+Unchanged
+Ambiguous
+```
+
+Deletion is produced only from a valid published revision.
+
+## 12. Audience resolution pattern
+
+A canonical record contains an audience expression.
+
+Examples:
+
+```text
+All grade 2 Turkish students
+Grade 3 Turkish curriculum group A
+Grade 2 anatomy group C2
+Grade 3 English bedside group B4
+```
+
+Audience resolution converts a schedule change into affected users.
+
+Do not enqueue every active user for every change.
+
+## 13. Calendar event mapping pattern
+
+The database maintains a durable mapping:
+
+```text
+User
+CanonicalScheduleRecord
+GoogleCalendar
+GoogleEventId
+LastAppliedContentHash
+SyncState
+```
+
+This mapping is the primary path for updates.
+
+Google private extended properties provide repair and reconciliation support.
+
+## 14. Idempotent job pattern
+
+Every externally mutating job must have an idempotency key.
+
+Examples:
+
+```text
+initial-sync:{userId}:{profileVersion}
+calendar-upsert:{userId}:{recordId}:{contentHash}
+calendar-delete:{userId}:{recordId}:{publishedRevisionId}
+license-redeem:{userId}:{licenseId}
+```
+
+Jobs must tolerate duplicate delivery.
+
+## 15. Outbox pattern
+
+Use a transactional outbox for events that must be published after database state changes.
+
+Examples:
+
+- revision published
+- schedule diff created
+- affected users resolved
+- initial sync requested
+- user profile changed
+
+The transaction writes domain state and outbox records together. A worker dispatches outbox messages.
+
+## 16. Reconciliation pattern
+
+Routine synchronization is event-driven from schedule diffs.
+
+A separate reconciliation job periodically checks:
+
+- expected managed events
+- stored mappings
+- actual Google events
+- missing or duplicated events
+- deleted calendars
+- stale content hashes
+
+Reconciliation repairs drift. It must not replace the normal incremental sync flow.
+
+## 17. Error classification pattern
+
+Classify failures:
+
+```text
+TransientExternal
+PermanentExternal
+AuthorizationRequired
+ValidationFailure
+ParserFailure
+ConcurrencyConflict
+ConfigurationError
+UnexpectedInternal
+```
+
+Retry only failures that are plausibly transient.
+
+## 18. Time pattern
+
+- Store instants in UTC.
+- Interpret faculty schedules in `Europe/Istanbul`.
+- Store local schedule date and local time explicitly where useful.
+- Convert to Google Calendar timestamps using an explicit timezone.
+- Inject a clock abstraction.
+- Test daylight and date-boundary behavior even though Türkiye currently uses fixed UTC+3.
+
+## 19. Audit pattern
+
+Audit at least:
+
+- license creation, redemption, revocation
+- role changes
+- profile changes
+- source configuration changes
+- revision publication or rejection
+- manual retry or repair actions
+- calendar destructive operations
+
+Audit entries must be append-only from the application perspective.

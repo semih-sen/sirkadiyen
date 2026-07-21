@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Sirkadiyen.Application/Sirkadiyen.Application.csproj" />
+    <ProjectReference Include="../Sirkadiyen.Contracts/Sirkadiyen.Contracts.csproj" />
+    <ProjectReference Include="../Sirkadiyen.Infrastructure/Sirkadiyen.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

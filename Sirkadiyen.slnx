@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Sirkadiyen.Api/Sirkadiyen.Api.csproj" />
+    <Project Path="src/Sirkadiyen.Application/Sirkadiyen.Application.csproj" />
+    <Project Path="src/Sirkadiyen.Contracts/Sirkadiyen.Contracts.csproj" />
+    <Project Path="src/Sirkadiyen.Domain/Sirkadiyen.Domain.csproj" />
+    <Project Path="src/Sirkadiyen.Infrastructure/Sirkadiyen.Infrastructure.csproj" />
+    <Project Path="src/Sirkadiyen.Worker/Sirkadiyen.Worker.csproj" />
+  </Folder>
+</Solution>

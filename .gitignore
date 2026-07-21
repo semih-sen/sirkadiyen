@@ -1,0 +1,30 @@
+## .NET
+**/bin/
+**/obj/
+*.user
+*.suo
+
+## Python
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+*.py[cod]
+
+## Frontend
+node_modules/
+.next/
+coverage/
+
+## Local configuration and secrets
+.env
+.env.*
+!.env.example
+appsettings.Development.local.json
+
+## IDE and operating system
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

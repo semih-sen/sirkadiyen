@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../Sirkadiyen.Application/Sirkadiyen.Application.csproj" />
+    <ProjectReference Include="../Sirkadiyen.Contracts/Sirkadiyen.Contracts.csproj" />
+    <ProjectReference Include="../Sirkadiyen.Domain/Sirkadiyen.Domain.csproj" />
+  </ItemGroup>
+</Project>
