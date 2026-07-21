@@ -204,6 +204,11 @@ A parser profile may contain:
 
 Do not branch primarily on spreadsheet ID inside general parser code. Spreadsheet IDs belong in configuration; parser profiles describe structure.
 
+A profile describes structure only. Academic year, class year, program language
+and interpretation timezone arrive with the parse request as source context
+(ADR-017), so one profile serves several sources and never infers what the
+workbook does not state.
+
 ## 7. Canonical schedule pattern
 
 The canonical model isolates business logic from source layout.
@@ -236,7 +241,16 @@ It must not depend solely on:
 
 Identity generation should use normalized academic and lesson attributes.
 
+The annual profiles hash academic year, class year, program language, local
+date, local start time, and normalized course identity, in that order (ADR-018).
+Instructor, location, curriculum block, end time and title formatting are
+content, not identity.
+
 When exact identity is not possible, the diff engine may use deterministic weighted matching.
+
+Because start time is part of identity, a rescheduled lesson reaches the diff
+engine as an unmatched pair. Secondary matching must recognize it, otherwise a
+time change becomes a delete and a create.
 
 Ambiguous matches must remain ambiguous.
 

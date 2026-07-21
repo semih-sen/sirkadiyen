@@ -57,6 +57,41 @@ public sealed class ContractJsonTests
             Assert.Single(Assert.Single(request.Snapshot.Worksheets).Cells).EffectiveValue?.Kind);
     }
 
+    [Fact]
+    public void ParseRequestCarriesSourceContextTheSpreadsheetDoesNotState()
+    {
+        ParseSnapshotRequest request = new()
+        {
+            ContractVersion = ParserContractVersions.V1,
+            CorrelationId = "correlation-001",
+            ParserProfile = new ParserProfileDescriptor
+            {
+                Name = "grade1_yearly_v1",
+                Version = "1.0.0",
+            },
+            SourceContext = new ParseSourceContext
+            {
+                AcademicYear = "2025-2026",
+                ClassYear = 1,
+                ProgramLanguage = ProgramLanguage.English,
+                TimeZoneId = "Europe/Istanbul",
+            },
+            Snapshot = CreateSnapshot(),
+        };
+        JsonSerializerOptions options = ContractJson.CreateOptions();
+
+        string json = JsonSerializer.Serialize(request, options);
+        ParseSnapshotRequest? roundTripped =
+            JsonSerializer.Deserialize<ParseSnapshotRequest>(json, options);
+
+        Assert.Contains("\"sourceContext\":", json, StringComparison.Ordinal);
+        Assert.Contains("\"programLanguage\":\"english\"", json, StringComparison.Ordinal);
+        Assert.NotNull(roundTripped);
+        Assert.Equal("2025-2026", roundTripped.SourceContext.AcademicYear);
+        Assert.Equal(1, roundTripped.SourceContext.ClassYear);
+        Assert.Equal("Europe/Istanbul", roundTripped.SourceContext.TimeZoneId);
+    }
+
     private static NormalizedSpreadsheetSnapshot CreateSnapshot() => new()
     {
         ContractVersion = SpreadsheetContractVersions.V1,

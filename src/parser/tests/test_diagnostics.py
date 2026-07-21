@@ -98,6 +98,27 @@ def test_each_ignore_reason_is_explained_once_with_evidence() -> None:
     assert diagnostics.status() is ParserResultStatus.COMPLETED
 
 
+def test_an_anomalous_ignore_reason_reports_every_affected_row() -> None:
+    diagnostics = ParseDiagnostics()
+    diagnostics.record_ignored_row(
+        "unresolvedDate",
+        evidence("B5"),
+        severity=ParserWarningSeverity.WARNING,
+        message="Date cell could not be read.",
+    )
+    diagnostics.record_ignored_row(
+        "unresolvedDate",
+        evidence("B9"),
+        severity=ParserWarningSeverity.WARNING,
+        message="Date cell could not be read.",
+    )
+
+    reported = [warning for warning in diagnostics.warnings if warning.code == WARNING_ROWS_IGNORED]
+
+    assert [warning.evidence.range for warning in reported if warning.evidence] == ["B5", "B9"]
+    assert diagnostics.status() is ParserResultStatus.COMPLETED_WITH_WARNINGS
+
+
 def test_confidence_indicators_carry_the_field_and_candidate() -> None:
     diagnostics = ParseDiagnostics()
     diagnostics.confidence(

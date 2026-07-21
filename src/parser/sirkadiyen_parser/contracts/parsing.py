@@ -119,10 +119,26 @@ class ConfidenceIndicator(OutboundContractModel):
     candidate_id: str | None = None
 
 
+class ParseSourceContext(ContractModel):
+    """Facts about the source that the spreadsheet itself does not state.
+
+    Academic year, class year, program language and interpretation timezone are
+    source configuration, not source content. They are required so the parser
+    never has to infer them from dates, file names or profile names, and so one
+    profile can serve several sources (ADR-017).
+    """
+
+    academic_year: str = Field(min_length=1)
+    class_year: int = Field(ge=1, le=6)
+    program_language: ProgramLanguage
+    time_zone_id: str = Field(min_length=1)
+
+
 class ParseSnapshotRequest(ContractModel):
     contract_version: Literal["1.0"]
     correlation_id: str = Field(min_length=1)
     parser_profile: ParserProfileDescriptor
+    source_context: ParseSourceContext
     snapshot: NormalizedSpreadsheetSnapshot
 
 

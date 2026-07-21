@@ -28,6 +28,17 @@ def test_registered_profiles_include_independent_anatomy_group() -> None:
     )
     assert anatomy_profile["audience_dimensions"] == ["anatomyGroup"]
     assert anatomy_profile["annual_markers"] == ["Diseksiyon"]
+    assert anatomy_profile["implemented"] is False
+
+
+def test_the_annual_profile_is_advertised_as_implemented() -> None:
+    response = client.get("/v1/profiles")
+
+    annual_profile = next(
+        profile for profile in response.json() if profile["name"] == "grade1_yearly_v1"
+    )
+
+    assert annual_profile["implemented"] is True
 
 
 def test_registered_but_unimplemented_profile_is_not_silent_success() -> None:
@@ -37,3 +48,34 @@ def test_registered_but_unimplemented_profile_is_not_silent_success() -> None:
 
     assert response.status_code == 501
     assert response.json()["detail"]["code"] == "parserProfileNotImplemented"
+
+
+def test_an_unknown_profile_is_refused() -> None:
+    request = json.loads(CONTRACT_FIXTURE.read_text(encoding="utf-8"))
+    request["parserProfile"] = {"name": "grade9_imaginary_v1", "version": "1.0.0"}
+
+    response = client.post("/v1/parse", json=request)
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "unsupportedParserProfile"
+
+
+def test_a_request_without_source_context_is_refused() -> None:
+    request = json.loads(CONTRACT_FIXTURE.read_text(encoding="utf-8"))
+    del request["sourceContext"]
+
+    response = client.post("/v1/parse", json=request)
+
+    assert response.status_code == 422
+
+
+def test_the_annual_profile_parses_a_snapshot_over_http() -> None:
+    request = json.loads(CONTRACT_FIXTURE.read_text(encoding="utf-8"))
+    request["parserProfile"] = {"name": "grade1_yearly_v1", "version": "1.0.0"}
+
+    response = client.post("/v1/parse", json=request)
+
+    # The shared contract fixture is an anatomy worksheet, so the annual profile
+    # finds no header row and must reject rather than return an empty success.
+    assert response.status_code == 200
+    assert response.json()["status"] == "rejected"

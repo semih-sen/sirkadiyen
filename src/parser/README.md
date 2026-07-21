@@ -35,10 +35,56 @@ Available foundation endpoints:
 - `GET /v1/profiles`
 - `POST /v1/parse`
 
-Parser profiles are registered but not implemented yet. `POST /v1/parse`
-therefore returns `501 Not Implemented` for a registered profile and `422` for
-an unknown profile. It never reports an empty candidate list as a successful
-parse.
+`POST /v1/parse` returns `422` for an unknown profile and `501 Not Implemented`
+for a profile that is registered but has no implementation yet. It never reports
+an empty candidate list as a successful parse. `GET /v1/profiles` states which
+profiles are implemented.
+
+### Parse requests carry source context
+
+A workbook does not state its academic year, class year, program language or
+interpretation timezone, and one profile serves several sources. The request
+therefore carries them explicitly (ADR-017):
+
+```json
+"sourceContext": {
+  "academicYear": "2025-2026",
+  "classYear": 1,
+  "programLanguage": "turkish",
+  "timeZoneId": "Europe/Istanbul"
+}
+```
+
+The profile validates rows against this context instead of inferring it. A row
+whose term cell names another class year is excluded and counted.
+
+## Implemented parser profiles
+
+| Profile | Sources | Fixtures |
+| --- | --- | --- |
+| `grade1_yearly_v1` | `G1-TR-ANNUAL`, `G1-EN-ANNUAL` | `tests/fixtures/real/g1-{tr,en}-annual.snapshot.json` |
+
+`parsers/annual.py` reads the row-oriented annual layout: one lesson per row,
+with columns selected by header alias rather than by position, so the Turkish
+and English workbooks share one implementation.
+
+What it deliberately refuses:
+
+- a numeric date column cell that does not declare a date format
+- a time cell that the source spreadsheet converted into a date, which would
+  otherwise publish a lesson at midnight
+- an end time that does not follow its start
+- a second row claiming a lesson identity an earlier row already published
+
+Each refusal leaves the row unpublished, increments `rows.ignored.<reason>` and,
+when the cause is an anomaly rather than expected structure, records a warning
+citing the offending cell.
+
+Known limitation: the event type is classified from title and block keywords, so
+a lecture whose title merely mentions a practice ("… Uygulama Alanları") is
+labelled `practice`. The label is descriptive only; date, time and audience are
+unaffected. The practice sources will be the authoritative signal once they are
+parsed.
 
 ## Shared normalization primitives
 
@@ -84,6 +130,13 @@ $env:SIRKADIYEN_UPDATE_GOLDEN = $null
 Never regenerate a golden file merely to make a failing test pass. A changed
 golden file is a changed parser output, and it must be explained.
 
-Until the first fixture-backed profile exists, the golden subject is the
-normalization trace over the synthetic fixtures described in
-`tests/fixtures/synthetic/README.md`.
+Two golden subjects exist:
+
+- `tests/golden/normalization/` traces the shared primitives over the synthetic
+  fixtures described in `tests/fixtures/synthetic/README.md`.
+- `tests/golden/parse/` records whole parse responses for the real fixtures. A
+  response holding hundreds of candidates is projected into one digest line per
+  candidate plus the complete warnings, metrics and confidence indicators, and a
+  digest of the entire serialized response (ADR-019). A digest line reads
+  `candidateId|date|start-end|eventType|id:…|content:…|title`, so a moved or
+  changed lesson is visible in the diff.

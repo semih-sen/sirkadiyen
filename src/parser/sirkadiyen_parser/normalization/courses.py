@@ -26,7 +26,10 @@ CONFIDENCE_JOINED_LINES = 0.85
 #: Separates lines that were joined back into one display title.
 LINE_JOIN_SEPARATOR = " - "
 
-_ORDINAL_PREFIX_PATTERN = re.compile(r"^\d{1,3}\s*[.)]\s+")
+#: A leading list number, written as ``1.``, ``1)`` or ``1-``. The lookahead
+#: keeps ``1-2 Hafta`` intact: a number followed by another number is part of
+#: the title, not an ordinal prefix.
+_ORDINAL_PREFIX_PATTERN = re.compile(r"^\d{1,3}\s*[.)\-]\s*(?=\D)")
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,8 +84,10 @@ def normalize_course_title(value: str) -> CourseTitle:
 def course_identity(display_title: str) -> str | None:
     """Return the normalized identity of a course title.
 
-    A leading list number such as ``1.`` is dropped because it orders the source
-    row rather than naming the course. Row ordering is never lesson identity.
+    A leading list number such as ``1.`` or ``1-`` is dropped because it orders
+    the lecture within its block rather than naming the course, and the source
+    renumbers those lists when the schedule shifts. Row ordering is never lesson
+    identity.
     """
     without_ordinal = _ORDINAL_PREFIX_PATTERN.sub("", normalize_text(display_title))
     key = identity_key(without_ordinal)

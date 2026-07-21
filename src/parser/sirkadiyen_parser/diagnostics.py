@@ -137,25 +137,46 @@ class ParseDiagnostics:
         if unit is not None:
             self._units[name] = unit
 
-    def record_ignored_row(self, reason: str, evidence: SourceEvidence) -> None:
+    def record_ignored_row(
+        self,
+        reason: str,
+        evidence: SourceEvidence,
+        *,
+        severity: ParserWarningSeverity = ParserWarningSeverity.INFORMATION,
+        message: str | None = None,
+    ) -> None:
         """Account for a source row that produced no candidate.
 
         Rows are never dropped silently. Every ignored row increments both the
-        total and its per-reason counter, and the first occurrence of each
-        reason also records an informational warning carrying evidence, so a
-        reviewer can open the row that triggered the rule.
+        total and its per-reason counter.
+
+        The severity separates two different kinds of ignored row. A structural
+        rule such as "this row belongs to another class year" is expected, so
+        only the first occurrence records an informational note and the metric
+        carries the total. An anomaly such as an unreadable date is not
+        expected, so *every* occurrence records its own warning with its own
+        evidence: a reviewer has to be able to open each affected row.
         """
         self.increment(METRIC_ROWS_IGNORED)
         self.increment(f"{METRIC_ROWS_IGNORED_PREFIX}{reason}")
 
-        if reason not in self._reported_ignore_reasons:
-            self._reported_ignore_reasons.add(reason)
-            self.information(
-                WARNING_ROWS_IGNORED,
-                f"Rows were ignored because of rule '{reason}'. "
-                f"See metric '{METRIC_ROWS_IGNORED_PREFIX}{reason}' for the total.",
+        detail = message or (
+            f"Rows were ignored because of rule '{reason}'. "
+            f"See metric '{METRIC_ROWS_IGNORED_PREFIX}{reason}' for the total."
+        )
+
+        if severity is not ParserWarningSeverity.INFORMATION:
+            self.warn(
+                severity=severity,
+                code=WARNING_ROWS_IGNORED,
+                message=detail,
                 evidence=evidence,
             )
+            return
+
+        if reason not in self._reported_ignore_reasons:
+            self._reported_ignore_reasons.add(reason)
+            self.information(WARNING_ROWS_IGNORED, detail, evidence=evidence)
 
     @property
     def warnings(self) -> tuple[ParserWarning, ...]:

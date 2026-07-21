@@ -193,6 +193,10 @@ The following require future ADRs:
 - automatic publication thresholds
 - profile schema and supported group combinations
 - snapshot retention policy
+- whether the canonical record needs a curriculum-block field, which the annual
+  sources state and the parser currently keeps only as evidence
+- how recurring rows such as `HER HAFTA PAZARTESİ` become dated lessons
+- whether holidays and semester breaks become all-day calendar entries
 
 ---
 
@@ -468,3 +472,109 @@ credentials separate from end-user Calendar grants.
 - The current environment still needs a source refresh token or service account.
 - A service account is preferred when the faculty can share sources with it.
 - Revocation and invalid-grant failures must become explicit poll outcomes.
+
+---
+
+## ADR-017: Parse requests carry an explicit source context
+
+**Status:** Accepted
+**Date:** 2026-07-22
+
+### Context
+
+A canonical candidate must state its academic year, class year, program language
+and interpretation timezone. No workbook states any of them. The Grade 1 Turkish
+and Grade 1 English annual workbooks are also served by the same parser profile,
+so the profile name cannot carry the language either. The alternatives were to
+infer the academic year from the observed date range, infer the language from
+the profile name, and infer the class year from a cell, all of which are guesses
+that ADR-011 rules out.
+
+### Decision
+
+`ParseSnapshotRequest` carries a required `sourceContext` holding
+`academicYear`, `classYear`, `programLanguage` and `timeZoneId`. The values come
+from source configuration owned by .NET. The parser uses them directly and never
+derives them.
+
+Where a workbook does state something the context also states, the profile
+validates rather than infers: a row whose term cell names a different class year
+is excluded and counted, and a term cell that states nothing usable is reported
+as an anomaly.
+
+### Consequences
+
+- The wire contract changed; the C# record, the Pydantic model and the shared
+  contract fixture were updated together and both suites assert on it.
+- The source catalog must eventually carry academic year and language per
+  source; today they are supplied by the caller.
+- One profile can serve several sources without branching on source ID, which
+  ADR-008 requires.
+
+---
+
+## ADR-018: Stable identity includes the lesson start time
+
+**Status:** Accepted
+**Date:** 2026-07-22
+
+### Context
+
+The annual sources repeat one title several times on one day: free study, a
+practice block and a break all recur. Identity built from academic year, class
+year, language, date and course identity alone therefore collides, and the
+colliding rows are genuinely different lessons. Adding an occurrence index would
+make identity depend on row order, which ADR-005 and the identity pattern forbid.
+
+### Decision
+
+The annual stable identity is the ordered hash of academic year, class year,
+program language, local date, local start time, and normalized course identity.
+Instructor, location, curriculum block, end time and title formatting are
+content, not identity, and live in the content hash instead.
+
+A lesson moved to another time therefore changes identity. The semantic diff
+engine's deterministic secondary matching, not the identity, is responsible for
+recognizing a moved lesson so it is patched rather than deleted and recreated.
+
+### Consequences
+
+- Room, instructor and title reformatting update the existing calendar event.
+- Time changes reach the diff engine as an unmatched pair, so Phase 8 must
+  implement secondary matching before incremental sync goes live, otherwise a
+  rescheduled lesson would be deleted and recreated.
+- Course identity ignores a leading list number (`1.`, `1)`, `1-`) because the
+  source renumbers those lists whenever the schedule shifts.
+
+---
+
+## ADR-019: Golden files project large parse responses
+
+**Status:** Accepted
+**Date:** 2026-07-22
+
+### Context
+
+ADR-012 made golden files the parser regression net and anticipated comparing
+whole parse responses once profiles existed. A real annual workbook produces
+around 900 candidates and a 1.5 MB response. Committing every field of every
+candidate produces a diff nobody reads, which would defeat the purpose.
+
+### Decision
+
+A parse golden file records:
+
+- one digest line per candidate: candidate ID, date, start and end time, event
+  type, truncated identity and content hashes, and a truncated display title
+- the complete warnings, metrics and confidence indicators
+- the first and last candidate in full, pinning the field shape
+- a SHA-256 digest of the entire serialized response
+
+### Consequences
+
+- A moved, retimed, reclassified or reworded lesson is visible in the diff.
+- A change to a field no digest line covers still fails, through the response
+  digest, and is then investigated locally.
+- Golden files stay around 140 KB per fixture instead of several megabytes.
+- ADR-012 is amended, not superseded: regeneration remains explicit and every
+  changed golden must be explained.

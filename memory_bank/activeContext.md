@@ -2,16 +2,43 @@
 
 ## Current phase
 
-Source inventory and fixture acquisition.
+First fixture-backed parser profile.
 
-The 18 confirmed sources now have a typed mixed-transport catalog. Google Sheets
-responses and local XLSX fixtures can be normalized deterministically, and the
-first annual and practice snapshots exist. Credential factories support offline
-OAuth refresh tokens or service accounts, but the local environment currently
-contains only a client ID and secret. Persistence, polling, Drive/HTTP adapters,
-frontend, and production parser profiles do not exist yet.
+`grade1_yearly_v1` now parses both Grade 1 annual sources end to end from real
+snapshots, with golden-file regression cover. The 18 confirmed sources have a
+typed mixed-transport catalog, and Google Sheets responses and local XLSX
+fixtures normalize deterministically. Credential factories support offline OAuth
+refresh tokens or service accounts, but the local environment still holds only a
+client ID and secret. Persistence, polling, Drive/HTTP adapters, the practice
+profile, and the frontend do not exist yet.
 
 ## Latest implementation session
+
+- Added `sourceContext` to the parse request in both the C# and Pydantic
+  contracts, carrying academic year, class year, program language and timezone
+  (ADR-017), and updated the shared contract fixture and both test suites.
+- Implemented `grade1_yearly_v1` in `src/parser/sirkadiyen_parser/parsers/`,
+  with a parser registry that separates a described profile from an implemented
+  one; `/v1/parse` now runs it and `/v1/profiles` reports implementation status.
+- Columns are selected by Turkish and English header aliases, so one profile
+  serves `G1-TR-ANNUAL` and `G1-EN-ANNUAL`; worksheets without a header row are
+  skipped with a recorded reason, and a snapshot with no parsable worksheet is
+  rejected rather than reported as an empty success.
+- Added stable identity and content hashing (ADR-018) and the rule that a second
+  row claiming a published identity is refused, informationally when the rows
+  are identical and as a warning when they disagree.
+- Confirmed on real data that the sources contain time cells the spreadsheet
+  software converted into dates; format-driven resolution refuses them instead
+  of publishing midnight lessons.
+- Extended the shared primitives: instructor titles written without spaces
+  (`Prof.Dr.`), trailing-instructor splitting that never truncates a title, and
+  ordinal stripping for `1-` style lecture numbers.
+- Added parse golden files as digest projections (ADR-019) and committed the
+  Grade 1 English annual snapshot fixture.
+- Ran ruff, ruff format, mypy strict and pytest (204 passing) plus the .NET
+  Release build with zero warnings and all 16 .NET tests.
+
+## Previous catalog and fixture session
 
 - Added `config/schedule-sources.json` with all 18 supplied source IDs, URLs,
   transports, document formats, parser profiles, and fixture mappings.
@@ -109,8 +136,8 @@ frontend, and production parser profiles do not exist yet.
 
 ## Immediate objectives
 
-1. Implement `grade1_yearly_v1` and `grade1_practice_v1` with real-fixture
-   golden files.
+1. Implement `grade1_practice_v1` against the Grade 1 practice rotation matrix.
+   Its structure is documented under "Grade 1 practice source structure" below.
 2. Obtain an offline source refresh token or a service-account credential; do
    not reuse end-user Calendar authorization for source ingestion.
 3. Persist immutable snapshots in PostgreSQL and add the unchanged short circuit.
@@ -121,6 +148,33 @@ frontend, and production parser profiles do not exist yet.
 8. Add DOCX conversion for the confirmed special-program sources.
 9. Add Docker Compose and CI quality gates.
 10. Decide frontend, session, licensing, initial-sync, and managed-calendar rules.
+
+## Grade 1 practice source structure
+
+Read from `g1-tr-practice.snapshot.json` and not yet implemented. Unlike the
+annual sources it is not row-per-lesson:
+
+- The worksheet holds several blocks, one per curriculum block (`TIBBA MERHABA
+  DİLİMİ`, `YAŞAMIN MOLEKÜLER TEMELLERİ DİLİMİ`, `HÜCRE DİLİMİ`, …), separated
+  by blank rows and introduced by a merged heading row.
+- Each block has its own header row: `Uygulama Tarihi`, `Saat`, then one column
+  per practice subject. Later blocks add a `Dikey Koridor` heading spanning
+  several subject columns, and subject headers there carry the instructor on a
+  second line.
+- A data cell holds the group letter or letters attending that practice in that
+  slot: `A`, `AB`, `C1`, `E2`, or the words `Telafi` / `TELAFİ` for a makeup.
+- Dates appear both as serials and as Turkish text with a weekday. Times are
+  ranges in one cell, written with `:` or `.` separators.
+- Blocks end with an `Uygulama Sayısı` totals row, followed by
+  `UYGULAMA KONU BAŞLIKLARI` free-text topic lists per department, and notes.
+- Rows 1 to 23 are location and skill-laboratory lookup tables, not schedule.
+
+Consequences for the profile: the audience comes from the cell value, the course
+from the column header, and the date and time from the row, so a candidate is a
+cell rather than a row. Group values mix a plain letter with a letter plus a
+subgroup digit, which `parse_group_expression` already handles as one dimension.
+Totals, topic lists and lookup tables must be excluded by explicit rules and
+counted.
 
 ## Important unresolved decisions
 
@@ -185,6 +239,18 @@ Exact required groups for each class year and language must be derived from sour
   are twelve or lower
 - group values are capped at two digits, which is correct for every confirmed
   cohort but would refuse a three-digit group if one is ever introduced
+- the annual sources contain time cells that the spreadsheet software converted
+  into dates; the parser refuses them, so seven Grade 1 Turkish rows and six
+  Grade 1 English rows are currently unpublished and need a source-side fix
+- six recurring rows written as `HER HAFTA PAZARTESİ` carry real lessons that no
+  profile publishes yet, because completing them would mean inventing dates
+- twenty-two holiday and semester-break rows carry no times and are therefore
+  not published; students will not see them until all-day entries are modelled
+- the annual event type is keyword-classified, so a lecture whose title mentions
+  a practice is labelled `practice`; four Grade 1 Turkish lessons are affected
+  and only the label is wrong
+- the curriculum block stated by the annual sources has no canonical field and
+  survives only as evidence and as part of the content hash
 
 ## Working assumptions
 

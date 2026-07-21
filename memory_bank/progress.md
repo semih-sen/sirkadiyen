@@ -98,12 +98,14 @@
 - [x] Add parser metrics
 - [x] Add parser versioning
 - [x] Add golden-file test harness
+- [x] Add parser profile implementation registry
+- [x] Add stable identity and content hashing
 
 ## Phase 6: Parser profiles
 
-- [ ] First-year Turkish annual
+- [x] First-year Turkish annual
 - [ ] First-year Turkish practice
-- [ ] First-year English annual
+- [x] First-year English annual
 - [ ] First-year English practice
 - [ ] First-year anatomy practice
 - [ ] Second-year Turkish annual
@@ -182,9 +184,16 @@
 
 ## Current next action
 
-The 18 confirmed sources now have a typed catalog, and the first annual and
-practice XLSX fixtures have deterministic normalized snapshots. Next implement
-`grade1_yearly_v1` and `grade1_practice_v1` with real-fixture golden files.
+`grade1_yearly_v1` parses both Grade 1 annual sources from real snapshots, with
+golden-file cover: 901 candidates from the Turkish workbook and 953 from the
+English one, every unpublished row accounted for by a reason and a metric.
+
+Next implement `grade1_practice_v1`. It is a rotation matrix rather than a row
+list, so a candidate is a cell: the group comes from the cell, the course from
+the column header, and the date and time from the row. `activeContext.md`
+records the block structure read from the fixture. The practice source is also
+what will make the annual `UYGULAMA` rows resolvable to real cohorts, so it
+must land before publication rules are designed.
 
 In parallel, obtain either an offline source refresh token or a service-account
 credential with access to the Sheets sources. Then compose the worker polling

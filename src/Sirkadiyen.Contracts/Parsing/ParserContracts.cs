@@ -15,7 +15,24 @@ public sealed record ParseSnapshotRequest
 
     public required ParserProfileDescriptor ParserProfile { get; init; }
 
+    public required ParseSourceContext SourceContext { get; init; }
+
     public required NormalizedSpreadsheetSnapshot Snapshot { get; init; }
+}
+
+/// <summary>
+/// Facts about the source that the spreadsheet itself does not state. These come
+/// from source configuration so the parser never infers them (ADR-017).
+/// </summary>
+public sealed record ParseSourceContext
+{
+    public required string AcademicYear { get; init; }
+
+    public required int ClassYear { get; init; }
+
+    public required ProgramLanguage ProgramLanguage { get; init; }
+
+    public required string TimeZoneId { get; init; }
 }
 
 public sealed record ParseSnapshotResponse
