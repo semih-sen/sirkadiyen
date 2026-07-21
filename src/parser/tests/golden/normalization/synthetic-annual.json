@@ -1,0 +1,1089 @@
+{
+  "fixture": "synthetic/annual-normalization-sample.json",
+  "parserEngineVersion": "0.1.0",
+  "payload": {
+    "snapshotId": "synthetic-annual-0001",
+    "sourceId": "SYNTHETIC-ANNUAL",
+    "worksheets": [
+      {
+        "cells": [
+          {
+            "address": "A1",
+            "date": {
+              "confidence": 0.0,
+              "reason": "unrecognizedDateFormat",
+              "rule": "unresolvedDate",
+              "value": null,
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 0.0,
+              "coversAll": false,
+              "reason": "unrecognizedGroupToken",
+              "rule": "unresolvedGroupExpression",
+              "values": []
+            },
+            "instructors": {
+              "confidence": 0.0,
+              "instructors": [],
+              "remainder": "TARİH",
+              "rule": "noAcademicTitleFound"
+            },
+            "mergeExpanded": false,
+            "rowHidden": false,
+            "text": "TARİH",
+            "timeRange": {
+              "confidence": 0.0,
+              "end": null,
+              "reason": "unrecognizedTimeRangeFormat",
+              "rule": "unresolvedTime",
+              "start": null
+            },
+            "title": {
+              "confidence": 1.0,
+              "courseIdentity": "tarih",
+              "displayTitle": "TARİH",
+              "lineCount": 1,
+              "rule": "singleLineTitle"
+            },
+            "valueAddress": "A1"
+          },
+          {
+            "address": "B1",
+            "date": {
+              "confidence": 0.0,
+              "reason": "unrecognizedDateFormat",
+              "rule": "unresolvedDate",
+              "value": null,
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 0.0,
+              "coversAll": false,
+              "reason": "unrecognizedGroupToken",
+              "rule": "unresolvedGroupExpression",
+              "values": []
+            },
+            "instructors": {
+              "confidence": 0.0,
+              "instructors": [],
+              "remainder": "SAAT",
+              "rule": "noAcademicTitleFound"
+            },
+            "mergeExpanded": false,
+            "rowHidden": false,
+            "text": "SAAT",
+            "timeRange": {
+              "confidence": 0.0,
+              "end": null,
+              "reason": "unrecognizedTimeRangeFormat",
+              "rule": "unresolvedTime",
+              "start": null
+            },
+            "title": {
+              "confidence": 1.0,
+              "courseIdentity": "saat",
+              "displayTitle": "SAAT",
+              "lineCount": 1,
+              "rule": "singleLineTitle"
+            },
+            "valueAddress": "B1"
+          },
+          {
+            "address": "C1",
+            "date": {
+              "confidence": 0.0,
+              "reason": "unrecognizedDateFormat",
+              "rule": "unresolvedDate",
+              "value": null,
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 0.0,
+              "coversAll": false,
+              "reason": "unrecognizedGroupToken",
+              "rule": "unresolvedGroupExpression",
+              "values": []
+            },
+            "instructors": {
+              "confidence": 0.0,
+              "instructors": [],
+              "remainder": "DERS, ÖĞRETİM ÜYESİ",
+              "rule": "noAcademicTitleFound"
+            },
+            "mergeExpanded": false,
+            "rowHidden": false,
+            "text": "DERS / ÖĞRETİM ÜYESİ",
+            "timeRange": {
+              "confidence": 0.0,
+              "end": null,
+              "reason": "unrecognizedTimeRangeFormat",
+              "rule": "unresolvedTime",
+              "start": null
+            },
+            "title": {
+              "confidence": 1.0,
+              "courseIdentity": "ders-ogretim-uyesi",
+              "displayTitle": "DERS / ÖĞRETİM ÜYESİ",
+              "lineCount": 1,
+              "rule": "singleLineTitle"
+            },
+            "valueAddress": "C1"
+          },
+          {
+            "address": "D1",
+            "date": {
+              "confidence": 0.0,
+              "reason": "unrecognizedDateFormat",
+              "rule": "unresolvedDate",
+              "value": null,
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 0.0,
+              "coversAll": false,
+              "reason": "noGroupValueFound",
+              "rule": "unresolvedGroupExpression",
+              "values": []
+            },
+            "instructors": {
+              "confidence": 0.0,
+              "instructors": [],
+              "remainder": "GRUP",
+              "rule": "noAcademicTitleFound"
+            },
+            "mergeExpanded": false,
+            "rowHidden": false,
+            "text": "GRUP",
+            "timeRange": {
+              "confidence": 0.0,
+              "end": null,
+              "reason": "unrecognizedTimeRangeFormat",
+              "rule": "unresolvedTime",
+              "start": null
+            },
+            "title": {
+              "confidence": 1.0,
+              "courseIdentity": "grup",
+              "displayTitle": "GRUP",
+              "lineCount": 1,
+              "rule": "singleLineTitle"
+            },
+            "valueAddress": "D1"
+          },
+          {
+            "address": "A2",
+            "date": {
+              "confidence": 1.0,
+              "reason": null,
+              "rule": "serialDate",
+              "value": "2025-11-12",
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 0.0,
+              "coversAll": false,
+              "reason": "unrecognizedGroupToken",
+              "rule": "unresolvedGroupExpression",
+              "values": []
+            },
+            "instructors": {
+              "confidence": 0.0,
+              "instructors": [],
+              "remainder": "12.11.2025 Çarşamba",
+              "rule": "noAcademicTitleFound"
+            },
+            "mergeExpanded": false,
+            "rowHidden": false,
+            "text": "12.11.2025 Çarşamba",
+            "timeRange": {
+              "confidence": 0.0,
+              "end": null,
+              "reason": "unrecognizedTimeRangeFormat",
+              "rule": "unresolvedTime",
+              "start": null
+            },
+            "title": {
+              "confidence": 1.0,
+              "courseIdentity": "12-11-2025-carsamba",
+              "displayTitle": "12.11.2025 Çarşamba",
+              "lineCount": 1,
+              "rule": "singleLineTitle"
+            },
+            "valueAddress": "A2"
+          },
+          {
+            "address": "B2",
+            "date": {
+              "confidence": 0.0,
+              "reason": "unrecognizedDateFormat",
+              "rule": "unresolvedDate",
+              "value": null,
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 0.0,
+              "coversAll": false,
+              "reason": "unrecognizedGroupToken",
+              "rule": "unresolvedGroupExpression",
+              "values": []
+            },
+            "instructors": {
+              "confidence": 0.0,
+              "instructors": [],
+              "remainder": "09:00-10:50",
+              "rule": "noAcademicTitleFound"
+            },
+            "mergeExpanded": false,
+            "rowHidden": false,
+            "text": "09:00-10:50",
+            "timeRange": {
+              "confidence": 1.0,
+              "end": "10:50:00",
+              "reason": null,
+              "rule": "textTimeRange",
+              "start": "09:00:00"
+            },
+            "title": {
+              "confidence": 1.0,
+              "courseIdentity": "09-00-10-50",
+              "displayTitle": "09:00-10:50",
+              "lineCount": 1,
+              "rule": "singleLineTitle"
+            },
+            "valueAddress": "B2"
+          },
+          {
+            "address": "C2",
+            "date": {
+              "confidence": 0.0,
+              "reason": "unrecognizedDateFormat",
+              "rule": "unresolvedDate",
+              "value": null,
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 0.0,
+              "coversAll": false,
+              "reason": "unrecognizedGroupToken",
+              "rule": "unresolvedGroupExpression",
+              "values": []
+            },
+            "instructors": {
+              "confidence": 0.95,
+              "instructors": [
+                "Prof. Dr. Ayşe Demir"
+              ],
+              "remainder": "Tıbbi Biyoloji",
+              "rule": "academicTitlePrefix"
+            },
+            "mergeExpanded": false,
+            "rowHidden": false,
+            "text": "Tıbbi Biyoloji Prof. Dr. Ayşe Demir",
+            "timeRange": {
+              "confidence": 0.0,
+              "end": null,
+              "reason": "unrecognizedTimeRangeFormat",
+              "rule": "unresolvedTime",
+              "start": null
+            },
+            "title": {
+              "confidence": 0.85,
+              "courseIdentity": "tibbi-biyoloji-prof-dr-ayse-demir",
+              "displayTitle": "Tıbbi Biyoloji - Prof. Dr. Ayşe Demir",
+              "lineCount": 2,
+              "rule": "joinedLineTitle"
+            },
+            "valueAddress": "C2"
+          },
+          {
+            "address": "D2",
+            "date": {
+              "confidence": 0.0,
+              "reason": "unrecognizedDateFormat",
+              "rule": "unresolvedDate",
+              "value": null,
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 1.0,
+              "coversAll": true,
+              "reason": null,
+              "rule": "allGroupsPhrase",
+              "values": []
+            },
+            "instructors": {
+              "confidence": 0.0,
+              "instructors": [],
+              "remainder": "Tüm gruplar",
+              "rule": "noAcademicTitleFound"
+            },
+            "mergeExpanded": false,
+            "rowHidden": false,
+            "text": "Tüm gruplar",
+            "timeRange": {
+              "confidence": 0.0,
+              "end": null,
+              "reason": "unrecognizedTimeRangeFormat",
+              "rule": "unresolvedTime",
+              "start": null
+            },
+            "title": {
+              "confidence": 1.0,
+              "courseIdentity": "tum-gruplar",
+              "displayTitle": "Tüm gruplar",
+              "lineCount": 1,
+              "rule": "singleLineTitle"
+            },
+            "valueAddress": "D2"
+          },
+          {
+            "address": "A3",
+            "date": {
+              "confidence": 1.0,
+              "reason": null,
+              "rule": "serialDate",
+              "value": "2025-11-12",
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 0.0,
+              "coversAll": false,
+              "reason": "unrecognizedGroupToken",
+              "rule": "unresolvedGroupExpression",
+              "values": []
+            },
+            "instructors": {
+              "confidence": 0.0,
+              "instructors": [],
+              "remainder": "12.11.2025 Çarşamba",
+              "rule": "noAcademicTitleFound"
+            },
+            "mergeExpanded": true,
+            "rowHidden": false,
+            "text": "12.11.2025 Çarşamba",
+            "timeRange": {
+              "confidence": 0.0,
+              "end": null,
+              "reason": "unrecognizedTimeRangeFormat",
+              "rule": "unresolvedTime",
+              "start": null
+            },
+            "title": {
+              "confidence": 1.0,
+              "courseIdentity": "12-11-2025-carsamba",
+              "displayTitle": "12.11.2025 Çarşamba",
+              "lineCount": 1,
+              "rule": "singleLineTitle"
+            },
+            "valueAddress": "A2"
+          },
+          {
+            "address": "B3",
+            "date": {
+              "confidence": 0.0,
+              "reason": "unrecognizedDateFormat",
+              "rule": "unresolvedDate",
+              "value": null,
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 0.0,
+              "coversAll": false,
+              "reason": "unrecognizedGroupToken",
+              "rule": "unresolvedGroupExpression",
+              "values": []
+            },
+            "instructors": {
+              "confidence": 0.0,
+              "instructors": [],
+              "remainder": "11:00-12:50",
+              "rule": "noAcademicTitleFound"
+            },
+            "mergeExpanded": false,
+            "rowHidden": false,
+            "text": "11:00-12:50",
+            "timeRange": {
+              "confidence": 1.0,
+              "end": "12:50:00",
+              "reason": null,
+              "rule": "textTimeRange",
+              "start": "11:00:00"
+            },
+            "title": {
+              "confidence": 1.0,
+              "courseIdentity": "11-00-12-50",
+              "displayTitle": "11:00-12:50",
+              "lineCount": 1,
+              "rule": "singleLineTitle"
+            },
+            "valueAddress": "B3"
+          },
+          {
+            "address": "C3",
+            "date": {
+              "confidence": 0.0,
+              "reason": "unrecognizedDateFormat",
+              "rule": "unresolvedDate",
+              "value": null,
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 0.0,
+              "coversAll": false,
+              "reason": "unrecognizedGroupToken",
+              "rule": "unresolvedGroupExpression",
+              "values": []
+            },
+            "instructors": {
+              "confidence": 0.95,
+              "instructors": [
+                "Doç. Dr. Mehmet Öz"
+              ],
+              "remainder": "Anatomi Diseksiyon",
+              "rule": "academicTitlePrefix"
+            },
+            "mergeExpanded": false,
+            "rowHidden": false,
+            "text": "Anatomi Diseksiyon Doç. Dr. Mehmet Öz",
+            "timeRange": {
+              "confidence": 0.0,
+              "end": null,
+              "reason": "unrecognizedTimeRangeFormat",
+              "rule": "unresolvedTime",
+              "start": null
+            },
+            "title": {
+              "confidence": 0.85,
+              "courseIdentity": "anatomi-diseksiyon-doc-dr-mehmet-oz",
+              "displayTitle": "Anatomi Diseksiyon - Doç. Dr. Mehmet Öz",
+              "lineCount": 2,
+              "rule": "joinedLineTitle"
+            },
+            "valueAddress": "C3"
+          },
+          {
+            "address": "D3",
+            "date": {
+              "confidence": 0.0,
+              "reason": "unrecognizedDateFormat",
+              "rule": "unresolvedDate",
+              "value": null,
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 1.0,
+              "coversAll": false,
+              "reason": null,
+              "rule": "enumeratedGroups",
+              "values": [
+                "1",
+                "2",
+                "3"
+              ]
+            },
+            "instructors": {
+              "confidence": 0.0,
+              "instructors": [],
+              "remainder": "Grup 1-3",
+              "rule": "noAcademicTitleFound"
+            },
+            "mergeExpanded": false,
+            "rowHidden": false,
+            "text": "Grup 1-3",
+            "timeRange": {
+              "confidence": 0.0,
+              "end": null,
+              "reason": "unrecognizedTimeRangeFormat",
+              "rule": "unresolvedTime",
+              "start": null
+            },
+            "title": {
+              "confidence": 1.0,
+              "courseIdentity": "grup-1-3",
+              "displayTitle": "Grup 1-3",
+              "lineCount": 1,
+              "rule": "singleLineTitle"
+            },
+            "valueAddress": "D3"
+          },
+          {
+            "address": "A4",
+            "date": {
+              "confidence": 1.0,
+              "reason": null,
+              "rule": "serialDate",
+              "value": "2025-11-12",
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 0.0,
+              "coversAll": false,
+              "reason": "unrecognizedGroupToken",
+              "rule": "unresolvedGroupExpression",
+              "values": []
+            },
+            "instructors": {
+              "confidence": 0.0,
+              "instructors": [],
+              "remainder": "12.11.2025 Çarşamba",
+              "rule": "noAcademicTitleFound"
+            },
+            "mergeExpanded": true,
+            "rowHidden": false,
+            "text": "12.11.2025 Çarşamba",
+            "timeRange": {
+              "confidence": 0.0,
+              "end": null,
+              "reason": "unrecognizedTimeRangeFormat",
+              "rule": "unresolvedTime",
+              "start": null
+            },
+            "title": {
+              "confidence": 1.0,
+              "courseIdentity": "12-11-2025-carsamba",
+              "displayTitle": "12.11.2025 Çarşamba",
+              "lineCount": 1,
+              "rule": "singleLineTitle"
+            },
+            "valueAddress": "A2"
+          },
+          {
+            "address": "B4",
+            "date": {
+              "confidence": 0.0,
+              "reason": "unrecognizedDateFormat",
+              "rule": "unresolvedDate",
+              "value": null,
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 0.0,
+              "coversAll": false,
+              "reason": "unrecognizedGroupToken",
+              "rule": "unresolvedGroupExpression",
+              "values": []
+            },
+            "instructors": {
+              "confidence": 0.0,
+              "instructors": [],
+              "remainder": "13:00 – 14:50",
+              "rule": "noAcademicTitleFound"
+            },
+            "mergeExpanded": false,
+            "rowHidden": false,
+            "text": "13:00 – 14:50",
+            "timeRange": {
+              "confidence": 1.0,
+              "end": "14:50:00",
+              "reason": null,
+              "rule": "textTimeRange",
+              "start": "13:00:00"
+            },
+            "title": {
+              "confidence": 1.0,
+              "courseIdentity": "13-00-14-50",
+              "displayTitle": "13:00 – 14:50",
+              "lineCount": 1,
+              "rule": "singleLineTitle"
+            },
+            "valueAddress": "B4"
+          },
+          {
+            "address": "C4",
+            "date": {
+              "confidence": 0.0,
+              "reason": "unrecognizedDateFormat",
+              "rule": "unresolvedDate",
+              "value": null,
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 0.0,
+              "coversAll": false,
+              "reason": "unrecognizedGroupToken",
+              "rule": "unresolvedGroupExpression",
+              "values": []
+            },
+            "instructors": {
+              "confidence": 0.0,
+              "instructors": [],
+              "remainder": "Uygulama - Beceri Eğitimi",
+              "rule": "noAcademicTitleFound"
+            },
+            "mergeExpanded": false,
+            "rowHidden": false,
+            "text": "Uygulama - Beceri Eğitimi",
+            "timeRange": {
+              "confidence": 0.0,
+              "end": null,
+              "reason": "unrecognizedTimeRangeFormat",
+              "rule": "unresolvedTime",
+              "start": null
+            },
+            "title": {
+              "confidence": 1.0,
+              "courseIdentity": "uygulama-beceri-egitimi",
+              "displayTitle": "Uygulama - Beceri Eğitimi",
+              "lineCount": 1,
+              "rule": "singleLineTitle"
+            },
+            "valueAddress": "C4"
+          },
+          {
+            "address": "D4",
+            "date": {
+              "confidence": 0.0,
+              "reason": "unrecognizedDateFormat",
+              "rule": "unresolvedDate",
+              "value": null,
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 1.0,
+              "coversAll": false,
+              "reason": null,
+              "rule": "enumeratedGroups",
+              "values": [
+                "2",
+                "4"
+              ]
+            },
+            "instructors": {
+              "confidence": 0.0,
+              "instructors": [],
+              "remainder": "Grup 2, 4",
+              "rule": "noAcademicTitleFound"
+            },
+            "mergeExpanded": false,
+            "rowHidden": false,
+            "text": "Grup 2, 4",
+            "timeRange": {
+              "confidence": 0.0,
+              "end": null,
+              "reason": "unrecognizedTimeRangeFormat",
+              "rule": "unresolvedTime",
+              "start": null
+            },
+            "title": {
+              "confidence": 1.0,
+              "courseIdentity": "grup-2-4",
+              "displayTitle": "Grup 2, 4",
+              "lineCount": 1,
+              "rule": "singleLineTitle"
+            },
+            "valueAddress": "D4"
+          },
+          {
+            "address": "A5",
+            "date": {
+              "confidence": 0.9,
+              "reason": null,
+              "rule": "monthNameDate",
+              "value": "2025-11-13",
+              "weekdayMatches": true,
+              "weekdayText": "Perşembe"
+            },
+            "group": {
+              "confidence": 0.0,
+              "coversAll": false,
+              "reason": "unrecognizedGroupToken",
+              "rule": "unresolvedGroupExpression",
+              "values": []
+            },
+            "instructors": {
+              "confidence": 0.0,
+              "instructors": [],
+              "remainder": "13 Kasım 2025 Perşembe",
+              "rule": "noAcademicTitleFound"
+            },
+            "mergeExpanded": false,
+            "rowHidden": false,
+            "text": "13 Kasım 2025 Perşembe",
+            "timeRange": {
+              "confidence": 0.0,
+              "end": null,
+              "reason": "unrecognizedTimeRangeFormat",
+              "rule": "unresolvedTime",
+              "start": null
+            },
+            "title": {
+              "confidence": 1.0,
+              "courseIdentity": "13-kasim-2025-persembe",
+              "displayTitle": "13 Kasım 2025 Perşembe",
+              "lineCount": 1,
+              "rule": "singleLineTitle"
+            },
+            "valueAddress": "A5"
+          },
+          {
+            "address": "B5",
+            "date": {
+              "confidence": 0.0,
+              "reason": "unrecognizedDateFormat",
+              "rule": "unresolvedDate",
+              "value": null,
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 0.0,
+              "coversAll": false,
+              "reason": "unrecognizedGroupToken",
+              "rule": "unresolvedGroupExpression",
+              "values": []
+            },
+            "instructors": {
+              "confidence": 0.0,
+              "instructors": [],
+              "remainder": "09.00-10.50",
+              "rule": "noAcademicTitleFound"
+            },
+            "mergeExpanded": false,
+            "rowHidden": false,
+            "text": "09.00-10.50",
+            "timeRange": {
+              "confidence": 1.0,
+              "end": "10:50:00",
+              "reason": null,
+              "rule": "textTimeRange",
+              "start": "09:00:00"
+            },
+            "title": {
+              "confidence": 1.0,
+              "courseIdentity": "09-00-10-50",
+              "displayTitle": "09.00-10.50",
+              "lineCount": 1,
+              "rule": "singleLineTitle"
+            },
+            "valueAddress": "B5"
+          },
+          {
+            "address": "C5",
+            "date": {
+              "confidence": 0.0,
+              "reason": "unrecognizedDateFormat",
+              "rule": "unresolvedDate",
+              "value": null,
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 0.0,
+              "coversAll": false,
+              "reason": "unrecognizedGroupToken",
+              "rule": "unresolvedGroupExpression",
+              "values": []
+            },
+            "instructors": {
+              "confidence": 0.0,
+              "instructors": [],
+              "remainder": "Histoloji",
+              "rule": "noAcademicTitleFound"
+            },
+            "mergeExpanded": false,
+            "rowHidden": false,
+            "text": "Histoloji",
+            "timeRange": {
+              "confidence": 0.0,
+              "end": null,
+              "reason": "unrecognizedTimeRangeFormat",
+              "rule": "unresolvedTime",
+              "start": null
+            },
+            "title": {
+              "confidence": 1.0,
+              "courseIdentity": "histoloji",
+              "displayTitle": "Histoloji",
+              "lineCount": 1,
+              "rule": "singleLineTitle"
+            },
+            "valueAddress": "C5"
+          },
+          {
+            "address": "D5",
+            "date": {
+              "confidence": 0.0,
+              "reason": "unrecognizedDateFormat",
+              "rule": "unresolvedDate",
+              "value": null,
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 1.0,
+              "coversAll": false,
+              "reason": null,
+              "rule": "enumeratedGroups",
+              "values": [
+                "1"
+              ]
+            },
+            "instructors": {
+              "confidence": 0.0,
+              "instructors": [],
+              "remainder": "G1",
+              "rule": "noAcademicTitleFound"
+            },
+            "mergeExpanded": false,
+            "rowHidden": false,
+            "text": "G1",
+            "timeRange": {
+              "confidence": 0.0,
+              "end": null,
+              "reason": "unrecognizedTimeRangeFormat",
+              "rule": "unresolvedTime",
+              "start": null
+            },
+            "title": {
+              "confidence": 1.0,
+              "courseIdentity": "g1",
+              "displayTitle": "G1",
+              "lineCount": 1,
+              "rule": "singleLineTitle"
+            },
+            "valueAddress": "D5"
+          },
+          {
+            "address": "A6",
+            "date": {
+              "confidence": 0.0,
+              "reason": "unrecognizedDateFormat",
+              "rule": "unresolvedDate",
+              "value": null,
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 0.0,
+              "coversAll": false,
+              "reason": "unrecognizedGroupToken",
+              "rule": "unresolvedGroupExpression",
+              "values": []
+            },
+            "instructors": {
+              "confidence": 0.0,
+              "instructors": [],
+              "remainder": "45975",
+              "rule": "noAcademicTitleFound"
+            },
+            "mergeExpanded": false,
+            "rowHidden": false,
+            "text": "45975",
+            "timeRange": {
+              "confidence": 0.0,
+              "end": null,
+              "reason": "unrecognizedTimeRangeFormat",
+              "rule": "unresolvedTime",
+              "start": null
+            },
+            "title": {
+              "confidence": 1.0,
+              "courseIdentity": "45975",
+              "displayTitle": "45975",
+              "lineCount": 1,
+              "rule": "singleLineTitle"
+            },
+            "valueAddress": "A6"
+          },
+          {
+            "address": "B6",
+            "date": {
+              "confidence": 0.0,
+              "reason": "unrecognizedDateFormat",
+              "rule": "unresolvedDate",
+              "value": null,
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 0.0,
+              "coversAll": false,
+              "reason": "unrecognizedGroupToken",
+              "rule": "unresolvedGroupExpression",
+              "values": []
+            },
+            "instructors": {
+              "confidence": 0.0,
+              "instructors": [],
+              "remainder": "0900-1050",
+              "rule": "noAcademicTitleFound"
+            },
+            "mergeExpanded": false,
+            "rowHidden": false,
+            "text": "0900-1050",
+            "timeRange": {
+              "confidence": 0.0,
+              "end": null,
+              "reason": "unrecognizedTimeRangeFormat",
+              "rule": "unresolvedTime",
+              "start": null
+            },
+            "title": {
+              "confidence": 1.0,
+              "courseIdentity": "0900-1050",
+              "displayTitle": "0900-1050",
+              "lineCount": 1,
+              "rule": "singleLineTitle"
+            },
+            "valueAddress": "B6"
+          },
+          {
+            "address": "C6",
+            "date": {
+              "confidence": 0.0,
+              "reason": "unrecognizedDateFormat",
+              "rule": "unresolvedDate",
+              "value": null,
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 0.0,
+              "coversAll": false,
+              "reason": "unrecognizedGroupToken",
+              "rule": "unresolvedGroupExpression",
+              "values": []
+            },
+            "instructors": {
+              "confidence": 0.95,
+              "instructors": [
+                "Prof. Dr. Zeynep Kaya"
+              ],
+              "remainder": "Fizyoloji",
+              "rule": "academicTitlePrefix"
+            },
+            "mergeExpanded": false,
+            "rowHidden": false,
+            "text": "Fizyoloji, Prof. Dr. Zeynep Kaya",
+            "timeRange": {
+              "confidence": 0.0,
+              "end": null,
+              "reason": "unrecognizedTimeRangeFormat",
+              "rule": "unresolvedTime",
+              "start": null
+            },
+            "title": {
+              "confidence": 1.0,
+              "courseIdentity": "fizyoloji-prof-dr-zeynep-kaya",
+              "displayTitle": "Fizyoloji, Prof. Dr. Zeynep Kaya",
+              "lineCount": 1,
+              "rule": "singleLineTitle"
+            },
+            "valueAddress": "C6"
+          },
+          {
+            "address": "D6",
+            "date": {
+              "confidence": 0.0,
+              "reason": "unrecognizedDateFormat",
+              "rule": "unresolvedDate",
+              "value": null,
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 0.0,
+              "coversAll": false,
+              "reason": "unrecognizedGroupToken",
+              "rule": "unresolvedGroupExpression",
+              "values": []
+            },
+            "instructors": {
+              "confidence": 0.0,
+              "instructors": [],
+              "remainder": "Anatomi",
+              "rule": "noAcademicTitleFound"
+            },
+            "mergeExpanded": false,
+            "rowHidden": false,
+            "text": "Anatomi",
+            "timeRange": {
+              "confidence": 0.0,
+              "end": null,
+              "reason": "unrecognizedTimeRangeFormat",
+              "rule": "unresolvedTime",
+              "start": null
+            },
+            "title": {
+              "confidence": 1.0,
+              "courseIdentity": "anatomi",
+              "displayTitle": "Anatomi",
+              "lineCount": 1,
+              "rule": "singleLineTitle"
+            },
+            "valueAddress": "D6"
+          },
+          {
+            "address": "C7",
+            "date": {
+              "confidence": 0.0,
+              "reason": "unrecognizedDateFormat",
+              "rule": "unresolvedDate",
+              "value": null,
+              "weekdayMatches": null,
+              "weekdayText": null
+            },
+            "group": {
+              "confidence": 0.0,
+              "coversAll": false,
+              "reason": "unrecognizedGroupToken",
+              "rule": "unresolvedGroupExpression",
+              "values": []
+            },
+            "instructors": {
+              "confidence": 0.0,
+              "instructors": [],
+              "remainder": "İPTAL",
+              "rule": "noAcademicTitleFound"
+            },
+            "mergeExpanded": false,
+            "note": "Ders iptal edildi.",
+            "rowHidden": true,
+            "text": "İPTAL",
+            "timeRange": {
+              "confidence": 0.0,
+              "end": null,
+              "reason": "unrecognizedTimeRangeFormat",
+              "rule": "unresolvedTime",
+              "start": null
+            },
+            "title": {
+              "confidence": 1.0,
+              "courseIdentity": "iptal",
+              "displayTitle": "İPTAL",
+              "lineCount": 1,
+              "rule": "singleLineTitle"
+            },
+            "valueAddress": "C7"
+          }
+        ],
+        "hiddenRows": [
+          6
+        ],
+        "mergedRanges": [
+          "A2:A4"
+        ],
+        "sheetId": "sheet-synthetic-annual",
+        "title": "SENTETİK DÖNEM"
+      }
+    ]
+  },
+  "subject": "normalizationTrace"
+}

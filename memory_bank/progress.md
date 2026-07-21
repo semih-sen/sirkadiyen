@@ -84,18 +84,18 @@
 - [x] Initialize FastAPI parser service
 - [x] Add Pydantic contracts
 - [x] Add parser registry
-- [ ] Add shared cell normalization
-- [ ] Add merged-cell expansion
-- [ ] Add date resolver
-- [ ] Add time resolver
-- [ ] Add group expression parser
-- [ ] Add course title normalization
-- [ ] Add instructor extraction
-- [ ] Add evidence model
-- [ ] Add warning model
-- [ ] Add parser metrics
-- [ ] Add parser versioning
-- [ ] Add golden-file test harness
+- [x] Add shared cell normalization
+- [x] Add merged-cell expansion
+- [x] Add date resolver
+- [x] Add time resolver
+- [x] Add group expression parser
+- [x] Add course title normalization
+- [x] Add instructor extraction
+- [x] Add evidence model
+- [x] Add warning model
+- [x] Add parser metrics
+- [x] Add parser versioning
+- [x] Add golden-file test harness
 
 ## Phase 6: Parser profiles
 
@@ -180,9 +180,21 @@
 
 ## Current next action
 
-Add shared normalization primitives and the golden-file test harness, then
-implement the first fixture-backed annual and practice parser profiles.
+Implementing the first fixture-backed annual and practice parser profiles is
+**blocked**: profiles need normalized snapshot JSON, and nothing produces it yet.
+The `sheets/` fixtures are `.xlsx` and `.docx`, not snapshots.
 
-In parallel with implementation, obtain raw Google Sheets snapshots for the
-DOCX-only source references and the fixtures still listed as missing in
+Unblock it by choosing one of:
+
+1. implement the .NET Google Sheets acquisition path and capture real snapshots,
+   which is the production path and also closes Phase 4, or
+2. add a local development converter from an `.xlsx` fixture to a normalized
+   snapshot, which unblocks profile work sooner but is not the production path
+   and must not become one.
+
+Then implement the first annual and practice profiles against those snapshots,
+using the shared primitives and the golden-file harness that now exist.
+
+In parallel, obtain raw Google Sheets snapshots for the DOCX-only source
+references and the fixtures still listed as missing in
 `sheets/source-manifest.md`.

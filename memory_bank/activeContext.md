@@ -10,6 +10,26 @@ parser implementation exists yet.
 
 ## Latest implementation session
 
+- Added the shared parser normalization primitives under
+  `src/parser/sirkadiyen_parser/normalization/`: text folding and identity keys,
+  merge-aware grid access with evidence construction, date, time, group, course
+  title and instructor resolvers.
+- Established the no-inference rule: every resolver reports its rule, confidence
+  and a reason when unresolved, and serial dates, missing years and compact
+  times are opt-in per parser profile (ADR-011).
+- Added `ParseDiagnostics`, which accounts for every ignored row by reason and
+  derives the parser result status from what was recorded.
+- Added `PARSER_ENGINE_VERSION` covering the shared primitives, separate from
+  the transport contract version and the parser-profile versions.
+- Added the golden-file harness with explicit regeneration and a direct
+  determinism assertion (ADR-012), plus a labelled synthetic snapshot fixture.
+- Split the Pydantic contract bases so inbound models stay camel-case-only while
+  the parser can construct outbound response models by field name (ADR-013).
+- Ran ruff, ruff format, mypy strict and pytest (137 passing) plus the .NET
+  Release test run (3 passing).
+
+## Earlier sessions
+
 - Added the root `Sirkadiyen.slnx` solution.
 - Added Domain, Application, Contracts, Infrastructure, API, and Worker projects.
 - Enforced nullable reference types, latest analysis, warnings-as-errors, and
@@ -57,7 +77,11 @@ parser implementation exists yet.
 
 ## Immediate objectives
 
-1. Add shared parser normalization primitives and the golden-file test harness.
+1. Decide how to obtain normalized snapshot JSON for the existing fixtures, so
+   parser profiles can be written against real source structure. Either
+   implement the .NET Google Sheets acquisition path, or add a clearly separated
+   local `.xlsx` to snapshot development converter. This currently blocks all
+   fixture-backed profile work.
 2. Implement the first fixture-backed annual and practice parser profiles.
 3. Define the initial canonical schedule domain schema.
 4. Establish .NET architecture tests.
@@ -126,6 +150,14 @@ Exact required groups for each class year and language must be derived from sour
 - license brute-force attempts require rate limiting
 - a profile change may require removing and adding many events safely
 - weekly amphitheatre data may conflict with annual schedules
+- the shared resolvers are calibrated against synthetic fixtures only, so real
+  sources will contain date, time and group forms they refuse; each refusal must
+  be reviewed as evidence before the resolver is widened
+- the day-first reading of numeric dates is a documented assumption; a source
+  using month-first order would parse silently wrong whenever both components
+  are twelve or lower
+- group values are capped at two digits, which is correct for every confirmed
+  cohort but would refuse a three-digit group if one is ever introduced
 
 ## Working assumptions
 

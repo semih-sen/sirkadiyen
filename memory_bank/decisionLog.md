@@ -264,3 +264,107 @@ entries that require source-specific disambiguation.
   than publish duplicates.
 - `Uygulama` alone is insufficient to identify vertical-corridor lessons; parser
   profile context and joined evidence are required.
+
+---
+
+## ADR-011: Shared normalization primitives never infer missing values
+
+**Status:** Accepted
+**Date:** 2026-07-21
+
+### Context
+
+Source cells hold dates as serials or as Turkish and English text, times as day
+fractions or as text with inconsistent separators, and group labels in several
+shorthand forms. A parser that guesses is convenient in the short term, but a
+wrong guess silently invents or misroutes lessons, and the mistake reaches
+student calendars without anything to review.
+
+### Decision
+
+Every shared resolver returns an explicit result carrying the rule that produced
+it, a confidence score, and a reason code when it did not resolve. Three
+behaviours that would otherwise be guesses are opt-in per parser profile:
+
+- reading a numeric cell as a date serial when no number format declares a date
+- completing a date written without a year
+- reading a bare four-digit block such as `0900` as a time
+
+Additionally:
+
+- a range whose end does not follow its start stays unresolved rather than being
+  reordered
+- a group expression that is only partly understood resolves to nothing, because
+  keeping the understood half would silently drop a cohort
+- a digit run longer than two characters is never a group value, so serials,
+  years and room numbers cannot be mistaken for cohorts
+- a weekday found beside a date is cross-checked and reported, never used to
+  correct the date
+
+### Consequences
+
+- Parser profiles must declare their column rules explicitly.
+- Unresolved values become warnings, so revision validation sees them.
+- More source rows will initially fail to parse than with a permissive parser.
+  That is the intended trade: an unparsed row is visible, a wrong row is not.
+- Confidence scores are fixed constants per rule so output stays deterministic.
+
+---
+
+## ADR-012: Golden files are the parser regression net
+
+**Status:** Accepted
+**Date:** 2026-07-21
+
+### Context
+
+Determinism is a contract requirement, but shared primitives are used by every
+profile, so a small change to normalization can silently alter many candidates.
+
+### Decision
+
+Fixture output is compared against committed golden files. Regeneration is
+explicit through the `SIRKADIYEN_UPDATE_GOLDEN` environment variable and the
+resulting diff must be reviewed and explained. Each golden document records the
+fixture, the subject, and the parser engine version.
+
+Determinism is asserted directly by running each producer twice and requiring
+identical serialized output.
+
+Until the first fixture-backed profile exists, the golden subject is a
+normalization trace over synthetic fixtures. Synthetic fixtures are labelled as
+such and never presented as captured faculty data.
+
+### Consequences
+
+- A changed golden file is a reviewable statement that parser output changed.
+- Real fixtures require normalized snapshot JSON, which the .NET ingestion layer
+  does not yet produce. This blocks fixture-backed profiles.
+- The same harness will compare full parse responses once profiles exist.
+
+---
+
+## ADR-013: Inbound wire models accept camel case only
+
+**Status:** Accepted
+**Date:** 2026-07-21
+
+### Context
+
+ADR-009 fixed camel case as the JSON convention. Pydantic models that only
+accept aliases cannot be constructed from Python by field name, which the parser
+needs for the response models it builds itself.
+
+### Decision
+
+Split the Pydantic contract bases. `ContractModel` accepts camel-case aliases
+only and is used for the snapshot models and the parse request. The parser
+builds outbound models, so `OutboundContractModel` additionally accepts field
+names while still serializing camel case.
+
+### Consequences
+
+- A snake-case inbound payload remains a validation failure, not a tolerance.
+- The wire format is unchanged in both directions.
+- Tests construct snapshot models through the same camel-case validation path a
+  real producer would use.

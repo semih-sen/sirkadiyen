@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from sirkadiyen_parser.contracts.base import ContractModel
+from sirkadiyen_parser.contracts.base import ContractModel, OutboundContractModel
 from sirkadiyen_parser.contracts.snapshot import NormalizedSpreadsheetSnapshot
 
 
@@ -47,27 +47,27 @@ class ParserWarningSeverity(StrEnum):
     ERROR = "error"
 
 
-class ParserProfileDescriptor(ContractModel):
+class ParserProfileDescriptor(OutboundContractModel):
     name: str = Field(min_length=1)
     version: str = Field(min_length=1)
 
 
-class AudienceSelector(ContractModel):
+class AudienceSelector(OutboundContractModel):
     dimension: str = Field(min_length=1)
     value: str = Field(min_length=1)
 
 
-class ScheduleAudienceCandidate(ContractModel):
+class ScheduleAudienceCandidate(OutboundContractModel):
     scope: AudienceScope
     selectors: list[AudienceSelector] = Field(default_factory=list)
 
 
-class IdentityComponent(ContractModel):
+class IdentityComponent(OutboundContractModel):
     name: str = Field(min_length=1)
     value: str = Field(min_length=1)
 
 
-class SourceEvidence(ContractModel):
+class SourceEvidence(OutboundContractModel):
     sheet_id: str = Field(min_length=1)
     sheet_title: str = Field(min_length=1)
     range: str = Field(min_length=1)
@@ -75,7 +75,7 @@ class SourceEvidence(ContractModel):
     extraction_rule: str = Field(min_length=1)
 
 
-class CanonicalScheduleCandidate(ContractModel):
+class CanonicalScheduleCandidate(OutboundContractModel):
     candidate_id: str = Field(min_length=1)
     academic_year: str = Field(min_length=1)
     class_year: int = Field(ge=1, le=6)
@@ -98,7 +98,7 @@ class CanonicalScheduleCandidate(ContractModel):
     evidence: list[SourceEvidence] = Field(default_factory=list)
 
 
-class ParserWarning(ContractModel):
+class ParserWarning(OutboundContractModel):
     severity: ParserWarningSeverity
     code: str = Field(min_length=1)
     message: str = Field(min_length=1)
@@ -106,13 +106,13 @@ class ParserWarning(ContractModel):
     evidence: SourceEvidence | None = None
 
 
-class ParserMetric(ContractModel):
+class ParserMetric(OutboundContractModel):
     name: str = Field(min_length=1)
     value: float
     unit: str | None = None
 
 
-class ConfidenceIndicator(ContractModel):
+class ConfidenceIndicator(OutboundContractModel):
     field: str = Field(min_length=1)
     score: float = Field(ge=0, le=1)
     reason: str = Field(min_length=1)
@@ -126,7 +126,7 @@ class ParseSnapshotRequest(ContractModel):
     snapshot: NormalizedSpreadsheetSnapshot
 
 
-class ParseSnapshotResponse(ContractModel):
+class ParseSnapshotResponse(OutboundContractModel):
     contract_version: Literal["1.0"]
     correlation_id: str = Field(min_length=1)
     source_id: str = Field(min_length=1)

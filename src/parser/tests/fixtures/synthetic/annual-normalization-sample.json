@@ -1,0 +1,273 @@
+{
+  "contractVersion": "1.0",
+  "sourceId": "SYNTHETIC-ANNUAL",
+  "snapshotId": "synthetic-annual-0001",
+  "spreadsheetId": "synthetic-spreadsheet",
+  "acquiredAtUtc": "2026-07-21T09:00:00Z",
+  "contentHash": "sha256:synthetic",
+  "contentHashAlgorithm": "SHA-256",
+  "worksheets": [
+    {
+      "sheetId": "sheet-synthetic-annual",
+      "title": "SENTETİK DÖNEM",
+      "index": 0,
+      "rowCount": 7,
+      "columnCount": 4,
+      "frozenRowCount": 1,
+      "mergedRanges": [
+        {
+          "startRowIndex": 1,
+          "endRowIndexExclusive": 4,
+          "startColumnIndex": 0,
+          "endColumnIndexExclusive": 1
+        }
+      ],
+      "hiddenRows": [
+        {
+          "startIndex": 6,
+          "endIndexExclusive": 7
+        }
+      ],
+      "cells": [
+        {
+          "rowIndex": 0,
+          "columnIndex": 0,
+          "a1Address": "A1",
+          "effectiveValue": {
+            "kind": "text",
+            "textValue": "TARİH"
+          },
+          "formattedValue": "TARİH"
+        },
+        {
+          "rowIndex": 0,
+          "columnIndex": 1,
+          "a1Address": "B1",
+          "effectiveValue": {
+            "kind": "text",
+            "textValue": "SAAT"
+          },
+          "formattedValue": "SAAT"
+        },
+        {
+          "rowIndex": 0,
+          "columnIndex": 2,
+          "a1Address": "C1",
+          "effectiveValue": {
+            "kind": "text",
+            "textValue": "DERS / ÖĞRETİM ÜYESİ"
+          },
+          "formattedValue": "DERS / ÖĞRETİM ÜYESİ"
+        },
+        {
+          "rowIndex": 0,
+          "columnIndex": 3,
+          "a1Address": "D1",
+          "effectiveValue": {
+            "kind": "text",
+            "textValue": "GRUP"
+          },
+          "formattedValue": "GRUP"
+        },
+        {
+          "rowIndex": 1,
+          "columnIndex": 0,
+          "a1Address": "A2",
+          "effectiveValue": {
+            "kind": "number",
+            "numberValue": 45973
+          },
+          "formattedValue": "12.11.2025 Çarşamba",
+          "effectiveFormat": {
+            "bold": false,
+            "italic": false,
+            "strikethrough": false,
+            "numberFormatType": "DATE",
+            "numberFormatPattern": "dd.mm.yyyy"
+          }
+        },
+        {
+          "rowIndex": 1,
+          "columnIndex": 1,
+          "a1Address": "B2",
+          "effectiveValue": {
+            "kind": "text",
+            "textValue": "09:00-10:50"
+          },
+          "formattedValue": "09:00-10:50"
+        },
+        {
+          "rowIndex": 1,
+          "columnIndex": 2,
+          "a1Address": "C2",
+          "effectiveValue": {
+            "kind": "text",
+            "textValue": "Tıbbi Biyoloji\nProf. Dr. Ayşe Demir"
+          },
+          "formattedValue": "Tıbbi Biyoloji\nProf. Dr. Ayşe Demir"
+        },
+        {
+          "rowIndex": 1,
+          "columnIndex": 3,
+          "a1Address": "D2",
+          "effectiveValue": {
+            "kind": "text",
+            "textValue": "Tüm gruplar"
+          },
+          "formattedValue": "Tüm gruplar"
+        },
+        {
+          "rowIndex": 2,
+          "columnIndex": 1,
+          "a1Address": "B3",
+          "effectiveValue": {
+            "kind": "text",
+            "textValue": "11:00-12:50"
+          },
+          "formattedValue": "11:00-12:50"
+        },
+        {
+          "rowIndex": 2,
+          "columnIndex": 2,
+          "a1Address": "C3",
+          "effectiveValue": {
+            "kind": "text",
+            "textValue": "Anatomi Diseksiyon\nDoç. Dr. Mehmet Öz"
+          },
+          "formattedValue": "Anatomi Diseksiyon\nDoç. Dr. Mehmet Öz"
+        },
+        {
+          "rowIndex": 2,
+          "columnIndex": 3,
+          "a1Address": "D3",
+          "effectiveValue": {
+            "kind": "text",
+            "textValue": "Grup 1-3"
+          },
+          "formattedValue": "Grup 1-3"
+        },
+        {
+          "rowIndex": 3,
+          "columnIndex": 1,
+          "a1Address": "B4",
+          "effectiveValue": {
+            "kind": "text",
+            "textValue": "13:00 – 14:50"
+          },
+          "formattedValue": "13:00 – 14:50"
+        },
+        {
+          "rowIndex": 3,
+          "columnIndex": 2,
+          "a1Address": "C4",
+          "effectiveValue": {
+            "kind": "text",
+            "textValue": "Uygulama - Beceri Eğitimi"
+          },
+          "formattedValue": "Uygulama - Beceri Eğitimi"
+        },
+        {
+          "rowIndex": 3,
+          "columnIndex": 3,
+          "a1Address": "D4",
+          "effectiveValue": {
+            "kind": "text",
+            "textValue": "Grup 2, 4"
+          },
+          "formattedValue": "Grup 2, 4"
+        },
+        {
+          "rowIndex": 4,
+          "columnIndex": 0,
+          "a1Address": "A5",
+          "effectiveValue": {
+            "kind": "text",
+            "textValue": "13 Kasım 2025 Perşembe"
+          },
+          "formattedValue": "13 Kasım 2025 Perşembe"
+        },
+        {
+          "rowIndex": 4,
+          "columnIndex": 1,
+          "a1Address": "B5",
+          "effectiveValue": {
+            "kind": "text",
+            "textValue": "09.00-10.50"
+          },
+          "formattedValue": "09.00-10.50"
+        },
+        {
+          "rowIndex": 4,
+          "columnIndex": 2,
+          "a1Address": "C5",
+          "effectiveValue": {
+            "kind": "text",
+            "textValue": "Histoloji"
+          },
+          "formattedValue": "Histoloji"
+        },
+        {
+          "rowIndex": 4,
+          "columnIndex": 3,
+          "a1Address": "D5",
+          "effectiveValue": {
+            "kind": "text",
+            "textValue": "G1"
+          },
+          "formattedValue": "G1"
+        },
+        {
+          "rowIndex": 5,
+          "columnIndex": 0,
+          "a1Address": "A6",
+          "effectiveValue": {
+            "kind": "number",
+            "numberValue": 45975
+          },
+          "formattedValue": "45975"
+        },
+        {
+          "rowIndex": 5,
+          "columnIndex": 1,
+          "a1Address": "B6",
+          "effectiveValue": {
+            "kind": "text",
+            "textValue": "0900-1050"
+          },
+          "formattedValue": "0900-1050"
+        },
+        {
+          "rowIndex": 5,
+          "columnIndex": 2,
+          "a1Address": "C6",
+          "effectiveValue": {
+            "kind": "text",
+            "textValue": "Fizyoloji, Prof. Dr. Zeynep Kaya"
+          },
+          "formattedValue": "Fizyoloji, Prof. Dr. Zeynep Kaya"
+        },
+        {
+          "rowIndex": 5,
+          "columnIndex": 3,
+          "a1Address": "D6",
+          "effectiveValue": {
+            "kind": "text",
+            "textValue": "Anatomi"
+          },
+          "formattedValue": "Anatomi"
+        },
+        {
+          "rowIndex": 6,
+          "columnIndex": 2,
+          "a1Address": "C7",
+          "effectiveValue": {
+            "kind": "text",
+            "textValue": "İPTAL"
+          },
+          "formattedValue": "İPTAL",
+          "note": "Ders iptal edildi."
+        }
+      ]
+    }
+  ]
+}

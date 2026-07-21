@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
+
 from sirkadiyen_parser.api import app
 
 CONTRACT_FIXTURE = (
