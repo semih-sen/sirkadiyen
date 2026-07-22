@@ -18,6 +18,7 @@
 - [x] Add root solution and project structure
 - [x] Add formatting and editor configuration
 - [x] Add `.env.example`
+- [x] Load the repository `.env` in the hosts, tools and tests (ADR-041)
 - [x] Add Docker Compose development environment
 - [ ] Add CI workflow
 - [x] Add contribution and local setup documentation
@@ -150,7 +151,7 @@
 - [ ] Populate canonical Department in profiles whose source explicitly states it
 - [x] Persist semantic diffs
 - [x] Calculate and store a diff after publication
-- [ ] Provide an operator path for releasing a held diff
+- [x] Provide an operator path for releasing a held diff (ADR-042)
 
 ## Phase 9: Calendar synchronization
 
@@ -211,12 +212,13 @@ A quarantined revision joins that path only through
 The diff is calculated after publication in its own transaction, driven by
 revision state (ADR-039), and is stored exactly once per revision. It is created
 `Ready` or `Held`; ambiguity or a mass deletion holds it and no calendar
-operation may be derived from it (ADR-040).
+operation may be derived from it (ADR-040). A held diff reaches dispatch only
+through `POST /api/diffs/{id}/release`, which records who took responsibility
+and why — except an ambiguous one, which is only ever fixed at the source
+(ADR-042).
 
 The next step is the consumer side: affected-user resolution and the Google
-Calendar adapter, which read `Ready` diffs. A held diff currently stops where it
-is, because no operator path exists to release one — safe, but an operator
-cannot yet act on the source correction other than by fixing the source.
+Calendar adapter, which read `Ready` and `Released` diffs.
 
 There is deliberately no rollback (ADR-033). A bad publication is corrected at
 the authoritative source and reaches calendars as a newer forward-fix revision.

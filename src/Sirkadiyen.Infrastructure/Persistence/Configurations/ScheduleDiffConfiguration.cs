@@ -27,7 +27,19 @@ internal sealed class ScheduleDiffConfiguration : IEntityTypeConfiguration<Sched
         builder.Property(diff => diff.HoldReason)
             .HasMaxLength(ScheduleDiff.MaximumHoldReasonLength);
 
+        // Who released a held diff, and why (ADR-042). The hold reason is kept
+        // alongside, so a released diff still says what it was held for.
+        builder.Property(diff => diff.ReleasedBy)
+            .HasMaxLength(ScheduleDiff.MaximumReleasedByLength);
+        builder.Property(diff => diff.ReleaseReason)
+            .HasMaxLength(ScheduleDiff.MaximumReleaseReasonLength);
+
+        // Release is the last gate before student calendars change, so two
+        // operators acting at once must not silently overwrite each other.
+        builder.Property(diff => diff.RowVersion).IsRowVersion();
+
         builder.Ignore(diff => diff.IsDispatchable);
+        builder.Ignore(diff => diff.IsReleasable);
 
         builder.HasOne<ScheduleSource>()
             .WithMany()

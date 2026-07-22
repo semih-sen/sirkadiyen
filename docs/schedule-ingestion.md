@@ -176,8 +176,35 @@ stay ambiguous. The diff gate runs on the semantic result, which is the number
 that actually decides how many events would be deleted.
 
 The reason a diff was held is stored in full on the diff, written invariantly so
-it reads the same on a Turkish host. Releasing a held diff has no operator path
-yet; it simply stops there.
+it reads the same on a Turkish host.
+
+### Releasing a held diff
+
+A hold is not a dead end. An operator who has read the source can take
+responsibility for it (ADR-042), which records who did and why and moves the
+diff to `Released`. A released diff is dispatchable and still carries the reason
+it was held, so it reads as "held for this, then released by that person".
+
+```text
+GET  /api/diffs?state=Held                  the hold queue
+GET  /api/diffs/{id}?entryLimit=100         the changes behind the hold, deletions first
+POST /api/diffs/{id}/release                { "releasedBy": ..., "releaseReason": ... }
+```
+
+The detail view names the lessons rather than record identifiers, and excludes
+unchanged entries: they are the overwhelming majority and say nothing about
+whether the hold is legitimate.
+
+**An ambiguity hold cannot be released.** An operator can confirm that a large
+deletion is real by reading the source, but cannot decide which of several
+candidates a record became; releasing it would leave the previous lesson in
+every affected calendar and never write its replacement. That is corrected at
+the source, and the next revision produces the next diff. The endpoint refuses
+with `409`.
+
+Release is guarded by the diff's row version, so two operators acting at once
+get a `409` rather than silently overwriting each other. Like approval, the
+identity is a claim recorded against a shared operator key, not a verified one.
 
 The ADR-035 matching thresholds are deliberately not configurable. They are a
 matching rule with a decision record behind them, and loosening them from an
@@ -230,7 +257,7 @@ Production ingestion still needs:
 2. Google Drive and HTTP acquisition adapters plus DOCX conversion;
 3. recovery of parse runs left `Running` by abrupt process termination;
 4. affected-user resolution and the Google Calendar adapter, which consume
-   `Ready` diffs, plus an operator path for a `Held` one;
+   `Ready` and `Released` diffs;
 5. an administration frontend to replace the internal approval API;
 6. real authentication in place of the shared administrative key.
 

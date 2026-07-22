@@ -1355,3 +1355,103 @@ turned into any calendar operation. The reason is stored in full on the diff.
   on different evidence.
 - Releasing a held diff requires an operator path that does not exist yet. Until
   it does, a held diff simply stops there, which is the safe direction.
+
+---
+
+## ADR-041: Load the repository `.env` into the process environment at startup
+
+**Status:** Accepted
+**Date:** 2026-07-22
+**Implements:** implemented
+
+### Context
+
+`dotnet run --project src/Sirkadiyen.Api` failed with
+`Required configuration 'SIRKADIYEN_DATABASE:CONNECTION_STRING' is missing`
+even though the value was in the repository's `.env`. Nothing read that file:
+`.env` was only ever consumed by Docker Compose, so a developer had to export
+every variable by hand in each shell, and the EF Core design-time factory fell
+back to a hard-coded local host instead.
+
+Adding a package such as `DotNetEnv` would have solved it, but the parser is
+about eighty lines, the behaviour we need is specific (existing variables must
+win) and a dependency in the dependency-free Infrastructure composition path
+buys nothing here.
+
+### Decision
+
+`Sirkadiyen.Infrastructure.Configuration.DotEnvFile` searches upward from the
+assembly's output directory for the nearest `.env`, parses it, and writes each
+declaration into the process environment **only when that variable is not
+already set**. Both hosts call it before creating their builder, because the
+environment-variable configuration provider reads the environment as it is
+added. The design-time context factory and the PostgreSQL test fixture call it
+too, so migrations and integration tests need no manual export either.
+
+It is a development convenience, not a configuration source: deployed
+environments inject real variables and ship no file, so the call is a no-op
+there. A malformed line raises `InvalidDataException` naming the file and line
+number, never the value.
+
+### Consequences
+
+- `dotnet run`, `dotnet-ef` and `dotnet test` work from a clean shell.
+- An exported or container-injected variable stays authoritative, so a stale
+  file cannot quietly redirect a host at the wrong database.
+- The loader mutates process-global state. That is why it runs once, at the top
+  of a host's composition, and never from library code reached at request time.
+- Integration tests now run whenever `.env` declares
+  `SIRKADIYEN_TEST_DATABASE__CONNECTION_STRING`. That database is dropped and
+  re-migrated on every run, so the file must never point it at a working one.
+- There is deliberately no inline comment syntax: a password may contain `#`,
+  and silently truncating a secret at one would be very hard to diagnose.
+
+---
+
+## ADR-042: Let an operator release a held diff, except an ambiguous one
+
+**Status:** Accepted
+**Date:** 2026-07-22
+**Implements:** implemented
+**Amends:** ADR-040
+
+### Context
+
+ADR-040 holds a diff on ambiguity or mass deletion and lets nothing act on it.
+It left the release path unspecified, so a hold could only be cleared by
+correcting the source and waiting for a newer revision to supersede the held
+one. That is right when the hold reveals a parse fault and wrong when the source
+really did drop a hundred lessons at the end of a semester: the schedule is
+correct, nobody can say so, and every later cycle holds again.
+
+ADR-040 also stated that a stored diff never mutates. That consequence is
+superseded here, for the state and the release audit fields only. What the diff
+says about the two revisions is still immutable and never recalculated.
+
+### Decision
+
+A `Held` diff gains a third state, `Released`, reached through
+`POST /api/diffs/{id}/release` behind the existing operator key. The release
+records `ReleasedBy`, `ReleaseReason` and `ReleasedAtUtc`, and keeps the hold
+reason. `IsDispatchable` becomes true for `Ready` or `Released`.
+
+A hold caused by ambiguity is **not** releasable, in the domain and not only in
+the endpoint. The release is guarded by the diff's row version.
+
+### Consequences
+
+- A legitimate large deletion now has a way forward that is recorded, instead of
+  depending on the source being edited into a shape the gate tolerates.
+- An ambiguity can only be resolved at the source. An operator cannot decide
+  which of several candidates a record became, and waving it through would leave
+  the previous lesson in every affected calendar while its replacement is never
+  written.
+- `Released` is deliberately a separate state from `Ready`. A consumer, and
+  anyone reading the table later, can tell an automatically safe diff from one a
+  human vouched for.
+- Two operators releasing at once get a refusal rather than a silent overwrite:
+  the second must read the current state before vouching for it.
+- `ReleasedBy` is a claimed identity, like `ApprovedBy` (ADR-032). It becomes
+  verifiable only when real authentication replaces the shared key.
+- Nothing dispatches diffs yet, so releasing one currently changes only its
+  state. The value arrives with the calendar adapter.

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sirkadiyen.Infrastructure.Configuration;
 using Sirkadiyen.Infrastructure.Persistence;
 using Xunit;
 
@@ -8,10 +9,16 @@ namespace Sirkadiyen.Persistence.Tests;
 /// A migrated PostgreSQL database, shared by the integration tests.
 /// </summary>
 /// <remarks>
-/// The connection string comes from the environment so no credential is written
-/// into the repository. When the variable is absent the integration tests skip
-/// themselves rather than fail: a developer without a local database still gets
-/// a meaningful test run, and CI sets the variable so the tests really execute.
+/// The connection string comes from the environment, or from the repository's
+/// <c>.env</c> file when the environment does not set it, so no credential is
+/// written into the repository. When neither supplies one the integration tests
+/// skip themselves rather than fail: a developer without a local database still
+/// gets a meaningful test run, and CI sets the variable so the tests really
+/// execute.
+/// <para>
+/// This fixture drops and re-migrates whatever database it is pointed at, so the
+/// variable must name a dedicated test database and never a working one.
+/// </para>
 /// </remarks>
 public sealed class PostgresFixture : IAsyncLifetime
 {
@@ -27,6 +34,8 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public async ValueTask InitializeAsync()
     {
+        DotEnvFile.Load();
+
         ConnectionString = Environment.GetEnvironmentVariable(ConnectionStringVariable);
         if (ConnectionString is null)
         {

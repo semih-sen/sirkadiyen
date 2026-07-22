@@ -97,15 +97,17 @@ endpoints guarded by the required administrative key. Beyond that:
   Istanbul-time schedule, calls the Python parser over its strict v1 HTTP
   contract, transactionally persists candidate revisions, validates them, and
   publishes healthy revisions while quarantining suspicious ones for review.
-- The first semantic diff slice is implemented as a pure deterministic engine:
-  exact identity/content comparison, created/updated/deleted/unchanged
-  classification, and ambiguity-safe secondary matching for time changes using
-  normalized lesson title, instructor and explicitly sourced academic
-  department. Persistence and post-publication orchestration are the next step.
+- The semantic diff is a pure deterministic engine — exact identity/content
+  comparison, created/updated/deleted/unchanged classification, and
+  ambiguity-safe secondary matching for time changes using normalized lesson
+  title, instructor and explicitly sourced academic department. Every published
+  revision is diffed against the one it superseded, in its own transaction, and
+  the result is stored once as `Ready` or `Held` (ADR-039, ADR-040). A held diff
+  is released only by a named operator stating a reason, and never when the hold
+  is ambiguity (ADR-042).
 
-Not implemented: Drive/HTTP acquisition, DOCX conversion, semantic diff
-persistence/orchestration, the global operational freeze, calendar
-synchronization, identity, licensing, and the Next.js frontend.
+Not implemented: Drive/HTTP acquisition, DOCX conversion, the global operational
+freeze, calendar synchronization, identity, licensing, and the Next.js frontend.
 
 Published schedule mistakes use forward-fix rather than rollback: correct the
 authoritative source and let polling publish a newer revision (ADR-033).
@@ -121,28 +123,41 @@ dotnet restore Sirkadiyen.slnx
 dotnet build Sirkadiyen.slnx --configuration Release --no-restore
 ```
 
-Run the API or worker:
+### Configuration
+
+Copy `.env.example` to `.env` in the repository root and fill it in. That file is
+untracked; never commit real credentials or tokens.
+
+The API, the worker, the EF Core design-time tools and the integration tests all
+load it themselves: each searches upward from its output directory for the
+nearest `.env` and applies every variable the process environment does not
+already define (ADR-041). Running from a project directory therefore works
+without exporting anything:
 
 ```powershell
 dotnet run --project src/Sirkadiyen.Api
 dotnet run --project src/Sirkadiyen.Worker
 ```
 
-Start the development dependencies and apply the schema:
+An exported or container-injected variable always wins over the file, so a
+deployed host — which ships no `.env` at all — is unaffected.
+
+### Dependencies and schema
 
 ```powershell
 docker compose up -d postgres redis
 dotnet tool restore
-$env:SIRKADIYEN_DATABASE__CONNECTION_STRING = "Host=localhost;Port=5432;Database=sirkadiyen;Username=sirkadiyen;Password=sirkadiyen"
 dotnet dotnet-ef database update --project src/Sirkadiyen.Infrastructure
 ```
 
-Copy `.env.example` to a local untracked environment file when configuration is
-introduced. Never commit real credentials or tokens.
+The migration command reads `SIRKADIYEN_DATABASE__CONNECTION_STRING` from `.env`
+and falls back to a local development host when it is absent.
 
 Database integration tests skip themselves unless
-`SIRKADIYEN_TEST_DATABASE__CONNECTION_STRING` is set. `docs/database.md` covers
-the schema, migrations, and test conventions.
+`SIRKADIYEN_TEST_DATABASE__CONNECTION_STRING` is set, in `.env` or in the
+environment. That database is dropped and re-migrated on every run, so it must
+never name a working one. `docs/database.md` covers the schema, migrations, and
+test conventions.
 
 Parser setup and commands are documented in `src/parser/README.md`.
 

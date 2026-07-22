@@ -287,6 +287,13 @@ Local development secrets must not be committed.
 
 Provide `.env.example` with placeholders only.
 
+For local development, `DotEnvFile` loads the nearest `.env` above the assembly's
+output directory into the process environment, applying only variables that are
+not already set (ADR-041). The API, the worker, the EF Core design-time factory
+and the PostgreSQL test fixture each call it once, at composition. Deployed
+environments inject their own variables and ship no file, so it is a no-op there
+and an injected value always wins.
+
 ## API contract principles
 
 - version public APIs

@@ -6,12 +6,18 @@ using Sirkadiyen.Application.ScheduleDiffing;
 using Sirkadiyen.Application.ScheduleIngestion;
 using Sirkadiyen.Application.SchedulePublication;
 using Sirkadiyen.Domain.ScheduleDiffing;
+using Sirkadiyen.Infrastructure.Configuration;
 using Sirkadiyen.Infrastructure.Google;
 using Sirkadiyen.Infrastructure.Persistence;
 using Sirkadiyen.Infrastructure.ScheduleIngestion;
 using Sirkadiyen.Infrastructure.ScheduleParsing;
 using Sirkadiyen.Infrastructure.ScheduleSources;
 using Sirkadiyen.Worker;
+
+// Before the builder, because the environment-variable provider reads the
+// process environment as it is added. A deployed host injects its own variables
+// and ships no file, so this does nothing there (ADR-041).
+DotEnvFile.Load();
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -137,7 +143,10 @@ await host.RunAsync();
 static string Required(IConfiguration configuration, string key) =>
     configuration[key] is { } value && !string.IsNullOrWhiteSpace(value)
         ? value
-        : throw new InvalidOperationException($"Required configuration '{key}' is missing.");
+        : throw new InvalidOperationException(
+            $"Required configuration '{key}' is missing. Set it in the repository's '.env' "
+            + $"file as '{key.Replace(":", "__", StringComparison.Ordinal)}' or export it as "
+            + "an environment variable.");
 
 static TimeOnly ParseTime(string? value, TimeOnly fallback) =>
     string.IsNullOrWhiteSpace(value)

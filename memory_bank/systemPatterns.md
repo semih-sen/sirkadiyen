@@ -361,6 +361,10 @@ Published revision without a diff
 → store once
 ```
 
+A held diff is released only by a named operator stating a reason, which moves
+it to `Released` and keeps the hold reason (ADR-042). A hold caused by ambiguity
+is never releasable: the source has to state which lesson is which.
+
 Published data is corrected only by forward-fix: the authoritative source is
 fixed and a newer revision supersedes the bad one. A superseded revision is
 never restored to live state (ADR-033).

@@ -20,5 +20,24 @@ Content-Type: application/json
   "approvalReason": "Checked the source: the drop is the exam period, not a parse fault."
 }
 
+### The diffs the dispatch gate is holding.
+GET {{host}}/api/diffs?state=Held&limit=50
+X-Admin-Api-Key: {{adminKey}}
+
+### One diff with the changes behind its hold, deletions first.
+GET {{host}}/api/diffs/00000000-0000-0000-0000-000000000000?entryLimit=100
+X-Admin-Api-Key: {{adminKey}}
+
+### Release a held diff for dispatch.
+### Refused with 409 when the hold is ambiguity: that is fixed at the source.
+POST {{host}}/api/diffs/00000000-0000-0000-0000-000000000000/release
+X-Admin-Api-Key: {{adminKey}}
+Content-Type: application/json
+
+{
+  "releasedBy": "semih",
+  "releaseReason": "Checked the source: the 38 deleted lessons are the ended anatomy block."
+}
+
 ### The OpenAPI document, for importing into Postman.
 GET {{host}}/openapi/v1.json

@@ -1,19 +1,11 @@
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Sirkadiyen.Application.ScheduleDiffing;
 using Sirkadiyen.Application.SchedulePublication;
-using Sirkadiyen.Contracts.Parsing;
-using Sirkadiyen.Contracts.Serialization;
 using Sirkadiyen.Domain.ScheduleDiffing;
-using Sirkadiyen.Domain.ScheduleIngestion;
-using Sirkadiyen.Domain.ScheduleParsing;
 using Sirkadiyen.Domain.SchedulePublication;
 using Sirkadiyen.Domain.ScheduleSources;
 using Sirkadiyen.Infrastructure.Persistence;
 using Xunit;
-using DomainAudienceScope = Sirkadiyen.Domain.SchedulePublication.AudienceScope;
-using DomainEventType = Sirkadiyen.Domain.SchedulePublication.ScheduleEventType;
-using DomainLanguage = Sirkadiyen.Domain.ScheduleSources.ProgramLanguage;
 
 namespace Sirkadiyen.Persistence.Tests;
 
@@ -31,8 +23,8 @@ public sealed class ScheduleDiffStoreTests(PostgresFixture fixture)
     {
         Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
         await using SirkadiyenDbContext context = fixture.CreateContext();
-        ScheduleSource source = await AddSourceAsync(context);
-        ScheduleRevision revision = await PublishAsync(context, source, Now, ["a", "b", "c"]);
+        ScheduleSource source = await ScheduleDiffScenario.AddSourceAsync(context);
+        ScheduleRevision revision = await ScheduleDiffScenario.PublishAsync(context, source, Now, ["a", "b", "c"]);
 
         ScheduleDiffCalculationResult result = await AssertCalculatedAsync(context, revision.Id);
 
@@ -55,11 +47,11 @@ public sealed class ScheduleDiffStoreTests(PostgresFixture fixture)
     {
         Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
         await using SirkadiyenDbContext context = fixture.CreateContext();
-        ScheduleSource source = await AddSourceAsync(context);
-        ScheduleRevision first = await PublishAsync(context, source, Now, ["a", "b", "c"]);
+        ScheduleSource source = await ScheduleDiffScenario.AddSourceAsync(context);
+        ScheduleRevision first = await ScheduleDiffScenario.PublishAsync(context, source, Now, ["a", "b", "c"]);
 
         // "a" is untouched, "b" changes room, "c" disappears and "d" is new.
-        ScheduleRevision second = await PublishAsync(
+        ScheduleRevision second = await ScheduleDiffScenario.PublishAsync(
             context,
             source,
             Now.AddHours(1),
@@ -96,8 +88,8 @@ public sealed class ScheduleDiffStoreTests(PostgresFixture fixture)
         // mean a second set of calendar operations for the same change.
         Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
         await using SirkadiyenDbContext context = fixture.CreateContext();
-        ScheduleSource source = await AddSourceAsync(context);
-        ScheduleRevision revision = await PublishAsync(context, source, Now, ["a"]);
+        ScheduleSource source = await ScheduleDiffScenario.AddSourceAsync(context);
+        ScheduleRevision revision = await ScheduleDiffScenario.PublishAsync(context, source, Now, ["a"]);
 
         await AssertCalculatedAsync(context, revision.Id);
 
@@ -115,8 +107,8 @@ public sealed class ScheduleDiffStoreTests(PostgresFixture fixture)
     {
         Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
         await using SirkadiyenDbContext context = fixture.CreateContext();
-        ScheduleSource source = await AddSourceAsync(context);
-        ScheduleRevision revision = await PublishAsync(context, source, Now, ["a"]);
+        ScheduleSource source = await ScheduleDiffScenario.AddSourceAsync(context);
+        ScheduleRevision revision = await ScheduleDiffScenario.PublishAsync(context, source, Now, ["a"]);
 
         ScheduleDiffStore store = new(context);
         ScheduleDiffInput input = (await store.LoadAsync(revision.Id, Token))!;
@@ -136,11 +128,11 @@ public sealed class ScheduleDiffStoreTests(PostgresFixture fixture)
     {
         Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
         await using SirkadiyenDbContext context = fixture.CreateContext();
-        ScheduleSource source = await AddSourceAsync(context);
+        ScheduleSource source = await ScheduleDiffScenario.AddSourceAsync(context);
         string[] full = [.. Enumerable.Range(0, 40).Select(index => $"lesson-{index:D2}")];
 
-        await PublishAsync(context, source, Now, full);
-        ScheduleRevision second = await PublishAsync(context, source, Now.AddHours(1), full[..20]);
+        await ScheduleDiffScenario.PublishAsync(context, source, Now, full);
+        ScheduleRevision second = await ScheduleDiffScenario.PublishAsync(context, source, Now.AddHours(1), full[..20]);
 
         ScheduleDiffCalculationResult result = await AssertCalculatedAsync(context, second.Id);
 
@@ -162,9 +154,9 @@ public sealed class ScheduleDiffStoreTests(PostgresFixture fixture)
         // would lose everything it changed.
         Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
         await using SirkadiyenDbContext context = fixture.CreateContext();
-        ScheduleSource source = await AddSourceAsync(context);
-        ScheduleRevision first = await PublishAsync(context, source, Now, ["a"]);
-        ScheduleRevision second = await PublishAsync(context, source, Now.AddHours(1), ["a", "b"]);
+        ScheduleSource source = await ScheduleDiffScenario.AddSourceAsync(context);
+        ScheduleRevision first = await ScheduleDiffScenario.PublishAsync(context, source, Now, ["a"]);
+        ScheduleRevision second = await ScheduleDiffScenario.PublishAsync(context, source, Now.AddHours(1), ["a", "b"]);
 
         context.ChangeTracker.Clear();
         ScheduleDiffStore store = new(context);
@@ -185,8 +177,8 @@ public sealed class ScheduleDiffStoreTests(PostgresFixture fixture)
         // revision nobody approved decide what disappears from a calendar.
         Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
         await using SirkadiyenDbContext context = fixture.CreateContext();
-        ScheduleSource source = await AddSourceAsync(context);
-        ScheduleRevision candidate = await AddRevisionAsync(context, source, Now, ["a"]);
+        ScheduleSource source = await ScheduleDiffScenario.AddSourceAsync(context);
+        ScheduleRevision candidate = await ScheduleDiffScenario.AddRevisionAsync(context, source, Now, ["a"]);
 
         ScheduleDiffStore store = new(context);
 
@@ -200,8 +192,8 @@ public sealed class ScheduleDiffStoreTests(PostgresFixture fixture)
     {
         Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
         await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
-        ScheduleSource source = await AddSourceAsync(context);
-        ScheduleRevision revision = await PublishAsync(context, source, Now, ["a", "b"]);
+        ScheduleSource source = await ScheduleDiffScenario.AddSourceAsync(context);
+        ScheduleRevision revision = await ScheduleDiffScenario.PublishAsync(context, source, Now, ["a", "b"]);
 
         ScheduleDiffCalculationResult result = await AssertCalculatedAsync(context, revision.Id);
 
@@ -214,7 +206,7 @@ public sealed class ScheduleDiffStoreTests(PostgresFixture fixture)
         new ScheduleDiffStore(context),
         new SemanticScheduleDiffer(new SemanticDiffOptions()),
         new ScheduleDiffSafetyThresholds(),
-        new FixedClock(Now));
+        new ScheduleDiffScenario.FixedClock(Now));
 
     private static ScheduleDiff Build(ScheduleDiffInput input) => ScheduleDiff.Create(
         input.ScheduleSourceId,
@@ -243,146 +235,4 @@ public sealed class ScheduleDiffStoreTests(PostgresFixture fixture)
         await context.ScheduleDiffs
             .Include(diff => diff.Entries)
             .SingleAsync(diff => diff.CurrentRevisionId == revisionId, Token);
-
-    private static async Task<ScheduleSource> AddSourceAsync(SirkadiyenDbContext context)
-    {
-        ScheduleSource source = new(
-            SourceId.Parse($"G1-DIFF-{Guid.NewGuid():N}"[..24]),
-            "Diff test source",
-            ScheduleSourceTransport.GoogleSheets,
-            ScheduleDocumentFormat.GoogleSheet,
-            "https://example.invalid/sheet",
-            "grade1_yearly_v1",
-            "1.0.0",
-            "2025-2026",
-            1,
-            DomainLanguage.Turkish,
-            "Europe/Istanbul",
-            "spreadsheet-1",
-            1);
-
-        context.ScheduleSources.Add(source);
-        await context.SaveChangesAsync(Token);
-        return source;
-    }
-
-    /// <summary>
-    /// Adds a validated revision holding one record per stable identity.
-    /// </summary>
-    /// <param name="changedContentIdentities">
-    /// Identities whose content hash differs from the default, which is how a
-    /// room or instructor change reaches the diff as an update.
-    /// </param>
-    private static async Task<ScheduleRevision> AddRevisionAsync(
-        SirkadiyenDbContext context,
-        ScheduleSource source,
-        DateTimeOffset createdAtUtc,
-        IReadOnlyList<string> identities,
-        IReadOnlyCollection<string>? changedContentIdentities = null)
-    {
-        SourceSnapshot snapshot = new(
-            source.Id,
-            source.SourceId,
-            $"snapshot-{Guid.NewGuid():N}",
-            "spreadsheet-1",
-            createdAtUtc,
-            $"sha256:{Guid.NewGuid():N}",
-            "1.0",
-            "{}",
-            1,
-            identities.Count,
-            0);
-
-        ParseRun run = new(
-            snapshot.Id,
-            source.ParserProfile,
-            source.ParserProfileVersion,
-            $"c-{Guid.NewGuid():N}",
-            createdAtUtc);
-
-        ScheduleRevision revision = new(source.Id, source.SourceId, run.Id, createdAtUtc);
-        revision.SetRecordCount(identities.Count);
-        revision.TransitionTo(RevisionState.Validating, createdAtUtc);
-        revision.TransitionTo(RevisionState.Validated, createdAtUtc, "All validation rules passed.");
-
-        context.SourceSnapshots.Add(snapshot);
-        context.ParseRuns.Add(run);
-        context.ScheduleRevisions.Add(revision);
-
-        foreach (string identity in identities)
-        {
-            context.CanonicalScheduleRecords.Add(Materialize(
-                revision.Id,
-                source.SourceId,
-                identity,
-                changedContentIdentities?.Contains(identity) == true
-                    ? $"sha256:changed-{identity}"
-                    : $"sha256:{identity}"));
-        }
-
-        await context.SaveChangesAsync(Token);
-        return revision;
-    }
-
-    private static async Task<ScheduleRevision> PublishAsync(
-        SirkadiyenDbContext context,
-        ScheduleSource source,
-        DateTimeOffset createdAtUtc,
-        IReadOnlyList<string> identities,
-        IReadOnlyCollection<string>? changedContentIdentities = null)
-    {
-        ScheduleRevision revision = await AddRevisionAsync(
-            context,
-            source,
-            createdAtUtc,
-            identities,
-            changedContentIdentities);
-
-        context.ChangeTracker.Clear();
-        RevisionPublicationResult result = await new ScheduleRevisionPublicationStore(context)
-            .PublishAsync(revision.Id, createdAtUtc, Token);
-        Assert.Equal(RevisionPublicationOutcome.Published, result.Outcome);
-
-        context.ChangeTracker.Clear();
-        return revision;
-    }
-
-    private static CanonicalScheduleRecord Materialize(
-        Guid revisionId,
-        SourceId sourceId,
-        string identity,
-        string contentHash)
-    {
-        IReadOnlyList<AudienceSelector> audience =
-        [
-            new AudienceSelector { Dimension = "practiceGroup", Value = "A" },
-        ];
-
-        return new CanonicalScheduleRecord(
-            revisionId,
-            sourceId,
-            $"candidate-{identity}",
-            CanonicalRecordStatus.Scheduled,
-            "2025-2026",
-            1,
-            DomainLanguage.Turkish,
-            DomainEventType.Theory,
-            DomainAudienceScope.SelectedGroups,
-            JsonSerializer.Serialize(audience, ContractJson.CreateOptions()),
-            $"Lesson {identity}",
-            null,
-            new DateOnly(2025, 10, 3),
-            new TimeOnly(9, 0),
-            new TimeOnly(10, 50),
-            "Europe/Istanbul",
-            identity,
-            contentHash,
-            1.0m,
-            "[]");
-    }
-
-    private sealed class FixedClock(DateTimeOffset now) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => now;
-    }
 }

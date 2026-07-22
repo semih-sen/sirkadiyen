@@ -40,6 +40,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IScheduleRevisionPublicationStore, ScheduleRevisionPublicationStore>();
         services.AddScoped<IScheduleRevisionReadStore, ScheduleRevisionReadStore>();
         services.AddScoped<IScheduleDiffStore, ScheduleDiffStore>();
+        services.AddScoped<IScheduleDiffReviewStore, ScheduleDiffReviewStore>();
 
         return services;
     }

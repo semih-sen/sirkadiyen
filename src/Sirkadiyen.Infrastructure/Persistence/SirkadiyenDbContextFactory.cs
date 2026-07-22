@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using Sirkadiyen.Infrastructure.Configuration;
 
 namespace Sirkadiyen.Infrastructure.Persistence;
 
@@ -7,10 +8,11 @@ namespace Sirkadiyen.Infrastructure.Persistence;
 /// Builds a context for the EF Core command-line tools.
 /// </summary>
 /// <remarks>
-/// Design-time only. It reads the connection string from the environment so no
-/// credential is ever written into the repository, and it falls back to a local
-/// development host when the variable is absent, because generating a migration
-/// does not require a reachable database.
+/// Design-time only. It reads the connection string from the environment, and
+/// from the repository's <c>.env</c> file when the environment does not set it,
+/// so no credential is ever written into the repository. It falls back to a
+/// local development host when neither supplies one, because generating a
+/// migration does not require a reachable database.
 /// </remarks>
 public sealed class SirkadiyenDbContextFactory : IDesignTimeDbContextFactory<SirkadiyenDbContext>
 {
@@ -21,6 +23,8 @@ public sealed class SirkadiyenDbContextFactory : IDesignTimeDbContextFactory<Sir
 
     public SirkadiyenDbContext CreateDbContext(string[] args)
     {
+        DotEnvFile.Load();
+
         string connectionString =
             Environment.GetEnvironmentVariable(ConnectionStringVariable) ?? DesignTimeFallback;
 

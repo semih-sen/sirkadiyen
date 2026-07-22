@@ -16,7 +16,10 @@ is calculated after publication in its own transaction, driven by revision state
 rather than by whoever published (ADR-039), and a unique index on the current
 revision makes a retried calculation idempotent. A diff is created `Ready` or
 `Held`: any ambiguous entry, or a mass deletion over the configured thresholds,
-holds it and no calendar operation may be derived from it (ADR-040).
+holds it and no calendar operation may be derived from it (ADR-040). A held diff
+reaches dispatch only through a named operator releasing it over the internal
+API, which moves it to `Released` and keeps the reason it was held; an ambiguity
+hold is never releasable and is corrected at the source (ADR-042).
 
 Nothing consumes a diff yet. Affected-user resolution, Drive and HTTP
 acquisition, DOCX conversion, identity, licensing, Calendar sync, and the
@@ -37,6 +40,50 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- Added the operator path for a held diff (ADR-042), the last unimplemented part
+  of ADR-040. A `Held` diff now reaches dispatch through a new `Released` state,
+  reached by `POST /api/diffs/{id}/release` behind the existing operator key,
+  which records who took responsibility, why, and when.
+- An ambiguity hold is deliberately not releasable, enforced in the domain and
+  not only at the endpoint: an operator can confirm a large deletion by reading
+  the source but cannot decide which of several candidates a record became.
+- `Released` is a separate state from `Ready` on purpose, so a consumer can tell
+  an automatically safe diff from one a human vouched for. The hold reason
+  survives the release.
+- Added the hold queue and a detail view that names the lessons rather than
+  record identifiers, lists deletions first and excludes unchanged entries.
+- Release is guarded by the diff's row version (PostgreSQL `xmin`, no new
+  column), so two operators acting at once get a refusal rather than a silent
+  overwrite. Migration `AddScheduleDiffRelease` adds three nullable columns.
+- Verified end to end against the real database: 401 without the key, the queue,
+  the detail, a release, 409 on a second release, 400 on missing fields, and 409
+  refusing an ambiguous hold.
+- 176 .NET tests pass against a real PostgreSQL with nothing skipped, up from
+  163. Release build and `dotnet format --verify-no-changes` are clean.
+
+## Previous configuration session
+
+- Fixed `dotnet run` failing with a missing `SIRKADIYEN_DATABASE:CONNECTION_STRING`
+  even though `.env` declared it: nothing in the .NET solution ever read that
+  file, which only Docker Compose consumed.
+- Added `DotEnvFile` in Infrastructure. It searches upward from the assembly's
+  output directory for the nearest `.env` and applies only variables the process
+  environment does not already define, so an exported or injected value stays
+  authoritative (ADR-041). No new package: the parser is about eighty lines and
+  the precedence rule is specific to us.
+- Both hosts call it before creating their builder, because the
+  environment-variable configuration provider reads the environment as it is
+  added. The design-time context factory and the PostgreSQL test fixture call it
+  too, so `dotnet-ef` and `dotnet test` also need no manual export.
+- A malformed line fails with the file and line number and never the value.
+  There is no inline comment syntax on purpose: a password may contain `#`.
+- Verified by starting the API from a clean shell — it reached `/health` with no
+  variable exported.
+- 163 .NET tests pass against a real PostgreSQL with nothing skipped, up from
+  145. Release build and `dotnet format --verify-no-changes` are clean.
+
+## Previous diff persistence session
 
 - Added the `ScheduleDiff` aggregate: the stored difference between a published
   revision and the one it superseded, with its counts, its per-record entries,
@@ -314,36 +361,33 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Immediate objectives
 
-1. Give an operator a path for a held diff. Today a held diff simply stops,
-   which is safe but leaves no way to record that the hold was reviewed. This is
-   the only part of ADR-040 that is not implemented.
-2. Survey each parser profile for an explicitly stated academic department and
+1. Survey each parser profile for an explicitly stated academic department and
    populate canonical `Department` only where the source provides it. Current
    historical records remain null and safely skip secondary matching.
-3. Implement the runtime-readable, audited global freeze from ADR-034 across
+2. Implement the runtime-readable, audited global freeze from ADR-034 across
    source polling and publication before calendar jobs are introduced.
-4. Define the snapshot retention policy and implement cleanup. Snapshots are
+3. Define the snapshot retention policy and implement cleanup. Snapshots are
    stored whole, one Grade 1 annual snapshot is about seven megabytes, and 18
    sources poll as often as every 15 minutes. This is now a decided requirement,
    not an open question.
-5. Move the date-format assumption into the parser profile, so each profile
+4. Move the date-format assumption into the parser profile, so each profile
    declares its order explicitly instead of relying on the global day-first
    default that would silently misparse a month-first source.
-6. Replace the shared administrative key with real authentication, and the
+5. Replace the shared administrative key with real authentication, and the
    internal approval API with an administration frontend.
-7. Implement `grade2_yearly_v1`, which should reuse the annual implementation
+6. Implement `grade2_yearly_v1`, which should reuse the annual implementation
    with its own header aliases.
-8. Widen the group resolver for the English practice cohort labels (`İ1`) after
+7. Widen the group resolver for the English practice cohort labels (`İ1`) after
    reviewing that source's structure; it also lays dates out differently.
-9. Recover parse runs left `Running` by an abrupt worker shutdown without
+8. Recover parse runs left `Running` by an abrupt worker shutdown without
    creating duplicate runs or revisions.
-10. Establish .NET architecture tests.
-11. Acquire the missing Grade 1 anatomy and Grade 3 English fixtures.
-12. Add Google Drive/HTTP acquisition and DOCX conversion for the confirmed
+9. Establish .NET architecture tests.
+10. Acquire the missing Grade 1 anatomy and Grade 3 English fixtures.
+11. Add Google Drive/HTTP acquisition and DOCX conversion for the confirmed
     special-program sources.
-13. Add CI quality gates, including a PostgreSQL service for the integration
+12. Add CI quality gates, including a PostgreSQL service for the integration
     tests.
-14. Model identity, single-use licensing, secure-cookie sessions, flexible
+13. Model identity, single-use licensing, secure-cookie sessions, flexible
     student profiles, initial sync, and the dedicated managed calendar from
     ADR-022 through ADR-027.
 
@@ -464,16 +508,23 @@ Exact required groups for each class year and language must be derived from sour
   publish a quarantined schedule into student calendars, and `ApprovedBy` records
   a claim rather than a verified identity. The API must not be publicly exposed
   until real authentication replaces the key
-- a held diff has no operator path. Nothing releases it and nothing surfaces it
-  in the administration API, so a source correction is the only way forward. The
-  direction is safe, but a hold is currently invisible outside the worker log
+- releasing a held diff is guarded only by the shared operator key, and
+  `ReleasedBy` is a claim rather than a verified identity. Releasing is the last
+  gate before calendar deletions, so this is a stronger reason than approval was
+  to replace the key before the calendar adapter exists
 - the diff gate's deletion share is computed against the previous revision as
   the diff accounted for it. A source that legitimately shrinks — an ended
-  semester block — will be held every time until the next revision, and no one
-  can currently record that this was reviewed
+  semester block — is held on every revision that shrinks it, and each one needs
+  its own release; the release is recorded but is not remembered for next time
 - diff rows restrict deletion of the revisions and canonical records they cite,
   which is deliberate but makes snapshot and revision retention harder: a
   retention policy must retire diffs alongside what they reference
+- the `.env` loader mutates process-global environment state. It is called once
+  at the top of a host's composition and from no library code reached at request
+  time; a call added anywhere else would make configuration order-dependent
+- pointing `SIRKADIYEN_TEST_DATABASE__CONNECTION_STRING` at a working database
+  in `.env` now destroys it, because the fixture drops and re-migrates whatever
+  it is given and no longer needs a deliberate export to find it
 - forward-fix deliberately depends on source correction and the next healthy
   polling cycle; operators still lack the global freeze that ADR-034 requires
 

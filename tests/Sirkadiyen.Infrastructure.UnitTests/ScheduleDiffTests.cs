@@ -160,6 +160,73 @@ public sealed class ScheduleDiffTests
         Assert.Throws<ArgumentOutOfRangeException>(thresholds.Validate);
     }
 
+    [Fact]
+    public void ReleasingAHeldDiffRecordsWhoTookResponsibilityAndKeepsTheHoldReason()
+    {
+        ScheduleDiff diff = Create(
+            Entries(ScheduleDiffChange.Deleted, 12),
+            Entries(ScheduleDiffChange.Unchanged, 28));
+        string holdReason = diff.HoldReason!;
+
+        Assert.True(diff.IsReleasable);
+        diff.Release("semih", "The 12 deletions are the ended anatomy block.", Now.AddHours(2));
+
+        Assert.Equal(ScheduleDiffState.Released, diff.State);
+        Assert.True(diff.IsDispatchable);
+        Assert.Equal("semih", diff.ReleasedBy);
+        Assert.Equal(Now.AddHours(2), diff.ReleasedAtUtc);
+
+        // "Held for this reason, then released by this person" is the record
+        // that matters when someone later asks why lessons left a calendar.
+        Assert.Equal(holdReason, diff.HoldReason);
+        Assert.False(diff.IsReleasable);
+    }
+
+    [Fact]
+    public void AnAmbiguousDiffIsNeverReleasable()
+    {
+        // An operator can confirm a large deletion by reading the source, but
+        // cannot decide which of several candidates a record became. Releasing
+        // it would leave the previous lesson in every affected calendar and
+        // never write its replacement.
+        ScheduleDiff diff = Create(
+            Entries(ScheduleDiffChange.Ambiguous, 2),
+            Entries(ScheduleDiffChange.Unchanged, 100));
+
+        Assert.False(diff.IsReleasable);
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
+            () => diff.Release("semih", "Looks fine to me.", Now));
+
+        Assert.Contains("source", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(ScheduleDiffState.Held, diff.State);
+        Assert.False(diff.IsDispatchable);
+    }
+
+    [Fact]
+    public void AReadyDiffHasNothingToRelease()
+    {
+        ScheduleDiff diff = Create(Entries(ScheduleDiffChange.Created, 3));
+
+        Assert.False(diff.IsReleasable);
+        Assert.Throws<InvalidOperationException>(() => diff.Release("semih", "Why not.", Now));
+    }
+
+    [Fact]
+    public void AReleaseMustNameAnOperatorAndAReason()
+    {
+        ScheduleDiff diff = Create(
+            Entries(ScheduleDiffChange.Deleted, 12),
+            Entries(ScheduleDiffChange.Unchanged, 28));
+
+        Assert.Throws<ArgumentException>(() => diff.Release(" ", "A reason.", Now));
+        Assert.Throws<ArgumentException>(() => diff.Release("semih", " ", Now));
+        Assert.Throws<ArgumentOutOfRangeException>(() => diff.Release(
+            new string('x', ScheduleDiff.MaximumReleasedByLength + 1),
+            "A reason.",
+            Now));
+        Assert.Equal(ScheduleDiffState.Held, diff.State);
+    }
+
     private static ScheduleDiff Create(params IReadOnlyList<ScheduleDiffEntry>[] groups) =>
         ScheduleDiff.Create(
             SourceRowId,

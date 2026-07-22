@@ -63,8 +63,16 @@ Then apply the migrations:
 
 ```powershell
 dotnet tool restore
-$env:SIRKADIYEN_DATABASE__CONNECTION_STRING = "Host=localhost;Port=5432;Database=sirkadiyen;Username=sirkadiyen;Password=sirkadiyen"
 dotnet dotnet-ef database update --project src/Sirkadiyen.Infrastructure
+```
+
+The design-time factory reads `SIRKADIYEN_DATABASE__CONNECTION_STRING` from the
+environment, then from the repository's `.env` (ADR-041), and falls back to a
+local development host when neither supplies one. Export the variable for the
+session to override the file:
+
+```powershell
+$env:SIRKADIYEN_DATABASE__CONNECTION_STRING = "Host=localhost;Port=15432;Database=sirkadiyen;Username=sirkadiyen;Password=sirkadiyen"
 ```
 
 ## Migrations

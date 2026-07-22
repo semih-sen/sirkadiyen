@@ -15,14 +15,19 @@ namespace Sirkadiyen.Domain.ScheduleDiffing;
 /// held back without losing it.
 /// <para>
 /// A diff is created in <see cref="ScheduleDiffState.Ready"/> or
-/// <see cref="ScheduleDiffState.Held"/> and never mutates afterwards. Correcting
-/// a bad publication is forward-fix only (ADR-033): the next revision produces
-/// the next diff.
+/// <see cref="ScheduleDiffState.Held"/>. What it says about the two revisions
+/// never changes; the one thing an operator may change is a held diff's state,
+/// by releasing it (ADR-042). Correcting a bad publication remains forward-fix
+/// only (ADR-033): the next revision produces the next diff.
 /// </para>
 /// </remarks>
 public sealed class ScheduleDiff
 {
     public const int MaximumHoldReasonLength = 2000;
+
+    public const int MaximumReleasedByLength = 200;
+
+    public const int MaximumReleaseReasonLength = 2000;
 
     private readonly List<ScheduleDiffEntry> entries = [];
 
@@ -121,12 +126,71 @@ public sealed class ScheduleDiff
 
     public DateTimeOffset CreatedAtUtc { get; private init; }
 
+    /// <summary>The operator who released a held diff, as a claimed identity.</summary>
+    public string? ReleasedBy { get; private set; }
+
+    public string? ReleaseReason { get; private set; }
+
+    public DateTimeOffset? ReleasedAtUtc { get; private set; }
+
+    public uint RowVersion { get; private set; }
+
     public IReadOnlyList<ScheduleDiffEntry> Entries => entries;
 
     /// <summary>
     /// Whether a consumer may turn this diff into calendar operations.
     /// </summary>
-    public bool IsDispatchable => State is ScheduleDiffState.Ready;
+    public bool IsDispatchable => State is ScheduleDiffState.Ready or ScheduleDiffState.Released;
+
+    /// <summary>
+    /// Whether an operator may take responsibility for this diff.
+    /// </summary>
+    /// <remarks>
+    /// A hold caused by ambiguity is deliberately not releasable. An operator can
+    /// confirm that a large deletion is real by reading the source, but they
+    /// cannot decide which of several candidates an ambiguous record became, and
+    /// releasing it would leave the previous lesson in every affected calendar
+    /// while its replacement is never written. That is fixed at the source
+    /// (ADR-042).
+    /// </remarks>
+    public bool IsReleasable => State is ScheduleDiffState.Held && AmbiguousCount == 0;
+
+    /// <summary>
+    /// Records an operator taking responsibility for a held diff and allows it to
+    /// be dispatched.
+    /// </summary>
+    /// <remarks>
+    /// The hold and its reason are kept. A released diff reads as "held for this
+    /// reason, then released by this person", which is the record that matters
+    /// when someone later asks why a hundred lessons left a calendar.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">The diff is not releasable.</exception>
+    public void Release(string releasedBy, string releaseReason, DateTimeOffset atUtc)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(releasedBy);
+        ArgumentException.ThrowIfNullOrWhiteSpace(releaseReason);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            releasedBy.Length,
+            MaximumReleasedByLength,
+            nameof(releasedBy));
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            releaseReason.Length,
+            MaximumReleaseReasonLength,
+            nameof(releaseReason));
+
+        if (!IsReleasable)
+        {
+            throw new InvalidOperationException(
+                AmbiguousCount > 0
+                    ? "An ambiguous diff cannot be released; the ambiguity is resolved at the source."
+                    : $"A diff in {State} cannot be released.");
+        }
+
+        State = ScheduleDiffState.Released;
+        ReleasedBy = releasedBy;
+        ReleaseReason = releaseReason;
+        ReleasedAtUtc = atUtc;
+    }
 
     private string? DescribeHold(ScheduleDiffSafetyThresholds thresholds)
     {
@@ -185,4 +249,10 @@ public enum ScheduleDiffState
 
     /// <summary>Held for a human. No calendar operation may be derived from it.</summary>
     Held,
+
+    /// <summary>
+    /// Held, then released by a named operator who stated why (ADR-042). It may
+    /// be dispatched, and it still carries the reason it was held.
+    /// </summary>
+    Released,
 }

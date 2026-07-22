@@ -151,11 +151,19 @@ internal sealed class Worker(
 
                 if (result.Diff.State is ScheduleDiffState.Held)
                 {
+                    // The diff identifier is logged because it is what an
+                    // operator needs to review the hold and, when the source
+                    // really did drop those lessons, release it (ADR-042).
                     logger.LogWarning(
-                        "Revision {RevisionId} diff is held and will not reach any calendar: "
-                        + "{HoldReason}",
+                        "Diff {ScheduleDiffId} for revision {RevisionId} is held and will not "
+                        + "reach any calendar: {HoldReason} "
+                        + "{ReleasableHint}",
+                        result.Diff.Id,
                         result.RevisionId,
-                        result.Diff.HoldReason);
+                        result.Diff.HoldReason,
+                        result.Diff.IsReleasable
+                            ? "Review it at GET /api/diffs/{id} and release it if the source is right."
+                            : "It is ambiguous, so it can only be fixed at the source.");
                 }
             }
         }
