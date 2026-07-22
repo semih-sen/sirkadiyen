@@ -578,3 +578,98 @@ A parse golden file records:
 - Golden files stay around 140 KB per fixture instead of several megabytes.
 - ADR-012 is amended, not superseded: regeneration remains explicit and every
   changed golden must be explained.
+
+---
+
+## ADR-020: Group expressions state their cohort model
+
+**Status:** Accepted
+**Date:** 2026-07-22
+
+### Context
+
+The Grade 1 practice rotation labels cohorts with letters: columns hold `A` to
+`H`, `A2` names a subgroup of group A, and `AB` appears where two groups share
+a session. The shared resolver was calibrated on numbered cohorts, where a
+leading `G` abbreviates the word *grup* and `G2` is group two. Reading the
+practice matrix with the numbered model silently turned group G into nothing and
+subgroup G2 into group 2, which would have sent lessons to the wrong students.
+
+One letter cannot mean two things at once, and no value inspection can settle
+it: `G2` is a valid expression under both models.
+
+### Decision
+
+`parse_group_expression` takes an explicit `letter_groups` flag and the parser
+profile states the model its source uses. With lettered cohorts:
+
+- a bare letter is a group, and only the spelled-out words are stripped
+- `<letter><digit>` is a subgroup of that letter's group
+- a run of letters such as `AB` names the individual groups, scored below a
+  value the source spelled out because the reading follows from the cohort model
+  rather than from the cell
+
+The practice profile reports a whole group under the `practiceGroup` dimension
+and a subgroup under `practiceSubgroup`. A value of any other shape is refused
+with its own warning.
+
+### Consequences
+
+- Audience resolution must treat `practiceSubgroup` as a refinement of
+  `practiceGroup`: a student in group A with subgroup 2 matches both `A` and
+  `A2`.
+- A makeup cell that names no group (`TELAFİ`) publishes nothing and warns. That
+  is deliberate: sending a makeup session to everyone is worse than omitting it.
+- Sources with a third cohort model, such as the English practice program's
+  `İ1`-style labels, still refuse and must be reviewed before the resolver is
+  widened again.
+
+---
+
+## ADR-021: Persist the schedule pipeline before identity and licensing
+
+**Status:** Accepted
+**Date:** 2026-07-22
+
+### Context
+
+The pipeline can now acquire and parse real sources, but nothing survives a
+process restart. Persistence is required for polling, change detection,
+revisions and diffing. The full product also needs users, licenses, student
+profiles and calendar event mappings.
+
+License policy is an explicitly open decision: single-use or multi-use,
+expiration, cohort restriction, revocation consequences. Modelling those tables
+now would encode guesses in a migration, and an applied migration cannot be
+edited.
+
+### Decision
+
+The first schema covers `schedule_sources`, `source_snapshots`, `parse_runs`,
+`schedule_revisions` and `canonical_schedule_records`, using EF Core 10 with
+Npgsql and version-controlled migrations. Identity, licensing, profiles and
+calendar mappings wait for the ADRs that decide their behaviour.
+
+Guarantees the schema enforces rather than the application:
+
+- a source identifier is unique
+- one source may have at most one published revision, through a partial unique
+  index on the published state
+- one revision may not hold the same stable identity twice
+- a canonical record must end after it starts
+- contested rows carry PostgreSQL's `xmin` as a concurrency token
+
+The unchanged-source short circuit compares only the source's latest snapshot
+and runs inside a transaction that locks the source row, so two concurrent polls
+cannot both decide the source changed. Snapshot payloads, audience selectors and
+parser evidence are stored as `jsonb`.
+
+### Consequences
+
+- Reverted content counts as a change, because only the latest snapshot decides.
+  That is correct: the published schedule really did move back.
+- Snapshot payloads are large, and the retention policy remains open.
+- Identity and licensing migrations will come after their ADRs, not before.
+- Database integration tests require a real PostgreSQL and report themselves as
+  skipped when none is configured, so an unrun guarantee never looks like a
+  passing one.

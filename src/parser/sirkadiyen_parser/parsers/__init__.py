@@ -10,6 +10,7 @@ from collections.abc import Callable
 
 from sirkadiyen_parser.contracts.parsing import ParseSnapshotRequest, ParseSnapshotResponse
 from sirkadiyen_parser.parsers.annual import parse_annual_snapshot
+from sirkadiyen_parser.parsers.practice import parse_practice_snapshot
 from sirkadiyen_parser.profiles import ParserProfileDefinition
 
 ParserImplementation = Callable[
@@ -19,6 +20,7 @@ ParserImplementation = Callable[
 
 _IMPLEMENTATIONS: dict[tuple[str, str], ParserImplementation] = {
     ("grade1_yearly_v1", "1.0.0"): parse_annual_snapshot,
+    ("grade1_practice_v1", "1.0.0"): parse_practice_snapshot,
 }
 
 

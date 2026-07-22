@@ -23,7 +23,15 @@ METRIC_ROWS_IGNORED = "rows.ignored"
 #: Prefix for the per-reason breakdown of ignored rows.
 METRIC_ROWS_IGNORED_PREFIX = "rows.ignored."
 
+#: Matrix sources carry one lesson per cell rather than per row, so ignored
+#: cells are accounted for separately from ignored rows.
+METRIC_CELLS_IGNORED = "cells.ignored"
+
+METRIC_CELLS_IGNORED_PREFIX = "cells.ignored."
+
 WARNING_ROWS_IGNORED = "rowsIgnored"
+
+WARNING_CELLS_IGNORED = "cellsIgnored"
 
 
 @dataclass(slots=True)
@@ -157,26 +165,70 @@ class ParseDiagnostics:
         expected, so *every* occurrence records its own warning with its own
         evidence: a reviewer has to be able to open each affected row.
         """
-        self.increment(METRIC_ROWS_IGNORED)
-        self.increment(f"{METRIC_ROWS_IGNORED_PREFIX}{reason}")
+        self._record_ignored(
+            total_metric=METRIC_ROWS_IGNORED,
+            reason_prefix=METRIC_ROWS_IGNORED_PREFIX,
+            code=WARNING_ROWS_IGNORED,
+            unit="Rows",
+            reason=reason,
+            evidence=evidence,
+            severity=severity,
+            message=message,
+        )
+
+    def record_ignored_cell(
+        self,
+        reason: str,
+        evidence: SourceEvidence,
+        *,
+        severity: ParserWarningSeverity = ParserWarningSeverity.INFORMATION,
+        message: str | None = None,
+    ) -> None:
+        """Account for a matrix cell that produced no candidate.
+
+        A rotation matrix states one lesson per cell, so the cell is the unit
+        that must be accounted for. The severity rule matches
+        :meth:`record_ignored_row`.
+        """
+        self._record_ignored(
+            total_metric=METRIC_CELLS_IGNORED,
+            reason_prefix=METRIC_CELLS_IGNORED_PREFIX,
+            code=WARNING_CELLS_IGNORED,
+            unit="Cells",
+            reason=reason,
+            evidence=evidence,
+            severity=severity,
+            message=message,
+        )
+
+    def _record_ignored(
+        self,
+        *,
+        total_metric: str,
+        reason_prefix: str,
+        code: str,
+        unit: str,
+        reason: str,
+        evidence: SourceEvidence,
+        severity: ParserWarningSeverity,
+        message: str | None,
+    ) -> None:
+        self.increment(total_metric)
+        self.increment(f"{reason_prefix}{reason}")
 
         detail = message or (
-            f"Rows were ignored because of rule '{reason}'. "
-            f"See metric '{METRIC_ROWS_IGNORED_PREFIX}{reason}' for the total."
+            f"{unit} were ignored because of rule '{reason}'. "
+            f"See metric '{reason_prefix}{reason}' for the total."
         )
 
         if severity is not ParserWarningSeverity.INFORMATION:
-            self.warn(
-                severity=severity,
-                code=WARNING_ROWS_IGNORED,
-                message=detail,
-                evidence=evidence,
-            )
+            self.warn(severity=severity, code=code, message=detail, evidence=evidence)
             return
 
-        if reason not in self._reported_ignore_reasons:
-            self._reported_ignore_reasons.add(reason)
-            self.information(WARNING_ROWS_IGNORED, detail, evidence=evidence)
+        reported_key = f"{code}:{reason}"
+        if reported_key not in self._reported_ignore_reasons:
+            self._reported_ignore_reasons.add(reported_key)
+            self.information(code, detail, evidence=evidence)
 
     @property
     def warnings(self) -> tuple[ParserWarning, ...]:

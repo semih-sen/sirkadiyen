@@ -23,10 +23,19 @@ This file defines the intended baseline technology stack. Versions should be pin
 
 ### Data access
 
-- Entity Framework Core
-- PostgreSQL
-- Npgsql
-- version-controlled EF Core migrations
+- Entity Framework Core 10.0.0
+- PostgreSQL 18
+- `Npgsql.EntityFrameworkCore.PostgreSQL` 10.0.0
+- version-controlled EF Core migrations, generated with the locally pinned
+  `dotnet-ef` 10.0.10 tool in `.config/dotnet-tools.json`
+
+Mapping lives in `Sirkadiyen.Infrastructure/Persistence/Configurations`, so the
+domain project references no ORM. `System.Security.Cryptography.Xml` is pinned
+to 10.0.10 because the EF Core design package pulls in a version with known
+advisories, and the repository treats warnings as errors.
+
+See `docs/database.md` for the schema, the local setup, and the conventions that
+apply to migrations and integration tests.
 
 ### Validation
 

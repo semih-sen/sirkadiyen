@@ -63,10 +63,18 @@ whose term cell names another class year is excluded and counted.
 | Profile | Sources | Fixtures |
 | --- | --- | --- |
 | `grade1_yearly_v1` | `G1-TR-ANNUAL`, `G1-EN-ANNUAL` | `tests/fixtures/real/g1-{tr,en}-annual.snapshot.json` |
+| `grade1_practice_v1` | `G1-TR-PRACTICE` | `tests/fixtures/real/g1-tr-practice.snapshot.json` |
 
 `parsers/annual.py` reads the row-oriented annual layout: one lesson per row,
 with columns selected by header alias rather than by position, so the Turkish
 and English workbooks share one implementation.
+
+`parsers/practice.py` reads the rotation matrix, where **a candidate is a cell**:
+the group comes from the cell, the subject from its column header, and the date
+and time from its row. It states the lettered cohort model explicitly (ADR-020),
+so `G` is group G and `A2` is a subgroup of group A, and it refuses any cell
+whose value it cannot fully read — a makeup marker naming no group publishes
+nothing rather than reaching every student.
 
 What it deliberately refuses:
 

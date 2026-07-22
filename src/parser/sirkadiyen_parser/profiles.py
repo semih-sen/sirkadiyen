@@ -14,7 +14,12 @@ _PROFILE_VERSION = "1.0.0"
 
 _PROFILES = (
     ParserProfileDefinition("grade1_yearly_v1", _PROFILE_VERSION, "annual"),
-    ParserProfileDefinition("grade1_practice_v1", _PROFILE_VERSION, "practice", ("practiceGroup",)),
+    ParserProfileDefinition(
+        "grade1_practice_v1",
+        _PROFILE_VERSION,
+        "practice",
+        ("practiceGroup", "practiceSubgroup"),
+    ),
     ParserProfileDefinition(
         "grade1_anatomy_v1",
         _PROFILE_VERSION,

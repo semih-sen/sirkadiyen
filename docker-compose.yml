@@ -1,0 +1,42 @@
+name: sirkadiyen
+
+# Local development dependencies only. Application containers are added when the
+# API, worker and parser have deployable images.
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: sirkadiyen-postgres
+    environment:
+      POSTGRES_DB: ${SIRKADIYEN_POSTGRES_DB:-sirkadiyen}
+      POSTGRES_USER: ${SIRKADIYEN_POSTGRES_USER:-sirkadiyen}
+      POSTGRES_PASSWORD: ${SIRKADIYEN_POSTGRES_PASSWORD:-sirkadiyen}
+    # Overridable, because a workstation often already runs PostgreSQL on 5432.
+    ports:
+      - "${SIRKADIYEN_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      # PostgreSQL 18 images expect the mount one level above the data
+      # directory, so the image can keep major-version-specific subdirectories.
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${SIRKADIYEN_POSTGRES_USER:-sirkadiyen} -d ${SIRKADIYEN_POSTGRES_DB:-sirkadiyen}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:8-alpine
+    container_name: sirkadiyen-redis
+    ports:
+      - "${SIRKADIYEN_REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  postgres-data:

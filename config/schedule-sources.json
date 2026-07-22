@@ -11,6 +11,10 @@
       "sheetGid": 1054469518,
       "parserProfile": "grade1_yearly_v1",
       "parserProfileVersion": "1.0.0",
+      "academicYear": "2025-2026",
+      "classYear": 1,
+      "programLanguage": "turkish",
+      "timeZoneId": "Europe/Istanbul",
       "fixturePath": "sheets/donem-1-tr/xlsx/2025-2026 D1 Türkçe Tıp Ders Programı.xlsx"
     },
     {
@@ -23,6 +27,10 @@
       "sheetGid": 692451545,
       "parserProfile": "grade1_practice_v1",
       "parserProfileVersion": "1.0.0",
+      "academicYear": "2025-2026",
+      "classYear": 1,
+      "programLanguage": "turkish",
+      "timeZoneId": "Europe/Istanbul",
       "fixturePath": "sheets/donem-1-tr/xlsx/2025-2026 Dönem 1 Türkçe Uygulama Tablosu (1).xlsx"
     },
     {
@@ -35,6 +43,10 @@
       "sheetGid": 159866267,
       "parserProfile": "grade1_yearly_v1",
       "parserProfileVersion": "1.0.0",
+      "academicYear": "2025-2026",
+      "classYear": 1,
+      "programLanguage": "english",
+      "timeZoneId": "Europe/Istanbul",
       "fixturePath": "sheets/donem-1-ing/xlsx/2025-2026 Term 1 Medicine Program in English Course Program.xlsx"
     },
     {
@@ -46,6 +58,10 @@
       "externalId": "1mY7J99QVfMzniV-6lLQksqAHm9MlRhgi",
       "parserProfile": "grade1_practice_v1",
       "parserProfileVersion": "1.0.0",
+      "academicYear": "2025-2026",
+      "classYear": 1,
+      "programLanguage": "english",
+      "timeZoneId": "Europe/Istanbul",
       "fixturePath": "sheets/donem-1-ing/xlsx/2025-2026 Term 1 Medicine Program in English-Med. Skill Practices.xlsx"
     },
     {
@@ -58,6 +74,10 @@
       "sheetGid": 370969780,
       "parserProfile": "grade2_yearly_v1",
       "parserProfileVersion": "1.0.0",
+      "academicYear": "2025-2026",
+      "classYear": 2,
+      "programLanguage": "turkish",
+      "timeZoneId": "Europe/Istanbul",
       "fixturePath": "sheets/donem-2-tr/xlsx/2025-2026 Dönem 2 Türkçe Tıp Programı Ders Programı.xlsx"
     },
     {
@@ -70,6 +90,10 @@
       "sheetGid": 77218153,
       "parserProfile": "grade2_practice_v1",
       "parserProfileVersion": "1.0.0",
+      "academicYear": "2025-2026",
+      "classYear": 2,
+      "programLanguage": "turkish",
+      "timeZoneId": "Europe/Istanbul",
       "fixturePath": "sheets/donem-2-tr/xlsx/2025-2026 Dönem 2 Türkçe Tıp Programı Uygulama Tablosu (1).xlsx"
     },
     {
@@ -81,6 +105,10 @@
       "externalId": "1ItUSpg1uDHLiqokyVFLEMHdGT0reLZeQ",
       "parserProfile": "grade2_vertical_corridor_v1",
       "parserProfileVersion": "1.0.0",
+      "academicYear": "2025-2026",
+      "classYear": 2,
+      "programLanguage": "turkish",
+      "timeZoneId": "Europe/Istanbul",
       "fixturePath": "sheets/donem-2-tr/Dönem 2 Beceri Uyg BAHAR Takvim 26.01.2025.docx"
     },
     {
@@ -92,6 +120,10 @@
       "externalId": "1VyDtK-p2qtTkT2H6KUQ-5_k4MuZzkZqe",
       "parserProfile": "grade2_vertical_corridor_v1",
       "parserProfileVersion": "1.0.0",
+      "academicYear": "2025-2026",
+      "classYear": 2,
+      "programLanguage": "turkish",
+      "timeZoneId": "Europe/Istanbul",
       "fixturePath": "sheets/donem-2-tr/Dönem 2 Beceri uygulama takvimi güz.docx"
     },
     {
@@ -104,6 +136,10 @@
       "sheetGid": 198851210,
       "parserProfile": "grade2_yearly_v1",
       "parserProfileVersion": "1.0.0",
+      "academicYear": "2025-2026",
+      "classYear": 2,
+      "programLanguage": "english",
+      "timeZoneId": "Europe/Istanbul",
       "fixturePath": "sheets/donem-2-ing/xlsx/2025-2026 Term 2 Medicine Program in English Course Program.....xlsx"
     },
     {
@@ -116,6 +152,10 @@
       "sheetGid": 1629561847,
       "parserProfile": "grade2_practice_v1",
       "parserProfileVersion": "1.0.0",
+      "academicYear": "2025-2026",
+      "classYear": 2,
+      "programLanguage": "english",
+      "timeZoneId": "Europe/Istanbul",
       "fixturePath": "sheets/donem-2-ing/xlsx/2024-2025 Term 2 Medicine Program in English PRACTICUM TABLE.xlsx",
       "notes": "Committed fixture is from 2024-2025; capture a current snapshot before publication."
     },
@@ -128,6 +168,10 @@
       "externalId": "1SPyiys93ZZHk48Nn7YoVcVK4PTcC-IZG",
       "parserProfile": "grade3_yearly_v1",
       "parserProfileVersion": "1.0.0",
+      "academicYear": "2025-2026",
+      "classYear": 3,
+      "programLanguage": "turkish",
+      "timeZoneId": "Europe/Istanbul",
       "fixturePath": "sheets/donem-3-tr-A/2025-2026 Dönem 3 A Türkçe Tıp Ders Programı.xlsx"
     },
     {
@@ -139,6 +183,10 @@
       "externalId": "17pSe_EAdCEPb4DLYWEWxuV4RdGjuVZ3G",
       "parserProfile": "grade3_yearly_v1",
       "parserProfileVersion": "1.0.0",
+      "academicYear": "2025-2026",
+      "classYear": 3,
+      "programLanguage": "turkish",
+      "timeZoneId": "Europe/Istanbul",
       "fixturePath": "sheets/donem-3-tr-B/2025-2026 Dönem 3 B Türkçe Tıp Ders Programı.xlsx"
     },
     {
@@ -150,6 +198,10 @@
       "externalId": "1N4Py12QhISWqGVezaTUWmjSwJYzMgj3W",
       "parserProfile": "grade3_bedside_v1",
       "parserProfileVersion": "1.0.0",
+      "academicYear": "2025-2026",
+      "classYear": 3,
+      "programLanguage": "turkish",
+      "timeZoneId": "Europe/Istanbul",
       "fixturePath": "sheets/donem-3-tr-A/2025-2026 Dönem 3 HASTA BAŞI A GRUBU UYGULAMA KONULARI VE TABLOSU.docx"
     },
     {
@@ -161,6 +213,10 @@
       "externalId": "1qtP_Mtunsyo4Pua9B-2aPhyBBuuDUJRK",
       "parserProfile": "grade3_bedside_v1",
       "parserProfileVersion": "1.0.0",
+      "academicYear": "2025-2026",
+      "classYear": 3,
+      "programLanguage": "turkish",
+      "timeZoneId": "Europe/Istanbul",
       "fixturePath": "sheets/donem-3-tr-B/2025-2026 Dönem 3 HASTA BAŞI B GRUBU UYGULAMA KONULARI VE TABLOSU.docx"
     },
     {
@@ -172,6 +228,10 @@
       "externalId": "17f1vYw7GrnDDsMMis_gPTFatyAwtMKh2",
       "parserProfile": "grade3_faculty_practice_v1",
       "parserProfileVersion": "1.0.0",
+      "academicYear": "2025-2026",
+      "classYear": 3,
+      "programLanguage": "turkish",
+      "timeZoneId": "Europe/Istanbul",
       "fixturePath": "sheets/donem-3-tr-A/Dönem 3 ÖĞRETİM ÜYESİ A GRUBU UYGULAMA TABLOSU VE KONULARI 2025-2026 (1).xlsx"
     },
     {
@@ -183,6 +243,10 @@
       "externalId": "1wlna2fWvaIBN9bVo16Sy3_paN7SzKoqN",
       "parserProfile": "grade3_faculty_practice_v1",
       "parserProfileVersion": "1.0.0",
+      "academicYear": "2025-2026",
+      "classYear": 3,
+      "programLanguage": "turkish",
+      "timeZoneId": "Europe/Istanbul",
       "fixturePath": "sheets/donem-3-tr-B/Dönem 3 ÖĞRETİM ÜYESİ B GRUBU UYGULAMA TABLOSU VE KONULARI 2025-2026 (2).xlsx"
     },
     {
@@ -194,6 +258,10 @@
       "externalId": "1nSoPX9o2Ble-HhSYR3tTtkJMysHHsjPg",
       "parserProfile": "grade3_faculty_practice_v1",
       "parserProfileVersion": "1.0.0",
+      "academicYear": "2025-2026",
+      "classYear": 3,
+      "programLanguage": "turkish",
+      "timeZoneId": "Europe/Istanbul",
       "fixturePath": "sheets/donem-3-tr-A/2025-2026 Dönem 3 ÖĞRETİM ÜYESİ UYGULAMASI PRATİK YERLERİ (1).xlsx",
       "notes": "Lookup/enrichment source shared by A and B faculty-practice programs."
     },
@@ -205,6 +273,10 @@
       "sourceUri": "https://cdn.istanbul.edu.tr/FileHandler2.ashx?f=20-24-temmuz-2026--amfi.xlsx",
       "parserProfile": "weekly_amphitheatre_v1",
       "parserProfileVersion": "1.0.0",
+      "academicYear": "2025-2026",
+      "classYear": 1,
+      "programLanguage": "turkish",
+      "timeZoneId": "Europe/Istanbul",
       "fixturePath": "sheets/amfi/20-24-temmuz-2026--amfi.xlsx",
       "notes": "The dated URL must be advanced by source discovery; the current endpoint rejects generic HEAD/download probes with HTTP 403."
     }

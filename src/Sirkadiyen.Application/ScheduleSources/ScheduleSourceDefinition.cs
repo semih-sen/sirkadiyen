@@ -1,3 +1,5 @@
+using Sirkadiyen.Domain.ScheduleSources;
+
 namespace Sirkadiyen.Application.ScheduleSources;
 
 public sealed record ScheduleSourceCatalog
@@ -27,21 +29,36 @@ public sealed record ScheduleSourceDefinition
 
     public required string ParserProfileVersion { get; init; }
 
+    /// <summary>
+    /// The source context the workbook does not state (ADR-017). It is
+    /// configuration, so it lives beside the source definition rather than
+    /// being derived from dates, file names or profile names.
+    /// </summary>
+    public required string AcademicYear { get; init; }
+
+    public required int ClassYear { get; init; }
+
+    public required ProgramLanguage ProgramLanguage { get; init; }
+
+    public required string TimeZoneId { get; init; }
+
     public string? FixturePath { get; init; }
 
     public string? Notes { get; init; }
-}
 
-public enum ScheduleSourceTransport
-{
-    GoogleSheets,
-    GoogleDriveFile,
-    HttpFile,
-}
-
-public enum ScheduleDocumentFormat
-{
-    GoogleSheet,
-    Xlsx,
-    Docx,
+    /// <summary>Projects the configured definition onto its persisted form.</summary>
+    public ScheduleSource ToScheduleSource() => new(
+        Domain.ScheduleSources.SourceId.Parse(SourceId),
+        DisplayName,
+        Transport,
+        DocumentFormat,
+        SourceUri.ToString(),
+        ParserProfile,
+        ParserProfileVersion,
+        AcademicYear,
+        ClassYear,
+        ProgramLanguage,
+        TimeZoneId,
+        ExternalId,
+        SheetGid);
 }

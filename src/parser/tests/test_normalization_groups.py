@@ -1,8 +1,10 @@
 import pytest
 
 from sirkadiyen_parser.normalization.groups import (
+    CONFIDENCE_LETTER_RUN,
     RULE_ALL_GROUPS,
     RULE_ENUMERATED,
+    RULE_LETTER_RUN,
     RULE_UNRESOLVED,
     parse_group_expression,
 )
@@ -61,6 +63,45 @@ def test_non_group_text_stays_unresolved(text: str) -> None:
 
     assert not expression.resolved
     assert expression.rule == RULE_UNRESOLVED
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("G", ("G",)),
+        ("A", ("A",)),
+        ("G2", ("G2",)),
+        ("A1,A2", ("A1", "A2")),
+        ("Grup A", ("A",)),
+    ],
+)
+def test_lettered_cohorts_read_a_bare_letter_as_a_group(
+    text: str,
+    expected: tuple[str, ...],
+) -> None:
+    expression = parse_group_expression(text, dimension=DIMENSION, letter_groups=True)
+
+    assert expression.values == expected
+    assert expression.rule == RULE_ENUMERATED
+
+
+def test_numbered_cohorts_still_read_a_leading_letter_as_a_label() -> None:
+    assert parse_group_expression("G2", dimension=DIMENSION).values == ("2",)
+
+
+def test_a_letter_run_names_several_lettered_groups_with_reduced_confidence() -> None:
+    expression = parse_group_expression("AB", dimension=DIMENSION, letter_groups=True)
+
+    assert expression.values == ("A", "B")
+    assert expression.rule == RULE_LETTER_RUN
+    assert expression.confidence == CONFIDENCE_LETTER_RUN
+
+
+@pytest.mark.parametrize("text", ["TELAFİ", "TELAFİ-a2", "H-A-B-i3-i2", "SINAV TELAFİ"])
+def test_a_makeup_marker_never_becomes_an_audience(text: str) -> None:
+    expression = parse_group_expression(text, dimension=DIMENSION, letter_groups=True)
+
+    assert not expression.resolved
 
 
 def test_a_partially_understood_expression_resolves_to_nothing() -> None:

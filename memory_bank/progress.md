@@ -18,7 +18,7 @@
 - [x] Add root solution and project structure
 - [x] Add formatting and editor configuration
 - [x] Add `.env.example`
-- [ ] Add Docker Compose development environment
+- [x] Add Docker Compose development environment
 - [ ] Add CI workflow
 - [x] Add contribution and local setup documentation
 
@@ -29,11 +29,11 @@
 - [ ] Define student profile model
 - [ ] Define supported profile option model
 - [ ] Define Google connection model
-- [ ] Define schedule source model
-- [ ] Define immutable snapshot model
+- [x] Define schedule source model
+- [x] Define immutable snapshot model
 - [x] Define parser request and response contracts
-- [ ] Define canonical schedule model
-- [ ] Define schedule revision model
+- [x] Define canonical schedule model
+- [x] Define schedule revision model
 - [ ] Define semantic diff model
 - [ ] Define user calendar event mapping
 - [ ] Define sync job state machine
@@ -77,9 +77,9 @@
 - [x] Implement normalized snapshot contract
 - [x] Implement snapshot hashing
 - [x] Implement local XLSX snapshot converter
-- [ ] Persist immutable snapshots
+- [x] Persist immutable snapshots
 - [ ] Add polling worker
-- [ ] Add unchanged-source short circuit
+- [x] Add unchanged-source short circuit
 
 ## Phase 5: Python parser foundation
 
@@ -104,7 +104,7 @@
 ## Phase 6: Parser profiles
 
 - [x] First-year Turkish annual
-- [ ] First-year Turkish practice
+- [x] First-year Turkish practice
 - [x] First-year English annual
 - [ ] First-year English practice
 - [ ] First-year anatomy practice
@@ -126,7 +126,7 @@
 
 ## Phase 7: Revision and validation pipeline
 
-- [ ] Persist parser results
+- [~] Persist parser results
 - [ ] Implement record validation
 - [ ] Implement revision validation
 - [ ] Implement anomaly thresholds
@@ -184,19 +184,28 @@
 
 ## Current next action
 
-`grade1_yearly_v1` parses both Grade 1 annual sources from real snapshots, with
-golden-file cover: 901 candidates from the Turkish workbook and 953 from the
-English one, every unpublished row accounted for by a reason and a metric.
+Three Grade 1 sources now parse from real snapshots with golden-file cover:
+901 and 953 annual candidates from the Turkish and English workbooks, and 426
+practice candidates from the Turkish rotation matrix. PostgreSQL holds sources,
+snapshots, parse runs, revisions and canonical records, and the unchanged-source
+short circuit is proved against a real database.
 
-Next implement `grade1_practice_v1`. It is a rotation matrix rather than a row
-list, so a candidate is a cell: the group comes from the cell, the course from
-the column header, and the date and time from the row. `activeContext.md`
-records the block structure read from the fixture. The practice source is also
-what will make the annual `UYGULAMA` rows resolvable to real cohorts, so it
-must land before publication rules are designed.
+Next compose the worker polling workflow, which is the first thing that joins
+the pieces end to end:
+
+```text
+list polling-enabled sources
+→ acquire a snapshot per source
+→ store through the short circuit
+→ on change, call the parser over HTTP
+→ persist the parse run
+→ create a revision and its canonical records
+```
+
+Each step exists in isolation. What is missing is the parser HTTP client, the
+job that sequences them, and the revision-creation transaction.
 
 In parallel, obtain either an offline source refresh token or a service-account
-credential with access to the Sheets sources. Then compose the worker polling
-workflow, persist changed snapshots immutably in PostgreSQL, and implement the
-unchanged-source short circuit. Drive/HTTP acquisition adapters and DOCX
-conversion follow the same transport/format boundary.
+credential with access to the Sheets sources; without one the workflow can only
+run against local fixtures. Drive/HTTP acquisition adapters and DOCX conversion
+follow the same transport/format boundary.

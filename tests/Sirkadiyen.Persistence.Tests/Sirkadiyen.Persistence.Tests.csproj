@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <!--
+      xunit v3 here, and only here, because the database tests must be able to
+      report themselves as skipped. A silently passing test that never opened a
+      connection would be worse than no test at all.
+    -->
+    <PackageReference Include="xunit.v3" Version="3.1.0" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Sirkadiyen.Application/Sirkadiyen.Application.csproj" />
+    <ProjectReference Include="../../src/Sirkadiyen.Contracts/Sirkadiyen.Contracts.csproj" />
+    <ProjectReference Include="../../src/Sirkadiyen.Domain/Sirkadiyen.Domain.csproj" />
+    <ProjectReference Include="../../src/Sirkadiyen.Infrastructure/Sirkadiyen.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../../config/schedule-sources.json" Link="fixtures/schedule-sources.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project>

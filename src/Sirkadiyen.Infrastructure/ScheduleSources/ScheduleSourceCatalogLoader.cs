@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Sirkadiyen.Application.ScheduleSources;
+using Sirkadiyen.Domain.ScheduleSources;
 
 namespace Sirkadiyen.Infrastructure.ScheduleSources;
 
@@ -48,6 +49,15 @@ public sealed class ScheduleSourceCatalogLoader
             ValidateRequiredText(source.DisplayName, nameof(source.DisplayName));
             ValidateRequiredText(source.ParserProfile, nameof(source.ParserProfile));
             ValidateRequiredText(source.ParserProfileVersion, nameof(source.ParserProfileVersion));
+            ValidateRequiredText(source.AcademicYear, nameof(source.AcademicYear));
+            ValidateRequiredText(source.TimeZoneId, nameof(source.TimeZoneId));
+
+            if (source.ClassYear is < 1 or > 6)
+            {
+                throw new InvalidDataException(
+                    $"Source '{source.SourceId}' states an unsupported class year "
+                    + $"{source.ClassYear}.");
+            }
 
             if (!sourceIds.Add(source.SourceId))
             {

@@ -79,15 +79,22 @@ The .NET 10 solution foundation is initialized with the following projects:
 - `Sirkadiyen.Api`
 - `Sirkadiyen.Worker`
 
-The API currently exposes `GET /health`. The Python parser service foundation,
-versioned transport models, and profile registry exist, but actual parser
-profiles are not implemented yet. The .NET ingestion layer can acquire a Google
-Sheets v4 response and deterministically normalize values, formulas, formatting,
-merges, and hidden dimensions into the snapshot contract. A typed catalog now
-records the 18 confirmed mixed-transport sources. A fixture-only Open XML tool
-normalizes local `.xlsx` files, and the first annual and practice snapshots are
-committed. Production snapshot persistence, polling, Drive/HTTP acquisition,
-parser profiles, and the remaining business capabilities are not implemented.
+The API currently exposes `GET /health`. Beyond that:
+
+- The .NET ingestion layer acquires a Google Sheets v4 response and normalizes
+  values, formulas, formatting, merges, and hidden dimensions into the versioned
+  snapshot contract. A typed catalog records the 18 confirmed mixed-transport
+  sources and the source context each one needs.
+- The Python parser implements two profiles against real snapshots:
+  `grade1_yearly_v1` for both Grade 1 annual sources and `grade1_practice_v1`
+  for the Grade 1 Turkish rotation matrix, both with golden-file regression
+  cover.
+- PostgreSQL holds configured sources, immutable snapshots, parse runs,
+  revisions and canonical records, including the unchanged-source short circuit.
+  See `docs/database.md`.
+
+Not implemented: polling, the parser HTTP client, Drive/HTTP acquisition, the
+semantic diff, calendar synchronization, identity, licensing, and the frontend.
 
 ## Local development
 
@@ -107,8 +114,21 @@ dotnet run --project src/Sirkadiyen.Api
 dotnet run --project src/Sirkadiyen.Worker
 ```
 
+Start the development dependencies and apply the schema:
+
+```powershell
+docker compose up -d postgres redis
+dotnet tool restore
+$env:SIRKADIYEN_DATABASE__CONNECTION_STRING = "Host=localhost;Port=5432;Database=sirkadiyen;Username=sirkadiyen;Password=sirkadiyen"
+dotnet dotnet-ef database update --project src/Sirkadiyen.Infrastructure
+```
+
 Copy `.env.example` to a local untracked environment file when configuration is
 introduced. Never commit real credentials or tokens.
+
+Database integration tests skip themselves unless
+`SIRKADIYEN_TEST_DATABASE__CONNECTION_STRING` is set. `docs/database.md` covers
+the schema, migrations, and test conventions.
 
 Parser setup and commands are documented in `src/parser/README.md`.
 

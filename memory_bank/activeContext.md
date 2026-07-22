@@ -2,17 +2,42 @@
 
 ## Current phase
 
-First fixture-backed parser profile.
+Grade 1 profiles and schedule persistence.
 
-`grade1_yearly_v1` now parses both Grade 1 annual sources end to end from real
-snapshots, with golden-file regression cover. The 18 confirmed sources have a
-typed mixed-transport catalog, and Google Sheets responses and local XLSX
-fixtures normalize deterministically. Credential factories support offline OAuth
-refresh tokens or service accounts, but the local environment still holds only a
-client ID and secret. Persistence, polling, Drive/HTTP adapters, the practice
-profile, and the frontend do not exist yet.
+Both Grade 1 profiles parse real snapshots with golden-file cover, and
+PostgreSQL now holds the ingestion and publication core. The 18 confirmed
+sources have a typed catalog that also carries the source context. Credential
+factories support offline OAuth refresh tokens or service accounts, but the
+local environment still holds only a client ID and secret. Polling, the parser
+HTTP client, Drive/HTTP adapters, identity, licensing and the frontend do not
+exist yet.
 
 ## Latest implementation session
+
+- Implemented `grade1_practice_v1` for the rotation-matrix practice program:
+  426 candidates from the Grade 1 Turkish source, with 20 refused cells that are
+  all makeup markers naming no group.
+- A candidate there is a cell, not a row: the group comes from the cell, the
+  subject from the column header, and the date and time from the row.
+- Added the lettered-cohort model to the shared group resolver (ADR-020) after
+  the real source showed that reading `G` as an abbreviation silently dropped
+  group G and turned subgroup `G2` into group 2.
+- Added `record_ignored_cell` so matrix sources account for every unpublished
+  cell the way row sources account for every unpublished row.
+- Added the PostgreSQL schema for sources, snapshots, parse runs, revisions and
+  canonical records (ADR-021), with EF Core 10, Npgsql, one migration and a
+  design-time factory.
+- Implemented the unchanged-source short circuit inside a transaction that locks
+  the source row, and proved it against a real database.
+- Added `academicYear`, `classYear`, `programLanguage` and `timeZoneId` to the
+  source catalog, so the source context ADR-017 requires has a configured home,
+  and the catalog now seeds `schedule_sources`.
+- Added Docker Compose for PostgreSQL and Redis.
+- Ran ruff, ruff format, mypy strict and pytest (237 passing) plus the .NET
+  Release build with zero warnings and all 40 .NET tests, 24 of them against a
+  real PostgreSQL.
+
+## Previous parser-profile session
 
 - Added `sourceContext` to the parse request in both the C# and Pydantic
   contracts, carrying academic year, class year, program language and timezone
@@ -136,23 +161,27 @@ profile, and the frontend do not exist yet.
 
 ## Immediate objectives
 
-1. Implement `grade1_practice_v1` against the Grade 1 practice rotation matrix.
-   Its structure is documented under "Grade 1 practice source structure" below.
+1. Compose the worker polling workflow: acquire, store through the short
+   circuit, call the parser over HTTP, persist the parse run and create a
+   revision. Every piece now exists; nothing joins them.
 2. Obtain an offline source refresh token or a service-account credential; do
    not reuse end-user Calendar authorization for source ingestion.
-3. Persist immutable snapshots in PostgreSQL and add the unchanged short circuit.
-4. Add worker polling for Google Sheets, then Drive and HTTP sources.
-5. Define the initial canonical schedule domain schema.
+3. Add the parser HTTP client and persist parse runs and canonical records.
+4. Implement `grade2_yearly_v1`, which should reuse the annual implementation
+   with its own header aliases.
+5. Widen the group resolver for the English practice cohort labels (`İ1`) after
+   reviewing that source's structure; it also lays dates out differently.
 6. Establish .NET architecture tests.
 7. Acquire the missing Grade 1 anatomy and Grade 3 English fixtures.
 8. Add DOCX conversion for the confirmed special-program sources.
-9. Add Docker Compose and CI quality gates.
+9. Add CI quality gates, including a PostgreSQL service for the integration
+   tests.
 10. Decide frontend, session, licensing, initial-sync, and managed-calendar rules.
 
 ## Grade 1 practice source structure
 
-Read from `g1-tr-practice.snapshot.json` and not yet implemented. Unlike the
-annual sources it is not row-per-lesson:
+Implemented by `grade1_practice_v1`. Unlike the annual sources it is not
+row-per-lesson:
 
 - The worksheet holds several blocks, one per curriculum block (`TIBBA MERHABA
   DİLİMİ`, `YAŞAMIN MOLEKÜLER TEMELLERİ DİLİMİ`, `HÜCRE DİLİMİ`, …), separated
@@ -169,12 +198,14 @@ annual sources it is not row-per-lesson:
   `UYGULAMA KONU BAŞLIKLARI` free-text topic lists per department, and notes.
 - Rows 1 to 23 are location and skill-laboratory lookup tables, not schedule.
 
-Consequences for the profile: the audience comes from the cell value, the course
-from the column header, and the date and time from the row, so a candidate is a
-cell rather than a row. Group values mix a plain letter with a letter plus a
-subgroup digit, which `parse_group_expression` already handles as one dimension.
-Totals, topic lists and lookup tables must be excluded by explicit rules and
-counted.
+The `HAREKET DİLİMİ` block contains a second schedule table nested inside
+columns E to G, listing 21 anatomy practice dates with no group column. The
+profile detects it, reports it, and reads none of its columns. Those anatomy
+sessions cannot be published until the missing Grade 1 anatomy source supplies
+the group assignment.
+
+The `HAYATIN EVRELERİ DİLİMİ` block has three dated rows but no subject header,
+so it carries no rotation to publish.
 
 ## Important unresolved decisions
 
@@ -251,6 +282,16 @@ Exact required groups for each class year and language must be derived from sour
   and only the label is wrong
 - the curriculum block stated by the annual sources has no canonical field and
   survives only as evidence and as part of the content hash
+- twenty Grade 1 Turkish practice cells say only `TELAFİ` and name no group, so
+  those makeup sessions are not published
+- the Grade 1 English practice source labels cohorts `İ1`, `İ2`, `İ3` and lays
+  its dates out differently, so `grade1_practice_v1` publishes almost nothing
+  from it; its fixture is deliberately not committed until the source has been
+  reviewed
+- reading `AB` as groups A and B follows from the cohort model rather than from
+  the cell, so those candidates carry reduced confidence
+- snapshot payloads are stored whole, and the retention policy is still open;
+  one Grade 1 annual snapshot is about seven megabytes
 
 ## Working assumptions
 
