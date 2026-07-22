@@ -17,7 +17,7 @@ public sealed class SirkadiyenDbContextFactory : IDesignTimeDbContextFactory<Sir
     public const string ConnectionStringVariable = "SIRKADIYEN_DATABASE__CONNECTION_STRING";
 
     private const string DesignTimeFallback =
-        "Host=localhost;Port=5432;Database=sirkadiyen_db;Username=postgres;Password=1234";
+        "Host=localhost;Port=15432;Database=sirkadiyen;Username=sirkadiyen;Password=sirkadiyen";
 
     public SirkadiyenDbContext CreateDbContext(string[] args)
     {
