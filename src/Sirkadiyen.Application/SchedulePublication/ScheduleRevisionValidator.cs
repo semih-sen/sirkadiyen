@@ -111,7 +111,7 @@ public sealed class ScheduleRevisionValidator(RevisionValidationOptions options)
             RevisionValidationRule.RecordDateOutsideAcademicYear,
             ValidationSeverity.Error,
             $"{outside.Count} record(s) fall outside academic year "
-            + $"'{input.Source.AcademicYear}' ({earliest:yyyy-MM-dd} to {latest:yyyy-MM-dd}), "
+            + $"'{input.Source.AcademicYear}' ({Invariant(earliest)} to {Invariant(latest)}), "
             + "which usually means a date was misread rather than that the schedule moved.",
             atUtc,
             detail: Detail(outside.Take(20).Select(record => new
@@ -177,7 +177,7 @@ public sealed class ScheduleRevisionValidator(RevisionValidationOptions options)
             RevisionValidationRule.LowConfidenceRecord,
             ValidationSeverity.Error,
             $"{low.Count} record(s) were resolved below the confidence threshold of "
-            + $"{options.LowConfidenceThreshold:0.00}.",
+            + $"{options.LowConfidenceThreshold.ToString("0.00", CultureInfo.InvariantCulture)}.",
             atUtc,
             detail: Detail(low.Take(20).Select(record => new
             {
@@ -300,7 +300,7 @@ public sealed class ScheduleRevisionValidator(RevisionValidationOptions options)
                 }
 
                 overlaps.Add(
-                    $"{group.Key.Date:yyyy-MM-dd} {group.Key.Audience} "
+                    $"{Invariant(group.Key.Date)} {group.Key.Audience} "
                     + $"'{previous.DisplayTitle}' / '{current.DisplayTitle}'");
             }
         }
@@ -359,7 +359,8 @@ public sealed class ScheduleRevisionValidator(RevisionValidationOptions options)
             RevisionValidationRule.MassDeletion,
             quarantine ? ValidationSeverity.Error : ValidationSeverity.Information,
             $"{disappeared.Count} of {priorCount} previously published record(s) "
-            + $"({share:P1}) are absent from this revision.",
+            + $"({share.ToString("P1", CultureInfo.InvariantCulture)}) are absent from "
+            + "this revision.",
             atUtc,
             detail: Detail(disappeared.Take(20)),
             affectedRecordCount: disappeared.Count));
@@ -437,6 +438,18 @@ public sealed class ScheduleRevisionValidator(RevisionValidationOptions options)
             atUtc,
             detail,
             affectedRecordCount);
+
+    /// <summary>
+    /// Renders a date the same way on every host.
+    /// </summary>
+    /// <remarks>
+    /// Findings are written to the database and read back by whoever reviews the
+    /// revision, possibly on another machine. Stored evidence must not depend on
+    /// the culture of the host that produced it, which is also why the thresholds
+    /// in these messages are formatted invariantly.
+    /// </remarks>
+    private static string Invariant(DateOnly date) =>
+        date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 
     private static string Detail<T>(IEnumerable<T> values) =>
         JsonSerializer.Serialize(values, JsonOptions);

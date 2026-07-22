@@ -4,4 +4,14 @@
     <ProjectReference Include="../Sirkadiyen.Contracts/Sirkadiyen.Contracts.csproj" />
     <ProjectReference Include="../Sirkadiyen.Infrastructure/Sirkadiyen.Infrastructure.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
+    <!--
+      Pinned above the 2.0.0 that Microsoft.AspNetCore.OpenApi 10.0.10 pulls in.
+      That version carries GHSA-v5pm-xwqc-g5wc, and this repository treats NuGet
+      audit warnings as errors, so the transitive reference fails the build.
+      Remove the pin once the OpenApi package depends on a patched version.
+    -->
+    <PackageReference Include="Microsoft.OpenApi" Version="2.11.0" />
+  </ItemGroup>
 </Project>

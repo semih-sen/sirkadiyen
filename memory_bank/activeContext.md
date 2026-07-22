@@ -2,16 +2,17 @@
 
 ## Current phase
 
-Revision validation.
+Revision publication.
 
-The worker joins the implemented Google Sheets path end to end: catalog seeding,
-adaptive polling, immutable snapshot storage, strict parser HTTP calls,
-parse-run persistence, transactional candidate revision creation, and now
-revision validation. A candidate revision no longer sits in `Parsed`; it reaches
-`Validated`, `ReviewRequired` or `Rejected` with persisted findings.
+The Google Sheets path now runs end to end from catalog seeding to live data:
+adaptive polling, immutable snapshot storage, strict parser HTTP calls, parse-run
+persistence, transactional candidate revision creation, validation, and
+publication. A healthy revision reaches `Published` with no human involved; a
+quarantined one waits for a named approver.
 
-Publication is the next step and does not exist. Drive and HTTP acquisition,
-DOCX conversion, semantic diff, identity, licensing, Calendar sync, and the
+The semantic diff is the next step and does not exist, so publication currently
+makes a revision live without yet computing what changed. Drive and HTTP
+acquisition, DOCX conversion, identity, licensing, Calendar sync, and the
 frontend do not exist yet.
 
 The source credential is resolved: a Google service account is configured and the
@@ -22,10 +23,44 @@ are now accepted: single-use licenses with sync suspension on revocation
 (ADR-022), HTTP-only secure-cookie sessions (ADR-023), one dedicated managed
 calendar per user (ADR-024), mandatory review thresholds (ADR-025), adaptive
 Istanbul-time polling (ADR-026), validated JSONB profile selectors (ADR-027),
-validation severity and thresholds (ADR-029), PDÖ exclusion (ADR-030), and
-subgroup widening at synchronization time (ADR-031).
+validation severity and thresholds (ADR-029), PDÖ exclusion (ADR-030), subgroup
+widening at synchronization time (ADR-031), and automated publication with a
+named approver for held revisions (ADR-032).
 
 ## Latest implementation session
+
+- Implemented transactional publication. `Validated → Published` and the
+  previous live revision's `→ Superseded` commit together; the worker publishes
+  every validated revision at the end of each cycle, driven by state rather than
+  by what that cycle parsed, so a crash between validation and publication costs
+  nothing.
+- Superseding and publishing are two `SaveChanges` calls inside one transaction:
+  "one published revision per source" is a partial unique index, which cannot be
+  deferred, so the outgoing revision must vacate the slot first.
+- Publishing an older revision over a newer live one is refused, because it would
+  move a source's schedule backwards and the diff would read that as a mass
+  deletion.
+- Added the approval audit trail: `ApprovedBy`, `ApprovalReason`, `ApprovedAtUtc`
+  on `schedule_revisions`, migration `AddRevisionPublicationApproval` (additive).
+  Approval only reaches `Validated`, so an approved revision publishes through
+  exactly the same transaction as one that was never held.
+- Added the internal administration API behind a required `SIRKADIYEN_ADMIN__API_KEY`:
+  the review queue, one revision with its findings, and
+  `POST /api/revisions/{id}/approve`. Verified end to end against the real
+  database, including 401/409/400 paths.
+- **Fixed a production-only bug that predates this session.** Every store that
+  opened its own transaction — snapshot storage, parse completion, validation —
+  threw under the hosts' `EnableRetryOnFailure` configuration: the worker would
+  have failed on its first real poll. The test fixture did not enable retry, so
+  116 passing tests never touched it. All four transactional stores now go
+  through `RetriableTransaction`, and `RetriableTransactionTests` exercises them
+  against a host-configured context.
+- Fixed culture-dependent finding messages: a Turkish host wrote the confidence
+  threshold as `0,50` into stored evidence. Thresholds and shares are now
+  invariant, with a regression test that runs under `tr-TR`.
+- 116 .NET tests pass against a real PostgreSQL with nothing skipped, up from 88.
+
+## Previous validation session
 
 - Implemented record and revision validation. `ScheduleRevisionValidator` is a
   pure function; `ScheduleRevisionValidationStore` transitions the revision and
@@ -228,10 +263,8 @@ subgroup widening at synchronization time (ADR-031).
 
 ## Immediate objectives
 
-1. Implement transactional revision publication: `Validated → Published`, with
-   the previous published revision moved to `Superseded` in the same
-   transaction. Publication must remain separate from validation, and a
-   `ReviewRequired` revision must not be publishable without explicit approval.
+1. Begin the semantic diff. Publication now exists, so a published revision can
+   be compared against the one it superseded.
 2. Define the snapshot retention policy and implement cleanup. Snapshots are
    stored whole, one Grade 1 annual snapshot is about seven megabytes, and 18
    sources poll as often as every 15 minutes. This is now a decided requirement,
@@ -239,7 +272,8 @@ subgroup widening at synchronization time (ADR-031).
 3. Move the date-format assumption into the parser profile, so each profile
    declares its order explicitly instead of relying on the global day-first
    default that would silently misparse a month-first source.
-4. Begin the semantic diff, only after publication exists.
+4. Replace the shared administrative key with real authentication, and the
+   internal approval API with an administration frontend.
 5. Implement `grade2_yearly_v1`, which should reuse the annual implementation
    with its own header aliases.
 6. Widen the group resolver for the English practice cohort labels (`İ1`) after
@@ -312,16 +346,15 @@ so it carries no rotation to publish.
 
 ### Publication governance
 
-Resolved in part: publication is automated, gated by the ADR-029 safety nets. A
-revision that reaches `Validated` may publish without a human; one that reaches
-`ReviewRequired` may not.
+Resolved (ADR-029, ADR-032). Publication is automated and gated by the validation
+safety nets. A `ReviewRequired` revision reaches publication only through an
+approval that names its approver and states a reason, over the internal API.
 
 Still open:
 
-- how an administrator approves a `ReviewRequired` revision, and through what
-  interface
-- emergency freeze and rollback behaviour
-- whether an approved revision records who approved it and why
+- emergency freeze and rollback behaviour: a published revision can be superseded
+  by a newer one, but nothing restores a superseded revision to live
+- real authentication to replace the shared administrative key
 
 ### Profile schema
 
@@ -374,6 +407,15 @@ Exact required groups for each class year and language must be derived from sour
   is absent. Only `G1-TR-PRACTICE` declares its cohorts today
 - overlap detection compares exact selector sets, so a lesson for group `A` and
   one for subgroup `A1` at the same time are not seen as overlapping
+- the administrative API is guarded by a single shared key. Anyone holding it can
+  publish a quarantined schedule into student calendars, and `ApprovedBy` records
+  a claim rather than a verified identity. The API must not be publicly exposed
+  until real authentication replaces the key
+- publication makes a revision live before the semantic diff exists, so nothing
+  yet computes what changed between a published revision and the one it
+  superseded. No calendar is written from it, so the exposure is contained
+- there is no rollback: a superseded revision cannot be made live again, and an
+  incorrect publication can only be corrected by publishing a newer revision
 
 ## Working assumptions
 

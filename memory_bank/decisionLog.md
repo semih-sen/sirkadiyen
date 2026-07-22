@@ -1015,3 +1015,61 @@ prefixed in the event title:
   content hash shared across users, or every user would appear to disagree.
 - Duplicate-looking calendar entries are expected and intended; the prefix is
   what makes them readable.
+
+---
+
+## ADR-032: Healthy revisions publish themselves; held ones need a named approver
+
+**Status:** Accepted
+**Date:** 2026-07-22
+**Implements:** transactional publication, the approval audit trail, the internal
+administration API
+
+### Context
+
+Validation leaves a revision in `Validated` or `ReviewRequired` (ADR-029) but
+cannot publish either. Something had to decide when a revision becomes live, and
+who is allowed to override a revision validation refused to clear. There is no
+identity provider and no administration frontend, and both are deferred.
+
+### Decision
+
+A revision that reaches `Validated` is published without human intervention. The
+transition to `Published` and the previous revision's transition to `Superseded`
+commit in one transaction.
+
+A `ReviewRequired` revision reaches publication only through approval, which
+requires a named approver and a stated reason. Both are stored on the revision as
+`ApprovedBy` and `ApprovalReason`, alongside `ApprovedAtUtc`. Approval moves the
+revision to `Validated` and stops there, so an approved revision publishes
+through exactly the same transaction as one that was never held.
+
+While there is no frontend, approval runs over an internal API guarded by a
+required shared key, `SIRKADIYEN_ADMIN__API_KEY`. The API refuses to start
+without one.
+
+Publication is driven by revision state rather than by the poll that produced the
+revision. The worker publishes every `Validated` revision at the end of each
+cycle.
+
+### Consequences
+
+- A crash between validation and publication costs nothing: the next cycle
+  publishes from state. The same path recovers a revision approved through the
+  API when that request failed after approving it.
+- Superseding and publishing are two `SaveChanges` calls inside one transaction.
+  The "one published revision per source" rule is a partial unique index, which
+  cannot be deferred, so the outgoing revision must vacate the slot first.
+- Publishing an older revision over a newer live one is refused. It would move a
+  source's schedule backwards, which the semantic diff would read as a mass
+  deletion.
+- `ApprovedBy` is a claim, not a verified identity. The key proves the caller is
+  an operator, not which operator. This is acceptable only until real
+  authentication exists, and the field is designed to keep working unchanged when
+  it does.
+- Anyone holding the administrative key can push a quarantined schedule into
+  student calendars. The API must not be publicly exposed while the key is the
+  only gate.
+- Publishing overwrites `StateReason`, so the approval reason survives in its own
+  column rather than in the state text. The findings that held the revision are
+  never deleted either way.

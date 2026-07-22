@@ -131,9 +131,9 @@
 - [x] Implement revision validation
 - [x] Implement anomaly thresholds
 - [x] Implement review-required state
-- [ ] Implement admin revision review
-- [ ] Implement transactional publication
-- [ ] Implement revision rollback strategy
+- [x] Implement admin revision review
+- [x] Implement transactional publication
+- [!] Implement revision rollback strategy
 - [x] Add validation regression tests
 - [ ] Implement snapshot retention and cleanup
 
@@ -185,8 +185,8 @@
 
 ## Current next action
 
-Revision validation is implemented, so a candidate revision now reaches a
-decision instead of sitting in `Parsed`. The completed Google Sheets path is:
+Publication is implemented, so a parsed schedule now becomes live data. The
+completed Google Sheets path is:
 
 ```text
 list polling-enabled sources
@@ -196,15 +196,22 @@ list polling-enabled sources
 → call the parser over HTTP
 → transactionally create a revision and canonical records
 → validate into Validated, ReviewRequired or Rejected
+→ publish every Validated revision, superseding the one it replaces
 ```
 
-The next step is **transactional publication**: `Validated → Published`, moving
-the previously published revision to `Superseded` in the same transaction. A
-`ReviewRequired` revision must not be publishable without explicit approval, and
-publication must stay separate from validation exactly as validation is separate
-from parsing. Only after publication exists should the semantic diff begin.
+A quarantined revision joins that path only through
+`POST /api/revisions/{id}/approve`, which records who approved it and why.
 
-Two things now block on decisions already made rather than on discussion:
+The next step is the **semantic diff**: comparing a newly published revision
+against the one it superseded, matching on stable identity first and content
+hash second (ADR-018). Nothing yet computes what changed, which is what
+calendar synchronization will consume.
+
+Also unbuilt and now visible: there is no rollback. A superseded revision cannot
+be restored, so a bad publication can only be corrected by publishing a newer
+revision.
+
+Two things block on decisions already made rather than on discussion:
 
 - snapshot retention and cleanup, which is unimplemented while storage grows
 - per-profile declaration of date format, replacing the global day-first

@@ -82,7 +82,7 @@ public sealed class ScheduleParseResultStore(SirkadiyenDbContext dbContext)
         };
     }
 
-    public async Task<ScheduleRevision?> CompleteAsync(
+    public Task<ScheduleRevision?> CompleteAsync(
         Guid parseRunId,
         ParseSnapshotResponse response,
         DateTimeOffset completedAtUtc,
@@ -90,6 +90,17 @@ public sealed class ScheduleParseResultStore(SirkadiyenDbContext dbContext)
     {
         ArgumentNullException.ThrowIfNull(response);
 
+        return RetriableTransaction.ExecuteAsync(
+            dbContext,
+            () => CompleteCoreAsync(parseRunId, response, completedAtUtc, cancellationToken));
+    }
+
+    private async Task<ScheduleRevision?> CompleteCoreAsync(
+        Guid parseRunId,
+        ParseSnapshotResponse response,
+        DateTimeOffset completedAtUtc,
+        CancellationToken cancellationToken)
+    {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(
             cancellationToken);
         ParseRun run = await dbContext.ParseRuns.SingleAsync(

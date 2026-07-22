@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Sirkadiyen.Application.SchedulePublication;
 using Sirkadiyen.Contracts.Parsing;
@@ -279,6 +280,39 @@ public sealed class ScheduleRevisionValidatorTests
         Assert.Contains(
             result.Findings,
             finding => finding.Rule is RevisionValidationRule.LowConfidenceRecord);
+    }
+
+    [Fact]
+    public void FindingsReadTheSameWhateverCultureProducedThem()
+    {
+        // Findings are stored and read back by whoever reviews the revision,
+        // possibly on another machine. A Turkish host rendering the threshold as
+        // "0,50" would make the evidence depend on where it was written.
+        CultureInfo original = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = new CultureInfo("tr-TR");
+
+            RevisionValidationResult confidence = Validate([Record("r1", confidence: 0.25m)]);
+            RevisionValidationFinding lowConfidence = Assert.Single(
+                confidence.Findings,
+                finding => finding.Rule is RevisionValidationRule.LowConfidenceRecord);
+            Assert.Contains("0.50", lowConfidence.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain("0,50", lowConfidence.Message, StringComparison.Ordinal);
+
+            RevisionValidationResult deletion = Validate(
+                [Record("r1")],
+                hasPreviousPublishedRevision: true,
+                previouslyPublishedIdentities: ["identity-r1", "gone-1", "gone-2", "gone-3"]);
+            RevisionValidationFinding massDeletion = Assert.Single(
+                deletion.Findings,
+                finding => finding.Rule is RevisionValidationRule.MassDeletion);
+            Assert.Contains("75.0", massDeletion.Message, StringComparison.Ordinal);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
     }
 
     private static RevisionValidationResult Validate(

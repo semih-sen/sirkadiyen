@@ -55,7 +55,7 @@ public sealed class ScheduleRevisionValidationStore(SirkadiyenDbContext dbContex
         };
     }
 
-    public async Task ApplyAsync(
+    public Task ApplyAsync(
         Guid revisionId,
         RevisionValidationResult result,
         DateTimeOffset validatedAtUtc,
@@ -69,6 +69,17 @@ public sealed class ScheduleRevisionValidationStore(SirkadiyenDbContext dbContex
                 "Validation may not publish a revision; publication is a separate step.");
         }
 
+        return RetriableTransaction.ExecuteAsync(
+            dbContext,
+            () => ApplyCoreAsync(revisionId, result, validatedAtUtc, cancellationToken));
+    }
+
+    private async Task ApplyCoreAsync(
+        Guid revisionId,
+        RevisionValidationResult result,
+        DateTimeOffset validatedAtUtc,
+        CancellationToken cancellationToken)
+    {
         await using var transaction = await dbContext.Database.BeginTransactionAsync(
             cancellationToken);
 

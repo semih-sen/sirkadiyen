@@ -16,13 +16,23 @@ public sealed class SourceSnapshotStore(SirkadiyenDbContext dbContext) : ISource
 {
     private static readonly JsonSerializerOptions JsonOptions = ContractJson.CreateOptions();
 
-    public async Task<StoreSnapshotResult> StoreIfChangedAsync(
+    public Task<StoreSnapshotResult> StoreIfChangedAsync(
         SourceId sourceId,
         NormalizedSpreadsheetSnapshot snapshot,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
 
+        return RetriableTransaction.ExecuteAsync(
+            dbContext,
+            () => StoreIfChangedCoreAsync(sourceId, snapshot, cancellationToken));
+    }
+
+    private async Task<StoreSnapshotResult> StoreIfChangedCoreAsync(
+        SourceId sourceId,
+        NormalizedSpreadsheetSnapshot snapshot,
+        CancellationToken cancellationToken)
+    {
         // The comparison and the insert have to be one atomic decision.
         // Two workers polling the same source concurrently would otherwise both
         // see "changed" and store the same content twice, which would start two

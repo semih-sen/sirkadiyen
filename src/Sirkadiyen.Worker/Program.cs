@@ -87,6 +87,7 @@ builder.Services.AddSingleton(pollingOptions);
 builder.Services.AddSingleton(validationOptions);
 builder.Services.AddSingleton<ScheduleRevisionValidator>();
 builder.Services.AddScoped<ScheduleRevisionValidationService>();
+builder.Services.AddScoped<ScheduleRevisionPublicationService>();
 builder.Services.AddSingleton<AdaptivePollingIntervalPolicy>();
 builder.Services.AddSingleton(new WorkerOptions { SourceCatalogPath = catalogPath });
 builder.Services.AddSingleton<ScheduleSourceCatalogLoader>();

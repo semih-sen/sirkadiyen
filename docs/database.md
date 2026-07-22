@@ -15,6 +15,12 @@ schema through version-controlled migrations.
 | `canonical_schedule_records` | the lessons of one revision, with candidate ID, scheduled/cancelled status, stable identity and content hash (ADR-018) |
 | `revision_validation_findings` | why a revision was validated, held for review, or rejected, with evidence (ADR-029) |
 
+`schedule_revisions.ApprovedBy`, `ApprovalReason` and `ApprovedAtUtc` record who
+released a quarantined revision and why (ADR-032). They are null on the ordinary
+path: a null means the revision was published on its own validation, **not** that
+the approver went unrecorded. There is no identity provider yet, so `ApprovedBy`
+is a claim the caller made, not a verified identity.
+
 `schedule_sources.SupportedAudienceSelectors` is a nullable JSONB document naming
 the selector values each source may state. **Null means "not declared"** and
 leaves the unknown-selector rule unenforced for that source; a declared dimension
@@ -95,6 +101,11 @@ does not apply cleanly fails there rather than in production.
   are `jsonb`, so they can be inspected and queried in place.
 - Contested rows carry PostgreSQL's `xmin` as an optimistic concurrency token.
   Raw SQL that materializes such an entity must select `xmin` explicitly.
+- A store that opens its own transaction must go through `RetriableTransaction`.
+  The hosts enable retry on transient failures, and saving inside a hand-rolled
+  transaction under a retrying execution strategy throws. A plain test context
+  does not reproduce it, so `RetriableTransactionTests` exercises those paths
+  against a context configured the way the hosts configure theirs.
 - Timestamps are `timestamptz` and are written in UTC. Schedule dates and times
   are stored as local `date` and `time` with an explicit timezone identifier,
   because a lesson is scheduled in `Europe/Istanbul` wall-clock terms.

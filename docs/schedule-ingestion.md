@@ -35,7 +35,13 @@ acquires normalized snapshot
 → persists the response
 → creates a candidate revision and canonical records in one transaction
 → validates the revision in a separate transaction
+→ publishes it in a third, superseding the revision it replaces
 ```
+
+Every store that opens its own transaction runs through `RetriableTransaction`.
+The hosts configure the context with `EnableRetryOnFailure`, and saving inside a
+hand-rolled transaction under a retrying execution strategy throws; the failure
+appears only under the host configuration, never under a plain test context.
 
 An unchanged snapshot is normally already parsed and stops early. If the prior
 parser transport attempt failed, the worker parses the stored immutable
@@ -73,6 +79,56 @@ share alone:
 ```text
 deletedCount > previouslyPublishedCount * 0.20  AND  deletedCount >= 10
 ```
+
+## Publication
+
+Publication is a third separate transaction (ADR-032). A revision that reached
+`Validated` is published without anyone being asked: the safety nets that matter
+already ran in validation, and holding a healthy schedule back helps nobody.
+
+```text
+Validated → Published, and the source's previous Published revision → Superseded
+```
+
+Both writes commit together. They are two `SaveChanges` calls inside one
+transaction rather than one, because only one revision per source may be
+`Published` and that is enforced by a partial unique index: the outgoing revision
+has to vacate the slot in its own statement.
+
+The worker publishes at the end of every polling cycle, driven by revision state
+rather than by what that cycle happened to parse. A cycle killed between
+validation and publication therefore resumes on the next pass.
+
+Publication refuses in three cases, each reported rather than thrown:
+
+| Outcome | Meaning |
+| --- | --- |
+| `NotValidated` | the revision is quarantined, already live, or terminal |
+| `SupersededByNewerRevision` | a newer revision is already live, so this one would move the schedule backwards |
+| `ConcurrentPublication` | another publication for the same source committed first |
+
+### Approving a quarantined revision
+
+A `ReviewRequired` revision reaches publication only through approval, which
+records who decided and why in `ApprovedBy` and `ApprovalReason`. Approval moves
+the revision to `Validated` and nothing further, so an approved revision goes
+live through exactly the same publication transaction as one that was never held.
+
+There is no administration frontend yet, so this runs over an internal API
+guarded by `SIRKADIYEN_ADMIN__API_KEY`:
+
+```text
+GET  /api/revisions?state=ReviewRequired   the review queue
+GET  /api/revisions/{id}                   one revision with the findings behind its state
+POST /api/revisions/{id}/approve           { "approvedBy": ..., "approvalReason": ... }
+```
+
+The key establishes that the caller is an operator, not which operator they are,
+so `approvedBy` is a recorded claim rather than a verified identity. The API
+publishes the OpenAPI document at `/openapi/v1.json` for Postman; the requests
+are also in `src/Sirkadiyen.Api/Sirkadiyen.Api.http`.
+
+## Polling schedule
 
 Polling delay is selected in `Europe/Istanbul`: 15 minutes during weekday
 daytime, 25 minutes in late afternoon, 45 minutes at night, and 60 minutes on
@@ -117,8 +173,9 @@ Production ingestion still needs:
 1. an unattended source credential in each deployed environment;
 2. Google Drive and HTTP acquisition adapters plus DOCX conversion;
 3. recovery of parse runs left `Running` by abrupt process termination;
-4. validation, manual review, publication, and semantic diff after candidate
-   revision creation.
+4. the semantic diff, and an administration frontend to replace the internal
+   approval API;
+5. real authentication in place of the shared administrative key.
 
 ## Local XLSX fixture conversion
 

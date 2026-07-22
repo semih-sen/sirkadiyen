@@ -1,0 +1,24 @@
+@host = http://localhost:5080
+@adminKey = {{$dotenv SIRKADIYEN_ADMIN__API_KEY}}
+
+### The revisions validation is holding for review.
+GET {{host}}/api/revisions?state=ReviewRequired&limit=50
+X-Admin-Api-Key: {{adminKey}}
+
+### One revision with the findings that explain its state.
+GET {{host}}/api/revisions/00000000-0000-0000-0000-000000000000
+X-Admin-Api-Key: {{adminKey}}
+
+### Approve a quarantined revision and publish it.
+### Both fields are stored against the revision as its audit trail.
+POST {{host}}/api/revisions/00000000-0000-0000-0000-000000000000/approve
+X-Admin-Api-Key: {{adminKey}}
+Content-Type: application/json
+
+{
+  "approvedBy": "semih",
+  "approvalReason": "Checked the source: the drop is the exam period, not a parse fault."
+}
+
+### The OpenAPI document, for importing into Postman.
+GET {{host}}/openapi/v1.json

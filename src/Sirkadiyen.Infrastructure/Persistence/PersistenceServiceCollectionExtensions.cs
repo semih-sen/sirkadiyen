@@ -36,6 +36,8 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<ISourceSnapshotStore, SourceSnapshotStore>();
         services.AddScoped<IScheduleParseResultStore, ScheduleParseResultStore>();
         services.AddScoped<IScheduleRevisionValidationStore, ScheduleRevisionValidationStore>();
+        services.AddScoped<IScheduleRevisionPublicationStore, ScheduleRevisionPublicationStore>();
+        services.AddScoped<IScheduleRevisionReadStore, ScheduleRevisionReadStore>();
 
         return services;
     }

@@ -43,7 +43,22 @@ public sealed class PostgresFixture : IAsyncLifetime
 
     public ValueTask DisposeAsync() => ValueTask.CompletedTask;
 
-    public SirkadiyenDbContext CreateContext()
+    public SirkadiyenDbContext CreateContext() => CreateContext(retryOnFailure: false);
+
+    /// <summary>
+    /// A context configured the way the worker and the API configure theirs.
+    /// </summary>
+    /// <remarks>
+    /// The hosts enable retry on transient failures, and a retrying execution
+    /// strategy refuses to take part in a transaction it did not open. A store
+    /// that begins its own transaction therefore behaves differently here than
+    /// under the plain test context, and only this configuration proves it works
+    /// in production.
+    /// </remarks>
+    public SirkadiyenDbContext CreateProductionLikeContext() =>
+        CreateContext(retryOnFailure: true);
+
+    private SirkadiyenDbContext CreateContext(bool retryOnFailure)
     {
         if (ConnectionString is null)
         {
@@ -52,9 +67,17 @@ public sealed class PostgresFixture : IAsyncLifetime
 
         return new SirkadiyenDbContext(
             new DbContextOptionsBuilder<SirkadiyenDbContext>()
-                .UseNpgsql(ConnectionString, static npgsql => npgsql.MigrationsHistoryTable(
-                    "__ef_migrations_history",
-                    SirkadiyenDbContext.SchemaName))
+                .UseNpgsql(ConnectionString, npgsql =>
+                {
+                    npgsql.MigrationsHistoryTable(
+                        "__ef_migrations_history",
+                        SirkadiyenDbContext.SchemaName);
+
+                    if (retryOnFailure)
+                    {
+                        npgsql.EnableRetryOnFailure();
+                    }
+                })
                 .Options);
     }
 }

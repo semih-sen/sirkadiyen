@@ -22,8 +22,17 @@ internal sealed class ScheduleRevisionConfiguration : IEntityTypeConfiguration<S
 
         builder.Property(revision => revision.State).HasConversion<string>().HasMaxLength(40)
             .IsRequired();
-        builder.Property(revision => revision.StateReason).HasMaxLength(2000);
+        builder.Property(revision => revision.StateReason)
+            .HasMaxLength(ScheduleRevision.MaximumStateReasonLength);
         builder.Property(revision => revision.RowVersion).IsRowVersion();
+
+        // Who released a quarantined revision, and why. Nullable because the
+        // normal path never needs approval: a null here means the revision was
+        // published on its own validation, not that the approver went unrecorded.
+        builder.Property(revision => revision.ApprovedBy)
+            .HasMaxLength(ScheduleRevision.MaximumApprovedByLength);
+        builder.Property(revision => revision.ApprovalReason)
+            .HasMaxLength(ScheduleRevision.MaximumApprovalReasonLength);
 
         builder.HasOne<ScheduleSource>()
             .WithMany()
@@ -44,5 +53,8 @@ internal sealed class ScheduleRevisionConfiguration : IEntityTypeConfiguration<S
             .HasDatabaseName("ix_schedule_revisions_one_published_per_source");
 
         builder.HasIndex(revision => new { revision.ScheduleSourceId, revision.CreatedAtUtc });
+
+        // Publication and the review queue both scan by state, oldest first.
+        builder.HasIndex(revision => new { revision.State, revision.CreatedAtUtc });
     }
 }
