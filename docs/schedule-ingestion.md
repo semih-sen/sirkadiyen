@@ -128,6 +128,62 @@ so `approvedBy` is a recorded claim rather than a verified identity. The API
 publishes the OpenAPI document at `/openapi/v1.json` for Postman; the requests
 are also in `src/Sirkadiyen.Api/Sirkadiyen.Api.http`.
 
+## Semantic diff
+
+Publishing makes a revision live; the diff records what publishing it actually
+changed, and it is the only authority a later calendar deletion may come from.
+
+It is a fourth separate transaction, after publication (ADR-039). The two are
+deliberately not merged: a revision is live the moment publication commits, and
+a diff that fails to calculate must not be able to take that back. Like
+publication it is driven by revision state — a revision in `Published` or
+`Superseded` with no diff row — so a worker killed between the steps recovers on
+its next cycle, and a revision superseded before it was diffed is still diffed
+rather than losing everything it changed.
+
+```text
+published revision without a diff
+→ load it and the revision it superseded
+→ diff (exact stable identity, then ADR-035 secondary matching)
+→ Ready, or Held
+→ store once
+```
+
+Exactly one diff exists per revision, enforced by a unique index on the current
+revision. A retried or racing calculation reports `AlreadyCalculated` and the
+existing diff, rather than writing a second set of future calendar operations.
+
+### The dispatch gate
+
+A stored diff is `Ready` or `Held`, and a `Held` diff yields no calendar
+operation at all (ADR-040). It is held when:
+
+- **any entry is `Ambiguous`.** Acting on the rest of the diff while ignoring an
+  ambiguous pair would delete the previous record of that pair from a student's
+  calendar.
+- **deletions are both numerous and disproportionate**, over
+  `SIRKADIYEN_DIFF__*`:
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `MAXIMUM_DELETION_SHARE` | `0.20` | share of the previous revision that may vanish |
+| `MINIMUM_DELETION_COUNT` | `10` | absolute floor; both conditions must hold |
+
+This does not replace the validation rule of the same name. Validation compares
+stable-identity sets before publication and cannot know that a rescheduled
+lesson will be recovered by secondary matching, or that a candidate set will
+stay ambiguous. The diff gate runs on the semantic result, which is the number
+that actually decides how many events would be deleted.
+
+The reason a diff was held is stored in full on the diff, written invariantly so
+it reads the same on a Turkish host. Releasing a held diff has no operator path
+yet; it simply stops there.
+
+The ADR-035 matching thresholds are deliberately not configurable. They are a
+matching rule with a decision record behind them, and loosening them from an
+environment variable would let two different lessons become one update with no
+trace of who decided that.
+
 ## Polling schedule
 
 Polling delay is selected in `Europe/Istanbul`: 15 minutes during weekday
@@ -173,9 +229,10 @@ Production ingestion still needs:
 1. an unattended source credential in each deployed environment;
 2. Google Drive and HTTP acquisition adapters plus DOCX conversion;
 3. recovery of parse runs left `Running` by abrupt process termination;
-4. the semantic diff, and an administration frontend to replace the internal
-   approval API;
-5. real authentication in place of the shared administrative key.
+4. affected-user resolution and the Google Calendar adapter, which consume
+   `Ready` diffs, plus an operator path for a `Held` one;
+5. an administration frontend to replace the internal approval API;
+6. real authentication in place of the shared administrative key.
 
 ## Local XLSX fixture conversion
 

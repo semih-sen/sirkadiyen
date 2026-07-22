@@ -1287,3 +1287,71 @@ introduces a safe recurrence contract.
 - The six currently known rows stay out of student calendars.
 - Exclusion is visible and deterministic, never a silent discard.
 - This decision does not apply to explicitly dated repeated lessons.
+
+---
+
+## ADR-039: Calculate and store the semantic diff after publication, not inside it
+
+**Status:** Accepted
+**Date:** 2026-07-22
+**Implements:** implemented
+
+### Context
+
+Publication makes a revision live in one transaction that also supersedes the
+revision it replaces. The semantic diff describes what that publication changed
+and is the only authority for a later calendar deletion. It could be calculated
+inside the publication transaction, or afterwards as a separate step.
+
+### Decision
+
+Calculate and store the diff in a separate transaction after publication, driven
+by revision state rather than by the caller that published: a revision that
+reached `Published` or `Superseded` and has no diff row is diffed on the next
+worker cycle. Exactly one diff per revision is enforced by a unique index on the
+current revision, so a retried calculation reports the existing diff rather than
+writing a second one.
+
+### Consequences
+
+- A revision is live the moment publication commits. A diff that fails to
+  calculate cannot take back a schedule students are already entitled to see.
+- A worker killed between the two steps recovers without operator action.
+- A revision that was published and superseded before its diff ran is still
+  diffed, so nothing it changed is lost.
+- The diff is stored evidence and is never recalculated. Correcting a bad
+  publication remains forward-fix only (ADR-033).
+
+---
+
+## ADR-040: Hold a diff at dispatch on ambiguity or mass deletion
+
+**Status:** Accepted
+**Date:** 2026-07-22
+**Implements:** implemented
+
+### Context
+
+Revision validation already applies a mass-deletion rule before publication, but
+it compares stable-identity sets. It cannot know that a lesson whose time
+changed will be recovered by secondary matching (ADR-035), nor that a candidate
+set will refuse to resolve and stay `Ambiguous`. The number that decides how
+many calendar events would actually be deleted only exists after the diff runs.
+
+### Decision
+
+A stored diff is created in `Ready` or `Held`. It is held when it contains any
+`Ambiguous` entry, or when its deletions reach the configured minimum count and
+exceed the configured share of the previous revision. A held diff may not be
+turned into any calendar operation. The reason is stored in full on the diff.
+
+### Consequences
+
+- A single ambiguous pair holds the whole diff: acting on the rest would delete
+  the previous record of that pair from a student's calendar.
+- The minimum deletion count keeps a small source from being held on ordinary
+  editing, which would train operators to approve without reading.
+- This gate does not replace the validation rule; both run, at different stages,
+  on different evidence.
+- Releasing a held diff requires an operator path that does not exist yet. Until
+  it does, a held diff simply stops there, which is the safe direction.

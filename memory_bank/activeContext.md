@@ -2,20 +2,25 @@
 
 ## Current phase
 
-Semantic diff.
+Semantic diff, complete through persistence.
 
-The Google Sheets path now runs end to end from catalog seeding to live data:
-adaptive polling, immutable snapshot storage, strict parser HTTP calls, parse-run
-persistence, transactional candidate revision creation, validation, and
-publication. A healthy revision reaches `Published` with no human involved; a
-quarantined one waits for a named approver.
+The Google Sheets path now runs end to end from catalog seeding to a stored
+diff: adaptive polling, immutable snapshot storage, strict parser HTTP calls,
+parse-run persistence, transactional candidate revision creation, validation,
+publication, and semantic diff calculation. A healthy revision reaches
+`Published` with no human involved; a quarantined one waits for a named
+approver.
 
-The pure semantic diff model and matching engine now exist. They classify exact
-identity matches and safely recognize a time-shifted lesson through normalized
-title, instructor and academic department. Diff persistence and invocation
-after publication do not exist yet, so publication still makes a revision live
-without storing what changed. Drive and HTTP acquisition, DOCX conversion,
-identity, licensing, Calendar sync, and the frontend do not exist yet.
+Publishing a revision now leaves a durable record of what it changed. The diff
+is calculated after publication in its own transaction, driven by revision state
+rather than by whoever published (ADR-039), and a unique index on the current
+revision makes a retried calculation idempotent. A diff is created `Ready` or
+`Held`: any ambiguous entry, or a mass deletion over the configured thresholds,
+holds it and no calendar operation may be derived from it (ADR-040).
+
+Nothing consumes a diff yet. Affected-user resolution, Drive and HTTP
+acquisition, DOCX conversion, identity, licensing, Calendar sync, and the
+frontend do not exist yet.
 
 The source credential is resolved: a Google service account is configured and the
 worker can reach the real Sheets API.
@@ -32,6 +37,32 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- Added the `ScheduleDiff` aggregate: the stored difference between a published
+  revision and the one it superseded, with its counts, its per-record entries,
+  and the state that says whether it may be acted on.
+- Added the dispatch gate (ADR-040). Any `Ambiguous` entry holds the diff, as
+  does a deletion count that both reaches the minimum and exceeds the tolerated
+  share of the previous revision. The reason is stored in full and written
+  invariantly, with a regression test under `tr-TR`.
+- Diff calculation runs after publication in its own transaction and is driven
+  by revision state (ADR-039), so a worker killed between the two steps
+  recovers, and a revision superseded before it was diffed is still diffed.
+- A unique index on the current revision makes calculation idempotent: the
+  losing pass reports the existing diff instead of writing a second set of
+  future calendar operations.
+- Added migration `AddScheduleDiff` with `schedule_diffs` and
+  `schedule_diff_entries`. Both tables are new; nothing existing is altered.
+  Diff rows restrict deletion of the revisions and canonical records they cite,
+  because they are the audit trail for what was written to a calendar.
+- Added `SIRKADIYEN_DIFF__*` configuration for the gate. The ADR-035 matching
+  thresholds stay on their defaults on purpose: loosening them from
+  configuration would let an operator turn two different lessons into one update
+  without a decision record.
+- 145 .NET tests pass against a real PostgreSQL with nothing skipped, up from
+  116. Release build and `dotnet format --verify-no-changes` are clean.
+
+## Previous semantic diff session
 
 - Added the semantic diff domain model with `Created`, `Updated`, `Deleted`,
   `Unchanged` and `Ambiguous` outcomes and explicit match evidence.
@@ -283,9 +314,9 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Immediate objectives
 
-1. Persist semantic diffs and invoke the pure differ after a revision publishes,
-   comparing it with the revision it superseded. An ambiguous diff must be held
-   before affected-user resolution or calendar work exists.
+1. Give an operator a path for a held diff. Today a held diff simply stops,
+   which is safe but leaves no way to record that the hold was reviewed. This is
+   the only part of ADR-040 that is not implemented.
 2. Survey each parser profile for an explicitly stated academic department and
    populate canonical `Department` only where the source provides it. Current
    historical records remain null and safely skip secondary matching.
@@ -433,9 +464,16 @@ Exact required groups for each class year and language must be derived from sour
   publish a quarantined schedule into student calendars, and `ApprovedBy` records
   a claim rather than a verified identity. The API must not be publicly exposed
   until real authentication replaces the key
-- publication is not yet wired to persist or dispatch the semantic diff. The
-  pure engine exists, but nothing stores its result after a revision supersedes
-  another one. No calendar is written from it, so the exposure is contained
+- a held diff has no operator path. Nothing releases it and nothing surfaces it
+  in the administration API, so a source correction is the only way forward. The
+  direction is safe, but a hold is currently invisible outside the worker log
+- the diff gate's deletion share is computed against the previous revision as
+  the diff accounted for it. A source that legitimately shrinks — an ended
+  semester block — will be held every time until the next revision, and no one
+  can currently record that this was reviewed
+- diff rows restrict deletion of the revisions and canonical records they cite,
+  which is deliberate but makes snapshot and revision retention harder: a
+  retention policy must retire diffs alongside what they reference
 - forward-fix deliberately depends on source correction and the next healthy
   polling cycle; operators still lack the global freeze that ADR-034 requires
 

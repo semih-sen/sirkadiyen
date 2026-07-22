@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Sirkadiyen.Application.ScheduleDiffing;
 using Sirkadiyen.Application.ScheduleIngestion;
 using Sirkadiyen.Application.ScheduleParsing;
 using Sirkadiyen.Application.SchedulePublication;
@@ -38,6 +39,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IScheduleRevisionValidationStore, ScheduleRevisionValidationStore>();
         services.AddScoped<IScheduleRevisionPublicationStore, ScheduleRevisionPublicationStore>();
         services.AddScoped<IScheduleRevisionReadStore, ScheduleRevisionReadStore>();
+        services.AddScoped<IScheduleDiffStore, ScheduleDiffStore>();
 
         return services;
     }

@@ -1,9 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Sirkadiyen.Application.ScheduleDiffing;
 using Sirkadiyen.Application.ScheduleIngestion;
 using Sirkadiyen.Application.SchedulePublication;
 using Sirkadiyen.Application.ScheduleSources;
+using Sirkadiyen.Domain.ScheduleDiffing;
 using Sirkadiyen.Domain.ScheduleSources;
 using Sirkadiyen.Infrastructure.ScheduleSources;
 
@@ -24,6 +26,13 @@ internal sealed class Worker(
     /// </summary>
     private const int PublicationBatchSize = 50;
 
+    /// <summary>
+    /// How many diffs one cycle calculates. A diff loads two whole revisions, so
+    /// this stays below the publication batch: the backlog is drained over a few
+    /// cycles rather than in one pass that holds thousands of records in memory.
+    /// </summary>
+    private const int DiffBatchSize = 10;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         logger.LogInformation("Sirkadiyen worker started.");
@@ -34,6 +43,7 @@ internal sealed class Worker(
         {
             await PollAllSourcesAsync(stoppingToken);
             await PublishValidatedRevisionsAsync(stoppingToken);
+            await CalculatePendingDiffsAsync(stoppingToken);
 
             TimeSpan interval = intervalPolicy.GetInterval(timeProvider.GetUtcNow());
             logger.LogInformation(
@@ -99,6 +109,63 @@ internal sealed class Worker(
         catch (Exception exception)
         {
             logger.LogError(exception, "Publishing validated revisions failed.");
+        }
+    }
+
+    /// <summary>
+    /// Records what every published revision actually changed.
+    /// </summary>
+    /// <remarks>
+    /// This runs after publication rather than inside it. A revision is live the
+    /// moment publication commits, and a diff that failed to calculate must not
+    /// be able to take that back. Like publication it is driven by state, so a
+    /// worker killed between the two steps calculates the missing diff here on
+    /// its next cycle instead of losing it.
+    /// </remarks>
+    private async Task CalculatePendingDiffsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
+            ScheduleDiffService diffs = scope.ServiceProvider
+                .GetRequiredService<ScheduleDiffService>();
+
+            IReadOnlyList<ScheduleDiffCalculationResult> results =
+                await diffs.CalculatePendingAsync(DiffBatchSize, cancellationToken);
+
+            foreach (ScheduleDiffCalculationResult result in results)
+            {
+                logger.LogInformation(
+                    "Revision {RevisionId} diff {Outcome} against {PreviousRevisionId}: "
+                    + "{CreatedCount} created, {UpdatedCount} updated, {DeletedCount} deleted, "
+                    + "{UnchangedCount} unchanged, {AmbiguousCount} ambiguous; state {DiffState}.",
+                    result.RevisionId,
+                    result.Outcome,
+                    result.Diff.PreviousRevisionId,
+                    result.Diff.CreatedCount,
+                    result.Diff.UpdatedCount,
+                    result.Diff.DeletedCount,
+                    result.Diff.UnchangedCount,
+                    result.Diff.AmbiguousCount,
+                    result.Diff.State);
+
+                if (result.Diff.State is ScheduleDiffState.Held)
+                {
+                    logger.LogWarning(
+                        "Revision {RevisionId} diff is held and will not reach any calendar: "
+                        + "{HoldReason}",
+                        result.RevisionId,
+                        result.Diff.HoldReason);
+                }
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Calculating pending schedule diffs failed.");
         }
     }
 

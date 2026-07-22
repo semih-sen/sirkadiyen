@@ -348,6 +348,19 @@ Ambiguous
 
 Deletion is produced only from a valid published revision.
 
+A diff is calculated after publication, in its own transaction, driven by
+revision state (ADR-039). Exactly one diff is stored per published revision. The
+stored diff is created `Ready` or `Held`; a `Held` diff yields no calendar
+operation at all (ADR-040):
+
+```text
+Published revision without a diff
+→ load it and the revision it superseded
+→ diff
+→ Ready, or Held on ambiguity or mass deletion
+→ store once
+```
+
 Published data is corrected only by forward-fix: the authoritative source is
 fixed and a newer revision supersedes the bad one. A superseded revision is
 never restored to live state (ADR-033).

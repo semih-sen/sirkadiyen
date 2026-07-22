@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sirkadiyen.Domain.ScheduleDiffing;
 using Sirkadiyen.Domain.ScheduleIngestion;
 using Sirkadiyen.Domain.ScheduleParsing;
 using Sirkadiyen.Domain.SchedulePublication;
@@ -34,6 +35,10 @@ public sealed class SirkadiyenDbContext(DbContextOptions<SirkadiyenDbContext> op
 
     public DbSet<RevisionValidationFinding> RevisionValidationFindings =>
         Set<RevisionValidationFinding>();
+
+    public DbSet<ScheduleDiff> ScheduleDiffs => Set<ScheduleDiff>();
+
+    public DbSet<ScheduleDiffEntry> ScheduleDiffEntries => Set<ScheduleDiffEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

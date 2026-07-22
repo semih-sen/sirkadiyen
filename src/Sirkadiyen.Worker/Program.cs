@@ -2,8 +2,10 @@ using Google.Apis.Sheets.v4;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Sirkadiyen.Application.ScheduleDiffing;
 using Sirkadiyen.Application.ScheduleIngestion;
 using Sirkadiyen.Application.SchedulePublication;
+using Sirkadiyen.Domain.ScheduleDiffing;
 using Sirkadiyen.Infrastructure.Google;
 using Sirkadiyen.Infrastructure.Persistence;
 using Sirkadiyen.Infrastructure.ScheduleIngestion;
@@ -82,7 +84,30 @@ RevisionValidationOptions validationOptions = new()
 };
 validationOptions.Validate();
 
+// Secondary-matching thresholds stay on their defaults: they were calibrated in
+// ADR-035 against real sources, and loosening them from configuration would let
+// an operator turn two different lessons into one update without a decision
+// record. The dispatch safety gate is configurable because it is an operational
+// limit rather than a matching rule.
+SemanticDiffOptions diffOptions = new();
+diffOptions.Validate();
+
+ScheduleDiffSafetyThresholds diffThresholds = new()
+{
+    MaximumDeletionShare = ParseDouble(
+        builder.Configuration["SIRKADIYEN_DIFF:MAXIMUM_DELETION_SHARE"],
+        0.20),
+    MinimumDeletionCount = ParseInteger(
+        builder.Configuration["SIRKADIYEN_DIFF:MINIMUM_DELETION_COUNT"],
+        10),
+};
+diffThresholds.Validate();
+
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton(diffOptions);
+builder.Services.AddSingleton(diffThresholds);
+builder.Services.AddSingleton<SemanticScheduleDiffer>();
+builder.Services.AddScoped<ScheduleDiffService>();
 builder.Services.AddSingleton(pollingOptions);
 builder.Services.AddSingleton(validationOptions);
 builder.Services.AddSingleton<ScheduleRevisionValidator>();

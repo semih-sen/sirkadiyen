@@ -145,11 +145,12 @@
 - [x] Implement deterministic secondary matching
 - [x] Implement ambiguity quarantine
 - [x] Implement created/updated/deleted classification
-- [~] Add mass-deletion safety guard (validation exists; diff dispatch gate remains)
+- [x] Add mass-deletion safety guard (validation rule and diff dispatch gate)
 - [x] Add semantic diff test matrix
 - [ ] Populate canonical Department in profiles whose source explicitly states it
-- [ ] Persist semantic diffs
-- [ ] Calculate and store a diff after publication
+- [x] Persist semantic diffs
+- [x] Calculate and store a diff after publication
+- [ ] Provide an operator path for releasing a held diff
 
 ## Phase 9: Calendar synchronization
 
@@ -189,7 +190,7 @@
 
 ## Current next action
 
-Publication is implemented, so a parsed schedule now becomes live data. The
+The schedule pipeline now runs from polling to a stored semantic diff. The
 completed Google Sheets path is:
 
 ```text
@@ -201,21 +202,26 @@ list polling-enabled sources
 → transactionally create a revision and canonical records
 → validate into Validated, ReviewRequired or Rejected
 → publish every Validated revision, superseding the one it replaces
+→ diff every published revision against the one it superseded and store it
 ```
 
 A quarantined revision joins that path only through
 `POST /api/revisions/{id}/approve`, which records who approved it and why.
 
-The pure **semantic diff** engine now compares exact stable identity/content
-first and uses the ADR-035 title/instructor/department rule for time changes.
-It emits `Ambiguous` rather than inventing a destructive match. The next step is
-to persist that result and invoke it after publication using the superseded
-revision ID already returned by the publication transaction.
+The diff is calculated after publication in its own transaction, driven by
+revision state (ADR-039), and is stored exactly once per revision. It is created
+`Ready` or `Held`; ambiguity or a mass deletion holds it and no calendar
+operation may be derived from it (ADR-040).
+
+The next step is the consumer side: affected-user resolution and the Google
+Calendar adapter, which read `Ready` diffs. A held diff currently stops where it
+is, because no operator path exists to release one — safe, but an operator
+cannot yet act on the source correction other than by fixing the source.
 
 There is deliberately no rollback (ADR-033). A bad publication is corrected at
 the authoritative source and reaches calendars as a newer forward-fix revision.
 Before calendar work begins, the runtime-readable global freeze from ADR-034
-must gate acquisition, publication and downstream jobs.
+must gate acquisition, publication, diff dispatch and downstream jobs.
 
 Two things block on decisions already made rather than on discussion:
 
