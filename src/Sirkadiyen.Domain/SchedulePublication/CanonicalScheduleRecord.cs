@@ -50,7 +50,8 @@ public sealed class CanonicalScheduleRecord
         decimal confidence,
         string evidence,
         string? instructor = null,
-        string? location = null)
+        string? location = null,
+        string? department = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(candidateId);
         ArgumentException.ThrowIfNullOrWhiteSpace(academicYear);
@@ -89,6 +90,7 @@ public sealed class CanonicalScheduleRecord
         Evidence = evidence;
         Instructor = instructor;
         Location = location;
+        Department = department;
     }
 
     public Guid Id { get; private set; }
@@ -130,6 +132,16 @@ public sealed class CanonicalScheduleRecord
     public string? Instructor { get; private set; }
 
     public string? Location { get; private set; }
+
+    /// <summary>
+    /// The academic department that owns the lesson, when the source states it.
+    /// </summary>
+    /// <remarks>
+    /// This is deliberately nullable. A missing department is not inferred from
+    /// the title or evidence; semantic secondary matching requires an explicit
+    /// value before it can use this field.
+    /// </remarks>
+    public string? Department { get; private set; }
 
     public string StableIdentity { get; private set; }
 

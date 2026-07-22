@@ -61,10 +61,11 @@ Do not expose Google refresh tokens to the frontend.
 
 ### Background processing
 
-Initial preference:
+Selected (ADR-037):
 
 - Hangfire
-- PostgreSQL-backed storage where appropriate
+- PostgreSQL-backed durable storage
+- transactional outbox between domain commits and job dispatch
 
 Redis may be used for:
 
@@ -119,7 +120,7 @@ The parser should generally receive a normalized snapshot contract from .NET rat
 
 ## Frontend
 
-Recommended baseline:
+Accepted baseline (ADR-036):
 
 - Next.js
 - TypeScript
@@ -128,7 +129,8 @@ Recommended baseline:
 - server-compatible Google sign-in flow
 - accessible component library selected later
 
-The frontend is not yet fully specified. Record the chosen UI stack before broad implementation.
+The framework is decided; the component system and detailed application
+structure remain to be selected before broad UI implementation.
 
 ## Database
 

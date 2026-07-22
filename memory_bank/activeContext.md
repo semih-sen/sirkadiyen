@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Revision publication.
+Semantic diff.
 
 The Google Sheets path now runs end to end from catalog seeding to live data:
 adaptive polling, immutable snapshot storage, strict parser HTTP calls, parse-run
@@ -10,10 +10,12 @@ persistence, transactional candidate revision creation, validation, and
 publication. A healthy revision reaches `Published` with no human involved; a
 quarantined one waits for a named approver.
 
-The semantic diff is the next step and does not exist, so publication currently
-makes a revision live without yet computing what changed. Drive and HTTP
-acquisition, DOCX conversion, identity, licensing, Calendar sync, and the
-frontend do not exist yet.
+The pure semantic diff model and matching engine now exist. They classify exact
+identity matches and safely recognize a time-shifted lesson through normalized
+title, instructor and academic department. Diff persistence and invocation
+after publication do not exist yet, so publication still makes a revision live
+without storing what changed. Drive and HTTP acquisition, DOCX conversion,
+identity, licensing, Calendar sync, and the frontend do not exist yet.
 
 The source credential is resolved: a Google service account is configured and the
 worker can reach the real Sheets API.
@@ -24,10 +26,28 @@ are now accepted: single-use licenses with sync suspension on revocation
 calendar per user (ADR-024), mandatory review thresholds (ADR-025), adaptive
 Istanbul-time polling (ADR-026), validated JSONB profile selectors (ADR-027),
 validation severity and thresholds (ADR-029), PDÖ exclusion (ADR-030), subgroup
-widening at synchronization time (ADR-031), and automated publication with a
-named approver for held revisions (ADR-032).
+widening at synchronization time (ADR-031), automated publication with a named
+approver for held revisions (ADR-032), forward-fix without rollback (ADR-033),
+a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
+Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- Added the semantic diff domain model with `Created`, `Updated`, `Deleted`,
+  `Unchanged` and `Ambiguous` outcomes and explicit match evidence.
+- Implemented exact stable-identity/content-hash matching and deterministic
+  secondary matching for time shifts. Secondary matching requires the same
+  source context, date, type and audience plus lesson title, instructor and
+  academic department over normalized Levenshtein thresholds (ADR-035).
+- One-to-many and many-to-one candidates remain `Ambiguous`; they do not also
+  become destructive create/delete entries.
+- Added nullable `Department` to canonical storage with additive migration
+  `AddCanonicalDepartment`. Existing records remain null and are never inferred.
+- Added a semantic diff regression matrix and model/migration tests.
+- Recorded forward-fix, global freeze, Next.js, Hangfire and recurring-row
+  exclusion decisions as ADR-033 through ADR-038.
+
+## Previous publication session
 
 - Implemented transactional publication. `Validated → Published` and the
   previous live revision's `→ Superseded` commit together; the worker publishes
@@ -263,30 +283,36 @@ named approver for held revisions (ADR-032).
 
 ## Immediate objectives
 
-1. Begin the semantic diff. Publication now exists, so a published revision can
-   be compared against the one it superseded.
-2. Define the snapshot retention policy and implement cleanup. Snapshots are
+1. Persist semantic diffs and invoke the pure differ after a revision publishes,
+   comparing it with the revision it superseded. An ambiguous diff must be held
+   before affected-user resolution or calendar work exists.
+2. Survey each parser profile for an explicitly stated academic department and
+   populate canonical `Department` only where the source provides it. Current
+   historical records remain null and safely skip secondary matching.
+3. Implement the runtime-readable, audited global freeze from ADR-034 across
+   source polling and publication before calendar jobs are introduced.
+4. Define the snapshot retention policy and implement cleanup. Snapshots are
    stored whole, one Grade 1 annual snapshot is about seven megabytes, and 18
    sources poll as often as every 15 minutes. This is now a decided requirement,
    not an open question.
-3. Move the date-format assumption into the parser profile, so each profile
+5. Move the date-format assumption into the parser profile, so each profile
    declares its order explicitly instead of relying on the global day-first
    default that would silently misparse a month-first source.
-4. Replace the shared administrative key with real authentication, and the
+6. Replace the shared administrative key with real authentication, and the
    internal approval API with an administration frontend.
-5. Implement `grade2_yearly_v1`, which should reuse the annual implementation
+7. Implement `grade2_yearly_v1`, which should reuse the annual implementation
    with its own header aliases.
-6. Widen the group resolver for the English practice cohort labels (`İ1`) after
+8. Widen the group resolver for the English practice cohort labels (`İ1`) after
    reviewing that source's structure; it also lays dates out differently.
-7. Recover parse runs left `Running` by an abrupt worker shutdown without
+9. Recover parse runs left `Running` by an abrupt worker shutdown without
    creating duplicate runs or revisions.
-8. Establish .NET architecture tests.
-9. Acquire the missing Grade 1 anatomy and Grade 3 English fixtures.
-10. Add Google Drive/HTTP acquisition and DOCX conversion for the confirmed
+10. Establish .NET architecture tests.
+11. Acquire the missing Grade 1 anatomy and Grade 3 English fixtures.
+12. Add Google Drive/HTTP acquisition and DOCX conversion for the confirmed
     special-program sources.
-11. Add CI quality gates, including a PostgreSQL service for the integration
+13. Add CI quality gates, including a PostgreSQL service for the integration
     tests.
-12. Model identity, single-use licensing, secure-cookie sessions, flexible
+14. Model identity, single-use licensing, secure-cookie sessions, flexible
     student profiles, initial sync, and the dedicated managed calendar from
     ADR-022 through ADR-027.
 
@@ -298,13 +324,12 @@ incomplete until they are closed.
 
 - thirteen rows whose time cells the spreadsheet software converted into dates
   (seven Grade 1 Turkish, six Grade 1 English); these need a source-side fix
-- six recurring rows written as `HER HAFTA PAZARTESİ`, which cannot be completed
-  without inventing dates
 - twenty-two holiday and semester-break rows, which carry no times and need
   all-day entries to be modelled
 - twenty Grade 1 Turkish practice cells reading only `TELAFİ`, naming no group
 
-PDÖ is **not** on this list. It is deliberately out of scope (ADR-030).
+PDÖ and recurring undated rows are **not** on this list. They are deliberately
+out of scope (ADR-030, ADR-038).
 
 ## Grade 1 practice source structure
 
@@ -350,11 +375,10 @@ Resolved (ADR-029, ADR-032). Publication is automated and gated by the validatio
 safety nets. A `ReviewRequired` revision reaches publication only through an
 approval that names its approver and states a reason, over the internal API.
 
-Still open:
+Forward-fix without rollback and the global freeze are resolved by ADR-033 and
+ADR-034. The freeze implementation remains immediate work.
 
-- emergency freeze and rollback behaviour: a published revision can be superseded
-  by a newer one, but nothing restores a superseded revision to live
-- real authentication to replace the shared administrative key
+Still open: real authentication to replace the shared administrative key.
 
 ### Profile schema
 
@@ -383,8 +407,6 @@ Exact required groups for each class year and language must be derived from sour
 - the annual sources contain time cells that the spreadsheet software converted
   into dates; the parser refuses them, so seven Grade 1 Turkish rows and six
   Grade 1 English rows are currently unpublished and need a source-side fix
-- six recurring rows written as `HER HAFTA PAZARTESİ` carry real lessons that no
-  profile publishes yet, because completing them would mean inventing dates
 - twenty-two holiday and semester-break rows carry no times and are therefore
   not published; students will not see them until all-day entries are modelled
 - the annual event type is keyword-classified, so a lecture whose title mentions
@@ -411,11 +433,11 @@ Exact required groups for each class year and language must be derived from sour
   publish a quarantined schedule into student calendars, and `ApprovedBy` records
   a claim rather than a verified identity. The API must not be publicly exposed
   until real authentication replaces the key
-- publication makes a revision live before the semantic diff exists, so nothing
-  yet computes what changed between a published revision and the one it
-  superseded. No calendar is written from it, so the exposure is contained
-- there is no rollback: a superseded revision cannot be made live again, and an
-  incorrect publication can only be corrected by publishing a newer revision
+- publication is not yet wired to persist or dispatch the semantic diff. The
+  pure engine exists, but nothing stores its result after a revision supersedes
+  another one. No calendar is written from it, so the exposure is contained
+- forward-fix deliberately depends on source correction and the next healthy
+  polling cycle; operators still lack the global freeze that ADR-034 requires
 
 ## Working assumptions
 

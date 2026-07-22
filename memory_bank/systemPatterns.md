@@ -326,8 +326,15 @@ Diff uses:
 
 1. exact stable identity match
 2. content hash comparison
-3. deterministic secondary matching for unmatched records
+3. deterministic secondary matching for unmatched records using normalized
+   lesson title, instructor and explicitly sourced academic department
 4. ambiguity quarantine
+
+Secondary matching is limited to records with the same source, academic
+context, local date, event type, status, audience and timezone. All three
+matching attributes must exist on both sides and cross their individual
+similarity thresholds plus the composite threshold (ADR-035). A one-to-many or
+many-to-one candidate set is always ambiguous.
 
 Output:
 
@@ -340,6 +347,10 @@ Ambiguous
 ```
 
 Deletion is produced only from a valid published revision.
+
+Published data is corrected only by forward-fix: the authoritative source is
+fixed and a newer revision supersedes the bad one. A superseded revision is
+never restored to live state (ADR-033).
 
 ## 12. Audience resolution pattern
 
@@ -510,3 +521,11 @@ Weekday 21:00-24:00            45 minutes
 
 The exact boundaries and durations may be changed through validated worker
 configuration. A configuration change must not create overlapping polling runs.
+
+## 23. Global operational freeze pattern
+
+A runtime-readable, audited global freeze gates every mutating pipeline boundary
+(ADR-034). While frozen, the worker does not start acquisition, parsing,
+publication, semantic-diff dispatch or calendar jobs. Work already persisted is
+left in its current state and resumes through the ordinary state machine after
+unfreeze. Failure to read the authoritative freeze state fails closed.

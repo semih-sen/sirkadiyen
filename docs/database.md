@@ -12,7 +12,7 @@ schema through version-controlled migrations.
 | `source_snapshots` | immutable acquisitions, one row per changed poll (ADR-007) |
 | `parse_runs` | one deterministic parser execution per snapshot/profile, including retry attempt count |
 | `schedule_revisions` | candidate schedules and the states they move through before publication |
-| `canonical_schedule_records` | the lessons of one revision, with candidate ID, scheduled/cancelled status, stable identity and content hash (ADR-018) |
+| `canonical_schedule_records` | the lessons of one revision, with candidate ID, scheduled/cancelled status, stable identity, content hash and an optional explicitly sourced academic department (ADR-018, ADR-035) |
 | `revision_validation_findings` | why a revision was validated, held for review, or rejected, with evidence (ADR-029) |
 
 `schedule_revisions.ApprovedBy`, `ApprovalReason` and `ApprovedAtUtc` record who
@@ -26,6 +26,12 @@ the selector values each source may state. **Null means "not declared"** and
 leaves the unknown-selector rule unenforced for that source; a declared dimension
 with an empty list asserts the dimension may not appear at all. The two must stay
 distinguishable, so do not default the column.
+
+`canonical_schedule_records.Department` is nullable by design. Existing records
+and sources that do not state an academic department remain null. The semantic
+diff never derives it from a title or evidence and does not use secondary
+matching unless both records explicitly carry it (ADR-035). Migration
+`AddCanonicalDepartment` is additive and does not rewrite historical records.
 
 Identity, licensing, student profiles and calendar event mappings are **not**
 here yet. Their behavioral decisions are now recorded in ADR-022 through

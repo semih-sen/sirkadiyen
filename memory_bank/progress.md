@@ -34,7 +34,7 @@
 - [x] Define parser request and response contracts
 - [x] Define canonical schedule model
 - [x] Define schedule revision model
-- [ ] Define semantic diff model
+- [x] Define semantic diff model
 - [ ] Define user calendar event mapping
 - [ ] Define sync job state machine
 - [ ] Define audit event model
@@ -133,20 +133,23 @@
 - [x] Implement review-required state
 - [x] Implement admin revision review
 - [x] Implement transactional publication
-- [!] Implement revision rollback strategy
+- [x] Decide forward-fix policy; no rollback operation (ADR-033)
 - [x] Add validation regression tests
 - [ ] Implement snapshot retention and cleanup
 
 ## Phase 8: Semantic diff
 
-- [ ] Implement stable identity generation
-- [ ] Implement content hashing
-- [ ] Implement exact identity matching
-- [ ] Implement deterministic secondary matching
-- [ ] Implement ambiguity quarantine
-- [ ] Implement created/updated/deleted classification
-- [ ] Add mass-deletion safety guard
-- [ ] Add semantic diff test matrix
+- [x] Implement stable identity generation
+- [x] Implement content hashing
+- [x] Implement exact identity matching
+- [x] Implement deterministic secondary matching
+- [x] Implement ambiguity quarantine
+- [x] Implement created/updated/deleted classification
+- [~] Add mass-deletion safety guard (validation exists; diff dispatch gate remains)
+- [x] Add semantic diff test matrix
+- [ ] Populate canonical Department in profiles whose source explicitly states it
+- [ ] Persist semantic diffs
+- [ ] Calculate and store a diff after publication
 
 ## Phase 9: Calendar synchronization
 
@@ -169,6 +172,7 @@
 
 ## Phase 10: Administration and operations
 
+- [ ] Implement audited global freeze (ADR-034)
 - [ ] License administration
 - [ ] Source status dashboard
 - [ ] Snapshot inspection
@@ -202,14 +206,16 @@ list polling-enabled sources
 A quarantined revision joins that path only through
 `POST /api/revisions/{id}/approve`, which records who approved it and why.
 
-The next step is the **semantic diff**: comparing a newly published revision
-against the one it superseded, matching on stable identity first and content
-hash second (ADR-018). Nothing yet computes what changed, which is what
-calendar synchronization will consume.
+The pure **semantic diff** engine now compares exact stable identity/content
+first and uses the ADR-035 title/instructor/department rule for time changes.
+It emits `Ambiguous` rather than inventing a destructive match. The next step is
+to persist that result and invoke it after publication using the superseded
+revision ID already returned by the publication transaction.
 
-Also unbuilt and now visible: there is no rollback. A superseded revision cannot
-be restored, so a bad publication can only be corrected by publishing a newer
-revision.
+There is deliberately no rollback (ADR-033). A bad publication is corrected at
+the authoritative source and reaches calendars as a newer forward-fix revision.
+Before calendar work begins, the runtime-readable global freeze from ADR-034
+must gate acquisition, publication and downstream jobs.
 
 Two things block on decisions already made rather than on discussion:
 

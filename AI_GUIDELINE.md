@@ -216,6 +216,7 @@ A canonical record must be able to express:
 - date
 - start and end time
 - instructor
+- academic department when explicitly stated by the source
 - location
 - source provenance
 - parser version
@@ -275,6 +276,11 @@ Ambiguous
 Never convert an ambiguous match into a destructive delete-and-create operation without an explicit safe rule.
 
 Prefer updating a known Google event over deleting and recreating it.
+
+For a lesson whose start time changed, secondary matching may use normalized
+lesson title, instructor, and explicitly sourced academic department according
+to ADR-035. Missing attributes must not be inferred from evidence. Any
+one-to-many or many-to-one candidate set remains `Ambiguous`.
 
 ## 13. Google Calendar rules
 

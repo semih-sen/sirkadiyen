@@ -101,6 +101,25 @@ public sealed class ScheduleModelTests
             candidateIndex.Properties.Select(property => property.Name));
     }
 
+    [Fact]
+    public void AcademicDepartmentIsOptionalAndBounded()
+    {
+        IProperty department = Model.FindEntityType(typeof(CanonicalScheduleRecord))!
+            .FindProperty("Department")!;
+
+        Assert.True(department.IsNullable);
+        Assert.Equal(500, department.GetMaxLength());
+        Assert.Equal("character varying(500)", department.GetColumnType());
+    }
+
+    [Fact]
+    public void CanonicalDepartmentHasItsOwnAdditiveMigration()
+    {
+        Assert.Contains(
+            "20260722180000_AddCanonicalDepartment",
+            CreateContext().Database.GetMigrations());
+    }
+
     [Theory]
     [InlineData(typeof(Domain.ScheduleIngestion.SourceSnapshot), "Payload")]
     [InlineData(typeof(CanonicalScheduleRecord), "AudienceSelectors")]

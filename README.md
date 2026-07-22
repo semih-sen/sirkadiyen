@@ -79,7 +79,8 @@ The .NET 10 solution foundation is initialized with the following projects:
 - `Sirkadiyen.Api`
 - `Sirkadiyen.Worker`
 
-The API currently exposes `GET /health`. Beyond that:
+The API exposes `GET /health` plus the internal revision review and approval
+endpoints guarded by the required administrative key. Beyond that:
 
 - The .NET ingestion layer acquires a Google Sheets v4 response and normalizes
   values, formulas, formatting, merges, and hidden dimensions into the versioned
@@ -94,11 +95,20 @@ The API currently exposes `GET /health`. Beyond that:
   See `docs/database.md`.
 - The worker seeds the source catalog, polls Google Sheets on an adaptive
   Istanbul-time schedule, calls the Python parser over its strict v1 HTTP
-  contract, and transactionally persists candidate revisions.
+  contract, transactionally persists candidate revisions, validates them, and
+  publishes healthy revisions while quarantining suspicious ones for review.
+- The first semantic diff slice is implemented as a pure deterministic engine:
+  exact identity/content comparison, created/updated/deleted/unchanged
+  classification, and ambiguity-safe secondary matching for time changes using
+  normalized lesson title, instructor and explicitly sourced academic
+  department. Persistence and post-publication orchestration are the next step.
 
-Not implemented: Drive/HTTP acquisition, DOCX conversion, revision validation
-and publication, the semantic diff, calendar synchronization, identity,
-licensing, and the frontend.
+Not implemented: Drive/HTTP acquisition, DOCX conversion, semantic diff
+persistence/orchestration, the global operational freeze, calendar
+synchronization, identity, licensing, and the Next.js frontend.
+
+Published schedule mistakes use forward-fix rather than rollback: correct the
+authoritative source and let polling publish a newer revision (ADR-033).
 
 ## Local development
 

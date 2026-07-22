@@ -37,6 +37,7 @@ internal sealed class CanonicalScheduleRecordConfiguration
         builder.Property(record => record.TimeZoneId).HasMaxLength(100).IsRequired();
         builder.Property(record => record.Instructor).HasMaxLength(1000);
         builder.Property(record => record.Location).HasMaxLength(1000);
+        builder.Property(record => record.Department).HasMaxLength(500);
         builder.Property(record => record.StableIdentity).HasMaxLength(100).IsRequired();
         builder.Property(record => record.ContentHash).HasMaxLength(100).IsRequired();
         builder.Property(record => record.Confidence).HasPrecision(4, 3);

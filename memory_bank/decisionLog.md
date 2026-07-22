@@ -1073,3 +1073,217 @@ cycle.
 - Publishing overwrites `StateReason`, so the approval reason survives in its own
   column rather than in the state text. The findings that held the revision are
   never deleted either way.
+
+---
+
+## ADR-033: Correct published schedules by forward-fix, never rollback
+
+**Status:** Accepted
+**Date:** 2026-07-22
+
+### Context
+
+A revision can be superseded by a newer revision, but restoring an older
+revision would introduce a second publication path, complicate audit history,
+and risk replaying schedule data that is no longer correct at its source.
+
+### Decision
+
+Sirkadiyen does not provide a rollback operation for published revisions. An
+incorrect schedule is corrected in its authoritative source, such as Google
+Sheets. Normal polling then acquires the correction, creates and validates a new
+revision, publishes it, calculates the forward semantic diff, and updates the
+affected calendars.
+
+### Consequences
+
+- A superseded revision remains immutable evidence and can never become live
+  again.
+- Operators repair the source of truth rather than application state.
+- The UI and runbooks use the term `forward-fix`, not rollback.
+- The absence of rollback makes an operational freeze and rapid source repair
+  essential.
+
+---
+
+## ADR-034: A global freeze stops ingestion and publication
+
+**Status:** Accepted
+**Date:** 2026-07-22
+**Implements:** not yet
+
+### Context
+
+A source may change structure without warning or produce a large anomaly. The
+normal validation barriers prevent suspicious publication, but operators also
+need one global switch that stops new evidence and live-state changes while the
+incident is understood.
+
+### Decision
+
+Add a dynamically readable global operational freeze. While it is enabled:
+
+- no source acquisition starts
+- no parse run starts or resumes
+- no revision is published, including an approved or already validated one
+- no semantic diff dispatch or calendar mutation starts
+
+An operation already performing an external read may finish storing immutable
+evidence, but it may not cross the publication boundary. Unfreezing resumes the
+ordinary state-driven pipeline; it never skips validation and never creates a
+special publication path. Freeze/unfreeze changes are audited with actor,
+reason, timestamp and correlation ID.
+
+A startup-only environment variable is insufficient because changing it needs a
+restart. The implementation must use an authoritative runtime-readable control
+and fail closed when its state cannot be read. The administration surface is
+added after real operator authentication exists.
+
+### Consequences
+
+- The worker checks the freeze before every source and immediately before
+  publication and downstream dispatch.
+- The API exposes freeze state read-only until authenticated administration is
+  implemented.
+- Freeze preserves queued and validated work; it does not reject or delete it.
+- Calendar jobs must check the same control so a queue backlog cannot bypass the
+  switch.
+
+---
+
+## ADR-035: Secondary matching uses title, instructor and academic department
+
+**Status:** Accepted
+**Date:** 2026-07-22
+**Implements:** semantic diff model and pure matching engine; persistence and
+publication orchestration remain
+
+### Context
+
+Start time is part of stable identity (ADR-018). A lesson moved to another time
+therefore appears as an unmatched old and new record. Treating that pair as a
+delete and create would lose the durable Google event mapping even when the
+lesson itself did not change.
+
+### Decision
+
+After exact stable-identity matching, compare only structurally compatible
+unmatched records: same source, academic context, local date, event type,
+record status, audience and timezone.
+
+Secondary matching requires all three explicitly sourced attributes on both
+records:
+
+1. normalized lesson title
+2. instructor
+3. academic department
+
+Use deterministic normalized Levenshtein similarity. Initial thresholds and
+weights are:
+
+```text
+lesson title       minimum 0.82, weight 0.50
+instructor         minimum 0.85, weight 0.30
+department         minimum 0.90, weight 0.20
+composite score    minimum 0.88
+```
+
+Every component must cross its own threshold as well as the weighted composite.
+If either side lacks any of the three fields, it is not eligible for secondary
+matching; nothing is inferred from evidence. `Department` is therefore an
+optional canonical field populated only by parser profiles whose source states
+it.
+
+A pair is accepted only when it is the sole eligible candidate for both the old
+and new record. Any one-to-many or many-to-one candidate set is `Ambiguous` and
+must never become delete-and-create automatically.
+
+### Consequences
+
+- Minor spelling, punctuation and Turkish-diacritic differences may still match.
+- Similar lessons in the same slot stay quarantined when the data cannot choose
+  uniquely.
+- Scores and their three components are retained as evidence.
+- Threshold changes are behavioral changes and require regression tests and an
+  ADR amendment.
+- Existing canonical records have null `Department` after the additive
+  migration and remain safely ineligible until a future parsed revision states
+  it.
+
+---
+
+## ADR-036: Use Next.js for the frontend
+
+**Status:** Accepted
+**Date:** 2026-07-22
+
+### Context
+
+The frontend stack was intentionally deferred while the schedule pipeline was
+being established.
+
+### Decision
+
+Use Next.js with React and TypeScript. The browser consumes typed backend
+contracts and uses the backend-managed secure-cookie session from ADR-023.
+
+### Consequences
+
+- Authorization, activation and synchronization truth stay server-side.
+- A component system remains a later, narrower UI decision.
+- Deployment includes a separate frontend container unless a later ADR changes
+  the topology.
+
+---
+
+## ADR-037: Use Hangfire for durable background jobs
+
+**Status:** Accepted
+**Date:** 2026-07-22
+**Implements:** not yet
+
+### Context
+
+Calendar synchronization, affected-user resolution, reconciliation and
+maintenance need durable retryable jobs. The technology baseline named Hangfire
+as the initial preference but had not accepted it.
+
+### Decision
+
+Use Hangfire for durable background jobs, initially with PostgreSQL-backed
+storage. Domain state and required job dispatch remain connected through the
+transactional outbox; application logic does not call Hangfire directly.
+
+### Consequences
+
+- Jobs remain idempotent because queue delivery is at least once.
+- Hangfire retries do not replace domain failure classification.
+- Redis may still serve locks, caching and rate limiting, but is not the
+  authoritative durable job store.
+- The global freeze from ADR-034 gates Hangfire calendar and publication jobs.
+
+---
+
+## ADR-038: Recurring undated rows are out of scope
+
+**Status:** Accepted
+**Date:** 2026-07-22
+
+### Context
+
+Rows such as `HER HAFTA PAZARTESİ` name a recurrence but do not state the
+individual dates or an unambiguous recurrence boundary. Expanding them would
+invent schedule instances the source did not explicitly provide.
+
+### Decision
+
+Do not publish recurring undated rows. Parser profiles detect and account for
+them with evidence, informational warnings and ignored-row metrics. They are not
+future product work unless a source begins stating explicit dates or a later ADR
+introduces a safe recurrence contract.
+
+### Consequences
+
+- The six currently known rows stay out of student calendars.
+- Exclusion is visible and deterministic, never a silent discard.
+- This decision does not apply to explicitly dated repeated lessons.
