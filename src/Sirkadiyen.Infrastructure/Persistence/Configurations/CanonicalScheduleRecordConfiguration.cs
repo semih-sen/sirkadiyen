@@ -21,6 +21,9 @@ internal sealed class CanonicalScheduleRecordConfiguration
             .IsRequired();
 
         builder.Property(record => record.AcademicYear).HasMaxLength(20).IsRequired();
+        builder.Property(record => record.CandidateId).HasMaxLength(200).IsRequired();
+        builder.Property(record => record.RecordStatus).HasConversion<string>().HasMaxLength(40)
+            .IsRequired();
         builder.Property(record => record.ProgramLanguage).HasConversion<string>().HasMaxLength(20)
             .IsRequired();
         builder.Property(record => record.EventType).HasConversion<string>().HasMaxLength(40)
@@ -47,6 +50,8 @@ internal sealed class CanonicalScheduleRecordConfiguration
         // refuses duplicates, and the schema makes sure a future producer cannot
         // reintroduce them.
         builder.HasIndex(record => new { record.ScheduleRevisionId, record.StableIdentity })
+            .IsUnique();
+        builder.HasIndex(record => new { record.ScheduleRevisionId, record.CandidateId })
             .IsUnique();
 
         // The diff engine loads one revision ordered by date, and audience

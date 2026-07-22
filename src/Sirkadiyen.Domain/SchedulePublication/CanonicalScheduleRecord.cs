@@ -18,6 +18,7 @@ public sealed class CanonicalScheduleRecord
     private CanonicalScheduleRecord()
     {
         // Materialization constructor.
+        CandidateId = string.Empty;
         AcademicYear = string.Empty;
         DisplayTitle = string.Empty;
         TimeZoneId = string.Empty;
@@ -30,6 +31,8 @@ public sealed class CanonicalScheduleRecord
     public CanonicalScheduleRecord(
         Guid scheduleRevisionId,
         SourceId sourceId,
+        string candidateId,
+        CanonicalRecordStatus recordStatus,
         string academicYear,
         int classYear,
         ProgramLanguage programLanguage,
@@ -49,6 +52,7 @@ public sealed class CanonicalScheduleRecord
         string? instructor = null,
         string? location = null)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(candidateId);
         ArgumentException.ThrowIfNullOrWhiteSpace(academicYear);
         ArgumentException.ThrowIfNullOrWhiteSpace(displayTitle);
         ArgumentException.ThrowIfNullOrWhiteSpace(timeZoneId);
@@ -65,6 +69,8 @@ public sealed class CanonicalScheduleRecord
         Id = Guid.CreateVersion7();
         ScheduleRevisionId = scheduleRevisionId;
         SourceId = sourceId;
+        CandidateId = candidateId;
+        RecordStatus = recordStatus;
         AcademicYear = academicYear;
         ClassYear = classYear;
         ProgramLanguage = programLanguage;
@@ -90,6 +96,11 @@ public sealed class CanonicalScheduleRecord
     public Guid ScheduleRevisionId { get; private set; }
 
     public SourceId SourceId { get; private set; }
+
+    /// <summary>The parser candidate identifier retained for traceability.</summary>
+    public string CandidateId { get; private set; }
+
+    public CanonicalRecordStatus RecordStatus { get; private set; }
 
     public string AcademicYear { get; private set; }
 
@@ -147,4 +158,10 @@ public enum AudienceScope
 {
     AllStudentsInProgram,
     SelectedGroups,
+}
+
+public enum CanonicalRecordStatus
+{
+    Scheduled,
+    Cancelled,
 }

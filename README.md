@@ -92,9 +92,13 @@ The API currently exposes `GET /health`. Beyond that:
 - PostgreSQL holds configured sources, immutable snapshots, parse runs,
   revisions and canonical records, including the unchanged-source short circuit.
   See `docs/database.md`.
+- The worker seeds the source catalog, polls Google Sheets on an adaptive
+  Istanbul-time schedule, calls the Python parser over its strict v1 HTTP
+  contract, and transactionally persists candidate revisions.
 
-Not implemented: polling, the parser HTTP client, Drive/HTTP acquisition, the
-semantic diff, calendar synchronization, identity, licensing, and the frontend.
+Not implemented: Drive/HTTP acquisition, DOCX conversion, revision validation
+and publication, the semantic diff, calendar synchronization, identity,
+licensing, and the frontend.
 
 ## Local development
 

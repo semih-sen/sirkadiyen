@@ -673,3 +673,212 @@ parser evidence are stored as `jsonb`.
 - Database integration tests require a real PostgreSQL and report themselves as
   skipped when none is configured, so an unrun guarantee never looks like a
   passing one.
+
+---
+
+## ADR-022: Licenses are single-use and revocation suspends synchronization
+
+**Status:** Accepted
+**Date:** 2026-07-22
+
+### Context
+
+The licensing schema was deferred because reuse, expiration, and revocation
+semantics were unresolved. Calendar deletion on revocation would be especially
+risky because revocation can be administrative, temporary, or mistaken.
+
+### Decision
+
+Every license code is single-use and may activate at most one user. Redemption
+is transactional and idempotent. Revoking the active license stops all future
+synchronization for that user but preserves the user's dedicated Sirkadiyen
+calendar and its existing events. Revocation never starts event deletion.
+
+### Consequences
+
+- The database needs a uniqueness guarantee preventing two redemptions.
+- License status, redemption, revocation, and any later reactivation are audited.
+- Sync job admission checks the authoritative license state server-side.
+- Existing events may become stale after revocation; the UI must state that the
+  calendar is no longer synchronized.
+
+---
+
+## ADR-023: Web sessions use backend-managed secure cookies
+
+**Status:** Accepted
+**Date:** 2026-07-22
+
+### Context
+
+Google sign-in establishes identity, but the browser still needs an application
+session. Exposing bearer or Google refresh tokens to JavaScript would increase
+the impact of XSS and complicate revocation.
+
+### Decision
+
+Use a backend-managed HTTP-only secure cookie for the web session. Configure an
+explicit SameSite policy, expiry and rotation. State-changing endpoints require
+anti-forgery protection. Authorization for admin role, license, profile, and
+sync eligibility is always enforced by the backend.
+
+### Consequences
+
+- The frontend never receives Google refresh tokens or an application bearer
+  token for normal browser use.
+- Cross-origin deployment and callback URLs must be designed around cookie and
+  SameSite rules.
+- CSRF protection is a mandatory part of authentication implementation.
+
+---
+
+## ADR-024: Create one dedicated Sirkadiyen calendar per user
+
+**Status:** Accepted
+**Date:** 2026-07-22
+
+### Context
+
+Mixing managed events into a user's primary calendar makes ownership, repair,
+and safe cleanup ambiguous. Asking users to select an existing calendar also
+creates inconsistent deployment and support paths.
+
+### Decision
+
+Create one dedicated Sirkadiyen Google calendar for every activated user and
+write all managed events to it. Persist its Google calendar ID and every event
+mapping. Mark managed events with private extended properties. If the calendar
+is deleted or inaccessible, stop normal sync and require an explicit audited
+repair or recreation flow.
+
+### Consequences
+
+- Initial sync includes an idempotent calendar-creation step.
+- Event insert, patch, delete, and reconciliation never target the primary
+  calendar.
+- License revocation preserves the dedicated calendar as required by ADR-022.
+
+---
+
+## ADR-025: Quarantine destructive or structurally unknown revisions
+
+**Status:** Accepted
+**Date:** 2026-07-22
+
+### Context
+
+A technically successful parse may still represent a broken or radically
+changed source. Automatic publication would convert a source mistake into mass
+calendar mutations.
+
+### Decision
+
+Move a revision and its semantic diff to `ReviewRequired` when any of these
+conditions is true:
+
+- more than 20 percent of the previously published records disappear
+- an unknown group selector appears, such as a new `Ä°4` value not present in
+  the supported profile schema
+- multiple impossible overlaps occur for the same audience at the same local
+  date and time
+
+Manual approval is required before publication. Until approval, no affected-user
+resolution or calendar deletion job may be created.
+
+### Consequences
+
+- Validation needs the prior published revision and the supported profile schema.
+- Diff records need explicit anomaly evidence and review state.
+- The 20 percent boundary means exactly 20 percent does not trigger this rule;
+  any value greater than 20 percent does.
+
+---
+
+## ADR-026: Select polling intervals from an Istanbul-time policy
+
+**Status:** Accepted
+**Date:** 2026-07-22
+
+### Context
+
+Source change probability varies by day and hour. A single aggressive interval
+wastes quota at night and weekends, while a single relaxed interval delays
+weekday changes.
+
+### Decision
+
+Use a validated, configurable interval policy evaluated in `Europe/Istanbul`.
+The initial schedule is 60 minutes on weekends; on weekdays, 45 minutes from
+00:00-07:00 and 21:00-24:00, 15 minutes from 07:00-16:00, and 25 minutes from
+16:00-21:00. Prevent overlapping poll cycles.
+
+### Consequences
+
+- Tests cover every boundary and weekend precedence.
+- Operational changes alter configuration without changing polling code.
+- A single worker cycle records per-source outcomes and schedules the next cycle
+  only after the current cycle finishes.
+
+---
+
+## ADR-027: Store variable student group selectors as validated JSONB
+
+**Status:** Accepted
+**Date:** 2026-07-22
+
+### Context
+
+Practice cohorts (`Ä°1`, `Ä°2`, `Ä°3`), anatomy groups, third-year curriculum
+groups, rotations, and future electives do not share one fixed set of columns.
+An unconstrained EAV model would be flexible but would make validation, querying,
+and referential rules harder to understand.
+
+### Decision
+
+Keep academic year, class year, and program language as relational fields. Store
+the remaining group choices in a schema-versioned JSONB selector document. A
+server-owned supported-profile schema defines valid dimensions, values, and
+dependencies. Reject unknown or incompatible client values. Reuse the same
+selector semantics for canonical audiences and affected-user resolution.
+
+### Consequences
+
+- New group dimensions can be introduced without adding nullable columns.
+- JSONB documents and their schema versions must be migrated deliberately when
+  selector semantics change.
+- Intentional JSON indexes may be added only after real audience queries are
+  measured; JSONB is not a substitute for core relational fields.
+
+---
+
+## ADR-028: Retry parser transport failures on one logical parse run
+
+**Status:** Accepted
+**Date:** 2026-07-22
+
+### Context
+
+ADR-021 permits one parser-profile version to run once per immutable snapshot.
+If the HTTP call fails after a changed snapshot is stored, the next acquisition
+is unchanged. Stopping at the content short circuit would strand that snapshot
+forever, while inserting another parse run would violate deterministic identity
+and allow duplicate revisions.
+
+### Decision
+
+Keep one logical `ParseRun` for each snapshot/profile/version and count transport
+attempts on it. A failed run may resume with a new correlation ID and incremented
+`AttemptCount`. When acquisition is unchanged, retry against the normalized
+snapshot document already stored as immutable evidence, not the newly acquired
+but intentionally unstored duplicate. Completed, warning, and rejected runs do
+not execute again.
+
+### Consequences
+
+- Transient parser transport failure no longer requires a changed source to
+  recover.
+- The unique parse-run index remains the concurrency and idempotency guard.
+- The current row retains the latest failure and total attempt count rather than
+  a full attempt history; structured logs must retain per-attempt diagnostics.
+- Recovery of a run left `Running` by abrupt process termination remains a
+  separate worker-maintenance task.

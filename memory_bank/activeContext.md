@@ -2,17 +2,50 @@
 
 ## Current phase
 
-Grade 1 profiles and schedule persistence.
+Google Sheets polling and candidate revision persistence.
 
-Both Grade 1 profiles parse real snapshots with golden-file cover, and
-PostgreSQL now holds the ingestion and publication core. The 18 confirmed
-sources have a typed catalog that also carries the source context. Credential
-factories support offline OAuth refresh tokens or service accounts, but the
-local environment still holds only a client ID and secret. Polling, the parser
-HTTP client, Drive/HTTP adapters, identity, licensing and the frontend do not
-exist yet.
+The worker now joins the implemented Google Sheets path end to end: catalog
+seeding, adaptive polling, immutable snapshot storage, strict parser HTTP calls,
+parse-run persistence, and transactional candidate revision creation. Drive and
+HTTP acquisition, DOCX conversion, validation/publication, semantic diff,
+identity, licensing, Calendar sync, and the frontend do not exist yet. An
+offline source refresh token or service-account credential is still required to
+run production polling.
+
+Product decisions that previously blocked identity and synchronization design
+are now accepted: single-use licenses with sync suspension on revocation
+(ADR-022), HTTP-only secure-cookie sessions (ADR-023), one dedicated managed
+calendar per user (ADR-024), mandatory review thresholds (ADR-025), adaptive
+Istanbul-time polling (ADR-026), and validated JSONB profile selectors
+(ADR-027).
 
 ## Latest implementation session
+
+- Added `ScheduleSourcePoller` and wired the Worker to seed the 18-source
+  catalog, list polling-enabled sources, process them sequentially, and avoid
+  overlapping cycles.
+- Added ADR-026's configurable Istanbul-time schedule: 15 minutes in weekday
+  daytime, 25 minutes in late afternoon, 45 minutes at night, and 60 minutes on
+  weekends.
+- Added the strict `ParserHttpClient`; it rejects non-success responses and any
+  successful response that does not echo contract, correlation, source,
+  snapshot, and profile identifiers exactly.
+- Added parse-run start/resume and result persistence. A failed parser transport
+  attempt increments `AttemptCount` on the same deterministic run, including
+  when the next source acquisition is unchanged.
+- Candidate revisions and canonical records are now created in one transaction.
+  Candidate ID and scheduled/cancelled status are retained in canonical storage
+  rather than discarded.
+- Added migration `PreserveParserCandidateStatus` with a safe data migration for
+  existing rows.
+- Recorded the accepted license, session, calendar, anomaly, polling, and JSONB
+  profile decisions as ADR-022 through ADR-027.
+- Added polling-boundary, orchestration, parser HTTP, model, migration, and
+  PostgreSQL integration tests. The current environment passed 42 .NET tests;
+  16 PostgreSQL tests were explicitly skipped because Docker/PostgreSQL was not
+  available. Release build and formatting verification pass with zero warnings.
+
+## Previous persistence and Grade 1 practice session
 
 - Implemented `grade1_practice_v1` for the rotation-matrix practice program:
   426 candidates from the Grade 1 Turkish source, with 20 refused cells that are
@@ -161,22 +194,27 @@ exist yet.
 
 ## Immediate objectives
 
-1. Compose the worker polling workflow: acquire, store through the short
-   circuit, call the parser over HTTP, persist the parse run and create a
-   revision. Every piece now exists; nothing joins them.
+1. Implement record and revision validation, including ADR-025's deletion,
+   unknown-group, and impossible-overlap review thresholds.
 2. Obtain an offline source refresh token or a service-account credential; do
    not reuse end-user Calendar authorization for source ingestion.
-3. Add the parser HTTP client and persist parse runs and canonical records.
+3. Add manual-review state handling and transactional revision publication;
+   publication must remain separate from parser completion.
 4. Implement `grade2_yearly_v1`, which should reuse the annual implementation
    with its own header aliases.
 5. Widen the group resolver for the English practice cohort labels (`İ1`) after
    reviewing that source's structure; it also lays dates out differently.
-6. Establish .NET architecture tests.
-7. Acquire the missing Grade 1 anatomy and Grade 3 English fixtures.
-8. Add DOCX conversion for the confirmed special-program sources.
-9. Add CI quality gates, including a PostgreSQL service for the integration
+6. Recover parse runs left `Running` by an abrupt worker shutdown without
+   creating duplicate runs or revisions.
+7. Establish .NET architecture tests.
+8. Acquire the missing Grade 1 anatomy and Grade 3 English fixtures.
+9. Add Google Drive/HTTP acquisition and DOCX conversion for the confirmed
+   special-program sources.
+10. Add CI quality gates, including a PostgreSQL service for the integration
    tests.
-10. Decide frontend, session, licensing, initial-sync, and managed-calendar rules.
+11. Model identity, single-use licensing, secure-cookie sessions, flexible
+    student profiles, initial sync, and the dedicated managed calendar from
+    ADR-022 through ADR-027.
 
 ## Grade 1 practice source structure
 
@@ -208,30 +246,6 @@ The `HAYATIN EVRELERİ DİLİMİ` block has three dated rows but no subject head
 so it carries no rotation to publish.
 
 ## Important unresolved decisions
-
-### License policy
-
-- single-use or multi-use
-- expiration
-- cohort restrictions
-- revocation consequences
-- whether one user may redeem multiple licenses
-
-### Google Calendar strategy
-
-- create one dedicated Sirkadiyen calendar
-- use a user-selected existing calendar
-- create separate calendars by academic year
-
-Preferred direction is one dedicated managed Sirkadiyen calendar per user, but this is not yet final.
-
-### Session architecture
-
-- backend-managed secure HTTP-only cookie
-- frontend authentication library integrated with backend session
-- token-based approach
-
-Preferred direction is backend-managed secure cookie for the web application.
 
 ### Source acquisition operations
 

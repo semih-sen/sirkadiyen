@@ -129,20 +129,14 @@ State must be derived from authoritative backend data where possible.
 
 ## License behavior
 
-Initial product assumption:
-
 - license codes are issued by administrators
-- a code activates a user account
-- codes may be single-use
+- every license code is single-use and activates at most one user account
 - codes may optionally include expiration, cohort restrictions, or notes
 - a redeemed code remains auditable
-- revocation behavior must be explicit
-
-Open product decision:
-
-- whether revoking a license disables future sync only, removes calendar events, or suspends access while preserving events
-
-Until decided, revocation must not automatically delete calendar events.
+- revoking a license disables all future synchronization for the user
+- revocation preserves the dedicated Sirkadiyen calendar and its existing events;
+  it does not trigger calendar deletion or event cleanup
+- reactivation or a later repair must be an explicit, audited operation
 
 ## Student profile
 
@@ -172,6 +166,13 @@ and English programs.
 The frontend should request only fields applicable to the selected class year and program.
 
 The backend must validate every combination against supported options.
+
+Core profile fields (`academicYear`, `classYear`, and `programLanguage`) remain
+relational. Variable selections such as `practiceGroup`, `practiceSubgroup`,
+`anatomyGroup`, `verticalCorridorGroup`, `bedsideGroup`, and future rotation or
+elective dimensions are stored as a schema-versioned JSONB selector document.
+The server validates selector keys and values against the supported profile
+schema; JSONB flexibility never means accepting arbitrary client claims.
 
 ## Initial synchronization experience
 
@@ -205,14 +206,13 @@ When user action is required, the system should clearly distinguish:
 
 ## Calendar ownership strategy
 
-Preferred initial approach:
-
-- create or use a dedicated Sirkadiyen calendar for managed events
+- create one dedicated Sirkadiyen calendar in every user's Google Calendar
 - keep Sirkadiyen events separate from the user's personal events
+- write every managed event only to that dedicated calendar
 - store Google calendar and event identifiers in the backend
 - mark events with private extended properties
-
-The final calendar creation policy must be recorded in `decisionLog.md`.
+- if the dedicated calendar is deleted or becomes inaccessible, stop normal
+  synchronization and require an explicit repair/recreation flow
 
 ## Trust principles
 

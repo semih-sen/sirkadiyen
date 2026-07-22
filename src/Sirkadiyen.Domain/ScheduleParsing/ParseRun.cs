@@ -36,6 +36,7 @@ public sealed class ParseRun
         CorrelationId = correlationId;
         StartedAtUtc = startedAtUtc;
         Status = ParseRunStatus.Running;
+        AttemptCount = 1;
     }
 
     public Guid Id { get; private set; }
@@ -53,6 +54,13 @@ public sealed class ParseRun
     public DateTimeOffset? CompletedAtUtc { get; private set; }
 
     public ParseRunStatus Status { get; private set; }
+
+    /// <summary>
+    /// Number of transport attempts made for this deterministic snapshot and
+    /// parser-profile pair. The unique parse run remains the logical execution;
+    /// a failed HTTP attempt may safely resume it.
+    /// </summary>
+    public int AttemptCount { get; private set; }
 
     public int CandidateCount { get; private set; }
 
@@ -97,6 +105,27 @@ public sealed class ParseRun
         Status = ParseRunStatus.Failed;
         CompletedAtUtc = completedAtUtc;
         FailureReason = failureReason;
+    }
+
+    public void Resume(string correlationId, DateTimeOffset startedAtUtc)
+    {
+        if (Status is not ParseRunStatus.Failed)
+        {
+            throw new InvalidOperationException("Only a failed parse run can be resumed.");
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(correlationId);
+
+        CorrelationId = correlationId;
+        StartedAtUtc = startedAtUtc;
+        CompletedAtUtc = null;
+        Status = ParseRunStatus.Running;
+        CandidateCount = 0;
+        WarningCount = 0;
+        ErrorCount = 0;
+        Response = null;
+        FailureReason = null;
+        AttemptCount++;
     }
 }
 

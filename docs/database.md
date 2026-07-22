@@ -10,13 +10,14 @@ schema through version-controlled migrations.
 | --- | --- |
 | `schedule_sources` | the configured catalog, including the source context a workbook never states (ADR-017) |
 | `source_snapshots` | immutable acquisitions, one row per changed poll (ADR-007) |
-| `parse_runs` | one execution of one parser profile version against one snapshot |
+| `parse_runs` | one deterministic parser execution per snapshot/profile, including retry attempt count |
 | `schedule_revisions` | candidate schedules and the states they move through before publication |
-| `canonical_schedule_records` | the lessons of one revision, with stable identity and content hash (ADR-018) |
+| `canonical_schedule_records` | the lessons of one revision, with candidate ID, scheduled/cancelled status, stable identity and content hash (ADR-018) |
 
 Identity, licensing, student profiles and calendar event mappings are **not**
-here yet. Their behaviour is still an open decision in `decisionLog.md`, and a
-migration is far more expensive to change than a class (ADR-021).
+here yet. Their behavioral decisions are now recorded in ADR-022 through
+ADR-027, but their schemas remain future migrations rather than changes to the
+already-applied schedule-pipeline migration.
 
 ## Local setup
 
@@ -79,6 +80,10 @@ does not apply cleanly fails there rather than in production.
 ## Conventions
 
 - Enums are stored by name, so their numeric values may be reordered freely.
+- Candidate IDs and scheduled/cancelled status are retained rather than inferred
+  later from parser response JSON.
+- A failed parser transport attempt resumes the same deterministic parse run and
+  increments `AttemptCount`; it does not create a duplicate run.
 - Evidence documents — snapshot payloads, audience selectors, parser evidence —
   are `jsonb`, so they can be inspected and queried in place.
 - Contested rows carry PostgreSQL's `xmin` as an optimistic concurrency token.

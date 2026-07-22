@@ -81,6 +81,26 @@ public sealed class ScheduleModelTests
             index.Properties.Select(property => property.Name));
     }
 
+    [Fact]
+    public void ParserAttemptsAndCandidateStatusArePersistedExplicitly()
+    {
+        IEntityType run = Model.FindEntityType(typeof(Domain.ScheduleParsing.ParseRun))!;
+        IEntityType record = Model.FindEntityType(typeof(CanonicalScheduleRecord))!;
+
+        Assert.NotNull(run.FindProperty("AttemptCount"));
+        Assert.Equal(
+            typeof(string),
+            record.FindProperty("RecordStatus")!.GetProviderClrType());
+
+        IIndex candidateIndex = Assert.Single(
+            record.GetIndexes(),
+            candidate => candidate.IsUnique
+                && candidate.Properties.Any(property => property.Name == "CandidateId"));
+        Assert.Equal(
+            ["ScheduleRevisionId", "CandidateId"],
+            candidateIndex.Properties.Select(property => property.Name));
+    }
+
     [Theory]
     [InlineData(typeof(Domain.ScheduleIngestion.SourceSnapshot), "Payload")]
     [InlineData(typeof(CanonicalScheduleRecord), "AudienceSelectors")]

@@ -18,6 +18,7 @@ internal sealed class ParseRunConfiguration : IEntityTypeConfiguration<ParseRun>
         builder.Property(run => run.ParserProfileVersion).HasMaxLength(20).IsRequired();
         builder.Property(run => run.CorrelationId).HasMaxLength(100).IsRequired();
         builder.Property(run => run.Status).HasConversion<string>().HasMaxLength(40).IsRequired();
+        builder.Property(run => run.AttemptCount).IsRequired();
         builder.Property(run => run.FailureReason).HasMaxLength(2000);
 
         // An empty response is valid only while the run is open, so the column
@@ -38,5 +39,9 @@ internal sealed class ParseRunConfiguration : IEntityTypeConfiguration<ParseRun>
             run.ParserProfile,
             run.ParserProfileVersion,
         }).IsUnique();
+
+        builder.ToTable(table => table.HasCheckConstraint(
+            "ck_parse_runs_attempt_count",
+            "\"AttemptCount\" > 0"));
     }
 }

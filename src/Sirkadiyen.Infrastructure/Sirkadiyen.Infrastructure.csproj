@@ -6,6 +6,7 @@
       <PrivateAssets>none</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
     <!--
       EntityFrameworkCore.Design pulls in System.Security.Cryptography.Xml 9.0.0,

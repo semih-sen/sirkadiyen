@@ -155,6 +155,8 @@ public sealed class SchedulePipelineIntegrityTests(PostgresFixture fixture)
         string stableIdentity) => new(
             revisionId,
             sourceId,
+            $"candidate-{stableIdentity}",
+            CanonicalRecordStatus.Scheduled,
             "2025-2026",
             1,
             ProgramLanguage.Turkish,

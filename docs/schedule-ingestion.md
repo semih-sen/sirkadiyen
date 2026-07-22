@@ -18,8 +18,34 @@ deterministic and avoids generating domain metadata inside infrastructure code.
 `GoogleSheetsServiceFactory` supports either an offline OAuth refresh token or a
 service-account credential and always uses the least-privilege
 `https://www.googleapis.com/auth/spreadsheets.readonly` scope. Worker
-configuration binding and orchestration are not wired yet. Credentials remain
+configuration binds exactly one of those credential modes. Credentials remain
 outside source control.
+
+## Polling and parser orchestration
+
+The worker now loads and seeds the versioned source catalog, lists
+polling-enabled sources, and processes them sequentially so one cycle never
+overlaps the next. For each supported Google Sheets source it:
+
+```text
+acquires normalized snapshot
+â†’ stores only changed content
+â†’ begins or resumes the deterministic parse run
+â†’ calls POST /v1/parse
+â†’ persists the response
+â†’ creates a candidate revision and canonical records in one transaction
+```
+
+An unchanged snapshot is normally already parsed and stops early. If the prior
+parser transport attempt failed, the worker parses the stored immutable
+snapshot again and increments its attempt count instead of creating duplicate
+snapshot or parse-run rows. Parser responses must echo every contract identifier
+exactly before they are persisted.
+
+Polling delay is selected in `Europe/Istanbul`: 15 minutes during weekday
+daytime, 25 minutes in late afternoon, 45 minutes at night, and 60 minutes on
+weekends. Window boundaries and intervals are configurable through the
+`SIRKADIYEN_POLLING__*` variables documented in `.env.example`.
 
 ## Preserved evidence
 
@@ -49,17 +75,18 @@ source ID, snapshot ID, and acquisition time, so acquiring identical source
 content twice yields the same hash. Range scope and structural or diagnostic
 changes intentionally change the hash.
 
-This hash enables the future unchanged-source short circuit. The raw normalized
+This hash drives the implemented unchanged-source short circuit. The raw normalized
 snapshot must still be persisted immutably whenever the hash is new.
 
 ## Remaining integration work
 
 Production ingestion still needs:
 
-1. worker binding for one unattended source credential mode;
-2. immutable snapshot persistence;
-3. polling and unchanged-source orchestration;
-4. Google Drive and HTTP acquisition adapters plus DOCX conversion.
+1. an unattended source credential in each deployed environment;
+2. Google Drive and HTTP acquisition adapters plus DOCX conversion;
+3. recovery of parse runs left `Running` by abrupt process termination;
+4. validation, manual review, publication, and semantic diff after candidate
+   revision creation.
 
 ## Local XLSX fixture conversion
 

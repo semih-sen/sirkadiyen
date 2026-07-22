@@ -48,13 +48,8 @@ Choose one consistent validation style and record the decision.
 ### Authentication
 
 - Google OpenID Connect for sign-in
-- backend-issued application session
+- backend-issued HTTP-only secure cookie session
 - no password authentication
-
-The exact frontend/backend session mechanism must be decided and documented:
-
-- secure HTTP-only cookie session, preferred for web
-- or a carefully designed token-based alternative
 
 Do not expose Google refresh tokens to the frontend.
 
@@ -153,6 +148,11 @@ PostgreSQL stores:
 - background workflow state
 - audit logs
 - outbox messages
+
+Student profiles keep academic year, class year, and program language in
+relational columns. Variable cohort, anatomy, rotation, and elective selectors
+use schema-versioned JSONB validated against server-owned supported-profile
+definitions (ADR-027); an unconstrained EAV model is not used.
 
 Use JSONB selectively for:
 

@@ -301,6 +301,17 @@ Examples:
 - overlap anomaly
 - sudden unknown-course increase
 
+The initial mandatory manual-review thresholds are:
+
+- more than 20 percent of the previously published records disappear
+- a group selector value not present in the supported profile schema appears
+  (for example a new `Ä°4` cohort)
+- multiple impossible overlaps occur for the same audience on the same local
+  date and time
+
+These conditions quarantine the semantic diff in `ReviewRequired`. They must
+never auto-publish and must never start calendar deletion.
+
 ### Cross-source validation
 
 Examples:
@@ -363,6 +374,11 @@ SyncState
 This mapping is the primary path for updates.
 
 Google private extended properties provide repair and reconciliation support.
+
+Every user owns one dedicated Sirkadiyen Google calendar. Managed events are
+never mixed into the user's primary or another existing calendar. License
+revocation stops future synchronization but preserves this calendar and all
+events already written to it.
 
 ## 14. Idempotent job pattern
 
@@ -447,3 +463,50 @@ Audit at least:
 - calendar destructive operations
 
 Audit entries must be append-only from the application perspective.
+
+## 20. Session pattern
+
+Web sessions use backend-managed HTTP-only secure cookies. Google identity and
+Calendar OAuth credentials remain server-side and are never exposed to browser
+JavaScript. Cookie authentication must use `Secure`, an explicit `SameSite`
+policy, rotation/expiry, anti-forgery protection for state-changing requests,
+and server-side authorization for role, license, and onboarding state.
+
+## 21. Flexible profile selector pattern
+
+Keep `academicYear`, `classYear`, and `programLanguage` as relational columns.
+Store variable cohort dimensions in a schema-versioned JSONB document, for
+example:
+
+```json
+{
+  "schemaVersion": "1.0",
+  "selectors": {
+    "practiceGroup": "Ä°",
+    "practiceSubgroup": "1",
+    "anatomyGroup": "2",
+    "curriculumGroup": "3-A"
+  }
+}
+```
+
+The supported schema defines allowed keys, dependencies, and values per class
+year and language. Both profile writes and audience matching use the same
+validator. Do not use an unconstrained EAV model and do not trust arbitrary
+JSONB supplied by a client.
+
+## 22. Adaptive polling interval pattern
+
+Polling intervals are selected in `Europe/Istanbul` and remain configuration,
+not hard-coded scheduling assumptions. The initial policy is:
+
+```text
+Weekend                         60 minutes
+Weekday 00:00-07:00            45 minutes
+Weekday 07:00-16:00            15 minutes
+Weekday 16:00-21:00            25 minutes
+Weekday 21:00-24:00            45 minutes
+```
+
+The exact boundaries and durations may be changed through validated worker
+configuration. A configuration change must not create overlapping polling runs.

@@ -14,7 +14,7 @@
 - [x] Create AI agent guidelines
 - [x] Create memory bank structure
 - [x] Create source fixture conventions
-- [ ] Initialize Git repository
+- [x] Initialize Git repository
 - [x] Add root solution and project structure
 - [x] Add formatting and editor configuration
 - [x] Add `.env.example`
@@ -78,7 +78,7 @@
 - [x] Implement snapshot hashing
 - [x] Implement local XLSX snapshot converter
 - [x] Persist immutable snapshots
-- [ ] Add polling worker
+- [x] Add polling worker
 - [x] Add unchanged-source short circuit
 
 ## Phase 5: Python parser foundation
@@ -126,7 +126,7 @@
 
 ## Phase 7: Revision and validation pipeline
 
-- [~] Persist parser results
+- [x] Persist parser results
 - [ ] Implement record validation
 - [ ] Implement revision validation
 - [ ] Implement anomaly thresholds
@@ -149,7 +149,7 @@
 
 ## Phase 9: Calendar synchronization
 
-- [ ] Decide managed-calendar strategy
+- [x] Decide managed-calendar strategy
 - [ ] Implement Google Calendar client
 - [ ] Implement calendar creation or selection
 - [ ] Implement event insert
@@ -184,28 +184,30 @@
 
 ## Current next action
 
-Three Grade 1 sources now parse from real snapshots with golden-file cover:
-901 and 953 annual candidates from the Turkish and English workbooks, and 426
-practice candidates from the Turkish rotation matrix. PostgreSQL holds sources,
-snapshots, parse runs, revisions and canonical records, and the unchanged-source
-short circuit is proved against a real database.
+The Google Sheets path is now joined end to end: the worker seeds and lists
+polling-enabled sources, acquires and stores immutable snapshots, calls the
+parser through a strict HTTP client, and creates the parse run, candidate
+revision, and canonical records. Failed parser transport calls resume the same
+logical run, and adaptive Istanbul-time polling implements ADR-026.
 
-Next compose the worker polling workflow, which is the first thing that joins
-the pieces end to end:
+The next safety boundary is revision validation. Implement record validation
+and the ADR-025 review rules before publication: deletion greater than 20
+percent, unknown group selectors, and multiple impossible overlaps must move a
+revision to `ReviewRequired`. Then add transactional publication and only after
+that begin the semantic diff.
+
+The completed Google Sheets path is:
 
 ```text
 list polling-enabled sources
 → acquire a snapshot per source
 → store through the short circuit
-→ on change, call the parser over HTTP
-→ persist the parse run
-→ create a revision and its canonical records
+→ begin or resume the parse run
+→ call the parser over HTTP
+→ transactionally create a revision and canonical records
 ```
 
-Each step exists in isolation. What is missing is the parser HTTP client, the
-job that sequences them, and the revision-creation transaction.
-
 In parallel, obtain either an offline source refresh token or a service-account
-credential with access to the Sheets sources; without one the workflow can only
-run against local fixtures. Drive/HTTP acquisition adapters and DOCX conversion
-follow the same transport/format boundary.
+credential with access to the Sheets sources. Drive/HTTP acquisition adapters,
+DOCX conversion, recovery of stale `Running` parse runs, and the remaining
+parser profiles are still required.
