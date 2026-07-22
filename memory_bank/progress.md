@@ -127,14 +127,15 @@
 ## Phase 7: Revision and validation pipeline
 
 - [x] Persist parser results
-- [ ] Implement record validation
-- [ ] Implement revision validation
-- [ ] Implement anomaly thresholds
-- [ ] Implement review-required state
+- [x] Implement record validation
+- [x] Implement revision validation
+- [x] Implement anomaly thresholds
+- [x] Implement review-required state
 - [ ] Implement admin revision review
 - [ ] Implement transactional publication
 - [ ] Implement revision rollback strategy
-- [ ] Add validation regression tests
+- [x] Add validation regression tests
+- [ ] Implement snapshot retention and cleanup
 
 ## Phase 8: Semantic diff
 
@@ -184,19 +185,8 @@
 
 ## Current next action
 
-The Google Sheets path is now joined end to end: the worker seeds and lists
-polling-enabled sources, acquires and stores immutable snapshots, calls the
-parser through a strict HTTP client, and creates the parse run, candidate
-revision, and canonical records. Failed parser transport calls resume the same
-logical run, and adaptive Istanbul-time polling implements ADR-026.
-
-The next safety boundary is revision validation. Implement record validation
-and the ADR-025 review rules before publication: deletion greater than 20
-percent, unknown group selectors, and multiple impossible overlaps must move a
-revision to `ReviewRequired`. Then add transactional publication and only after
-that begin the semantic diff.
-
-The completed Google Sheets path is:
+Revision validation is implemented, so a candidate revision now reaches a
+decision instead of sitting in `Parsed`. The completed Google Sheets path is:
 
 ```text
 list polling-enabled sources
@@ -205,9 +195,21 @@ list polling-enabled sources
 → begin or resume the parse run
 → call the parser over HTTP
 → transactionally create a revision and canonical records
+→ validate into Validated, ReviewRequired or Rejected
 ```
 
-In parallel, obtain either an offline source refresh token or a service-account
-credential with access to the Sheets sources. Drive/HTTP acquisition adapters,
-DOCX conversion, recovery of stale `Running` parse runs, and the remaining
-parser profiles are still required.
+The next step is **transactional publication**: `Validated → Published`, moving
+the previously published revision to `Superseded` in the same transaction. A
+`ReviewRequired` revision must not be publishable without explicit approval, and
+publication must stay separate from validation exactly as validation is separate
+from parsing. Only after publication exists should the semantic diff begin.
+
+Two things now block on decisions already made rather than on discussion:
+
+- snapshot retention and cleanup, which is unimplemented while storage grows
+- per-profile declaration of date format, replacing the global day-first
+  assumption that would silently misparse a month-first source
+
+The Google source credential is resolved; a service account is configured.
+Drive/HTTP acquisition adapters, DOCX conversion, recovery of stale `Running`
+parse runs, and the remaining 17 parser profiles are still required.

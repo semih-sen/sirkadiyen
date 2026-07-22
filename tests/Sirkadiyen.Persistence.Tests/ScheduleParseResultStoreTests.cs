@@ -39,8 +39,15 @@ public sealed class ScheduleParseResultStoreTests(PostgresFixture fixture)
 
         Assert.NotNull(revision);
         context.ChangeTracker.Clear();
-        ParseRun run = await context.ParseRuns.SingleAsync(Token);
-        CanonicalScheduleRecord record = await context.CanonicalScheduleRecords.SingleAsync(Token);
+        // Scoped to this test's own snapshot and revision: the fixture database
+        // is shared by the whole collection, so a whole-table query would only
+        // pass while this happened to be the first test to run.
+        ParseRun run = await context.ParseRuns.SingleAsync(
+            candidate => candidate.SourceSnapshotId == snapshot.Id,
+            Token);
+        CanonicalScheduleRecord record = await context.CanonicalScheduleRecords.SingleAsync(
+            candidate => candidate.ScheduleRevisionId == revision.Id,
+            Token);
 
         Assert.Equal(ParseRunStatus.CompletedWithWarnings, run.Status);
         Assert.Equal(1, run.AttemptCount);
@@ -75,7 +82,9 @@ public sealed class ScheduleParseResultStoreTests(PostgresFixture fixture)
 
         Assert.Equal(first.ParseRunId, resumed.ParseRunId);
         Assert.True(resumed.ShouldInvokeParser);
-        ParseRun run = await context.ParseRuns.SingleAsync(Token);
+        ParseRun run = await context.ParseRuns.SingleAsync(
+            candidate => candidate.SourceSnapshotId == snapshot.Id,
+            Token);
         Assert.Equal(ParseRunStatus.Running, run.Status);
         Assert.Equal(2, run.AttemptCount);
         Assert.Equal("correlation-2", run.CorrelationId);

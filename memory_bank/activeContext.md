@@ -2,24 +2,58 @@
 
 ## Current phase
 
-Google Sheets polling and candidate revision persistence.
+Revision validation.
 
-The worker now joins the implemented Google Sheets path end to end: catalog
-seeding, adaptive polling, immutable snapshot storage, strict parser HTTP calls,
-parse-run persistence, and transactional candidate revision creation. Drive and
-HTTP acquisition, DOCX conversion, validation/publication, semantic diff,
-identity, licensing, Calendar sync, and the frontend do not exist yet. An
-offline source refresh token or service-account credential is still required to
-run production polling.
+The worker joins the implemented Google Sheets path end to end: catalog seeding,
+adaptive polling, immutable snapshot storage, strict parser HTTP calls,
+parse-run persistence, transactional candidate revision creation, and now
+revision validation. A candidate revision no longer sits in `Parsed`; it reaches
+`Validated`, `ReviewRequired` or `Rejected` with persisted findings.
+
+Publication is the next step and does not exist. Drive and HTTP acquisition,
+DOCX conversion, semantic diff, identity, licensing, Calendar sync, and the
+frontend do not exist yet.
+
+The source credential is resolved: a Google service account is configured and the
+worker can reach the real Sheets API.
 
 Product decisions that previously blocked identity and synchronization design
 are now accepted: single-use licenses with sync suspension on revocation
 (ADR-022), HTTP-only secure-cookie sessions (ADR-023), one dedicated managed
 calendar per user (ADR-024), mandatory review thresholds (ADR-025), adaptive
-Istanbul-time polling (ADR-026), and validated JSONB profile selectors
-(ADR-027).
+Istanbul-time polling (ADR-026), validated JSONB profile selectors (ADR-027),
+validation severity and thresholds (ADR-029), PDÖ exclusion (ADR-030), and
+subgroup widening at synchronization time (ADR-031).
 
 ## Latest implementation session
+
+- Implemented record and revision validation. `ScheduleRevisionValidator` is a
+  pure function; `ScheduleRevisionValidationStore` transitions the revision and
+  writes findings in one transaction; the poller validates the revision it just
+  created, and `ValidatePendingAsync` recovers anything an interrupted cycle
+  left in `Parsed`.
+- Rules: empty revision, date outside the academic year, impossible duration, low
+  confidence, unknown audience selector, duplicate stable identity, audience
+  overlap, and mass deletion. Any `Error` quarantines; only an empty revision is
+  rejected (ADR-029).
+- The deletion rule requires both `> 20 percent` and `>= 10` records, so a small
+  source cannot trip on the share alone.
+- Added `supportedAudienceSelectors` to the source catalog, the domain source and
+  a JSONB column. Null means "not declared" and leaves the unknown-selector rule
+  unenforced; a declared but empty dimension asserts the dimension may not appear.
+- Excluded PDÖ from `grade1_practice_v1` (ADR-030), accounting for every dropped
+  cell through `cells.ignored.outOfScopeSubject` rather than discarding silently.
+  Grade 1 Turkish practice now yields 402 candidates instead of 426, and its
+  cohorts are a clean `A`-`H` with `1`/`2` subgroups.
+- Added migration `AddRevisionValidation`: a nullable JSONB column on
+  `schedule_sources` and the `revision_validation_findings` table. Both additive.
+- Fixed two pre-existing persistence tests that queried whole tables with
+  `SingleAsync`, so they only passed when they happened to run first.
+- All 88 .NET tests pass against a real PostgreSQL with nothing skipped, up from
+  42 passing and 16 skipped. Python: 239 pass, ruff/format/mypy clean. Release
+  build and `dotnet format --verify-no-changes` are clean.
+
+## Previous polling and parser-transport session
 
 - Added `ScheduleSourcePoller` and wired the Worker to seed the 18-source
   catalog, list polling-enabled sources, process them sequentially, and avoid
@@ -194,27 +228,49 @@ Istanbul-time polling (ADR-026), and validated JSONB profile selectors
 
 ## Immediate objectives
 
-1. Implement record and revision validation, including ADR-025's deletion,
-   unknown-group, and impossible-overlap review thresholds.
-2. Obtain an offline source refresh token or a service-account credential; do
-   not reuse end-user Calendar authorization for source ingestion.
-3. Add manual-review state handling and transactional revision publication;
-   publication must remain separate from parser completion.
-4. Implement `grade2_yearly_v1`, which should reuse the annual implementation
+1. Implement transactional revision publication: `Validated → Published`, with
+   the previous published revision moved to `Superseded` in the same
+   transaction. Publication must remain separate from validation, and a
+   `ReviewRequired` revision must not be publishable without explicit approval.
+2. Define the snapshot retention policy and implement cleanup. Snapshots are
+   stored whole, one Grade 1 annual snapshot is about seven megabytes, and 18
+   sources poll as often as every 15 minutes. This is now a decided requirement,
+   not an open question.
+3. Move the date-format assumption into the parser profile, so each profile
+   declares its order explicitly instead of relying on the global day-first
+   default that would silently misparse a month-first source.
+4. Begin the semantic diff, only after publication exists.
+5. Implement `grade2_yearly_v1`, which should reuse the annual implementation
    with its own header aliases.
-5. Widen the group resolver for the English practice cohort labels (`İ1`) after
+6. Widen the group resolver for the English practice cohort labels (`İ1`) after
    reviewing that source's structure; it also lays dates out differently.
-6. Recover parse runs left `Running` by an abrupt worker shutdown without
+7. Recover parse runs left `Running` by an abrupt worker shutdown without
    creating duplicate runs or revisions.
-7. Establish .NET architecture tests.
-8. Acquire the missing Grade 1 anatomy and Grade 3 English fixtures.
-9. Add Google Drive/HTTP acquisition and DOCX conversion for the confirmed
-   special-program sources.
-10. Add CI quality gates, including a PostgreSQL service for the integration
-   tests.
-11. Model identity, single-use licensing, secure-cookie sessions, flexible
+8. Establish .NET architecture tests.
+9. Acquire the missing Grade 1 anatomy and Grade 3 English fixtures.
+10. Add Google Drive/HTTP acquisition and DOCX conversion for the confirmed
+    special-program sources.
+11. Add CI quality gates, including a PostgreSQL service for the integration
+    tests.
+12. Model identity, single-use licensing, secure-cookie sessions, flexible
     student profiles, initial sync, and the dedicated managed calendar from
     ADR-022 through ADR-027.
+
+## Product gaps
+
+Lessons the sources state that no profile publishes yet. These are tracked as
+product work, not as parser defects; a student's calendar is knowingly
+incomplete until they are closed.
+
+- thirteen rows whose time cells the spreadsheet software converted into dates
+  (seven Grade 1 Turkish, six Grade 1 English); these need a source-side fix
+- six recurring rows written as `HER HAFTA PAZARTESİ`, which cannot be completed
+  without inventing dates
+- twenty-two holiday and semester-break rows, which carry no times and need
+  all-day entries to be modelled
+- twenty Grade 1 Turkish practice cells reading only `TELAFİ`, naming no group
+
+PDÖ is **not** on this list. It is deliberately out of scope (ADR-030).
 
 ## Grade 1 practice source structure
 
@@ -256,9 +312,16 @@ so it carries no rotation to publish.
 
 ### Publication governance
 
-- which revision anomalies require admin approval
-- whether low-risk sources may auto-publish
-- emergency freeze and rollback behavior
+Resolved in part: publication is automated, gated by the ADR-029 safety nets. A
+revision that reaches `Validated` may publish without a human; one that reaches
+`ReviewRequired` may not.
+
+Still open:
+
+- how an administrator approves a `ReviewRequired` revision, and through what
+  interface
+- emergency freeze and rollback behaviour
+- whether an approved revision records who approved it and why
 
 ### Profile schema
 
@@ -296,16 +359,21 @@ Exact required groups for each class year and language must be derived from sour
   and only the label is wrong
 - the curriculum block stated by the annual sources has no canonical field and
   survives only as evidence and as part of the content hash
-- twenty Grade 1 Turkish practice cells say only `TELAFİ` and name no group, so
-  those makeup sessions are not published
 - the Grade 1 English practice source labels cohorts `İ1`, `İ2`, `İ3` and lays
   its dates out differently, so `grade1_practice_v1` publishes almost nothing
   from it; its fixture is deliberately not committed until the source has been
   reviewed
 - reading `AB` as groups A and B follows from the cohort model rather than from
   the cell, so those candidates carry reduced confidence
-- snapshot payloads are stored whole, and the retention policy is still open;
-  one Grade 1 annual snapshot is about seven megabytes
+- snapshot payloads are stored whole and nothing deletes them; one Grade 1 annual
+  snapshot is about seven megabytes and 18 sources poll as often as every 15
+  minutes. A retention policy is now a decided requirement and an immediate
+  objective, but it is not implemented, so storage still grows without bound
+- an audience selector that a source has not declared cannot be detected, because
+  the unknown-selector rule is unenforced wherever `supportedAudienceSelectors`
+  is absent. Only `G1-TR-PRACTICE` declares its cohorts today
+- overlap detection compares exact selector sets, so a lesson for group `A` and
+  one for subgroup `A1` at the same time are not seen as overlapping
 
 ## Working assumptions
 

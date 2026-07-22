@@ -76,6 +76,13 @@ DIMENSION_PRACTICE_SUBGROUP = "practiceSubgroup"
 VERTICAL_CORRIDOR_KEYS = frozenset({"dikey", "vertical"})
 ANATOMY_KEYS = frozenset({"anatomi", "anatomy", "diseksiyon", "dissection"})
 
+#: Subjects the product deliberately does not synchronize (ADR-030). Problem-based
+#: learning runs twice a year and its groups are arranged between students out of
+#: band, so its cells state a partition this schedule cannot resolve to a profile.
+#: The cells are still accounted for, because an unpublished cell must remain
+#: explainable rather than silently disappearing.
+OUT_OF_SCOPE_SUBJECT_KEYS = frozenset({"pdo", "pbl"})
+
 REASON_BLANK_ROW = "blankRow"
 REASON_MISSING_DATE = "missingDate"
 REASON_UNRESOLVED_DATE = "unresolvedDate"
@@ -84,11 +91,13 @@ REASON_UNRESOLVED_TIME = "unresolvedTimeRange"
 REASON_UNRESOLVED_GROUP = "unresolvedGroupExpression"
 REASON_UNSUPPORTED_GROUP_VALUE = "unsupportedGroupValueShape"
 REASON_DUPLICATE_IDENTITY = "duplicateStableIdentity"
+REASON_OUT_OF_SCOPE_SUBJECT = "outOfScopeSubject"
 
 WARNING_NO_BLOCK = "worksheetWithoutPracticeBlock"
 WARNING_NESTED_TABLE = "nestedScheduleTable"
 WARNING_BLOCK_WITHOUT_SUBJECTS = "blockWithoutSubjectColumns"
 WARNING_CONFLICTING_DUPLICATE = "conflictingDuplicateLesson"
+WARNING_OUT_OF_SCOPE_SUBJECT = "outOfScopeSubjectColumn"
 
 METRIC_WORKSHEETS_SCANNED = "worksheets.scanned"
 METRIC_WORKSHEETS_SELECTED = "worksheets.selected"
@@ -96,6 +105,7 @@ METRIC_WORKSHEETS_IGNORED_NO_BLOCK = "worksheets.ignored.noPracticeBlock"
 METRIC_BLOCKS_DETECTED = "blocks.detected"
 METRIC_BLOCKS_IGNORED_NO_SUBJECTS = "blocks.ignored.noSubjectColumns"
 METRIC_NESTED_TABLES = "blocks.nestedTables"
+METRIC_SUBJECTS_OUT_OF_SCOPE = "subjects.ignored.outOfScope"
 METRIC_ROWS_SCANNED = "rows.scanned"
 METRIC_CELLS_SCANNED = "cells.scanned"
 METRIC_CANDIDATES_EMITTED = "candidates.emitted"
@@ -140,6 +150,7 @@ class _Subject:
     display_title: str
     instructor: str | None
     block_title: str | None
+    out_of_scope: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -379,6 +390,22 @@ def _parse_block(
 ) -> None:
     subjects = tuple(_read_subjects(grid, block))
 
+    for subject in subjects:
+        if not subject.out_of_scope:
+            continue
+
+        diagnostics.increment(METRIC_SUBJECTS_OUT_OF_SCOPE)
+        diagnostics.information(
+            WARNING_OUT_OF_SCOPE_SUBJECT,
+            f"Subject '{subject.display_title}' is deliberately not synchronized, so "
+            "its cells are counted as ignored rather than published.",
+            evidence=grid.evidence(
+                block.header_row,
+                subject.column,
+                extraction_rule=RULE_SUBJECT_HEADER,
+            ),
+        )
+
     for row_index in range(block.header_row + 1, block.end_row_exclusive):
         diagnostics.increment(METRIC_ROWS_SCANNED)
         slot = _read_slot(grid=grid, block=block, row_index=row_index, diagnostics=diagnostics)
@@ -426,7 +453,17 @@ def _read_subjects(grid: WorksheetGrid, block: _Block) -> Iterator[_Subject]:
             display_title=title.display_title,
             instructor=instructor,
             block_title=heading or None,
+            out_of_scope=_is_out_of_scope(title.display_title),
         )
+
+
+def _is_out_of_scope(display_title: str) -> bool:
+    """Report whether a subject column is one the product does not synchronize.
+
+    The comparison is per word rather than a substring test, so a subject that
+    merely contains the letters of an out-of-scope key is not caught with it.
+    """
+    return any(word in OUT_OF_SCOPE_SUBJECT_KEYS for word in comparison_key(display_title).split())
 
 
 def _read_slot(
@@ -530,6 +567,19 @@ def _parse_cell(
         return
 
     evidence = grid.evidence(slot.row_index, subject.column, extraction_rule=RULE_GROUP_CELL)
+
+    if subject.out_of_scope:
+        diagnostics.record_ignored_cell(
+            REASON_OUT_OF_SCOPE_SUBJECT,
+            evidence,
+            severity=ParserWarningSeverity.INFORMATION,
+            message=(
+                f"Cell '{cell_text}' belongs to '{subject.display_title}', which the "
+                "product does not synchronize, so no lesson was published for it."
+            ),
+        )
+        return
+
     # Only the first line states the groups; a second line names the room.
     group_text, _ = _split_trailing_note(text_lines(cell_text)[0])
     expression = parse_group_expression(

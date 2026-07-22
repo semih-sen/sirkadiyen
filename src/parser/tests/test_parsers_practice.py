@@ -204,6 +204,42 @@ def test_a_makeup_marker_is_refused_rather_than_sent_to_everyone() -> None:
     assert response.warnings[0].severity is ParserWarningSeverity.WARNING
 
 
+def test_an_out_of_scope_subject_publishes_nothing_but_accounts_for_its_cells() -> None:
+    """PDÖ is deliberately not synchronized (ADR-030).
+
+    Its groups are arranged out of band, so a published PDÖ lesson would name a
+    partition no student profile can express. The cells still have to be
+    accounted for, so the column is reported and every populated cell is counted.
+    """
+    response = parse(
+        [
+            block(
+                subjects=("PDÖ", "Biyofizik"),
+                rows=((DATE_SERIAL, "10:30-12:20", ("A1", "B")),),
+            )
+        ]
+    )
+
+    assert [candidate.display_title for candidate in response.candidates] == ["Biyofizik"]
+    assert metrics(response)["cells.ignored.outOfScopeSubject"] == 1
+    assert metrics(response)["subjects.ignored.outOfScope"] == 1
+
+
+def test_a_subject_is_out_of_scope_only_when_a_whole_word_matches() -> None:
+    """The filter must not swallow a subject that merely contains the letters."""
+    response = parse(
+        [
+            block(
+                subjects=("Pdöner Kapak Uygulaması", "Biyofizik"),
+                rows=((DATE_SERIAL, "10:30-12:20", ("A", "B")),),
+            )
+        ]
+    )
+
+    assert len(response.candidates) == 2
+    assert "subjects.ignored.outOfScope" not in metrics(response)
+
+
 def test_a_row_without_a_readable_date_publishes_none_of_its_cells() -> None:
     response = parse([block(rows=((("11 Mayıs Pazartesi"), "10:30-12:20", ("A", "B")),))])
 

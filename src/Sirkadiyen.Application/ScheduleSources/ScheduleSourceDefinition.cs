@@ -42,6 +42,24 @@ public sealed record ScheduleSourceDefinition
 
     public required string TimeZoneId { get; init; }
 
+    /// <summary>
+    /// The audience selector values this source is allowed to state, keyed by
+    /// selector dimension.
+    /// </summary>
+    /// <remarks>
+    /// A source with no entry here has not declared its cohorts yet, and the
+    /// unknown-selector rule is not enforced for it. That is deliberately
+    /// different from an entry declaring an empty value list, which asserts the
+    /// dimension may not appear at all. Until the ADR-027 supported-profile
+    /// schema exists this is the only statement of which cohorts are real, so
+    /// silence must not be read as "nothing is permitted".
+    /// </remarks>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>>? SupportedAudienceSelectors
+    {
+        get;
+        init;
+    }
+
     public string? FixturePath { get; init; }
 
     public string? Notes { get; init; }
@@ -60,5 +78,6 @@ public sealed record ScheduleSourceDefinition
         ProgramLanguage,
         TimeZoneId,
         ExternalId,
-        SheetGid);
+        SheetGid,
+        SupportedAudienceSelectors);
 }

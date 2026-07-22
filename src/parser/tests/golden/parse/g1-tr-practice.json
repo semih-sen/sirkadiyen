@@ -2,7 +2,7 @@
   "fixture": "real/g1-tr-practice.snapshot.json",
   "parserEngineVersion": "0.1.0",
   "payload": {
-    "candidateCount": 426,
+    "candidateCount": 402,
     "candidateDigests": [
       "1!R28C3|2025-10-03|10:30-12:20|practice|id:0669af0f3cc19d92|content:575ae8a7d79f275b|Temel Yaşam Desteği",
       "1!R28C5|2025-10-03|10:30-12:20|practice|id:30ed5baab9f49f4f|content:8024a2ddf82000b4|Kırık-Çıkıklarda İlkyardım",
@@ -96,7 +96,6 @@
       "1!R57C12|2025-11-07|10:30-12:20|verticalCorridor|id:423a456e1c4d117a|content:eb14e78261d480c3|Beslenme",
       "1!R58C4|2025-11-07|14:00-15:50|practice|id:8c1928236cfa275e|content:d8f0c2e57f4bbfcd|Temel Biyofizik",
       "1!R58C5|2025-11-07|14:00-15:50|practice|id:f8ee6fb9af8d56ec|content:19106628a343275a|Tıbbi Biyokimya",
-      "1!R58C7|2025-11-07|14:00-15:50|practice|id:70457b70a7fe921f|content:f5e196840f6f5c22|PDÖ",
       "1!R58C8|2025-11-07|14:00-15:50|verticalCorridor|id:80400fc043bbfd52|content:78189f49a28eb076|Öğrenme",
       "1!R59C4|2025-11-10|08:30-10:20|practice|id:14d42c2fbb64508c|content:038c73f785e309aa|Temel Biyofizik",
       "1!R59C5|2025-11-10|08:30-10:20|practice|id:9310cd664f4a536c|content:7042a712a16f6f83|Tıbbi Biyokimya",
@@ -115,7 +114,6 @@
       "1!R61C11|2025-11-11|10:30-12:20|verticalCorridor|id:b29f856bed8e81aa|content:d00f5b5ddd920fb5|Şimdi Burada",
       "1!R62C4|2025-11-12|08:30-10:20|practice|id:ebcb7525871c035b|content:0b7b37cf206e6d6b|Temel Biyofizik",
       "1!R62C5|2025-11-12|08:30-10:20|practice|id:0ec275efc4a31d53|content:e70f6bdbbabcc1ff|Tıbbi Biyokimya",
-      "1!R62C7|2025-11-12|08:30-10:20|practice|id:ed59432705388c24|content:c2af0d8c45edd126|PDÖ",
       "1!R62C9|2025-11-12|08:30-10:20|verticalCorridor|id:9394f4c7625899c5|content:8027a23d63c71e9d|Nabız, Kb",
       "1!R63C4|2025-11-12|10:30-12:20|practice|id:c75af5f6d08cf238|content:a97e3ead561540b4|Temel Biyofizik",
       "1!R63C5|2025-11-12|10:30-12:20|practice|id:6984162efe2e498d|content:726c5d99a69c9ee3|Tıbbi Biyokimya",
@@ -126,7 +124,6 @@
       "1!R64C4|2025-11-13|10:30-12:20|practice|id:bc1cd9c958b5c1c0|content:02bf742b47bbd2f3|Temel Biyofizik",
       "1!R64C5|2025-11-13|10:30-12:20|practice|id:76369d807732ee15|content:abeba0d14eb8d4eb|Tıbbi Biyokimya",
       "1!R64C6|2025-11-13|10:30-12:20|practice|id:ea8ccbb98900376a|content:ede4d79823f83983|Fizyoloji",
-      "1!R64C7|2025-11-13|10:30-12:20|practice|id:737585f7e1982a32|content:52de5c2f42db1224|PDÖ",
       "1!R64C8|2025-11-13|10:30-12:20|verticalCorridor|id:36e0c62864d9eabc|content:fca1e56f83ca0b86|Öğrenme",
       "1!R64C9|2025-11-13|10:30-12:20|verticalCorridor|id:67a1a1247e01f34c|content:310a5897a0edceb8|Nabız, Kb",
       "1!R64C10|2025-11-13|10:30-12:20|verticalCorridor|id:eafd541877d97618|content:b491f513e3fdb7a0|İletişim",
@@ -142,14 +139,11 @@
       "1!R67C4|2025-11-18|10:30-12:30|practice|id:4fb5139eb6c198a2|content:0403080ef36378c7|Temel Biyofizik",
       "1!R67C5|2025-11-18|10:30-12:30|practice|id:9f2ee7555d2c0f11|content:39559cb7b4a41a09|Tıbbi Biyokimya",
       "1!R67C6|2025-11-18|10:30-12:30|practice|id:b53f509ab445e507|content:e0c3268df3125558|Fizyoloji",
-      "1!R67C7|2025-11-18|10:30-12:30|practice|id:85d171e1d61d8864|content:ba3f3b81e88c8cd1|PDÖ",
       "1!R67C9|2025-11-18|10:30-12:30|verticalCorridor|id:51143923bb585dc0|content:819cf663ce4c00f2|Nabız, Kb",
       "1!R68C3|2025-11-18|13:30-15:20|practice|id:d34948b361bd4cb0|content:3b8dbcf5137bbb4f|Tıbbi Biyoloji",
       "1!R68C5|2025-11-18|13:30-15:20|practice|id:39d34834cd138e21|content:d472d7a3774caf6d|Tıbbi Biyokimya",
-      "1!R68C7|2025-11-18|13:30-15:20|practice|id:7e10b7636c94dbec|content:c9f0a5ade47107b7|PDÖ",
       "1!R69C3|2025-11-19|08:30-10:20|practice|id:c869ded81ace7436|content:6f791bc116f36a68|Tıbbi Biyoloji",
       "1!R69C5|2025-11-19|08:30-10:20|practice|id:06a850a7d73a78ee|content:2423755179298c12|Tıbbi Biyokimya",
-      "1!R69C7|2025-11-19|08:30-10:20|practice|id:92ca8e113dc0d0e2|content:517648b019dd2ab6|PDÖ",
       "1!R69C9|2025-11-19|08:30-10:20|verticalCorridor|id:f073bc6da25f834b|content:cb6b189c6e88df30|Nabız, Kb",
       "1!R70C3|2025-11-19|10:30-12:20|practice|id:a0a4e5ceb2f200b1|content:ffe72b06bebf9c34|Tıbbi Biyoloji",
       "1!R70C5|2025-11-19|10:30-12:20|practice|id:153a4ad2505789de|content:de8f43deb5b42a7b|Tıbbi Biyokimya",
@@ -167,10 +161,8 @@
       "1!R72C13|2025-11-20|13:30-15:20|verticalCorridor|id:2f9e69b2bae65d09|content:084de9583f6d9bef|Dikiş Düğüm",
       "1!R73C3|2025-11-21|08:30-10:20|practice|id:8ad545f6d45a69a4|content:b666290c51510bc4|Tıbbi Biyoloji",
       "1!R73C5|2025-11-21|08:30-10:20|practice|id:eb619800befeb43a|content:605c9426ce695da2|Tıbbi Biyokimya",
-      "1!R73C7|2025-11-21|08:30-10:20|practice|id:881e6edda05d6052|content:ef4e8f96ee277a1d|PDÖ",
       "1!R74C3|2025-11-21|10:30-12:20|practice|id:bebe0577889018b7|content:c4c5479c625ce317|Tıbbi Biyoloji",
       "1!R74C5|2025-11-21|10:30-12:20|practice|id:b57c12029b0f600c|content:d769dcee7259a0e5|Tıbbi Biyokimya",
-      "1!R74C7|2025-11-21|10:30-12:20|practice|id:a43924c58c9ad69e|content:ceb795472b1c99c9|PDÖ",
       "1!R74C10|2025-11-21|10:30-12:20|verticalCorridor|id:79379086f118fa8c|content:716faf4c0baef582|İletişim",
       "1!R75C5|2025-11-24|08:30-10:20|practice|id:10d57fdd4542dbcc|content:7d70d25df54f2452|Tıbbi Biyokimya",
       "1!R75C9|2025-11-24|08:30-10:20|verticalCorridor|id:0af3cf9d078e135e|content:32d2ea0d183a3fe1|Nabız, Kb",
@@ -379,45 +371,29 @@
       "1!R210C4|2026-04-10|10:30-12:20|practice|id:9c82a8dfc8af6fee|content:4c0075afebb1cc1e|Biyofizik",
       "1!R210C6|2026-04-10|10:30-12:20|practice|id:29c3fb94d9cbc27c|content:c82354da5f732f73|Genel Histoloji Ve Embriyoloji",
       "1!R210C8|2026-04-10|10:30-12:20|verticalCorridor|id:faed1e90e66ba0ac|content:100464218f2fb269|Enjeksiyon",
-      "1!R211C7|2026-04-20|08:30-10:20|practice|id:253598c43952bf44|content:0b70983a9694401e|PDÖ",
       "1!R212C4|2026-04-20|10:30-12:20|practice|id:1c9d4c66f33a9fda|content:3ca7ca3050b7e081|Biyofizik",
       "1!R212C6|2026-04-20|10:30-12:20|practice|id:2d247ea9a5ef127d|content:caafa9c0f68f8b1b|Genel Histoloji Ve Embriyoloji",
-      "1!R212C7|2026-04-20|10:30-12:20|practice|id:d4cd3e6718de88d5|content:9976849949536a56|PDÖ",
-      "1!R214C7|2026-04-22|08:30-10:20|practice|id:ceb79b763f2f8549|content:7ed9ab26b13fadb5|PDÖ",
       "1!R215C4|2026-04-22|10:30-12:20|practice|id:f57dca637710a5e5|content:3ef73648445a58e3|Biyofizik",
       "1!R215C6|2026-04-22|10:30-12:20|practice|id:afb442181633c194|content:5ec6462f0e48a616|Genel Histoloji Ve Embriyoloji",
-      "1!R215C7|2026-04-22|10:30-12:20|practice|id:5bdff9731fd520f3|content:fd8863f4f59439ec|PDÖ",
       "1!R215C8|2026-04-22|10:30-12:20|verticalCorridor|id:427400028a3f899e|content:6f2639d5964baa88|Enjeksiyon",
       "1!R216C4|2026-04-24|10:30-12:20|practice|id:75487fc6a78c57f3|content:151055c248f1ee17|Biyofizik",
       "1!R216C6|2026-04-24|10:30-12:20|practice|id:fd4960fcc2f090ae|content:eb160aa4425205cd|Genel Histoloji Ve Embriyoloji",
-      "1!R216C7|2026-04-24|10:30-12:20|practice|id:cce08e054e505d6a|content:07e7debd7b8cef84|PDÖ",
       "1!R216C8|2026-04-24|10:30-12:20|verticalCorridor|id:7f84c4291ba27273|content:16574585b0f0148e|Enjeksiyon",
       "1!R217C3|2026-04-27|10:30-12:20|practice|id:27221dd6f432cbc5|content:ab29e47923f99e44|Tıbbi Biyoloji",
       "1!R217C4|2026-04-27|10:30-12:20|practice|id:f3d96591a5d6ac3a|content:9020cdf675bbcdf4|Biyofizik",
       "1!R217C6|2026-04-27|10:30-12:20|practice|id:15f846b98895a7bf|content:b579c3f6b047ae2b|Genel Histoloji Ve Embriyoloji",
-      "1!R217C7|2026-04-27|10:30-12:20|practice|id:6f10d4733643b985|content:27adbe719dd722eb|PDÖ",
       "1!R217C8|2026-04-27|10:30-12:20|verticalCorridor|id:4bc2bed04aeb8272|content:a39d2dfda10119fc|Enjeksiyon",
-      "1!R218C7|2026-04-27|13:00-15:00|practice|id:e3f2494f5fd0ca9d|content:bcb1dab889306f06|PDÖ",
       "1!R219C3|2026-04-28|10:30-12:20|practice|id:3905620f0f85175e|content:d2096a2d506fde34|Tıbbi Biyoloji",
       "1!R219C4|2026-04-28|10:30-12:20|practice|id:54599bb74b9b6b85|content:29b554fb7889c278|Biyofizik",
       "1!R219C6|2026-04-28|10:30-12:20|practice|id:351fabb26974eb96|content:59012ce42a7f885f|Genel Histoloji Ve Embriyoloji",
-      "1!R219C7|2026-04-28|10:30-12:20|practice|id:5dade0abc58ee046|content:5f94d3d632e1916f|PDÖ",
       "1!R219C8|2026-04-28|10:30-12:20|verticalCorridor|id:2e9920f2cd1691c9|content:943dd988d91d069b|Enjeksiyon",
-      "1!R220C7|2026-04-28|13:30-15:20|practice|id:c51da0317c897f53|content:a1a11317fb2d9a06|PDÖ",
       "1!R221C4|2026-04-29|10:30-12:20|practice|id:cb5f22b3779040fd|content:a4177d09c5401eca|Biyofizik",
-      "1!R221C7|2026-04-29|10:30-12:20|practice|id:c94eb780e8d6fd54|content:34733b62caff976b|PDÖ",
       "1!R222C4|2026-04-30|08:30-10:20|practice|id:ab95ef9bb1f7fa09|content:91c33eb569e618c4|Biyofizik",
       "1!R222C8|2026-04-30|08:30-10:20|verticalCorridor|id:8f05cbbf36fe52ed|content:1fd2b1d6106ef446|Enjeksiyon",
       "1!R223C4|2026-04-30|10:30-12:20|practice|id:ec6937622d06d6d8|content:4279ef44e46efd73|Biyofizik",
-      "1!R224C7|2026-04-30|13:00-15:00|practice|id:724f8c4117c19100|content:1888ea74ba98c589|PDÖ",
-      "1!R225C7|2026-04-30|13:30-15:20|practice|id:8f0c4a0e11cf54bd|content:15c8ec592da69562|PDÖ",
       "1!R226C8|2026-04-30|14:30-16:00|verticalCorridor|id:c6f4b868155b7674|content:3c48d584a73db66f|Enjeksiyon",
       "1!R227C4|2026-05-04|10:30-12:20|practice|id:ce71038ab9c2a6c9|content:b4df7bc69124228b|Biyofizik",
-      "1!R227C7|2026-05-04|10:30-12:20|practice|id:ee13b6535cc8bb72|content:db0c20fc39136a19|PDÖ",
-      "1!R228C7|2026-05-04|13:30-15:20|practice|id:d9787b8b78160bab|content:ca5f9559a030c5b7|PDÖ",
-      "1!R229C7|2026-05-04|14:30-16:20|practice|id:13bccdc9af35d332|content:04c041c3fe3b23dc|PDÖ",
       "1!R230C4|2026-05-05|10:30-12:20|practice|id:d9cc5539279197e2|content:f4e25f365bd624a0|Biyofizik",
-      "1!R230C7|2026-05-05|10:30-12:20|practice|id:78e8ddf1518b21ad|content:7509b335915bfa14|PDÖ",
       "1!R233C4|2026-05-13|08:30-10:20|practice|id:176f365cdb0759b6|content:8992b8675107a8f4|Biyofizik",
       "1!R233C8|2026-05-13|08:30-10:20|verticalCorridor|id:68f1f1868cb7fd7b|content:782a925c95e51651|Enjeksiyon",
       "1!R235C5|2026-05-15|09:00-10:50|practice|id:47aca56720b7f11f|content:0db22441053d1169|Fizyoloji",
@@ -634,54 +610,6 @@
         "candidateId": "1!R51C9",
         "field": "localDate",
         "reason": "monthNameDate",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R58C7",
-        "field": "audience",
-        "reason": "letterRunGroups",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R62C7",
-        "field": "audience",
-        "reason": "letterRunGroups",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R64C7",
-        "field": "audience",
-        "reason": "letterRunGroups",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R67C7",
-        "field": "audience",
-        "reason": "letterRunGroups",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R68C7",
-        "field": "audience",
-        "reason": "letterRunGroups",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R69C7",
-        "field": "audience",
-        "reason": "letterRunGroups",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R73C7",
-        "field": "audience",
-        "reason": "letterRunGroups",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R74C7",
-        "field": "audience",
-        "reason": "letterRunGroups",
         "score": 0.9
       },
       {
@@ -2071,12 +1999,6 @@
         "score": 0.9
       },
       {
-        "candidateId": "1!R211C7",
-        "field": "localDate",
-        "reason": "monthNameDate",
-        "score": 0.9
-      },
-      {
         "candidateId": "1!R212C4",
         "field": "localDate",
         "reason": "monthNameDate",
@@ -2084,24 +2006,6 @@
       },
       {
         "candidateId": "1!R212C6",
-        "field": "localDate",
-        "reason": "monthNameDate",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R212C7",
-        "field": "localDate",
-        "reason": "monthNameDate",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R212C7",
-        "field": "audience",
-        "reason": "letterRunGroups",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R214C7",
         "field": "localDate",
         "reason": "monthNameDate",
         "score": 0.9
@@ -2116,18 +2020,6 @@
         "candidateId": "1!R215C6",
         "field": "localDate",
         "reason": "monthNameDate",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R215C7",
-        "field": "localDate",
-        "reason": "monthNameDate",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R215C7",
-        "field": "audience",
-        "reason": "letterRunGroups",
         "score": 0.9
       },
       {
@@ -2146,18 +2038,6 @@
         "candidateId": "1!R216C6",
         "field": "localDate",
         "reason": "monthNameDate",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R216C7",
-        "field": "localDate",
-        "reason": "monthNameDate",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R216C7",
-        "field": "audience",
-        "reason": "letterRunGroups",
         "score": 0.9
       },
       {
@@ -2185,25 +2065,7 @@
         "score": 0.9
       },
       {
-        "candidateId": "1!R217C7",
-        "field": "localDate",
-        "reason": "monthNameDate",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R217C7",
-        "field": "audience",
-        "reason": "letterRunGroups",
-        "score": 0.9
-      },
-      {
         "candidateId": "1!R217C8",
-        "field": "localDate",
-        "reason": "monthNameDate",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R218C7",
         "field": "localDate",
         "reason": "monthNameDate",
         "score": 0.9
@@ -2227,25 +2089,7 @@
         "score": 0.9
       },
       {
-        "candidateId": "1!R219C7",
-        "field": "localDate",
-        "reason": "monthNameDate",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R219C7",
-        "field": "audience",
-        "reason": "letterRunGroups",
-        "score": 0.9
-      },
-      {
         "candidateId": "1!R219C8",
-        "field": "localDate",
-        "reason": "monthNameDate",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R220C7",
         "field": "localDate",
         "reason": "monthNameDate",
         "score": 0.9
@@ -2257,43 +2101,7 @@
         "score": 0.9
       },
       {
-        "candidateId": "1!R221C7",
-        "field": "localDate",
-        "reason": "monthNameDate",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R221C7",
-        "field": "audience",
-        "reason": "letterRunGroups",
-        "score": 0.9
-      },
-      {
         "candidateId": "1!R227C4",
-        "field": "localDate",
-        "reason": "monthNameDate",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R227C7",
-        "field": "localDate",
-        "reason": "monthNameDate",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R227C7",
-        "field": "audience",
-        "reason": "letterRunGroups",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R228C7",
-        "field": "localDate",
-        "reason": "monthNameDate",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R229C7",
         "field": "localDate",
         "reason": "monthNameDate",
         "score": 0.9
@@ -2302,18 +2110,6 @@
         "candidateId": "1!R230C4",
         "field": "localDate",
         "reason": "monthNameDate",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R230C7",
-        "field": "localDate",
-        "reason": "monthNameDate",
-        "score": 0.9
-      },
-      {
-        "candidateId": "1!R230C7",
-        "field": "audience",
-        "reason": "letterRunGroups",
         "score": 0.9
       },
       {
@@ -2503,12 +2299,12 @@
       {
         "name": "audience.dimension.practiceGroup",
         "unit": null,
-        "value": 419.0
+        "value": 387.0
       },
       {
         "name": "audience.dimension.practiceSubgroup",
         "unit": null,
-        "value": 56.0
+        "value": 47.0
       },
       {
         "name": "blocks.detected",
@@ -2528,12 +2324,12 @@
       {
         "name": "candidates.emitted",
         "unit": null,
-        "value": 426.0
+        "value": 402.0
       },
       {
         "name": "candidates.eventType.practice",
         "unit": null,
-        "value": 322.0
+        "value": 298.0
       },
       {
         "name": "candidates.eventType.verticalCorridor",
@@ -2543,12 +2339,17 @@
       {
         "name": "cells.ignored",
         "unit": null,
-        "value": 20.0
+        "value": 44.0
+      },
+      {
+        "name": "cells.ignored.outOfScopeSubject",
+        "unit": null,
+        "value": 27.0
       },
       {
         "name": "cells.ignored.unresolvedGroupExpression",
         "unit": null,
-        "value": 20.0
+        "value": 17.0
       },
       {
         "name": "cells.scanned",
@@ -2581,6 +2382,11 @@
         "value": 179.0
       },
       {
+        "name": "subjects.ignored.outOfScope",
+        "unit": null,
+        "value": 2.0
+      },
+      {
         "name": "worksheets.scanned",
         "unit": null,
         "value": 1.0
@@ -2595,7 +2401,7 @@
       "name": "grade1_practice_v1",
       "version": "1.0.0"
     },
-    "responseDigest": "sha256:8b1769d13f917f1448aa6d75875dd8d6993a03068f9bb1c03c4215d972f6e24f",
+    "responseDigest": "sha256:be5e27bc2560c5faee4fd1b41a81f76cdb878d38a4917991bcec3cf6f6a2da1e",
     "snapshotId": "fixture:sha256:78952dc7ab2504d0dc3f7d5341d653d5998388e193a92f471a34e589a1d382e2",
     "sourceId": "G1-TR-PRACTICE",
     "status": "completedWithWarnings",
@@ -2680,6 +2486,19 @@
       },
       {
         "candidateId": null,
+        "code": "outOfScopeSubjectColumn",
+        "evidence": {
+          "extractionRule": "practice.subjectHeader",
+          "range": "G43",
+          "rawText": "PDÖ",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Subject 'PDÖ' is deliberately not synchronized, so its cells are counted as ignored rather than published.",
+        "severity": "information"
+      },
+      {
+        "candidateId": null,
         "code": "cellsIgnored",
         "evidence": {
           "extractionRule": "practice.groupCell",
@@ -2690,6 +2509,19 @@
         },
         "message": "Cell 'H-A-B-i3-i2 KEMAL ATAY AMFİSİ' does not state which groups attend (unrecognizedGroupToken), so no lesson was published for it.",
         "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "practice.groupCell",
+          "range": "G58",
+          "rawText": "AB",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Cell 'AB' belongs to 'PDÖ', which the product does not synchronize, so no lesson was published for it.",
+        "severity": "information"
       },
       {
         "candidateId": null,
@@ -2729,6 +2561,19 @@
         },
         "message": "Cell 'TELAFİ' does not state which groups attend (unrecognizedGroupToken), so no lesson was published for it.",
         "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "outOfScopeSubjectColumn",
+        "evidence": {
+          "extractionRule": "practice.subjectHeader",
+          "range": "G179",
+          "rawText": "PDÖ",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Subject 'PDÖ' is deliberately not synchronized, so its cells are counted as ignored rather than published.",
+        "severity": "information"
       },
       {
         "candidateId": null,
@@ -2827,45 +2672,6 @@
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "D236",
-          "rawText": "TELAFİ",
-          "sheetId": "1",
-          "sheetTitle": "Sayfa1"
-        },
-        "message": "Cell 'TELAFİ' does not state which groups attend (unrecognizedGroupToken), so no lesson was published for it.",
-        "severity": "warning"
-      },
-      {
-        "candidateId": null,
-        "code": "cellsIgnored",
-        "evidence": {
-          "extractionRule": "practice.groupCell",
-          "range": "G236",
-          "rawText": "TELAFİ-a2",
-          "sheetId": "1",
-          "sheetTitle": "Sayfa1"
-        },
-        "message": "Cell 'TELAFİ-a2' does not state which groups attend (unrecognizedGroupToken), so no lesson was published for it.",
-        "severity": "warning"
-      },
-      {
-        "candidateId": null,
-        "code": "cellsIgnored",
-        "evidence": {
-          "extractionRule": "practice.groupCell",
-          "range": "G237",
-          "rawText": "TELAFİ-a1",
-          "sheetId": "1",
-          "sheetTitle": "Sayfa1"
-        },
-        "message": "Cell 'TELAFİ-a1' does not state which groups attend (unrecognizedGroupToken), so no lesson was published for it.",
-        "severity": "warning"
-      },
-      {
-        "candidateId": null,
-        "code": "cellsIgnored",
-        "evidence": {
-          "extractionRule": "practice.groupCell",
-          "range": "G238",
           "rawText": "TELAFİ",
           "sheetId": "1",
           "sheetTitle": "Sayfa1"

@@ -32,6 +32,9 @@ public sealed class SirkadiyenDbContext(DbContextOptions<SirkadiyenDbContext> op
     public DbSet<CanonicalScheduleRecord> CanonicalScheduleRecords =>
         Set<CanonicalScheduleRecord>();
 
+    public DbSet<RevisionValidationFinding> RevisionValidationFindings =>
+        Set<RevisionValidationFinding>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);

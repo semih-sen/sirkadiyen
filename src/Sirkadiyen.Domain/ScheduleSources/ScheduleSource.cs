@@ -37,7 +37,8 @@ public sealed class ScheduleSource
         ProgramLanguage programLanguage,
         string timeZoneId,
         string? externalId = null,
-        long? sheetGid = null)
+        long? sheetGid = null,
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? supportedAudienceSelectors = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceUri);
@@ -62,6 +63,7 @@ public sealed class ScheduleSource
         TimeZoneId = timeZoneId;
         ExternalId = externalId;
         SheetGid = sheetGid;
+        SupportedAudienceSelectors = supportedAudienceSelectors;
         IsPollingEnabled = true;
     }
 
@@ -92,6 +94,21 @@ public sealed class ScheduleSource
     public ProgramLanguage ProgramLanguage { get; private set; }
 
     public string TimeZoneId { get; private set; }
+
+    /// <summary>
+    /// The audience selector values this source may state, keyed by dimension,
+    /// or <see langword="null"/> when the source has not declared them.
+    /// </summary>
+    /// <remarks>
+    /// Null means "not declared", so revision validation skips the
+    /// unknown-selector rule rather than treating every selector as unknown. A
+    /// declared dimension with an empty list means the dimension may not appear.
+    /// </remarks>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>>? SupportedAudienceSelectors
+    {
+        get;
+        private set;
+    }
 
     public bool IsPollingEnabled { get; private set; }
 

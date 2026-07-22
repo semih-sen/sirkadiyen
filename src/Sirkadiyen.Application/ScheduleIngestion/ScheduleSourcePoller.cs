@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Sirkadiyen.Application.ScheduleParsing;
+using Sirkadiyen.Application.SchedulePublication;
 using Sirkadiyen.Contracts.Parsing;
 using Sirkadiyen.Contracts.Serialization;
 using Sirkadiyen.Contracts.Spreadsheets;
@@ -19,6 +20,7 @@ public sealed class ScheduleSourcePoller(
     ISourceSnapshotStore snapshotStore,
     IScheduleParserClient parserClient,
     IScheduleParseResultStore parseResultStore,
+    ScheduleRevisionValidationService revisionValidation,
     TimeProvider timeProvider)
 {
     private static readonly JsonSerializerOptions JsonOptions = ContractJson.CreateOptions();
@@ -106,6 +108,13 @@ public sealed class ScheduleSourcePoller(
                 timeProvider.GetUtcNow(),
                 cancellationToken);
 
+            // Validation runs in its own transaction. A revision that survives
+            // parse persistence but not validation stays in Parsed and is picked
+            // up by the next pass, rather than being lost or silently published.
+            RevisionValidationResult? validation = revision is null
+                ? null
+                : await revisionValidation.ValidateAsync(revision.Id, cancellationToken);
+
             return new ScheduleSourcePollResult
             {
                 SourceId = source.SourceId,
@@ -115,6 +124,8 @@ public sealed class ScheduleSourcePoller(
                 SnapshotChanged = stored.Changed,
                 ParseRunId = parseRun.ParseRunId,
                 RevisionId = revision?.Id,
+                RevisionState = validation?.Outcome,
+                ValidationFindingCount = validation?.Findings.Count,
             };
         }
         catch (Exception exception) when (
@@ -178,6 +189,11 @@ public sealed record ScheduleSourcePollResult
     public Guid? ParseRunId { get; init; }
 
     public Guid? RevisionId { get; init; }
+
+    /// <summary>The state validation moved the revision to, when it ran.</summary>
+    public RevisionState? RevisionState { get; init; }
+
+    public int? ValidationFindingCount { get; init; }
 }
 
 public enum ScheduleSourcePollOutcome

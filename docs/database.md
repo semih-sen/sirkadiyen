@@ -13,6 +13,13 @@ schema through version-controlled migrations.
 | `parse_runs` | one deterministic parser execution per snapshot/profile, including retry attempt count |
 | `schedule_revisions` | candidate schedules and the states they move through before publication |
 | `canonical_schedule_records` | the lessons of one revision, with candidate ID, scheduled/cancelled status, stable identity and content hash (ADR-018) |
+| `revision_validation_findings` | why a revision was validated, held for review, or rejected, with evidence (ADR-029) |
+
+`schedule_sources.SupportedAudienceSelectors` is a nullable JSONB document naming
+the selector values each source may state. **Null means "not declared"** and
+leaves the unknown-selector rule unenforced for that source; a declared dimension
+with an empty list asserts the dimension may not appear at all. The two must stay
+distinguishable, so do not default the column.
 
 Identity, licensing, student profiles and calendar event mappings are **not**
 here yet. Their behavioral decisions are now recorded in ADR-022 through

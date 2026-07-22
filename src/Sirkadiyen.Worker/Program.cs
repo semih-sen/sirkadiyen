@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Sirkadiyen.Application.ScheduleIngestion;
+using Sirkadiyen.Application.SchedulePublication;
 using Sirkadiyen.Infrastructure.Google;
 using Sirkadiyen.Infrastructure.Persistence;
 using Sirkadiyen.Infrastructure.ScheduleIngestion;
@@ -55,8 +56,37 @@ AdaptivePollingOptions pollingOptions = new()
         TimeSpan.FromHours(1)),
 };
 
+RevisionValidationOptions validationOptions = new()
+{
+    MaximumDeletionShare = ParseDouble(
+        builder.Configuration["SIRKADIYEN_VALIDATION:MAXIMUM_DELETION_SHARE"],
+        0.20),
+    MinimumDeletionCount = ParseInteger(
+        builder.Configuration["SIRKADIYEN_VALIDATION:MINIMUM_DELETION_COUNT"],
+        10),
+    LowConfidenceThreshold = (decimal)ParseDouble(
+        builder.Configuration["SIRKADIYEN_VALIDATION:LOW_CONFIDENCE_THRESHOLD"],
+        0.50),
+    MinimumLessonMinutes = ParseInteger(
+        builder.Configuration["SIRKADIYEN_VALIDATION:MINIMUM_LESSON_MINUTES"],
+        10),
+    MaximumLessonMinutes = ParseInteger(
+        builder.Configuration["SIRKADIYEN_VALIDATION:MAXIMUM_LESSON_MINUTES"],
+        600),
+    MaximumToleratedOverlaps = ParseInteger(
+        builder.Configuration["SIRKADIYEN_VALIDATION:MAXIMUM_TOLERATED_OVERLAPS"],
+        1),
+    AcademicYearGraceDays = ParseInteger(
+        builder.Configuration["SIRKADIYEN_VALIDATION:ACADEMIC_YEAR_GRACE_DAYS"],
+        30),
+};
+validationOptions.Validate();
+
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton(pollingOptions);
+builder.Services.AddSingleton(validationOptions);
+builder.Services.AddSingleton<ScheduleRevisionValidator>();
+builder.Services.AddScoped<ScheduleRevisionValidationService>();
 builder.Services.AddSingleton<AdaptivePollingIntervalPolicy>();
 builder.Services.AddSingleton(new WorkerOptions { SourceCatalogPath = catalogPath });
 builder.Services.AddSingleton<ScheduleSourceCatalogLoader>();
@@ -87,6 +117,16 @@ static TimeOnly ParseTime(string? value, TimeOnly fallback) =>
     string.IsNullOrWhiteSpace(value)
         ? fallback
         : TimeOnly.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
+
+static double ParseDouble(string? value, double fallback) =>
+    string.IsNullOrWhiteSpace(value)
+        ? fallback
+        : double.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
+
+static int ParseInteger(string? value, int fallback) =>
+    string.IsNullOrWhiteSpace(value)
+        ? fallback
+        : int.Parse(value, System.Globalization.CultureInfo.InvariantCulture);
 
 static TimeSpan ParseDuration(string? value, TimeSpan fallback) =>
     string.IsNullOrWhiteSpace(value)

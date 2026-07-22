@@ -777,7 +777,7 @@ Move a revision and its semantic diff to `ReviewRequired` when any of these
 conditions is true:
 
 - more than 20 percent of the previously published records disappear
-- an unknown group selector appears, such as a new `Ä°4` value not present in
+- an unknown group selector appears, such as a new `İ4` value not present in
   the supported profile schema
 - multiple impossible overlaps occur for the same audience at the same local
   date and time
@@ -828,7 +828,7 @@ The initial schedule is 60 minutes on weekends; on weekdays, 45 minutes from
 
 ### Context
 
-Practice cohorts (`Ä°1`, `Ä°2`, `Ä°3`), anatomy groups, third-year curriculum
+Practice cohorts (`İ1`, `İ2`, `İ3`), anatomy groups, third-year curriculum
 groups, rotations, and future electives do not share one fixed set of columns.
 An unconstrained EAV model would be flexible but would make validation, querying,
 and referential rules harder to understand.
@@ -882,3 +882,136 @@ not execute again.
   a full attempt history; structured logs must retain per-attempt diagnostics.
 - Recovery of a run left `Running` by abrupt process termination remains a
   separate worker-maintenance task.
+
+---
+
+## ADR-029: Revision validation quarantines rather than rejects
+
+**Status:** Accepted
+**Date:** 2026-07-22
+
+### Context
+
+ADR-025 named the anomalies that must stop publication but not the thresholds,
+the severity model, or where validation runs. Implementation forced all three.
+The accepted product direction is automated publication with safety nets, so the
+nets carry the whole burden of preventing mass calendar damage.
+
+### Decision
+
+Validation is a pure function over a candidate revision, its source, and the
+stable identities of the last published revision. It runs in its own transaction
+after parse completion and moves the revision `Parsed → Validating → outcome`.
+
+Severity determines the outcome:
+
+- any `Error` finding moves the revision to `ReviewRequired`
+- an empty revision is `Rejected`, the only terminal outcome
+- otherwise the revision is `Validated`
+
+`Rejected` is reserved for a revision no approval could rescue, because rejection
+is unrecoverable. Everything a human could reasonably approve stays approvable.
+
+The deletion rule requires **both** conditions to hold:
+
+```text
+deletedCount > previouslyPublishedCount * 0.20
+  AND deletedCount >= 10
+```
+
+The share alone is meaningless on a small source, and the absolute count alone is
+noisy on a large one. Exactly 20 percent does not trigger the rule (ADR-025).
+
+Thresholds live in `RevisionValidationOptions` and are configurable per
+deployment. Validation may never produce `Published`; the store rejects the
+attempt.
+
+### Consequences
+
+- A source with no published revision cannot trip the deletion rule.
+- One audience overlap is a warning; more than one quarantines the revision, per
+  ADR-025's wording of "multiple" impossible overlaps.
+- Overlap detection compares exact selector sets, so a group and its own subgroup
+  do not register as overlapping. Detecting that needs the ADR-027 profile schema.
+- The academic-year range is derived as 1 August to 31 July from a `YYYY-YYYY`
+  label, widened by a configurable grace period. An unreadable label produces a
+  warning rather than silently skipping the rule.
+- The duplicate-stable-identity rule cannot fire through the normal pipeline,
+  because the schema's unique index on `(ScheduleRevisionId, StableIdentity)`
+  rejects the insert first. It is retained as defence in depth.
+- Publication remains unimplemented and is the next step.
+
+---
+
+## ADR-030: Problem-based learning is out of scope
+
+**Status:** Accepted
+**Date:** 2026-07-22
+
+### Context
+
+The Grade 1 Turkish practice source states PDÖ sessions using a different group
+partition from the rest of the workbook: `D3`, `F4`, `G4`, `H3` alongside the
+regular `A1`/`A2` halves. The parser filed both partitions under the single
+`practiceSubgroup` dimension, so a student profile holding one subgroup value
+could not express which PDÖ group the student belongs to. Published PDÖ lessons
+would therefore have reached the wrong students.
+
+### Decision
+
+Exclude PDÖ from the system entirely. It runs twice a year and its groups are
+arranged between students out of band, so it is not schedule data Sirkadiyen can
+own. `grade1_practice_v1` detects out-of-scope subject columns by whole-word key
+and publishes none of their cells.
+
+Exclusion is not silent. Each out-of-scope column produces an informational
+warning with evidence, and every populated cell in it is counted through
+`cells.ignored.outOfScopeSubject`, as AI_GUIDELINE section 9 requires.
+
+### Consequences
+
+- The Grade 1 Turkish practice source yields 402 candidates rather than 426.
+- The declared cohorts collapse to a clean `A`-`H` with `1`/`2` subgroups, which
+  is what `supportedAudienceSelectors` now states.
+- This is a product decision, not a parser gap; it is not tracked as future work.
+- A source that legitimately needs a finer partition later must introduce its own
+  audience dimension rather than reusing `practiceSubgroup`.
+
+---
+
+## ADR-031: A student sees both subgroups of their practice group
+
+**Status:** Accepted
+**Date:** 2026-07-22
+**Implements:** not yet; recorded ahead of calendar synchronization
+
+### Context
+
+Vertical-corridor practices split a group into subgroups such as `A1` and `A2`.
+Students frequently do not know which subgroup they are in at the start of the
+academic year, so requiring the subgroup during onboarding would block or
+mis-assign a large share of users.
+
+### Decision
+
+The parser continues to resolve and publish `A1`, `A2` and their siblings as
+distinct audience selectors; canonical data stays precise.
+
+At synchronization time, a student who has stated only their practice group
+receives the events of **every** subgroup of that group, with the subgroup
+prefixed in the event title:
+
+```text
+[A1] İletişim Becerileri
+```
+
+### Consequences
+
+- Precision stays in the canonical model; the widening is a synchronization-time
+  policy, so it can be narrowed later without reparsing anything.
+- A student who does state their subgroup should receive only that subgroup's
+  events. Affected-user resolution must handle both cases.
+- Event titles become audience-dependent, so the title cannot be part of a
+  content hash shared across users, or every user would appear to disagree.
+- Duplicate-looking calendar entries are expected and intended; the prefix is
+  what makes them readable.

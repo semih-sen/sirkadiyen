@@ -1,5 +1,6 @@
 using Sirkadiyen.Application.ScheduleIngestion;
 using Sirkadiyen.Application.ScheduleParsing;
+using Sirkadiyen.Application.SchedulePublication;
 using Sirkadiyen.Contracts.Parsing;
 using Sirkadiyen.Contracts.Spreadsheets;
 using Sirkadiyen.Domain.ScheduleIngestion;
@@ -29,6 +30,7 @@ public sealed class ScheduleSourcePollerTests
             snapshotStore,
             parserClient,
             resultStore,
+            ValidationService(),
             new FixedTimeProvider(new DateTimeOffset(2026, 7, 22, 9, 0, 0, TimeSpan.Zero)));
 
         ScheduleSourcePollResult result = await poller.PollAsync(source, CancellationToken.None);
@@ -54,6 +56,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeSnapshotStore(StoredSnapshot(source, snapshot), changed: true),
             parserClient,
             resultStore,
+            ValidationService(),
             new FixedTimeProvider(new DateTimeOffset(2026, 7, 22, 9, 0, 0, TimeSpan.Zero)));
 
         await Assert.ThrowsAsync<HttpRequestException>(
@@ -85,6 +88,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeSnapshotStore(StoredSnapshot(Source(), Snapshot(Source())), changed: true),
             parser,
             new FakeParseResultStore(shouldInvokeParser: true),
+            ValidationService(),
             TimeProvider.System);
 
         ScheduleSourcePollResult result = await poller.PollAsync(source, CancellationToken.None);
@@ -136,6 +140,34 @@ public sealed class ScheduleSourcePollerTests
             0,
             0,
             0);
+
+    /// <summary>
+    /// Builds a validation service whose store reports that nothing is awaiting
+    /// validation, so these tests exercise polling alone.
+    /// </summary>
+    private static ScheduleRevisionValidationService ValidationService() => new(
+        new FakeValidationStore(),
+        new ScheduleRevisionValidator(new RevisionValidationOptions()),
+        TimeProvider.System);
+
+    private sealed class FakeValidationStore : IScheduleRevisionValidationStore
+    {
+        public Task<RevisionValidationInput?> LoadAsync(
+            Guid revisionId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<RevisionValidationInput?>(null);
+
+        public Task ApplyAsync(
+            Guid revisionId,
+            RevisionValidationResult result,
+            DateTimeOffset validatedAtUtc,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public Task<IReadOnlyList<Guid>> ListPendingValidationAsync(
+            int limit,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<Guid>>([]);
+    }
 
     private sealed class FakeSnapshotAcquirer(NormalizedSpreadsheetSnapshot snapshot)
         : ISpreadsheetSnapshotAcquirer

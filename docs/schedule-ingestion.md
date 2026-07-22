@@ -29,11 +29,12 @@ overlaps the next. For each supported Google Sheets source it:
 
 ```text
 acquires normalized snapshot
-â†’ stores only changed content
-â†’ begins or resumes the deterministic parse run
-â†’ calls POST /v1/parse
-â†’ persists the response
-â†’ creates a candidate revision and canonical records in one transaction
+→ stores only changed content
+→ begins or resumes the deterministic parse run
+→ calls POST /v1/parse
+→ persists the response
+→ creates a candidate revision and canonical records in one transaction
+→ validates the revision in a separate transaction
 ```
 
 An unchanged snapshot is normally already parsed and stops early. If the prior
@@ -41,6 +42,37 @@ parser transport attempt failed, the worker parses the stored immutable
 snapshot again and increments its attempt count instead of creating duplicate
 snapshot or parse-run rows. Parser responses must echo every contract identifier
 exactly before they are persisted.
+
+## Validation
+
+Validation is a separate transaction from parse persistence, so a revision that
+survives parsing but not validation stays in `Parsed` and is retried by the next
+pass rather than being lost. It moves a revision through
+`Parsed → Validating → Validated | ReviewRequired | Rejected` and records why
+(ADR-029).
+
+Any error-severity finding holds the revision for review. Only an empty revision
+is rejected, because rejection is terminal. Validation can never publish; the
+store refuses the attempt.
+
+Thresholds are configurable through `SIRKADIYEN_VALIDATION:*`:
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `MAXIMUM_DELETION_SHARE` | `0.20` | share of published records that may vanish |
+| `MINIMUM_DELETION_COUNT` | `10` | absolute floor; both conditions must hold |
+| `LOW_CONFIDENCE_THRESHOLD` | `0.50` | below this a record is held for review |
+| `MINIMUM_LESSON_MINUTES` | `10` | shorter lessons are implausible |
+| `MAXIMUM_LESSON_MINUTES` | `600` | longer lessons are implausible |
+| `MAXIMUM_TOLERATED_OVERLAPS` | `1` | more than this quarantines the revision |
+| `ACADEMIC_YEAR_GRACE_DAYS` | `30` | slack around the derived academic year |
+
+The deletion rule needs **both** conditions, so a small source cannot trip on the
+share alone:
+
+```text
+deletedCount > previouslyPublishedCount * 0.20  AND  deletedCount >= 10
+```
 
 Polling delay is selected in `Europe/Istanbul`: 15 minutes during weekday
 daytime, 25 minutes in late afternoon, 45 minutes at night, and 60 minutes on

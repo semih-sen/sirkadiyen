@@ -86,6 +86,52 @@ public sealed class ScheduleSourceCatalogLoader
                 throw new InvalidDataException(
                     $"Fixture path for source '{source.SourceId}' must be repository-relative.");
             }
+
+            ValidateSupportedAudienceSelectors(source);
+        }
+    }
+
+    /// <summary>
+    /// Rejects a declared selector list that cannot mean what it appears to say.
+    /// </summary>
+    /// <remarks>
+    /// A blank dimension or value, or the same value twice, would make the
+    /// unknown-selector rule behave unpredictably rather than fail loudly, so the
+    /// catalog refuses to load instead.
+    /// </remarks>
+    private static void ValidateSupportedAudienceSelectors(ScheduleSourceDefinition source)
+    {
+        if (source.SupportedAudienceSelectors is not { } declared)
+        {
+            return;
+        }
+
+        foreach ((string dimension, IReadOnlyList<string> values) in declared)
+        {
+            if (string.IsNullOrWhiteSpace(dimension))
+            {
+                throw new InvalidDataException(
+                    $"Source '{source.SourceId}' declares a supported selector dimension "
+                    + "with no name.");
+            }
+
+            HashSet<string> seen = new(StringComparer.Ordinal);
+            foreach (string value in values)
+            {
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    throw new InvalidDataException(
+                        $"Source '{source.SourceId}' declares a blank supported selector "
+                        + $"value for dimension '{dimension}'.");
+                }
+
+                if (!seen.Add(value))
+                {
+                    throw new InvalidDataException(
+                        $"Source '{source.SourceId}' declares supported selector value "
+                        + $"'{value}' twice for dimension '{dimension}'.");
+                }
+            }
         }
     }
 

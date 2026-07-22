@@ -305,7 +305,7 @@ The initial mandatory manual-review thresholds are:
 
 - more than 20 percent of the previously published records disappear
 - a group selector value not present in the supported profile schema appears
-  (for example a new `Ä°4` cohort)
+  (for example a new `İ4` cohort)
 - multiple impossible overlaps occur for the same audience on the same local
   date and time
 
@@ -482,7 +482,7 @@ example:
 {
   "schemaVersion": "1.0",
   "selectors": {
-    "practiceGroup": "Ä°",
+    "practiceGroup": "İ",
     "practiceSubgroup": "1",
     "anatomyGroup": "2",
     "curriculumGroup": "3-A"
