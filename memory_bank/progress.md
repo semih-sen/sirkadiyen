@@ -174,7 +174,8 @@
 
 ## Phase 10: Administration and operations
 
-- [ ] Implement audited global freeze (ADR-034)
+- [x] Implement audited global freeze core and pipeline gates (ADR-034, ADR-043)
+- [ ] Add authenticated freeze/unfreeze administration surface
 - [ ] License administration
 - [ ] Source status dashboard
 - [ ] Snapshot inspection
@@ -196,8 +197,10 @@ completed Google Sheets path is:
 
 ```text
 list polling-enabled sources
+→ check the runtime global freeze
 → acquire a snapshot per source
 → store through the short circuit
+→ re-check the freeze before starting or resuming parsing
 → begin or resume the parse run
 → call the parser over HTTP
 → transactionally create a revision and canonical records
@@ -217,13 +220,25 @@ through `POST /api/diffs/{id}/release`, which records who took responsibility
 and why — except an ambiguous one, which is only ever fixed at the source
 (ADR-042).
 
-The next step is the consumer side: affected-user resolution and the Google
-Calendar adapter, which read `Ready` and `Released` diffs.
+The runtime global freeze is now persisted as one authoritative PostgreSQL row
+with append-only transition audit. It gates acquisition, parse-run admission and
+publication and fails closed when its state cannot be read. The operator-key API
+exposes the state read-only at `GET /api/operations/freeze`; authenticated
+freeze/unfreeze administration remains deliberately deferred until real
+operator identity exists. Future diff dispatch and every Calendar job must use
+the same gate.
+
+The next implementation step is to survey parser profiles for explicitly stated
+academic departments and populate canonical `Department` only where the source
+provides it. Without that data, historical and current records safely skip
+secondary matching. After that, the consumer side begins with user/profile
+modeling and affected-user resolution over `Ready` and `Released` diffs.
 
 There is deliberately no rollback (ADR-033). A bad publication is corrected at
 the authoritative source and reaches calendars as a newer forward-fix revision.
-Before calendar work begins, the runtime-readable global freeze from ADR-034
-must gate acquisition, publication, diff dispatch and downstream jobs.
+The existing acquisition, parsing and publication boundaries are frozen now;
+diff dispatch and downstream jobs do not exist yet and must be gated as they are
+introduced.
 
 Two things block on decisions already made rather than on discussion:
 

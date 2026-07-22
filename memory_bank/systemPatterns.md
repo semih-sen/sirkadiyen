@@ -546,3 +546,13 @@ A runtime-readable, audited global freeze gates every mutating pipeline boundary
 publication, semantic-diff dispatch or calendar jobs. Work already persisted is
 left in its current state and resumes through the ordinary state machine after
 unfreeze. Failure to read the authoritative freeze state fails closed.
+
+The authoritative state is the singleton PostgreSQL row
+`operational_freeze_control`; `operational_freeze_audits` is its append-only
+transition history (ADR-043). A transition updates the row and appends actor,
+reason, UTC timestamp and correlation ID in one transaction. The worker checks
+before every source, the source poller checks immediately before acquisition and
+again after immutable evidence storage, and the publication service checks
+immediately before each revision. A later diff dispatcher and every Calendar
+job must consume the same application port rather than introducing a queue-local
+flag.

@@ -1,7 +1,8 @@
 # Database
 
-PostgreSQL holds the schedule pipeline: configured sources, immutable snapshots,
-parse runs, revisions and canonical records. Entity Framework Core owns the
+PostgreSQL holds the schedule pipeline and its operational safety state:
+configured sources, immutable snapshots, parse runs, revisions, canonical
+records, semantic diffs, and the global freeze. Entity Framework Core owns the
 schema through version-controlled migrations.
 
 ## What is stored, and what is not
@@ -14,6 +15,18 @@ schema through version-controlled migrations.
 | `schedule_revisions` | candidate schedules and the states they move through before publication |
 | `canonical_schedule_records` | the lessons of one revision, with candidate ID, scheduled/cancelled status, stable identity, content hash and an optional explicitly sourced academic department (ADR-018, ADR-035) |
 | `revision_validation_findings` | why a revision was validated, held for review, or rejected, with evidence (ADR-029) |
+| `schedule_diffs` | one stored semantic diff per published revision, including its dispatch state and any release audit fields (ADR-039, ADR-040, ADR-042) |
+| `schedule_diff_entries` | the created, updated, deleted, unchanged, or ambiguous record pairs that make up a diff |
+| `operational_freeze_control` | the singleton runtime switch read before acquisition, parsing and publication (ADR-034, ADR-043) |
+| `operational_freeze_audits` | append-only freeze and unfreeze transitions with actor, reason, timestamp and correlation ID |
+
+The freeze control migration seeds exactly one unfrozen baseline row. That seed
+is not an operator action and therefore has no audit entry. Every later state
+transition updates the singleton and appends its audit row in one transaction;
+repeating the current state is idempotent and writes no fictional transition.
+The current API exposes the state read-only at `GET /api/operations/freeze`
+behind the operator key. A remote write surface waits for real operator
+authentication, as ADR-034 requires.
 
 `schedule_revisions.ApprovedBy`, `ApprovalReason` and `ApprovedAtUtc` record who
 released a quarantined revision and why (ADR-032). They are null on the ordinary

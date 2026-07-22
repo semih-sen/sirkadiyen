@@ -1110,7 +1110,8 @@ affected calendars.
 
 **Status:** Accepted
 **Date:** 2026-07-22
-**Implements:** not yet
+**Implements:** core persistence and pipeline gates; authenticated remote write
+surface remains deferred
 
 ### Context
 
@@ -1155,8 +1156,8 @@ added after real operator authentication exists.
 
 **Status:** Accepted
 **Date:** 2026-07-22
-**Implements:** semantic diff model and pure matching engine; persistence and
-publication orchestration remain
+**Implements:** semantic diff model, pure matching engine, persistence and
+post-publication orchestration
 
 ### Context
 
@@ -1455,3 +1456,51 @@ the endpoint. The release is guarded by the diff's row version.
   verifiable only when real authentication replaces the shared key.
 - Nothing dispatches diffs yet, so releasing one currently changes only its
   state. The value arrives with the calendar adapter.
+
+---
+
+## ADR-043: Persist the global freeze as a singleton with append-only transitions
+
+**Status:** Accepted
+**Date:** 2026-07-23
+**Implements:** ADR-034 core persistence and current pipeline gates
+
+### Context
+
+ADR-034 requires one runtime-readable switch, fail-closed reads, and an audit
+trail for both freeze and unfreeze. A startup setting cannot change without a
+restart, while a queue-local flag could disagree between the API, worker and
+future Hangfire processes. Updating only one mutable row would retain the latest
+reason but erase the incident history.
+
+### Decision
+
+Store the authoritative current state in exactly one PostgreSQL row,
+`operational_freeze_control`, and append every actual transition to
+`operational_freeze_audits`. A transition locks the singleton row, changes it,
+and appends actor, reason, UTC timestamp and correlation ID in one transaction.
+Repeating the current state is idempotent and creates no audit row.
+
+Every pipeline boundary reads the state through `IOperationalFreezeStore` at
+runtime. A missing row or database read failure throws and the mutation does not
+start. The worker checks before every source; the source poller checks
+immediately before acquisition and after immutable evidence storage; publication
+checks before every revision.
+
+The existing operator-key API exposes only `GET /api/operations/freeze`.
+Freeze/unfreeze mutation is implemented behind the application port but receives
+no remote endpoint until real operator authentication exists. Future semantic
+diff dispatchers and Calendar jobs must use the same port.
+
+### Consequences
+
+- Every host and future queue consumer observes one durable state without a
+  restart.
+- A freeze enabled during an external source read permits its immutable snapshot
+  to be stored but blocks the parse run that would follow.
+- Work remains queued or validated and resumes through the ordinary state
+  machine after unfreeze.
+- Direct SQL changes are not a supported operational path because they would
+  bypass the append-only audit.
+- The authenticated write surface remains explicit follow-up work; the shared
+  key is not extended with another safety-critical mutation.

@@ -44,6 +44,7 @@ app.MapHealthChecks("/health");
 app.MapOpenApi();
 app.MapRevisionEndpoints();
 app.MapDiffEndpoints();
+app.MapOperationalEndpoints();
 
 app.Run();
 

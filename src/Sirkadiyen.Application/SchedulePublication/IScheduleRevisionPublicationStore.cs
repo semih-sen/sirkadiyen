@@ -58,6 +58,9 @@ public enum RevisionPublicationOutcome
 {
     Published,
 
+    /// <summary>The global operational freeze prevented publication.</summary>
+    Frozen,
+
     RevisionNotFound,
 
     /// <summary>The revision has not been validated, or is already live or terminal.</summary>

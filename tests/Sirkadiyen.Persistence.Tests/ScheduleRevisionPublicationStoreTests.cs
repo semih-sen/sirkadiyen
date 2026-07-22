@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Sirkadiyen.Application.Operations;
 using Sirkadiyen.Application.SchedulePublication;
 using Sirkadiyen.Contracts.Parsing;
 using Sirkadiyen.Contracts.Serialization;
@@ -157,7 +158,10 @@ public sealed class ScheduleRevisionPublicationStoreTests(PostgresFixture fixtur
             await AddRevisionAsync(context, RevisionState.ReviewRequired);
 
         ScheduleRevisionPublicationStore store = new(context);
-        ScheduleRevisionPublicationService service = new(store, new FixedClock(Now));
+        ScheduleRevisionPublicationService service = new(
+            store,
+            new UnfrozenOperationalFreezeStore(),
+            new FixedClock(Now));
 
         RevisionApprovalOutcomeResult result = await service.ApproveAndPublishAsync(
             revision.Id,
@@ -309,6 +313,20 @@ public sealed class ScheduleRevisionPublicationStoreTests(PostgresFixture fixtur
     }
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
+
+    private sealed class UnfrozenOperationalFreezeStore : IOperationalFreezeStore
+    {
+        public Task<OperationalFreezeSnapshot> GetAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(new OperationalFreezeSnapshot { IsFrozen = false });
+
+        public Task<OperationalFreezeChangeResult> SetAsync(
+            bool isFrozen,
+            string changedBy,
+            string reason,
+            string correlationId,
+            DateTimeOffset changedAtUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+    }
 
     private static async Task<ScheduleRevision> ReadAsync(
         SirkadiyenDbContext context,

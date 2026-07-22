@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Sirkadiyen.Application.Operations;
 using Sirkadiyen.Application.ScheduleParsing;
 using Sirkadiyen.Application.SchedulePublication;
 using Sirkadiyen.Contracts.Parsing;
@@ -21,6 +22,7 @@ public sealed class ScheduleSourcePoller(
     IScheduleParserClient parserClient,
     IScheduleParseResultStore parseResultStore,
     ScheduleRevisionValidationService revisionValidation,
+    IOperationalFreezeStore operationalFreeze,
     TimeProvider timeProvider)
 {
     private static readonly JsonSerializerOptions JsonOptions = ContractJson.CreateOptions();
@@ -48,6 +50,14 @@ public sealed class ScheduleSourcePoller(
                 $"Google Sheets source '{source.SourceId}' has no spreadsheet ID.");
         }
 
+        // This read happens immediately before the external acquisition. If the
+        // authoritative row cannot be read, the exception escapes and no read is
+        // started: failure is closed, never treated as "probably unfrozen".
+        if ((await operationalFreeze.GetAsync(cancellationToken)).IsFrozen)
+        {
+            return Frozen(source.SourceId, snapshotChanged: false);
+        }
+
         DateTimeOffset acquiredAtUtc = timeProvider.GetUtcNow();
         NormalizedSpreadsheetSnapshot snapshot = await snapshotAcquirer.AcquireAsync(
             new AcquireSpreadsheetSnapshotRequest
@@ -63,6 +73,15 @@ public sealed class ScheduleSourcePoller(
             source.SourceId,
             snapshot,
             cancellationToken);
+
+        // A freeze may be enabled while the external read is in flight. ADR-034
+        // permits the immutable evidence to finish storing, but no parse run may
+        // start or resume after that point.
+        if ((await operationalFreeze.GetAsync(cancellationToken)).IsFrozen)
+        {
+            return Frozen(source.SourceId, stored.Changed);
+        }
+
         NormalizedSpreadsheetSnapshot snapshotForParsing = stored.Changed
             ? snapshot
             : JsonSerializer.Deserialize<NormalizedSpreadsheetSnapshot>(
@@ -176,6 +195,14 @@ public sealed class ScheduleSourcePoller(
         string failure = $"{exception.GetType().Name}: {exception.Message}";
         return failure.Length <= maximumLength ? failure : failure[..maximumLength];
     }
+
+    private static ScheduleSourcePollResult Frozen(SourceId sourceId, bool snapshotChanged) =>
+        new()
+        {
+            SourceId = sourceId,
+            Outcome = ScheduleSourcePollOutcome.Frozen,
+            SnapshotChanged = snapshotChanged,
+        };
 }
 
 public sealed record ScheduleSourcePollResult
@@ -198,6 +225,7 @@ public sealed record ScheduleSourcePollResult
 
 public enum ScheduleSourcePollOutcome
 {
+    Frozen,
     UnsupportedTransport,
     ParseAlreadyRunning,
     AlreadyParsed,

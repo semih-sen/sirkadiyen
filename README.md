@@ -97,6 +97,10 @@ endpoints guarded by the required administrative key. Beyond that:
   Istanbul-time schedule, calls the Python parser over its strict v1 HTTP
   contract, transactionally persists candidate revisions, validates them, and
   publishes healthy revisions while quarantining suspicious ones for review.
+- A PostgreSQL-backed global operational freeze is read at runtime before every
+  source acquisition, before a parse run starts or resumes, and immediately
+  before publication. Its transitions are append-only audit records; an
+  unreadable control fails closed (ADR-034, ADR-043).
 - The semantic diff is a pure deterministic engine — exact identity/content
   comparison, created/updated/deleted/unchanged classification, and
   ambiguity-safe secondary matching for time changes using normalized lesson
@@ -106,8 +110,9 @@ endpoints guarded by the required administrative key. Beyond that:
   is released only by a named operator stating a reason, and never when the hold
   is ambiguity (ADR-042).
 
-Not implemented: Drive/HTTP acquisition, DOCX conversion, the global operational
-freeze, calendar synchronization, identity, licensing, and the Next.js frontend.
+Not implemented: Drive/HTTP acquisition, DOCX conversion, authenticated
+freeze/unfreeze administration, calendar synchronization, identity, licensing,
+and the Next.js frontend.
 
 Published schedule mistakes use forward-fix rather than rollback: correct the
 authoritative source and let polling publish a newer revision (ADR-033).

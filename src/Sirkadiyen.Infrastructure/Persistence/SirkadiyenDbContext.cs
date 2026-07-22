@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sirkadiyen.Domain.Operations;
 using Sirkadiyen.Domain.ScheduleDiffing;
 using Sirkadiyen.Domain.ScheduleIngestion;
 using Sirkadiyen.Domain.ScheduleParsing;
@@ -39,6 +40,12 @@ public sealed class SirkadiyenDbContext(DbContextOptions<SirkadiyenDbContext> op
     public DbSet<ScheduleDiff> ScheduleDiffs => Set<ScheduleDiff>();
 
     public DbSet<ScheduleDiffEntry> ScheduleDiffEntries => Set<ScheduleDiffEntry>();
+
+    public DbSet<OperationalFreezeControl> OperationalFreezeControls =>
+        Set<OperationalFreezeControl>();
+
+    public DbSet<OperationalFreezeAudit> OperationalFreezeAudits =>
+        Set<OperationalFreezeAudit>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

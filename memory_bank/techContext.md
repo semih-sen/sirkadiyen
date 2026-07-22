@@ -146,6 +146,7 @@ PostgreSQL stores:
 - revisions
 - canonical records and versions
 - schedule diffs
+- global operational freeze state and its append-only transition audit
 - event mappings
 - background workflow state
 - audit logs

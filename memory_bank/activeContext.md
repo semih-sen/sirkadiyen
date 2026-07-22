@@ -41,6 +41,28 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
 
+- Implemented the runtime-readable global operational freeze from ADR-034. One
+  singleton PostgreSQL row is the authoritative current state and every actual
+  freeze/unfreeze transition is appended with actor, reason, UTC timestamp and
+  correlation ID in the same transaction (ADR-043).
+- The worker checks the switch before every source. The poller checks again
+  immediately before acquisition and after immutable evidence storage, so a
+  freeze enabled during an external read keeps the snapshot but never starts or
+  resumes a parse run.
+- Publication checks immediately before each revision. Frozen publication is an
+  explicit outcome; a failed state read throws before the store is called, which
+  makes the boundary fail closed.
+- Added the operator-key-protected read-only
+  `GET /api/operations/freeze`. A freeze/unfreeze write endpoint remains
+  intentionally absent until real operator authentication exists.
+- Added migration `AddOperationalFreeze`, model tests, domain/application gate
+  tests and PostgreSQL transaction/audit tests. The migration applies cleanly to
+  the real test database.
+- 188 .NET tests pass against the real PostgreSQL with nothing skipped. Release
+  build and `dotnet format --verify-no-changes` are clean.
+
+## Previous held-diff release session
+
 - Added the operator path for a held diff (ADR-042), the last unimplemented part
   of ADR-040. A `Held` diff now reaches dispatch through a new `Released` state,
   reached by `POST /api/diffs/{id}/release` behind the existing operator key,
@@ -364,30 +386,29 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 1. Survey each parser profile for an explicitly stated academic department and
    populate canonical `Department` only where the source provides it. Current
    historical records remain null and safely skip secondary matching.
-2. Implement the runtime-readable, audited global freeze from ADR-034 across
-   source polling and publication before calendar jobs are introduced.
-3. Define the snapshot retention policy and implement cleanup. Snapshots are
+2. Define the snapshot retention policy and implement cleanup. Snapshots are
    stored whole, one Grade 1 annual snapshot is about seven megabytes, and 18
    sources poll as often as every 15 minutes. This is now a decided requirement,
    not an open question.
-4. Move the date-format assumption into the parser profile, so each profile
+3. Move the date-format assumption into the parser profile, so each profile
    declares its order explicitly instead of relying on the global day-first
    default that would silently misparse a month-first source.
-5. Replace the shared administrative key with real authentication, and the
-   internal approval API with an administration frontend.
-6. Implement `grade2_yearly_v1`, which should reuse the annual implementation
+4. Replace the shared administrative key with real authentication, add the
+   freeze/unfreeze administration surface, and replace the internal approval API
+   with an administration frontend.
+5. Implement `grade2_yearly_v1`, which should reuse the annual implementation
    with its own header aliases.
-7. Widen the group resolver for the English practice cohort labels (`İ1`) after
+6. Widen the group resolver for the English practice cohort labels (`İ1`) after
    reviewing that source's structure; it also lays dates out differently.
-8. Recover parse runs left `Running` by an abrupt worker shutdown without
+7. Recover parse runs left `Running` by an abrupt worker shutdown without
    creating duplicate runs or revisions.
-9. Establish .NET architecture tests.
-10. Acquire the missing Grade 1 anatomy and Grade 3 English fixtures.
-11. Add Google Drive/HTTP acquisition and DOCX conversion for the confirmed
+8. Establish .NET architecture tests.
+9. Acquire the missing Grade 1 anatomy and Grade 3 English fixtures.
+10. Add Google Drive/HTTP acquisition and DOCX conversion for the confirmed
     special-program sources.
-12. Add CI quality gates, including a PostgreSQL service for the integration
+11. Add CI quality gates, including a PostgreSQL service for the integration
     tests.
-13. Model identity, single-use licensing, secure-cookie sessions, flexible
+12. Model identity, single-use licensing, secure-cookie sessions, flexible
     student profiles, initial sync, and the dedicated managed calendar from
     ADR-022 through ADR-027.
 
@@ -450,8 +471,9 @@ Resolved (ADR-029, ADR-032). Publication is automated and gated by the validatio
 safety nets. A `ReviewRequired` revision reaches publication only through an
 approval that names its approver and states a reason, over the internal API.
 
-Forward-fix without rollback and the global freeze are resolved by ADR-033 and
-ADR-034. The freeze implementation remains immediate work.
+Forward-fix without rollback and the global freeze are resolved and implemented
+by ADR-033, ADR-034 and ADR-043. The authenticated write surface remains part of
+the real-operator-authentication work.
 
 Still open: real authentication to replace the shared administrative key.
 
@@ -525,8 +547,10 @@ Exact required groups for each class year and language must be derived from sour
 - pointing `SIRKADIYEN_TEST_DATABASE__CONNECTION_STRING` at a working database
   in `.env` now destroys it, because the fixture drops and re-migrates whatever
   it is given and no longer needs a deliberate export to find it
-- forward-fix deliberately depends on source correction and the next healthy
-  polling cycle; operators still lack the global freeze that ADR-034 requires
+- the global freeze has no remote mutation endpoint until real operator
+  authentication exists. The state, atomic audited mutation port and pipeline
+  gates are implemented, but production operations must not bypass that port
+  with direct SQL because doing so would lose the audit trail
 
 ## Working assumptions
 

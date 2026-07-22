@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Sirkadiyen.Domain.Operations;
 using Sirkadiyen.Domain.SchedulePublication;
 using Sirkadiyen.Domain.ScheduleSources;
 using Sirkadiyen.Infrastructure.Persistence;
@@ -117,6 +118,37 @@ public sealed class ScheduleModelTests
     {
         Assert.Contains(
             "20260722180000_AddCanonicalDepartment",
+            CreateContext().Database.GetMigrations());
+    }
+
+    [Fact]
+    public void OperationalFreezeIsASingletonWithAConcurrencyToken()
+    {
+        IEntityType control = Model.FindEntityType(typeof(OperationalFreezeControl))!;
+
+        Assert.Equal("operational_freeze_control", control.GetTableName());
+        Assert.Equal(
+            ValueGenerated.Never,
+            control.FindProperty("Id")!.ValueGenerated);
+        Assert.True(control.FindProperty("RowVersion")!.IsConcurrencyToken);
+    }
+
+    [Fact]
+    public void OperationalFreezeChangesHaveAnAppendOnlyAuditModel()
+    {
+        IEntityType audit = Model.FindEntityType(typeof(OperationalFreezeAudit))!;
+
+        Assert.Equal(200, audit.FindProperty("ChangedBy")!.GetMaxLength());
+        Assert.Equal(2000, audit.FindProperty("Reason")!.GetMaxLength());
+        Assert.Equal(100, audit.FindProperty("CorrelationId")!.GetMaxLength());
+        Assert.False(audit.FindProperty("ChangedAtUtc")!.IsNullable);
+    }
+
+    [Fact]
+    public void OperationalFreezeHasItsOwnAdditiveMigration()
+    {
+        Assert.Contains(
+            "20260722220853_AddOperationalFreeze",
             CreateContext().Database.GetMigrations());
     }
 

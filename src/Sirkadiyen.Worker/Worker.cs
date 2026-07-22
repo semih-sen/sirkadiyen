@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Sirkadiyen.Application.Operations;
 using Sirkadiyen.Application.ScheduleDiffing;
 using Sirkadiyen.Application.ScheduleIngestion;
 using Sirkadiyen.Application.SchedulePublication;
@@ -189,9 +190,42 @@ internal sealed class Worker(
 
         foreach (ScheduleSource source in sources)
         {
+            await using AsyncServiceScope sourceScope = scopeFactory.CreateAsyncScope();
+
             try
             {
-                await using AsyncServiceScope sourceScope = scopeFactory.CreateAsyncScope();
+                IOperationalFreezeStore freeze = sourceScope.ServiceProvider
+                    .GetRequiredService<IOperationalFreezeStore>();
+                OperationalFreezeSnapshot state = await freeze.GetAsync(cancellationToken);
+                if (state.IsFrozen)
+                {
+                    logger.LogWarning(
+                        "Source polling is frozen. No acquisition will start. "
+                        + "Last change at {FreezeChangedAtUtc} by {FreezeChangedBy}: {FreezeReason}",
+                        state.ChangedAtUtc,
+                        state.ChangedBy,
+                        state.Reason);
+                    return;
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                // Reading the authoritative switch failed. Stop the whole source
+                // loop: trying the next source would turn an unavailable safety
+                // control into an implicit "unfrozen" state.
+                logger.LogError(
+                    exception,
+                    "The global operational freeze state could not be read. "
+                    + "Source polling is stopped for this cycle.");
+                return;
+            }
+
+            try
+            {
                 ScheduleSourcePoller poller = sourceScope.ServiceProvider
                     .GetRequiredService<ScheduleSourcePoller>();
                 ScheduleSourcePollResult result = await poller.PollAsync(

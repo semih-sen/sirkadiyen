@@ -1,3 +1,4 @@
+using Sirkadiyen.Application.Operations;
 using Sirkadiyen.Application.ScheduleIngestion;
 using Sirkadiyen.Application.ScheduleParsing;
 using Sirkadiyen.Application.SchedulePublication;
@@ -31,6 +32,7 @@ public sealed class ScheduleSourcePollerTests
             parserClient,
             resultStore,
             ValidationService(),
+            new FakeOperationalFreezeStore(),
             new FixedTimeProvider(new DateTimeOffset(2026, 7, 22, 9, 0, 0, TimeSpan.Zero)));
 
         ScheduleSourcePollResult result = await poller.PollAsync(source, CancellationToken.None);
@@ -57,6 +59,7 @@ public sealed class ScheduleSourcePollerTests
             parserClient,
             resultStore,
             ValidationService(),
+            new FakeOperationalFreezeStore(),
             new FixedTimeProvider(new DateTimeOffset(2026, 7, 22, 9, 0, 0, TimeSpan.Zero)));
 
         await Assert.ThrowsAsync<HttpRequestException>(
@@ -89,6 +92,7 @@ public sealed class ScheduleSourcePollerTests
             parser,
             new FakeParseResultStore(shouldInvokeParser: true),
             ValidationService(),
+            new FakeOperationalFreezeStore(),
             TimeProvider.System);
 
         ScheduleSourcePollResult result = await poller.PollAsync(source, CancellationToken.None);
@@ -96,6 +100,78 @@ public sealed class ScheduleSourcePollerTests
         Assert.Equal(ScheduleSourcePollOutcome.UnsupportedTransport, result.Outcome);
         Assert.Equal(0, acquirer.CallCount);
         Assert.Equal(0, parser.CallCount);
+    }
+
+    [Fact]
+    public async Task FrozenSourceNeverStartsAcquisition()
+    {
+        ScheduleSource source = Source();
+        FakeSnapshotAcquirer acquirer = new(Snapshot(source));
+        FakeParseResultStore parseStore = new(shouldInvokeParser: true);
+        ScheduleSourcePoller poller = new(
+            acquirer,
+            new FakeSnapshotStore(StoredSnapshot(source, Snapshot(source)), changed: true),
+            new FakeParserClient(),
+            parseStore,
+            ValidationService(),
+            new FakeOperationalFreezeStore(isFrozen: true),
+            TimeProvider.System);
+
+        ScheduleSourcePollResult result = await poller.PollAsync(source, CancellationToken.None);
+
+        Assert.Equal(ScheduleSourcePollOutcome.Frozen, result.Outcome);
+        Assert.Equal(0, acquirer.CallCount);
+        Assert.Equal(0, parseStore.BeginCallCount);
+    }
+
+    [Fact]
+    public async Task FreezeReadFailureNeverStartsAcquisition()
+    {
+        ScheduleSource source = Source();
+        FakeSnapshotAcquirer acquirer = new(Snapshot(source));
+        ScheduleSourcePoller poller = new(
+            acquirer,
+            new FakeSnapshotStore(StoredSnapshot(source, Snapshot(source)), changed: true),
+            new FakeParserClient(),
+            new FakeParseResultStore(shouldInvokeParser: true),
+            ValidationService(),
+            new FakeOperationalFreezeStore
+            {
+                Exception = new InvalidOperationException("database unavailable"),
+            },
+            TimeProvider.System);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => poller.PollAsync(source, CancellationToken.None));
+
+        Assert.Equal(0, acquirer.CallCount);
+    }
+
+    [Fact]
+    public async Task FreezeDuringAcquisitionStoresEvidenceButDoesNotStartAParseRun()
+    {
+        ScheduleSource source = Source();
+        FakeOperationalFreezeStore freeze = new();
+        FakeSnapshotAcquirer acquirer = new(Snapshot(source))
+        {
+            OnAcquire = () => freeze.IsFrozen = true,
+        };
+        FakeParseResultStore parseStore = new(shouldInvokeParser: true);
+        ScheduleSourcePoller poller = new(
+            acquirer,
+            new FakeSnapshotStore(StoredSnapshot(source, Snapshot(source)), changed: true),
+            new FakeParserClient(),
+            parseStore,
+            ValidationService(),
+            freeze,
+            TimeProvider.System);
+
+        ScheduleSourcePollResult result = await poller.PollAsync(source, CancellationToken.None);
+
+        Assert.Equal(ScheduleSourcePollOutcome.Frozen, result.Outcome);
+        Assert.True(result.SnapshotChanged);
+        Assert.Equal(1, acquirer.CallCount);
+        Assert.Equal(0, parseStore.BeginCallCount);
     }
 
     private static ScheduleSource Source() => new(
@@ -174,11 +250,14 @@ public sealed class ScheduleSourcePollerTests
     {
         public int CallCount { get; private set; }
 
+        public Action? OnAcquire { get; init; }
+
         public Task<NormalizedSpreadsheetSnapshot> AcquireAsync(
             AcquireSpreadsheetSnapshotRequest request,
             CancellationToken cancellationToken)
         {
             CallCount++;
+            OnAcquire?.Invoke();
             return Task.FromResult(snapshot with
             {
                 SnapshotId = request.SnapshotId,
@@ -246,17 +325,23 @@ public sealed class ScheduleSourcePollerTests
 
         public string? FailureReason { get; private set; }
 
+        public int BeginCallCount { get; private set; }
+
         public Task<BeginParseRunResult> BeginOrResumeAsync(
             SourceSnapshot snapshot,
             ScheduleSource source,
             string correlationId,
             DateTimeOffset startedAtUtc,
-            CancellationToken cancellationToken) => Task.FromResult(new BeginParseRunResult
+            CancellationToken cancellationToken)
+        {
+            BeginCallCount++;
+            return Task.FromResult(new BeginParseRunResult
             {
                 ParseRunId = runId,
                 Status = shouldInvokeParser ? ParseRunStatus.Running : ParseRunStatus.Completed,
                 ShouldInvokeParser = shouldInvokeParser,
             });
+        }
 
         public Task<ScheduleRevision?> CompleteAsync(
             Guid parseRunId,
@@ -277,6 +362,38 @@ public sealed class ScheduleSourcePollerTests
             Failed = true;
             FailureReason = failureReason;
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeOperationalFreezeStore(bool isFrozen = false)
+        : IOperationalFreezeStore
+    {
+        public bool IsFrozen { get; set; } = isFrozen;
+
+        public Exception? Exception { get; init; }
+
+        public Task<OperationalFreezeSnapshot> GetAsync(CancellationToken cancellationToken) =>
+            Exception is null
+                ? Task.FromResult(new OperationalFreezeSnapshot { IsFrozen = IsFrozen })
+                : Task.FromException<OperationalFreezeSnapshot>(Exception);
+
+        public Task<OperationalFreezeChangeResult> SetAsync(
+            bool requestedState,
+            string changedBy,
+            string reason,
+            string correlationId,
+            DateTimeOffset changedAtUtc,
+            CancellationToken cancellationToken)
+        {
+            OperationalFreezeChangeOutcome outcome = IsFrozen == requestedState
+                ? OperationalFreezeChangeOutcome.AlreadyInRequestedState
+                : OperationalFreezeChangeOutcome.Changed;
+            IsFrozen = requestedState;
+            return Task.FromResult(new OperationalFreezeChangeResult
+            {
+                Outcome = outcome,
+                State = new OperationalFreezeSnapshot { IsFrozen = IsFrozen },
+            });
         }
     }
 

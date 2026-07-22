@@ -1,3 +1,5 @@
+using Sirkadiyen.Application.Operations;
+
 namespace Sirkadiyen.Application.SchedulePublication;
 
 /// <summary>
@@ -17,13 +19,24 @@ namespace Sirkadiyen.Application.SchedulePublication;
 /// </remarks>
 public sealed class ScheduleRevisionPublicationService(
     IScheduleRevisionPublicationStore store,
+    IOperationalFreezeStore operationalFreeze,
     TimeProvider timeProvider)
 {
     /// <summary>Publishes one revision, if it is in a state that allows it.</summary>
-    public Task<RevisionPublicationResult> PublishAsync(
+    public async Task<RevisionPublicationResult> PublishAsync(
         Guid revisionId,
-        CancellationToken cancellationToken) =>
-        store.PublishAsync(revisionId, timeProvider.GetUtcNow(), cancellationToken);
+        CancellationToken cancellationToken)
+    {
+        if ((await operationalFreeze.GetAsync(cancellationToken)).IsFrozen)
+        {
+            return Frozen(revisionId);
+        }
+
+        return await store.PublishAsync(
+            revisionId,
+            timeProvider.GetUtcNow(),
+            cancellationToken);
+    }
 
     /// <summary>
     /// Publishes every validated revision waiting for publication, oldest first.
@@ -46,10 +59,18 @@ public sealed class ScheduleRevisionPublicationService(
         foreach (Guid revisionId in publishable)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            results.Add(await store.PublishAsync(
+            RevisionPublicationResult result = await PublishAsync(
                 revisionId,
-                timeProvider.GetUtcNow(),
-                cancellationToken));
+                cancellationToken);
+            results.Add(result);
+
+            if (result.Outcome is RevisionPublicationOutcome.Frozen)
+            {
+                // Every later revision is blocked by the same global switch.
+                // Stop after one explicit result rather than producing a page of
+                // duplicate "Frozen" outcomes every worker cycle.
+                break;
+            }
         }
 
         return results;
@@ -85,12 +106,15 @@ public sealed class ScheduleRevisionPublicationService(
         return new RevisionApprovalOutcomeResult
         {
             Approval = approval,
-            Publication = await store.PublishAsync(
-                revisionId,
-                timeProvider.GetUtcNow(),
-                cancellationToken),
+            Publication = await PublishAsync(revisionId, cancellationToken),
         };
     }
+
+    private static RevisionPublicationResult Frozen(Guid revisionId) => new()
+    {
+        RevisionId = revisionId,
+        Outcome = RevisionPublicationOutcome.Frozen,
+    };
 }
 
 public sealed record RevisionApprovalOutcomeResult
