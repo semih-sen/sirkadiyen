@@ -68,6 +68,7 @@ public sealed class OnboardingStateServiceTests
             string academicYear,
             int classYear,
             ProgramLanguage programLanguage,
+            string studentNumber,
             string selectorSchemaVersion,
             IReadOnlyDictionary<string, string> selectors,
             DateTimeOffset atUtc,

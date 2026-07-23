@@ -1,4 +1,5 @@
 using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.StudentProfiles;
 
 namespace Sirkadiyen.Application.StudentProfiles;
 
@@ -9,6 +10,17 @@ namespace Sirkadiyen.Application.StudentProfiles;
 /// </summary>
 public static class StudentProfileValidator
 {
+    /// <summary>The field name reported for every student-number error.</summary>
+    private const string StudentNumberKey = "studentNumber";
+
+    /// <summary>Digits 1-2 of every in-scope student number: Istanbul Medical Faculty.</summary>
+    private const string IstanbulMedicalFacultyCode = "01";
+
+    /// <summary>Digits 3-4 encode the program language.</summary>
+    private const string TurkishProgramCode = "01";
+
+    private const string EnglishProgramCode = "02";
+
     public static StudentProfileValidationResult Validate(
         SupportedProfileSchema schema,
         SubmittedStudentProfile submitted)
@@ -16,22 +28,25 @@ public static class StudentProfileValidator
         ArgumentNullException.ThrowIfNull(schema);
         ArgumentNullException.ThrowIfNull(submitted);
 
+        List<StudentProfileValidationError> errors = [];
+
+        // The student number is validated independently of the program lookup so its
+        // errors surface even when the class year has no supported profile.
+        ValidateStudentNumber(submitted, errors);
+
         SupportedProfileProgram? program = schema.FindProgram(
             submitted.ClassYear,
             submitted.ProgramLanguage);
         if (program is null)
         {
-            return StudentProfileValidationResult.Failure(
-            [
-                new StudentProfileValidationError(
-                    StudentProfileValidationErrorCode.UnsupportedProgram,
-                    Key: null,
-                    $"No supported profile exists for class year {submitted.ClassYear} in the "
-                    + $"{submitted.ProgramLanguage} program for {schema.AcademicYear}."),
-            ]);
+            errors.Add(new StudentProfileValidationError(
+                StudentProfileValidationErrorCode.UnsupportedProgram,
+                Key: null,
+                $"No supported profile exists for class year {submitted.ClassYear} in the "
+                + $"{submitted.ProgramLanguage} program for {schema.AcademicYear}."));
+            return StudentProfileValidationResult.Failure(errors);
         }
 
-        List<StudentProfileValidationError> errors = [];
         IReadOnlyDictionary<string, string> selectors = submitted.Selectors;
 
         // A key the program does not define cannot be validated and must not be
@@ -125,6 +140,61 @@ public static class StudentProfileValidator
             StudentProfileValidationErrorCode.UnsupportedValue,
             key,
             $"'{value}' is not a supported '{key}'.");
+
+    /// <summary>
+    /// Enforces the student number's format and its cross-validation against the
+    /// selected program: the first two digits must be the Istanbul Medical Faculty
+    /// code and the next two must match the program language.
+    /// </summary>
+    private static void ValidateStudentNumber(
+        SubmittedStudentProfile submitted,
+        List<StudentProfileValidationError> errors)
+    {
+        string number = submitted.StudentNumber?.Trim() ?? string.Empty;
+
+        if (number.Length != StudentProfile.StudentNumberLength
+            || !number.All(char.IsAsciiDigit))
+        {
+            errors.Add(new StudentProfileValidationError(
+                StudentProfileValidationErrorCode.InvalidStudentNumber,
+                StudentNumberKey,
+                $"A student number must be exactly {StudentProfile.StudentNumberLength} digits."));
+
+            // The digit-slice rules below are meaningless on a malformed number.
+            return;
+        }
+
+        string facultyCode = number[..2];
+        if (!string.Equals(facultyCode, IstanbulMedicalFacultyCode, StringComparison.Ordinal))
+        {
+            errors.Add(new StudentProfileValidationError(
+                StudentProfileValidationErrorCode.StudentNumberFacultyMismatch,
+                StudentNumberKey,
+                $"A student number must begin with the Istanbul Medical Faculty code "
+                + $"'{IstanbulMedicalFacultyCode}'."));
+        }
+
+        string languageCode = number[2..4];
+        string expectedLanguageCode = ProgramLanguageCode(submitted.ProgramLanguage);
+        if (!string.Equals(languageCode, expectedLanguageCode, StringComparison.Ordinal))
+        {
+            errors.Add(new StudentProfileValidationError(
+                StudentProfileValidationErrorCode.StudentNumberProgramMismatch,
+                StudentNumberKey,
+                $"The student number's program code '{languageCode}' does not match the selected "
+                + $"{submitted.ProgramLanguage} program (expected '{expectedLanguageCode}')."));
+        }
+    }
+
+    private static string ProgramLanguageCode(ProgramLanguage language) => language switch
+    {
+        ProgramLanguage.Turkish => TurkishProgramCode,
+        ProgramLanguage.English => EnglishProgramCode,
+        _ => throw new ArgumentOutOfRangeException(
+            nameof(language),
+            language,
+            "Unknown program language."),
+    };
 }
 
 /// <summary>A profile as submitted by a client, before it is validated or stored.</summary>
@@ -133,6 +203,9 @@ public sealed record SubmittedStudentProfile
     public required int ClassYear { get; init; }
 
     public required ProgramLanguage ProgramLanguage { get; init; }
+
+    /// <summary>The raw student number as submitted; validated, never trusted.</summary>
+    public required string StudentNumber { get; init; }
 
     public required IReadOnlyDictionary<string, string> Selectors { get; init; }
 }
@@ -169,4 +242,13 @@ public enum StudentProfileValidationErrorCode
     MissingRequiredSelector,
     MissingDependency,
     UnsupportedValue,
+
+    /// <summary>The student number is not exactly ten digits.</summary>
+    InvalidStudentNumber,
+
+    /// <summary>The student number's faculty code is not Istanbul Medical Faculty.</summary>
+    StudentNumberFacultyMismatch,
+
+    /// <summary>The student number's program-language code contradicts the selected program.</summary>
+    StudentNumberProgramMismatch,
 }

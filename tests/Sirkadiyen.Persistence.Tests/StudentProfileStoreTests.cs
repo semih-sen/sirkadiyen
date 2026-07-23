@@ -28,6 +28,7 @@ public sealed class StudentProfileStoreTests(PostgresFixture fixture)
             "2025-2026",
             1,
             ProgramLanguage.Turkish,
+            "0101240048",
             "1.0",
             new Dictionary<string, string>
             {
@@ -38,6 +39,7 @@ public sealed class StudentProfileStoreTests(PostgresFixture fixture)
             Token);
 
         Assert.Equal(user.UserId, saved.UserId);
+        Assert.Equal("0101240048", saved.StudentNumber);
         Assert.True(await store.ExistsForUserAsync(user.UserId, Token));
 
         StudentProfileView? read = await store.GetByUserIdAsync(user.UserId, Token);
@@ -45,6 +47,7 @@ public sealed class StudentProfileStoreTests(PostgresFixture fixture)
         Assert.Equal("2025-2026", read.AcademicYear);
         Assert.Equal(1, read.ClassYear);
         Assert.Equal(ProgramLanguage.Turkish, read.ProgramLanguage);
+        Assert.Equal("0101240048", read.StudentNumber);
         Assert.Equal("A", read.Selectors["practiceGroup"]);
         Assert.Equal("A1", read.Selectors["practiceSubgroup"]);
     }
@@ -63,6 +66,7 @@ public sealed class StudentProfileStoreTests(PostgresFixture fixture)
             "2025-2026",
             1,
             ProgramLanguage.Turkish,
+            "0101240048",
             "1.0",
             new Dictionary<string, string> { ["practiceGroup"] = "A", ["practiceSubgroup"] = "A1" },
             Now,
@@ -72,12 +76,14 @@ public sealed class StudentProfileStoreTests(PostgresFixture fixture)
             "2025-2026",
             1,
             ProgramLanguage.English,
+            "0102240048",
             "1.0",
             new Dictionary<string, string> { ["practiceGroup"] = "İ", ["practiceSubgroup"] = "İ2" },
             Now.AddMinutes(5),
             Token);
 
         Assert.Equal(ProgramLanguage.English, updated.ProgramLanguage);
+        Assert.Equal("0102240048", updated.StudentNumber);
         Assert.Equal("İ2", updated.Selectors["practiceSubgroup"]);
         Assert.Equal(Now.AddMinutes(5), updated.UpdatedAtUtc);
 
@@ -104,6 +110,7 @@ public sealed class StudentProfileStoreTests(PostgresFixture fixture)
                 "2025-2026",
                 1,
                 ProgramLanguage.Turkish,
+                "0101240048",
                 "1.0",
                 new Dictionary<string, string> { ["practiceGroup"] = "A", ["practiceSubgroup"] = "A1" },
                 Now,
@@ -113,6 +120,7 @@ public sealed class StudentProfileStoreTests(PostgresFixture fixture)
                 "2025-2026",
                 1,
                 ProgramLanguage.Turkish,
+                "0101240048",
                 "1.0",
                 new Dictionary<string, string> { ["practiceGroup"] = "B", ["practiceSubgroup"] = "B2" },
                 Now.AddSeconds(1),

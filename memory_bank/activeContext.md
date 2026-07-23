@@ -7,9 +7,11 @@ verified server-side, users are persisted, browser sessions use secure cookies
 with CSRF protection, single-use licenses activate accounts transactionally, and
 administration is authorized by the explicit `SuperAdmin` role. The validated
 student profile is implemented (ADR-055): an activated account now derives
-`ProfileRequired`, then `CalendarAuthorizationRequired` once a profile exists.
-Calendar authorization and the dedicated managed calendar are the next user
-module. Semantic diff remains complete through persistence; nothing dispatches it
+`ProfileRequired`, then `CalendarAuthorizationRequired` once a profile exists. The
+profile also carries the university student number, validated for its ten-digit
+format and cross-validated so its faculty and program-language digits match the
+selected program (ADR-056). Calendar authorization and the dedicated managed
+calendar are the next user module. Semantic diff remains complete through persistence; nothing dispatches it
 yet.
 
 The Google Sheets path now runs end to end from catalog seeding to a stored
@@ -48,6 +50,38 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- **Added the university student number to the profile (ADR-056).** The
+  `StudentProfile` aggregate now carries a `StudentNumber`, stored as text so its
+  significant leading zeros are never truncated.
+- Validation is layered by ownership. The **domain** guards only the structural
+  invariant — a trimmed, exactly-ten-digit, all-ASCII-digit string — so the
+  aggregate can never hold a corrupt number. The **application** validator owns the
+  semantic cross-validation, because those rules depend on scope and on the row's
+  own program language: digits 1-2 must be `01` (Istanbul Medical Faculty) and
+  digits 3-4 must match the selected program (`01` Turkish, `02` English). Format is
+  re-checked in the validator so a bad number is a clean 400, not a domain throw;
+  the digit-slice checks are skipped once a number is known malformed. New error
+  codes: `InvalidStudentNumber`, `StudentNumberFacultyMismatch`,
+  `StudentNumberProgramMismatch`.
+- The **database** pins the same ten-digit structural rule as a check constraint
+  (`"StudentNumber" ~ '^[0-9]{10}$'`); the semantic rules stay in the application
+  layer where the program language is in scope.
+- `SubmittedStudentProfile`, `StudentProfileView` and the `PUT`/`GET` DTOs gained
+  the field; the store threads it through the upsert.
+- Migration `AddStudentNumberToProfile` adds the column `NOT NULL` with **no**
+  server default (the table is empty at this migration and an empty string could
+  never satisfy the constraint). Verified Up → Down → Up against real PostgreSQL on
+  the empty `sirkadiyen` database, which is left at the latest migration; the
+  deployed constraint predicate was confirmed.
+- 311 .NET tests pass, up from 297, with nothing skipped: new domain tests (trim
+  keeps leading zeros, non-ten-digit rejected) and validator tests (non-numeric,
+  wrong length, missing, faculty mismatch, both language mismatches, a matching
+  English number accepted); the PostgreSQL store tests now round-trip the number.
+  Release build has no warnings, `dotnet format --verify-no-changes` is clean, EF
+  reports no pending model changes. No Python file changed.
+
+## Previous student profile session
 
 - **Implemented the validated student profile (ADR-055).** A `StudentProfile`
   aggregate keeps academic year, class year and program language relational and
@@ -853,6 +887,11 @@ dimension can be added with evidence.
   license, but a license revoked after a profile is saved leaves the stored
   profile in place; onboarding correctly reports `Suspended` from the license
   state, and the profile row is retained deliberately for later reactivation
+- the student number's entry-year digits (5-6) are not cross-checked against the
+  academic year, and the number is not enforced unique across profiles (ADR-056).
+  Both are deliberate: neither rule is confirmed against real registrar data, and a
+  repeat student or a legitimately shared prefix must not be rejected. A future
+  integration that needs uniqueness or an entry-year rule would add it with evidence
 
 ## Working assumptions
 

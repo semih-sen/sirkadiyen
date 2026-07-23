@@ -126,9 +126,117 @@ public sealed class StudentProfileValidatorTests
             });
     }
 
+    [Fact]
+    public void ANonNumericStudentNumberIsRejected()
+    {
+        StudentProfileValidationResult result = ValidateWith(
+            1,
+            ProgramLanguage.Turkish,
+            "01012400XY",
+            ("practiceGroup", "A"),
+            ("practiceSubgroup", "A1"));
+
+        Assert.Contains(
+            result.Errors,
+            error => error.Code == StudentProfileValidationErrorCode.InvalidStudentNumber);
+    }
+
+    [Theory]
+    [InlineData("010124004")]    // nine digits
+    [InlineData("01012400489")]  // eleven digits
+    [InlineData("")]             // missing
+    public void AStudentNumberThatIsNotTenDigitsIsRejected(string studentNumber)
+    {
+        StudentProfileValidationResult result = ValidateWith(
+            1,
+            ProgramLanguage.Turkish,
+            studentNumber,
+            ("practiceGroup", "A"),
+            ("practiceSubgroup", "A1"));
+
+        StudentProfileValidationError error = Assert.Single(
+            result.Errors,
+            candidate => candidate.Key == "studentNumber");
+        Assert.Equal(StudentProfileValidationErrorCode.InvalidStudentNumber, error.Code);
+    }
+
+    [Fact]
+    public void AStudentNumberFromAnotherFacultyIsRejected()
+    {
+        StudentProfileValidationResult result = ValidateWith(
+            1,
+            ProgramLanguage.Turkish,
+            "0201240048",
+            ("practiceGroup", "A"),
+            ("practiceSubgroup", "A1"));
+
+        StudentProfileValidationError error = Assert.Single(
+            result.Errors,
+            candidate => candidate.Key == "studentNumber");
+        Assert.Equal(
+            StudentProfileValidationErrorCode.StudentNumberFacultyMismatch,
+            error.Code);
+    }
+
+    [Fact]
+    public void AnEnglishStudentNumberUnderTheTurkishProgramIsRejected()
+    {
+        StudentProfileValidationResult result = ValidateWith(
+            1,
+            ProgramLanguage.Turkish,
+            "0102240048",
+            ("practiceGroup", "A"),
+            ("practiceSubgroup", "A1"));
+
+        StudentProfileValidationError error = Assert.Single(
+            result.Errors,
+            candidate => candidate.Key == "studentNumber");
+        Assert.Equal(
+            StudentProfileValidationErrorCode.StudentNumberProgramMismatch,
+            error.Code);
+    }
+
+    [Fact]
+    public void ATurkishStudentNumberUnderTheEnglishProgramIsRejected()
+    {
+        StudentProfileValidationResult result = ValidateWith(
+            1,
+            ProgramLanguage.English,
+            "0101240048",
+            ("practiceGroup", "İ"),
+            ("practiceSubgroup", "İ1"));
+
+        StudentProfileValidationError error = Assert.Single(
+            result.Errors,
+            candidate => candidate.Key == "studentNumber");
+        Assert.Equal(
+            StudentProfileValidationErrorCode.StudentNumberProgramMismatch,
+            error.Code);
+    }
+
+    [Fact]
+    public void AMatchingEnglishStudentNumberIsAccepted()
+    {
+        StudentProfileValidationResult result = ValidateWith(
+            1,
+            ProgramLanguage.English,
+            "0102240048",
+            ("practiceGroup", "İ"),
+            ("practiceSubgroup", "İ2"));
+
+        Assert.True(result.IsValid);
+    }
+
     private static StudentProfileValidationResult Validate(
         int classYear,
         ProgramLanguage programLanguage,
+        params (string Key, string Value)[] selectors) =>
+        ValidateWith(classYear, programLanguage, DefaultStudentNumber(programLanguage), selectors);
+
+    private static StudentProfileValidationResult ValidateWith(
+        int classYear,
+        ProgramLanguage programLanguage,
+        string studentNumber,
         params (string Key, string Value)[] selectors) =>
         StudentProfileValidator.Validate(
             Schema,
@@ -136,9 +244,14 @@ public sealed class StudentProfileValidatorTests
             {
                 ClassYear = classYear,
                 ProgramLanguage = programLanguage,
+                StudentNumber = studentNumber,
                 Selectors = selectors.ToDictionary(
                     selector => selector.Key,
                     selector => selector.Value,
                     StringComparer.Ordinal),
             });
+
+    /// <summary>A well-formed student number whose program code matches the language.</summary>
+    private static string DefaultStudentNumber(ProgramLanguage programLanguage) =>
+        programLanguage == ProgramLanguage.English ? "0102240048" : "0101240048";
 }

@@ -109,6 +109,9 @@ internal sealed class StudentProfileConfiguration : IEntityTypeConfiguration<Stu
             .HasConversion<string>()
             .HasMaxLength(20)
             .IsRequired();
+        builder.Property(profile => profile.StudentNumber)
+            .HasMaxLength(StudentProfile.StudentNumberLength)
+            .IsRequired();
         builder.Property(profile => profile.SelectorSchemaVersion)
             .HasMaxLength(StudentProfile.MaximumSchemaVersionLength)
             .IsRequired();
@@ -134,5 +137,13 @@ internal sealed class StudentProfileConfiguration : IEntityTypeConfiguration<Stu
             "ck_student_profiles_class_year",
             $"\"ClassYear\" BETWEEN {StudentProfile.MinimumClassYear} "
             + $"AND {StudentProfile.MaximumClassYear}"));
+
+        // Defence in depth: the exact-ten-digit structural invariant the domain and
+        // the application validator both enforce is also pinned at the database. The
+        // semantic faculty/language digit rules stay in the application layer because
+        // they depend on the row's own program language.
+        builder.ToTable(table => table.HasCheckConstraint(
+            "ck_student_profiles_student_number",
+            "\"StudentNumber\" ~ '^[0-9]{10}$'"));
     }
 }

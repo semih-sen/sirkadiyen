@@ -19,6 +19,7 @@ public sealed class StudentProfileTests
             " 2025-2026 ",
             1,
             ProgramLanguage.Turkish,
+            " 0101240048 ",
             " 1.0 ",
             new Dictionary<string, string>
             {
@@ -32,6 +33,7 @@ public sealed class StudentProfileTests
         Assert.Equal("2025-2026", profile.AcademicYear);
         Assert.Equal(1, profile.ClassYear);
         Assert.Equal(ProgramLanguage.Turkish, profile.ProgramLanguage);
+        Assert.Equal("0101240048", profile.StudentNumber);
         Assert.Equal("1.0", profile.SelectorSchemaVersion);
         Assert.Equal("A", profile.Selectors["practiceGroup"]);
         Assert.Equal("A1", profile.Selectors["practiceSubgroup"]);
@@ -47,6 +49,7 @@ public sealed class StudentProfileTests
             "2025-2026",
             1,
             ProgramLanguage.Turkish,
+            "0101240048",
             "1.0",
             new Dictionary<string, string> { ["practiceGroup"] = "A" },
             Now);
@@ -56,6 +59,7 @@ public sealed class StudentProfileTests
             "2025-2026",
             1,
             ProgramLanguage.English,
+            "0102240048",
             "1.0",
             new Dictionary<string, string> { ["practiceGroup"] = "İ" },
             Now.AddHours(1));
@@ -63,6 +67,7 @@ public sealed class StudentProfileTests
         Assert.Equal(id, profile.Id);
         Assert.Equal(UserId, profile.UserId);
         Assert.Equal(ProgramLanguage.English, profile.ProgramLanguage);
+        Assert.Equal("0102240048", profile.StudentNumber);
         Assert.Equal("İ", profile.Selectors["practiceGroup"]);
         Assert.Single(profile.Selectors);
         Assert.Equal(Now, profile.CreatedAtUtc);
@@ -104,16 +109,35 @@ public sealed class StudentProfileTests
         Assert.Throws<ArgumentOutOfRangeException>(() => Create(selectors: selectors));
     }
 
+    [Theory]
+    [InlineData("010124004")]    // nine digits
+    [InlineData("01012400489")]  // eleven digits
+    [InlineData("010124004X")]   // ten characters, one not a digit
+    [InlineData("01 1240048")]   // ten characters, an embedded space
+    [InlineData("   ")]          // blank
+    public void AStudentNumberThatIsNotExactlyTenDigitsIsRejected(string studentNumber) =>
+        Assert.Throws<ArgumentException>(() => Create(studentNumber: studentNumber));
+
+    [Fact]
+    public void AStudentNumberIsTrimmedButLeadingZerosAreKept()
+    {
+        StudentProfile profile = Create(studentNumber: " 0101240048 ");
+
+        Assert.Equal("0101240048", profile.StudentNumber);
+    }
+
     private static StudentProfile Create(
         Guid? userId = null,
         string academicYear = "2025-2026",
         int classYear = 1,
+        string studentNumber = "0101240048",
         IReadOnlyDictionary<string, string>? selectors = null) =>
         StudentProfile.Create(
             userId ?? UserId,
             academicYear,
             classYear,
             ProgramLanguage.Turkish,
+            studentNumber,
             "1.0",
             selectors ?? new Dictionary<string, string> { ["practiceGroup"] = "A" },
             Now);

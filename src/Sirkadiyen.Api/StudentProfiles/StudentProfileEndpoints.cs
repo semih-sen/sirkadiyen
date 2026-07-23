@@ -74,6 +74,7 @@ public static class StudentProfileEndpoints
         {
             ClassYear = classYear,
             ProgramLanguage = programLanguage,
+            StudentNumber = request.StudentNumber ?? string.Empty,
             Selectors = request.Selectors is null
                 ? new Dictionary<string, string>(StringComparer.Ordinal)
                 : new Dictionary<string, string>(request.Selectors, StringComparer.Ordinal),
@@ -137,6 +138,8 @@ public sealed record SaveStudentProfileRequest
     public int? ClassYear { get; init; }
 
     public ProgramLanguage? ProgramLanguage { get; init; }
+
+    public string? StudentNumber { get; init; }
 
     public IReadOnlyDictionary<string, string>? Selectors { get; init; }
 }

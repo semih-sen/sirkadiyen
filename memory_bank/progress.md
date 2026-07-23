@@ -271,9 +271,13 @@ redemption/revocation, append-only license audits and backend-derived onboarding
 state (ADR-052, ADR-053). The validated student profile is now implemented too
 (ADR-055): a `StudentProfile` aggregate with relational year/class/language and a
 JSONB selector document, a server-owned code-defined supported schema and shared
-validator, transactional upsert persistence, and a CSRF-protected profile API.
-Onboarding now advances an activated account to `CalendarAuthorizationRequired`
-once a profile exists. Calendar authorization and the dedicated managed calendar
+validator, transactional upsert persistence, and a CSRF-protected profile API. The
+profile also carries the university student number (Öğrenci Numarası), validated in
+three layers — a ten-digit structural invariant in the domain and at the database,
+and semantic cross-validation in the application layer that pins the faculty code to
+Istanbul Medical Faculty and the program-language digits to the selected program
+(ADR-056). Onboarding now advances an activated account to
+`CalendarAuthorizationRequired` once a profile exists. Calendar authorization and the dedicated managed calendar
 are the next user slice; after that, affected-user resolution can consume `Ready`
 and `Released` diffs. `grade2_yearly_v1` remains the next parser profile and needs
 no new canonical field.

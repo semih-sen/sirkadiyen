@@ -2315,3 +2315,57 @@ first-time save reruns once as an update rather than failing.
   current depth so the assumption is visible.
 - A profile stored under one schema version is not re-validated when the schema
   changes; re-validation on rollover is future work, tracked as a known risk.
+
+## ADR-056: Store the university student number with layered semantic validation
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-23
+**Implements:** a `StudentNumber` field on the `StudentProfile` aggregate, its
+format and cross-validation in `StudentProfileValidator`, the EF column and format
+check constraint, migration `AddStudentNumberToProfile`, the read/write DTO fields,
+and domain/validator/store tests
+**Depends on:** ADR-055 (the student profile and its validator)
+
+### Context
+
+The profile must record the student's university number (Öğrenci Numarası) for
+future integrations. The number is not an opaque identifier: its ten digits encode
+a faculty code (1–2), a program-language code (3–4), an entry year (5–6) and an
+entry sequence (7–10), which lets it cross-validate against the profile the student
+is submitting. It is stored as text because the leading zeros are significant and
+must never be truncated.
+
+### Decision
+
+Enforce the number in three layers, each owning the rule that belongs to it.
+
+- **Domain** (`StudentProfile`) guards only the structural invariant: a trimmed,
+  exactly-ten-character, all-ASCII-digit string. The aggregate can therefore never
+  hold a structurally corrupt number, and leading zeros survive because it is text.
+- **Application** (`StudentProfileValidator`) owns the semantic cross-validation,
+  because these rules depend on business scope and on the row's own program
+  language. Digits 1–2 must be `01` (Istanbul Medical Faculty — the project's
+  scope); digits 3–4 must match the selected program (`01` Turkish, `02` English).
+  Format is re-checked here too so a malformed number returns a clean validation
+  error (400) rather than a domain throw, and the digit-slice rules are skipped once
+  the number is known to be malformed. New error codes: `InvalidStudentNumber`,
+  `StudentNumberFacultyMismatch`, `StudentNumberProgramMismatch`.
+- **Database** pins the same structural invariant as a check constraint
+  (`"StudentNumber" ~ '^[0-9]{10}$'`), defence in depth. The semantic faculty and
+  language rules stay out of the database because a check constraint cannot read the
+  row's program language in a way that keeps the two codes in sync as policy evolves.
+
+The migration adds the column as `NOT NULL` with **no** server default: the profile
+table is empty at this migration, and an empty string could never satisfy the
+format constraint, so a default would be both useless and a latent trap. Verified
+Up → Down → Up against real PostgreSQL on an empty table.
+
+### Consequences
+
+- The faculty scope (`01`) and the language-code map are constants in the validator;
+  widening scope to another faculty, or adding a program, is a code change with a
+  test, consistent with the server-owned schema of ADR-055.
+- The entry-year digits (5–6) are **not** cross-checked against the academic year,
+  and the number is **not** enforced unique. Both are deliberate omissions recorded
+  as known risks; a repeat student or a legitimately shared-prefix cohort must not
+  be rejected by a rule we have not confirmed.

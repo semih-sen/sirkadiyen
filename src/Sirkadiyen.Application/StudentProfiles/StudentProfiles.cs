@@ -16,6 +16,7 @@ public interface IStudentProfileStore
         string academicYear,
         int classYear,
         ProgramLanguage programLanguage,
+        string studentNumber,
         string selectorSchemaVersion,
         IReadOnlyDictionary<string, string> selectors,
         DateTimeOffset atUtc,
@@ -32,6 +33,8 @@ public sealed record StudentProfileView
     public required int ClassYear { get; init; }
 
     public required ProgramLanguage ProgramLanguage { get; init; }
+
+    public required string StudentNumber { get; init; }
 
     public required string SelectorSchemaVersion { get; init; }
 
@@ -109,6 +112,7 @@ public sealed class StudentProfileService(
             schema.AcademicYear,
             submitted.ClassYear,
             submitted.ProgramLanguage,
+            submitted.StudentNumber,
             schema.SchemaVersion,
             submitted.Selectors,
             timeProvider.GetUtcNow(),

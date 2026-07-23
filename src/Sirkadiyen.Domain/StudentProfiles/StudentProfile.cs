@@ -23,6 +23,9 @@ public sealed class StudentProfile
 {
     public const int MaximumAcademicYearLength = 20;
 
+    /// <summary>The fixed length of a university student number (Öğrenci Numarası).</summary>
+    public const int StudentNumberLength = 10;
+
     public const int MaximumSchemaVersionLength = 20;
 
     public const int MaximumSelectorKeyLength = 100;
@@ -39,6 +42,7 @@ public sealed class StudentProfile
     {
         // Materialization constructor.
         AcademicYear = string.Empty;
+        StudentNumber = string.Empty;
         SelectorSchemaVersion = string.Empty;
     }
 
@@ -51,6 +55,15 @@ public sealed class StudentProfile
     public int ClassYear { get; private set; }
 
     public ProgramLanguage ProgramLanguage { get; private set; }
+
+    /// <summary>
+    /// The student's university number (Öğrenci Numarası), a fixed ten-digit string
+    /// whose leading zeros are significant. Its digits carry a semantic structure
+    /// (faculty, program language, entry year, sequence) that the application layer
+    /// cross-validates against the profile; the domain guards only that it is exactly
+    /// ten digits so the aggregate can never hold a structurally corrupt number.
+    /// </summary>
+    public string StudentNumber { get; private set; }
 
     /// <summary>The version of the supported-profile schema the selectors satisfy.</summary>
     public string SelectorSchemaVersion { get; private set; }
@@ -74,6 +87,7 @@ public sealed class StudentProfile
         string academicYear,
         int classYear,
         ProgramLanguage programLanguage,
+        string studentNumber,
         string selectorSchemaVersion,
         IReadOnlyDictionary<string, string> selectors,
         DateTimeOffset atUtc)
@@ -93,6 +107,7 @@ public sealed class StudentProfile
                 nameof(academicYear)),
             ClassYear = ValidClassYear(classYear),
             ProgramLanguage = programLanguage,
+            StudentNumber = ValidStudentNumber(studentNumber),
             SelectorSchemaVersion = RequiredBounded(
                 selectorSchemaVersion,
                 MaximumSchemaVersionLength,
@@ -108,6 +123,7 @@ public sealed class StudentProfile
         string academicYear,
         int classYear,
         ProgramLanguage programLanguage,
+        string studentNumber,
         string selectorSchemaVersion,
         IReadOnlyDictionary<string, string> selectors,
         DateTimeOffset atUtc)
@@ -118,6 +134,7 @@ public sealed class StudentProfile
             nameof(academicYear));
         ClassYear = ValidClassYear(classYear);
         ProgramLanguage = programLanguage;
+        StudentNumber = ValidStudentNumber(studentNumber);
         SelectorSchemaVersion = RequiredBounded(
             selectorSchemaVersion,
             MaximumSchemaVersionLength,
@@ -131,6 +148,26 @@ public sealed class StudentProfile
         ArgumentOutOfRangeException.ThrowIfLessThan(classYear, MinimumClassYear);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(classYear, MaximumClassYear);
         return classYear;
+    }
+
+    private static string ValidStudentNumber(string studentNumber)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(studentNumber);
+        studentNumber = studentNumber.Trim();
+
+        // Only the structural invariant lives here: a fixed-length, all-digit string
+        // (leading zeros preserved because it is stored as text). The semantic digit
+        // structure — faculty and program-language codes — is a business rule the
+        // application-layer validator enforces against the profile.
+        if (studentNumber.Length != StudentNumberLength
+            || !studentNumber.All(char.IsAsciiDigit))
+        {
+            throw new ArgumentException(
+                $"A student number must be exactly {StudentNumberLength} digits.",
+                nameof(studentNumber));
+        }
+
+        return studentNumber;
     }
 
     private static IReadOnlyDictionary<string, string> NormalizeSelectors(

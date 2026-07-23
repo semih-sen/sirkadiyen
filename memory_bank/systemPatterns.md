@@ -619,6 +619,16 @@ year rollover, which is a deployment. The profile write requires an active
 license first, and derived onboarding advances to `CalendarAuthorizationRequired`
 once a profile row exists.
 
+Fixed identifiers with a semantic structure — such as the university student
+number (Öğrenci Numarası) — stay relational, stored as text to preserve leading
+zeros, and are validated in three layers by ownership (ADR-056): the domain guards
+the structural invariant (a fixed-length, all-digit string), the database pins the
+same rule as a check constraint for defence in depth, and the application validator
+owns the semantic cross-validation whose rules depend on business scope or on
+another field of the same row (the number's faculty and program-language digits are
+checked against the selected program). A rule that a check constraint cannot express
+without the row's other fields belongs in the validator, not the database.
+
 ## 23. Adaptive polling interval pattern
 
 Polling intervals are selected in `Europe/Istanbul` and remain configuration,
