@@ -36,6 +36,11 @@ from sirkadiyen_parser.diagnostics import ParseDiagnostics
 from sirkadiyen_parser.identity import build_identity_components, content_hash, stable_identity
 from sirkadiyen_parser.normalization.courses import course_identity, normalize_course_title
 from sirkadiyen_parser.normalization.dates import DateResolution, resolve_cell_date
+from sirkadiyen_parser.normalization.departments import (
+    RULE_DEPARTMENT_LIST_MEMBER,
+    BlockDepartmentResolution,
+    resolve_block_and_departments,
+)
 from sirkadiyen_parser.normalization.grid import WorksheetGrid
 from sirkadiyen_parser.normalization.instructors import split_trailing_instructors
 from sirkadiyen_parser.normalization.text import comparison_key
@@ -104,6 +109,7 @@ WARNING_IMPLAUSIBLE_DURATION = "implausibleLessonDuration"
 WARNING_WEEKDAY_MISMATCH = "weekdayMismatch"
 WARNING_NO_HEADER_ROW = "worksheetWithoutHeaderRow"
 WARNING_NO_WORKSHEET = "noParsableWorksheet"
+WARNING_UNMARKED_BLOCK_SEGMENT = "unmarkedBlockDepartmentSegment"
 
 METRIC_WORKSHEETS_SCANNED = "worksheets.scanned"
 METRIC_WORKSHEETS_SELECTED = "worksheets.selected"
@@ -113,6 +119,11 @@ METRIC_ROWS_HIDDEN = "rows.hidden"
 METRIC_CANDIDATES_EMITTED = "candidates.emitted"
 METRIC_CANDIDATE_EVENT_TYPE_PREFIX = "candidates.eventType."
 METRIC_LOCATION_DEFERRED = "location.deferredToOtherProgram"
+METRIC_CURRICULUM_BLOCK_STATED = "curriculumBlock.stated"
+METRIC_DEPARTMENTS_STATED = "departments.stated"
+METRIC_DEPARTMENTS_INTEGRATED_SESSION = "departments.integratedSession"
+METRIC_DEPARTMENTS_LIST_MEMBER = "departments.unmarkedListMember"
+METRIC_DEPARTMENTS_IGNORED_UNMARKED = "departments.ignored.unmarkedSegment"
 
 RULE_HEADER_ALIAS = "annual.headerAlias"
 RULE_TERM_CELL = "annual.termCell"
@@ -190,6 +201,7 @@ class _CandidateDraft:
     resolved_date: DateResolution
     title_confidence: float
     deferred_location: bool
+    block_departments: BlockDepartmentResolution
 
 
 @dataclass(slots=True)
@@ -198,6 +210,11 @@ class _Accumulator:
 
     candidates: list[CanonicalScheduleCandidate] = field(default_factory=list)
     by_identity: dict[str, CanonicalScheduleCandidate] = field(default_factory=dict)
+
+    #: Block-cell segments already reported as naming no marked department. The
+    #: same wording repeats on dozens of rows, so it is reported once with the
+    #: first row that carries it and counted for the rest.
+    reported_unmarked_segments: set[str] = field(default_factory=set)
 
 
 def parse_annual_snapshot(
@@ -547,7 +564,12 @@ def _build_draft(
 
     block_text = row.text(ROLE_BLOCK) or None
     location_text = row.text(ROLE_LOCATION) or None
+
+    # Classification still reads the whole cell. The block and the department
+    # both carry keywords the event type depends on, and splitting the cell must
+    # not silently reclassify a lesson.
     event_type = classify_event_type(title=display_title, block=block_text)
+    block_departments = resolve_block_and_departments(block_text)
 
     identity_components = build_identity_components(
         (
@@ -583,6 +605,8 @@ def _build_draft(
         time_zone_id=context.time_zone_id,
         instructor=instructor,
         location=location_text,
+        curriculum_block=block_departments.curriculum_block,
+        departments=list(block_departments.departments),
         stable_identity=stable_identity(identity_components),
         content_hash=_content_hash(
             context=context,
@@ -593,7 +617,7 @@ def _build_draft(
             end_time=end_time,
             instructor=instructor,
             location=location_text,
-            block=block_text,
+            block_departments=block_departments,
         ),
         confidence=confidence,
         identity_components=identity_components,
@@ -606,6 +630,7 @@ def _build_draft(
         resolved_date=resolved_date,
         title_confidence=course_title.confidence,
         deferred_location=location_text is not None and _is_deferred_location(location_text),
+        block_departments=block_departments,
     )
 
 
@@ -625,7 +650,7 @@ def _content_hash(
     end_time: time,
     instructor: str | None,
     location: str | None,
-    block: str | None,
+    block_departments: BlockDepartmentResolution,
 ) -> str:
     return content_hash(
         {
@@ -640,9 +665,19 @@ def _content_hash(
             "timeZoneId": context.time_zone_id,
             "instructor": instructor,
             "location": location,
-            "block": block,
+            "curriculumBlock": block_departments.curriculum_block,
+            "departments": join_departments(block_departments.departments),
         }
     )
+
+
+def join_departments(departments: tuple[str, ...]) -> str | None:
+    """Encode a department list for hashing, or ``None`` when none was stated.
+
+    A newline is the separator because normalized display text cannot contain
+    one, so no two different department lists can encode to the same string.
+    """
+    return "\n".join(departments) if departments else None
 
 
 def _row_evidence(row: _RowContext) -> Iterator[SourceEvidence]:
@@ -662,6 +697,7 @@ def _record_candidate_diagnostics(
     *,
     draft: _CandidateDraft,
     diagnostics: ParseDiagnostics,
+    accumulator: _Accumulator,
 ) -> None:
     candidate = draft.candidate
     row = draft.row
@@ -670,6 +706,12 @@ def _record_candidate_diagnostics(
     diagnostics.increment(f"{METRIC_CANDIDATE_EVENT_TYPE_PREFIX}{candidate.event_type.value}")
     if draft.deferred_location:
         diagnostics.increment(METRIC_LOCATION_DEFERRED)
+
+    _record_block_department_diagnostics(
+        draft=draft,
+        diagnostics=diagnostics,
+        accumulator=accumulator,
+    )
 
     if resolved_date.confidence < 1.0:
         diagnostics.confidence(
@@ -707,6 +749,50 @@ def _record_candidate_diagnostics(
         )
 
 
+def _record_block_department_diagnostics(
+    *,
+    draft: _CandidateDraft,
+    diagnostics: ParseDiagnostics,
+    accumulator: _Accumulator,
+) -> None:
+    """Account for everything the block/department cell did and did not yield."""
+    candidate = draft.candidate
+    resolution = draft.block_departments
+
+    if resolution.curriculum_block is not None:
+        diagnostics.increment(METRIC_CURRICULUM_BLOCK_STATED)
+
+    if resolution.resolved:
+        diagnostics.increment(METRIC_DEPARTMENTS_STATED)
+    if resolution.names_several_departments:
+        diagnostics.increment(METRIC_DEPARTMENTS_INTEGRATED_SESSION)
+
+    if resolution.rule == RULE_DEPARTMENT_LIST_MEMBER:
+        diagnostics.increment(METRIC_DEPARTMENTS_LIST_MEMBER)
+        diagnostics.confidence(
+            field_name="departments",
+            score=resolution.confidence,
+            reason=resolution.rule,
+            candidate_id=candidate.candidate_id,
+        )
+
+    for segment in resolution.unmarked_segments:
+        diagnostics.increment(METRIC_DEPARTMENTS_IGNORED_UNMARKED)
+        key = comparison_key(segment)
+        if key in accumulator.reported_unmarked_segments:
+            continue
+
+        accumulator.reported_unmarked_segments.add(key)
+        diagnostics.information(
+            WARNING_UNMARKED_BLOCK_SEGMENT,
+            f"Block cell segment '{segment}' names no academic department marker, so it "
+            "was not published as a department. Widening the rule requires source "
+            "evidence, not a guess.",
+            candidate_id=candidate.candidate_id,
+            evidence=draft.row.evidence(ROLE_BLOCK, extraction_rule=RULE_BLOCK_CELL),
+        )
+
+
 def _accept(
     *,
     draft: _CandidateDraft,
@@ -721,7 +807,11 @@ def _accept(
     if existing is None:
         accumulator.by_identity[candidate.stable_identity] = candidate
         accumulator.candidates.append(candidate)
-        _record_candidate_diagnostics(draft=draft, diagnostics=diagnostics)
+        _record_candidate_diagnostics(
+            draft=draft,
+            diagnostics=diagnostics,
+            accumulator=accumulator,
+        )
         return
 
     if existing.content_hash == candidate.content_hash:

@@ -27,6 +27,7 @@ public sealed class ScheduleParseResultStore(SirkadiyenDbContext dbContext)
         ScheduleSource source,
         string correlationId,
         DateTimeOffset startedAtUtc,
+        TimeSpan staleRunTimeout,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
@@ -72,6 +73,17 @@ public sealed class ScheduleParseResultStore(SirkadiyenDbContext dbContext)
             existing.Resume(correlationId, startedAtUtc);
             await dbContext.SaveChangesAsync(cancellationToken);
             return Started(existing);
+        }
+
+        // A run still marked running after the timeout belongs to a worker that
+        // is gone. Left alone it would block this snapshot forever, and the
+        // schedule change it carries would never reach a calendar. Recovery
+        // reuses the run, so no second run or revision can appear for it.
+        if (existing.IsStale(startedAtUtc, staleRunTimeout))
+        {
+            existing.RecoverStale(correlationId, startedAtUtc, staleRunTimeout);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return Started(existing, ParseRunStartKind.RecoveredStale);
         }
 
         return new BeginParseRunResult
@@ -175,12 +187,15 @@ public sealed class ScheduleParseResultStore(SirkadiyenDbContext dbContext)
                 && run.ParserProfileVersion == source.ParserProfileVersion,
             cancellationToken);
 
-    private static BeginParseRunResult Started(ParseRun run) => new()
-    {
-        ParseRunId = run.Id,
-        Status = run.Status,
-        ShouldInvokeParser = true,
-    };
+    private static BeginParseRunResult Started(
+        ParseRun run,
+        ParseRunStartKind kind = ParseRunStartKind.Started) => new()
+        {
+            ParseRunId = run.Id,
+            Status = run.Status,
+            ShouldInvokeParser = true,
+            StartKind = kind,
+        };
 
     private static void ValidateResponse(
         ParseRun run,
@@ -250,7 +265,9 @@ public sealed class ScheduleParseResultStore(SirkadiyenDbContext dbContext)
             candidate.Confidence,
             JsonSerializer.Serialize(candidate.Evidence, JsonOptions),
             candidate.Instructor,
-            candidate.Location);
+            candidate.Location,
+            candidate.CurriculumBlock,
+            candidate.Departments);
     }
 
     private static ParseRunStatus MapStatus(ParserResultStatus status) => status switch

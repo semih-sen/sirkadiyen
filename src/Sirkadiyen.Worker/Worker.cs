@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Sirkadiyen.Application.Operations;
 using Sirkadiyen.Application.ScheduleDiffing;
 using Sirkadiyen.Application.ScheduleIngestion;
+using Sirkadiyen.Application.ScheduleParsing;
 using Sirkadiyen.Application.SchedulePublication;
 using Sirkadiyen.Application.ScheduleSources;
 using Sirkadiyen.Domain.ScheduleDiffing;
@@ -281,6 +282,18 @@ internal sealed class Worker(
                     result.SnapshotChanged,
                     result.ParseRunId,
                     result.RevisionId);
+
+                if (result.ParseRunStartKind is ParseRunStartKind.RecoveredStale)
+                {
+                    // Not an error for this cycle, but it means an earlier worker
+                    // died mid-parse. Repeated occurrences point at the host, not
+                    // at the source.
+                    logger.LogWarning(
+                        "Parse run {ParseRunId} for source {SourceId} was recovered after being "
+                        + "left running by a worker that stopped mid-parse.",
+                        result.ParseRunId,
+                        result.SourceId);
+                }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {

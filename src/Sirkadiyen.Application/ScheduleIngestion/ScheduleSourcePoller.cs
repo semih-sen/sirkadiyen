@@ -23,6 +23,7 @@ public sealed class ScheduleSourcePoller(
     IScheduleParseResultStore parseResultStore,
     ScheduleRevisionValidationService revisionValidation,
     IOperationalFreezeStore operationalFreeze,
+    ParseRunOptions parseRunOptions,
     TimeProvider timeProvider)
 {
     private static readonly JsonSerializerOptions JsonOptions = ContractJson.CreateOptions();
@@ -96,6 +97,7 @@ public sealed class ScheduleSourcePoller(
             source,
             correlationId,
             timeProvider.GetUtcNow(),
+            parseRunOptions.StaleRunTimeout,
             cancellationToken);
 
         if (!parseRun.ShouldInvokeParser)
@@ -142,6 +144,7 @@ public sealed class ScheduleSourcePoller(
                     : ScheduleSourcePollOutcome.Parsed,
                 SnapshotChanged = stored.Changed,
                 ParseRunId = parseRun.ParseRunId,
+                ParseRunStartKind = parseRun.StartKind,
                 RevisionId = revision?.Id,
                 RevisionState = validation?.Outcome,
                 ValidationFindingCount = validation?.Findings.Count,
@@ -214,6 +217,12 @@ public sealed record ScheduleSourcePollResult
     public required bool SnapshotChanged { get; init; }
 
     public Guid? ParseRunId { get; init; }
+
+    /// <summary>
+    /// How the parse run was opened, when one was. A recovered run means a
+    /// previous worker died mid-parse and is worth an operator's attention.
+    /// </summary>
+    public ParseRunStartKind? ParseRunStartKind { get; init; }
 
     public Guid? RevisionId { get; init; }
 

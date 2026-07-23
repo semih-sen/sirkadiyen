@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Sirkadiyen.Application.ScheduleDiffing;
 using Sirkadiyen.Application.ScheduleIngestion;
+using Sirkadiyen.Application.ScheduleParsing;
 using Sirkadiyen.Application.SchedulePublication;
 using Sirkadiyen.Domain.ScheduleDiffing;
 using Sirkadiyen.Infrastructure.Configuration;
@@ -109,6 +110,14 @@ ScheduleDiffSafetyThresholds diffThresholds = new()
 };
 diffThresholds.Validate();
 
+ParseRunOptions parseRunOptions = new()
+{
+    StaleRunTimeout = ParseDuration(
+        builder.Configuration["SIRKADIYEN_PARSER:STALE_RUN_TIMEOUT"],
+        TimeSpan.FromMinutes(30)),
+};
+parseRunOptions.Validate();
+
 SnapshotRetentionOptions retentionOptions = new()
 {
     RecentWindow = TimeSpan.FromDays(ParseDouble(
@@ -128,6 +137,7 @@ builder.Services.AddScoped<ScheduleDiffService>();
 builder.Services.AddSingleton(pollingOptions);
 builder.Services.AddSingleton(validationOptions);
 builder.Services.AddSingleton(retentionOptions);
+builder.Services.AddSingleton(parseRunOptions);
 builder.Services.AddSingleton<ScheduleRevisionValidator>();
 builder.Services.AddScoped<SnapshotRetentionService>();
 builder.Services.AddScoped<ScheduleRevisionValidationService>();

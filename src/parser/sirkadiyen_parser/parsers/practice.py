@@ -719,6 +719,12 @@ def _build_candidate(
         time_zone_id=context.time_zone_id,
         instructor=subject.instructor,
         location=None,
+        # The block heading above the rotation table states the curriculum block
+        # (ADR-047). This source names no academic department: its subject
+        # columns are practice subjects, and reading one as a department would be
+        # an inference the cell does not support.
+        curriculum_block=subject.block_title,
+        departments=[],
         stable_identity=stable_identity(identity_components),
         content_hash=content_hash(
             {
@@ -732,7 +738,8 @@ def _build_candidate(
                 "endLocalTime": slot.end.isoformat(),
                 "timeZoneId": context.time_zone_id,
                 "instructor": subject.instructor,
-                "block": subject.block_title,
+                "curriculumBlock": subject.block_title,
+                "departments": None,
                 "audience": audience_key,
             }
         ),

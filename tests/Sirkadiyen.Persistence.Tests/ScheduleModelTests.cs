@@ -103,14 +103,39 @@ public sealed class ScheduleModelTests
     }
 
     [Fact]
-    public void AcademicDepartmentIsOptionalAndBounded()
+    public void CurriculumBlockIsOptionalAndBounded()
     {
-        IProperty department = Model.FindEntityType(typeof(CanonicalScheduleRecord))!
-            .FindProperty("Department")!;
+        IProperty block = Model.FindEntityType(typeof(CanonicalScheduleRecord))!
+            .FindProperty("CurriculumBlock")!;
 
-        Assert.True(department.IsNullable);
-        Assert.Equal(500, department.GetMaxLength());
-        Assert.Equal("character varying(500)", department.GetColumnType());
+        Assert.True(block.IsNullable);
+        Assert.Equal(500, block.GetMaxLength());
+        Assert.Equal("character varying(500)", block.GetColumnType());
+    }
+
+    /// <summary>
+    /// The list is required and empty when the source names no department, so
+    /// "none stated" is a value rather than a null the reader has to interpret.
+    /// </summary>
+    [Fact]
+    public void DepartmentsAreStoredAsARequiredJsonList()
+    {
+        IProperty departments = Model.FindEntityType(typeof(CanonicalScheduleRecord))!
+            .FindProperty("Departments")!;
+
+        Assert.False(departments.IsNullable);
+        Assert.Equal("jsonb", departments.GetColumnType());
+        Assert.NotNull(departments.GetValueConverter());
+        Assert.NotNull(departments.GetValueComparer());
+    }
+
+    [Fact]
+    public void StaleParseRunRecoveryIsRecordedAndOptional()
+    {
+        IProperty recovered = Model.FindEntityType(typeof(Domain.ScheduleParsing.ParseRun))!
+            .FindProperty("LastStaleRecoveryAtUtc")!;
+
+        Assert.True(recovered.IsNullable);
     }
 
     [Fact]

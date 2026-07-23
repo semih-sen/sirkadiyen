@@ -21,6 +21,10 @@ internal sealed class ParseRunConfiguration : IEntityTypeConfiguration<ParseRun>
         builder.Property(run => run.AttemptCount).IsRequired();
         builder.Property(run => run.FailureReason).HasMaxLength(2000);
 
+        // Nullable on purpose: a run that never needed recovering must be
+        // distinguishable from one that was recovered.
+        builder.Property(run => run.LastStaleRecoveryAtUtc);
+
         // An empty response is valid only while the run is open, so the column
         // is nullable in storage and normalized to an empty string in code.
         builder.Property(run => run.Response).HasColumnType("jsonb");

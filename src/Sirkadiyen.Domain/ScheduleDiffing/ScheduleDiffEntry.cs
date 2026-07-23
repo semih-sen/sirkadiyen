@@ -35,6 +35,17 @@ public sealed record ScheduleDiffEntry
 
     public decimal? InstructorScore { get; init; }
 
+    /// <summary>
+    /// How similar the two academic departments were, or <c>null</c> when the
+    /// match was not made on one.
+    /// </summary>
+    /// <remarks>
+    /// On a <see cref="ScheduleDiffMatch.SecondaryAttributes"/> entry, null is
+    /// meaningful: it says the lesson was recognized from its title and
+    /// instructor alone because the source named no single department for it.
+    /// That is the weaker of the two matching bases (ADR-035 as amended), so an
+    /// operator reviewing a held diff can tell the two apart.
+    /// </remarks>
     public decimal? DepartmentScore { get; init; }
 }
 

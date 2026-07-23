@@ -51,7 +51,8 @@ public sealed class CanonicalScheduleRecord
         string evidence,
         string? instructor = null,
         string? location = null,
-        string? department = null)
+        string? curriculumBlock = null,
+        IReadOnlyList<string>? departments = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(candidateId);
         ArgumentException.ThrowIfNullOrWhiteSpace(academicYear);
@@ -90,7 +91,8 @@ public sealed class CanonicalScheduleRecord
         Evidence = evidence;
         Instructor = instructor;
         Location = location;
-        Department = department;
+        CurriculumBlock = curriculumBlock;
+        Departments = departments is null ? [] : [.. departments];
     }
 
     public Guid Id { get; private set; }
@@ -134,14 +136,40 @@ public sealed class CanonicalScheduleRecord
     public string? Location { get; private set; }
 
     /// <summary>
-    /// The academic department that owns the lesson, when the source states it.
+    /// The curriculum block ("dilim") the lesson belongs to, when the source
+    /// states it (ADR-047).
     /// </summary>
     /// <remarks>
-    /// This is deliberately nullable. A missing department is not inferred from
-    /// the title or evidence; semantic secondary matching requires an explicit
-    /// value before it can use this field.
+    /// This is lesson content, not an audience selector. A corrected block label
+    /// updates the existing logical lesson rather than changing its identity,
+    /// which is why it is absent from <see cref="StableIdentity"/>.
     /// </remarks>
-    public string? Department { get; private set; }
+    public string? CurriculumBlock { get; private set; }
+
+    /// <summary>
+    /// Every academic department the source explicitly named for this lesson, in
+    /// source order.
+    /// </summary>
+    /// <remarks>
+    /// Empty means the source named none; a department is never inferred from
+    /// the title or the evidence. An integrated session ("entegre oturum") names
+    /// several, and all of them are kept because a student has to see who
+    /// teaches the session. Semantic matching uses this field only when exactly
+    /// one department is named on both sides (ADR-035).
+    /// </remarks>
+    public IReadOnlyList<string> Departments { get; private set; } = [];
+
+    /// <summary>
+    /// The single department this record can be matched on, or <c>null</c> when
+    /// the source named none or several.
+    /// </summary>
+    /// <remarks>
+    /// A list of departments is not a comparable value: two integrated sessions
+    /// that share one department out of three are not the same lesson, and
+    /// comparing the joined text would score them as nearly identical.
+    /// </remarks>
+    public string? ComparableDepartment =>
+        Departments.Count == 1 ? Departments[0] : null;
 
     public string StableIdentity { get; private set; }
 

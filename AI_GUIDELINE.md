@@ -217,7 +217,7 @@ A canonical record must be able to express:
 - date
 - either start/end time or an explicit all-day date span
 - instructor
-- academic department when explicitly stated by the source
+- every academic department explicitly stated by the source, in source order
 - location
 - source provenance
 - parser version
@@ -280,8 +280,14 @@ Prefer updating a known Google event over deleting and recreating it.
 
 For a lesson whose start time changed, secondary matching may use normalized
 lesson title, instructor, and explicitly sourced academic department according
-to ADR-035. Missing attributes must not be inferred from evidence. Any
-one-to-many or many-to-one candidate set remains `Ambiguous`.
+to ADR-035 as amended. Missing attributes must not be inferred from evidence.
+
+The department strengthens a match but is not required, because under half of the
+published lessons state one and an integrated session states several, which is
+not a comparable value. A match made without a comparable department must clear a
+higher composite threshold and must record that it was made that way.
+
+Any one-to-many or many-to-one candidate set remains `Ambiguous`.
 
 ## 13. Google Calendar rules
 

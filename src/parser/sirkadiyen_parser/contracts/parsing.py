@@ -91,6 +91,16 @@ class CanonicalScheduleCandidate(OutboundContractModel):
     time_zone_id: str = Field(min_length=1)
     instructor: str | None = None
     location: str | None = None
+
+    #: The curriculum block ("dilim") the lesson belongs to, when the source
+    #: states it (ADR-047). It is lesson content, never an audience selector,
+    #: and it is never derived from the lesson title.
+    curriculum_block: str | None = None
+
+    #: Every academic department the source explicitly names for this lesson, in
+    #: source order (ADR-049). An integrated session names several. Empty means
+    #: the source stated none; a department is never inferred.
+    departments: list[str] = Field(default_factory=list)
     stable_identity: str = Field(min_length=1)
     content_hash: str = Field(min_length=1)
     confidence: float = Field(ge=0, le=1)

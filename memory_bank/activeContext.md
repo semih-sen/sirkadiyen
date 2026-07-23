@@ -2,7 +2,8 @@
 
 ## Current phase
 
-Semantic diff complete through persistence; snapshot payload retention complete.
+Semantic diff complete through persistence and now actually reachable; snapshot
+payload retention complete; parse runs recoverable.
 
 The Google Sheets path now runs end to end from catalog seeding to a stored
 diff: adaptive polling, immutable snapshot storage, strict parser HTTP calls,
@@ -41,6 +42,51 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
 
+- **Fixed a latent defect that made ADR-035 secondary matching unreachable.**
+  `Department` was a precondition for it and nothing could ever populate it: the
+  parser contract had no such field, so every record had it null. Stable identity
+  includes the start time, so every lesson whose time moved was classified as a
+  delete plus a create — and through ADR-040 would have held the diff on the
+  deletion count. The unit tests never caught it because they construct records
+  directly.
+- Split the annual `DİLİM ADI / ANABİLİM DALI` cell into canonical
+  `CurriculumBlock` and a `Departments` list (ADR-047, ADR-049). A segment becomes
+  a department only when it carries an explicit `AD.` / `A.D.` /
+  `ANABİLİM DALI` marker; a stated sub-department is kept with it. 419 of 901
+  Turkish and 417 of 953 English annual candidates now state a department, 611 and
+  547 state a block.
+- Integrated sessions ("entegre oturum") keep every department they name, in
+  source order — eleven candidates per annual source, up to four departments each.
+  An unmarked member of a marked dashed list is kept at 0.9 confidence with an
+  indicator; an unmarked segment on its own never becomes a department and is
+  reported once per distinct wording with the address of its first cell.
+- Amended ADR-035 to a two-tier rule. Both sides naming exactly one department
+  score all three attributes; otherwise title and instructor are renormalized
+  against a higher composite bar of 0.94. Two disagreeing single departments are
+  never re-scored without the attribute that ruled them out. `DepartmentScore` is
+  null exactly when the weaker basis was used.
+- Implemented stale parse-run recovery (ADR-050). A run left `Running` by a killed
+  worker used to wedge that snapshot until the source content changed, silently
+  delaying a real schedule change. It is now reopened in place after 30 minutes
+  with the attempt count incremented and `LastStaleRecoveryAtUtc` recorded.
+- Migration `AddCanonicalDepartmentsAndParseRunRecovery` replaces the never-written
+  `Department` column with a required `Departments` JSONB list, adds
+  `CurriculumBlock` and `parse_runs.LastStaleRecoveryAtUtc`. The scaffolded version
+  renamed `Department` to `CurriculumBlock`, which would have reinterpreted one
+  fact as another; it was rewritten as an explicit data migration. Up, Down and Up
+  again were verified against the real PostgreSQL.
+- Recorded the SuperAdmin address `halil.semih.sen@gmail.com` and the decision
+  that the `users` table carries an explicit `role` column from the start, so this
+  is not a permanently single-operator system (ADR-045 amendment).
+- Every content hash changed, because the raw block cell was replaced in it by the
+  split fields. Done deliberately now: after launch the same change would patch
+  every managed event for every user.
+- 214 .NET tests pass against the real PostgreSQL with nothing skipped, up from
+  195. Release build and `dotnet format --verify-no-changes` are clean. 270 Python
+  tests pass, up from 239, with Ruff check/format and MyPy clean.
+
+## Previous snapshot-retention session
+
 - Implemented ADR-044 snapshot payload retention. The worker keeps the first
   snapshot captured under each source's currently configured academic year, the
   latest snapshot, every changed snapshot from the last ten days, and every
@@ -63,7 +109,7 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
   wrong; only discovery of each next dated URL remains open.
 - Accepted one Google-verified SuperAdmin bootstrap identity (ADR-045), all-day
   holidays and breaks (ADR-046), and canonical curriculum block (ADR-047).
-  Their implementation remains follow-up work.
+  ADR-047 is now implemented; ADR-045 and ADR-046 remain follow-up work.
 - 195 .NET tests pass against the real PostgreSQL with nothing skipped. The
   Release build and `dotnet format --verify-no-changes` are clean. All 239
   Python tests, Ruff check/format and MyPy also pass.
@@ -414,33 +460,27 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Immediate objectives
 
-1. Survey each parser profile for an explicitly stated academic department and
-   populate canonical `Department` only where the source provides it. Current
-   historical records remain null and safely skip secondary matching.
-2. Move the date-format assumption into the parser profile, so each profile
+1. Move the date-format assumption into the parser profile, so each profile
    declares its order explicitly instead of relying on the global day-first
    default that would silently misparse a month-first source.
-3. Implement Google sign-in and the one-email `SuperAdmin` bootstrap from
-   ADR-045, then add the freeze/unfreeze administration surface and replace the
-   shared operator key. The exact Google email still has to be supplied.
-4. Add all-day canonical schedule items for holidays and semester breaks
+2. Implement Google sign-in and the one-email `SuperAdmin` bootstrap from
+   ADR-045, with an explicit `role` column on `users`, then add the
+   freeze/unfreeze administration surface and replace the shared operator key.
+3. Add all-day canonical schedule items for holidays and semester breaks
    (ADR-046).
-5. Add canonical `CurriculumBlock` to the parser contract, domain and persistence
-   and populate it only from explicit source cells (ADR-047).
-6. Implement `grade2_yearly_v1`, which should reuse the annual implementation
-   with its own header aliases.
-7. Widen the group resolver for the confirmed Grade 1 English practice cohorts
+4. Implement `grade2_yearly_v1`, which should reuse the annual implementation
+   with its own header aliases. Its block/department cell is expected to follow
+   the ADR-049 convention, which the fixture must confirm.
+5. Widen the group resolver for the confirmed Grade 1 English practice cohorts
    `İ1`, `İ2` and `İ3`; the source also lays dates out differently.
-8. Recover parse runs left `Running` by an abrupt worker shutdown without
-   creating duplicate runs or revisions.
-9. Establish .NET architecture tests.
-10. Acquire the missing Grade 1 anatomy, current Grade 2 English and Grade 3
-    English fixtures.
-11. Add Google Drive/HTTP acquisition and DOCX conversion for the confirmed
-    special-program sources.
-12. Add CI quality gates, including a PostgreSQL service for the integration
-    tests.
-13. Model identity, single-use licensing, secure-cookie sessions, flexible
+6. Establish .NET architecture tests.
+7. Acquire the missing Grade 1 anatomy, current Grade 2 English and Grade 3
+   English fixtures.
+8. Add Google Drive/HTTP acquisition and DOCX conversion for the confirmed
+   special-program sources.
+9. Add CI quality gates, including a PostgreSQL service for the integration
+   tests.
+10. Model identity, single-use licensing, secure-cookie sessions, flexible
     student profiles, initial sync, and the dedicated managed calendar from
     ADR-022 through ADR-027.
 
@@ -508,9 +548,10 @@ Forward-fix without rollback and the global freeze are resolved and implemented
 by ADR-033, ADR-034 and ADR-043. The authenticated write surface remains part of
 the real-operator-authentication work.
 
-The initial operator model is decided by ADR-045: one Google-verified
-SuperAdmin email. Still needed: the exact email and its authentication
-implementation to replace the shared key.
+The initial operator model is fully decided by ADR-045 as amended: one
+Google-verified SuperAdmin, `halil.semih.sen@gmail.com`, granted through an
+explicit `role` column on the future `users` table. Still needed: Google sign-in
+and the authenticated surface to replace the shared key.
 
 ### Profile schema
 
@@ -546,9 +587,22 @@ Still missing: a current Grade 2 English fixture and Grade 3 English fixtures.
 - the annual event type is keyword-classified, so a lecture whose title mentions
   a practice is labelled `practice`; four Grade 1 Turkish lessons are affected
   and only the label is wrong
-- the curriculum block stated by the annual sources still survives only as
-  evidence and as part of the content hash; ADR-047 requires a canonical field,
-  but its contract/model migration is not implemented
+- a department the source states without a marker, such as `TIBBİ EKOLOJİ VE
+  HİDROKLİMATOLOJİ`, is deliberately not published (ADR-049). Each such wording is
+  reported once with its cell address, and widening the rule must start from that
+  evidence rather than from knowing Turkish faculty structure
+- matching without a comparable department (ADR-035 as amended) rests on title and
+  instructor alone. It demands a composite of 0.94, but two genuinely different
+  lessons on the same date with the same instructor and nearly the same title
+  would match. The uniqueness rule turns that into `Ambiguous` rather than a
+  destructive pair whenever both are plausible candidates
+- an integrated session's departments are kept for display and excluded from
+  matching. If a session's title and instructor are also unstable, it has no
+  strong attribute left and falls back to delete-and-create
+- two workers recovering the same stale parse run at once may both call the
+  parser; only one response can complete the run, but `parse_runs` has no row
+  version, so this relies on the worker running one instance with
+  non-overlapping cycles
 - the Grade 1 English practice source labels cohorts `İ1`, `İ2`, `İ3` and lays
   its dates out differently, so `grade1_practice_v1` publishes almost nothing
   from it; its fixture is deliberately not committed until the source has been

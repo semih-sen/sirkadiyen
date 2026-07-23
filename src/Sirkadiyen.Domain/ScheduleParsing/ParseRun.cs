@@ -73,6 +73,21 @@ public sealed class ParseRun
 
     public string? FailureReason { get; private set; }
 
+    /// <summary>
+    /// When this run was last recovered from a <see cref="ParseRunStatus.Running"/>
+    /// state that no live parse was still working on, or <c>null</c> if it never was.
+    /// </summary>
+    /// <remarks>
+    /// A worker killed mid-parse leaves the run running forever, and the source
+    /// would then never be parsed again from that snapshot. Recovery is recorded
+    /// rather than silent, because a run that needed recovering is evidence about
+    /// the deployment and not just a retry. The reason is not stored: it is a
+    /// fixed sentence derived from <see cref="StartedAtUtc"/> and the configured
+    /// timeout, and <see cref="AttemptCount"/> already carries how often it
+    /// happened.
+    /// </remarks>
+    public DateTimeOffset? LastStaleRecoveryAtUtc { get; private set; }
+
     public void Complete(
         ParseRunStatus status,
         DateTimeOffset completedAtUtc,
@@ -114,6 +129,53 @@ public sealed class ParseRun
             throw new InvalidOperationException("Only a failed parse run can be resumed.");
         }
 
+        Restart(correlationId, startedAtUtc);
+    }
+
+    /// <summary>
+    /// Whether this run has been open longer than a parse may legitimately take,
+    /// which means the worker that started it is gone.
+    /// </summary>
+    /// <remarks>
+    /// The timeout has to exceed the parser transport timeout, otherwise a slow
+    /// but healthy parse would be recovered underneath itself. That is a
+    /// composition concern, so it is not asserted here; the caller supplies the
+    /// configured value.
+    /// </remarks>
+    public bool IsStale(DateTimeOffset now, TimeSpan staleAfter)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(staleAfter, TimeSpan.Zero);
+
+        return Status is ParseRunStatus.Running && now - StartedAtUtc >= staleAfter;
+    }
+
+    /// <summary>
+    /// Reopens a run that was left running by an abrupt shutdown so the same
+    /// snapshot can be parsed again.
+    /// </summary>
+    /// <remarks>
+    /// Recovery reuses this run instead of creating a second one: the run is the
+    /// logical execution of one profile version against one snapshot, and a
+    /// duplicate would break that uniqueness and could produce a second revision
+    /// for the same snapshot.
+    /// </remarks>
+    public void RecoverStale(
+        string correlationId,
+        DateTimeOffset startedAtUtc,
+        TimeSpan staleAfter)
+    {
+        if (!IsStale(startedAtUtc, staleAfter))
+        {
+            throw new InvalidOperationException(
+                "Only a parse run left running past its stale timeout can be recovered.");
+        }
+
+        LastStaleRecoveryAtUtc = startedAtUtc;
+        Restart(correlationId, startedAtUtc);
+    }
+
+    private void Restart(string correlationId, DateTimeOffset startedAtUtc)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(correlationId);
 
         CorrelationId = correlationId;

@@ -33,6 +33,7 @@ public sealed class ScheduleSourcePollerTests
             resultStore,
             ValidationService(),
             new FakeOperationalFreezeStore(),
+            new ParseRunOptions(),
             new FixedTimeProvider(new DateTimeOffset(2026, 7, 22, 9, 0, 0, TimeSpan.Zero)));
 
         ScheduleSourcePollResult result = await poller.PollAsync(source, CancellationToken.None);
@@ -60,6 +61,7 @@ public sealed class ScheduleSourcePollerTests
             resultStore,
             ValidationService(),
             new FakeOperationalFreezeStore(),
+            new ParseRunOptions(),
             new FixedTimeProvider(new DateTimeOffset(2026, 7, 22, 9, 0, 0, TimeSpan.Zero)));
 
         await Assert.ThrowsAsync<HttpRequestException>(
@@ -93,6 +95,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeParseResultStore(shouldInvokeParser: true),
             ValidationService(),
             new FakeOperationalFreezeStore(),
+            new ParseRunOptions(),
             TimeProvider.System);
 
         ScheduleSourcePollResult result = await poller.PollAsync(source, CancellationToken.None);
@@ -115,6 +118,7 @@ public sealed class ScheduleSourcePollerTests
             parseStore,
             ValidationService(),
             new FakeOperationalFreezeStore(isFrozen: true),
+            new ParseRunOptions(),
             TimeProvider.System);
 
         ScheduleSourcePollResult result = await poller.PollAsync(source, CancellationToken.None);
@@ -139,6 +143,7 @@ public sealed class ScheduleSourcePollerTests
             {
                 Exception = new InvalidOperationException("database unavailable"),
             },
+            new ParseRunOptions(),
             TimeProvider.System);
 
         await Assert.ThrowsAsync<InvalidOperationException>(
@@ -164,6 +169,7 @@ public sealed class ScheduleSourcePollerTests
             parseStore,
             ValidationService(),
             freeze,
+            new ParseRunOptions(),
             TimeProvider.System);
 
         ScheduleSourcePollResult result = await poller.PollAsync(source, CancellationToken.None);
@@ -328,14 +334,18 @@ public sealed class ScheduleSourcePollerTests
 
         public int BeginCallCount { get; private set; }
 
+        public TimeSpan? StaleRunTimeout { get; private set; }
+
         public Task<BeginParseRunResult> BeginOrResumeAsync(
             SourceSnapshot snapshot,
             ScheduleSource source,
             string correlationId,
             DateTimeOffset startedAtUtc,
+            TimeSpan staleRunTimeout,
             CancellationToken cancellationToken)
         {
             BeginCallCount++;
+            StaleRunTimeout = staleRunTimeout;
             return Task.FromResult(new BeginParseRunResult
             {
                 ParseRunId = runId,

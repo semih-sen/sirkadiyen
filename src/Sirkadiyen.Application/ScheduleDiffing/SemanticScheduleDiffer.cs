@@ -11,9 +11,16 @@ namespace Sirkadiyen.Application.ScheduleDiffing;
 /// </summary>
 /// <remarks>
 /// Stable identity is authoritative. Secondary matching is attempted only for
-/// records left unmatched by identity and only when the old and new records
-/// explicitly state lesson name, instructor and academic department. A
-/// many-to-one or one-to-many candidate set remains ambiguous and is never
+/// records left unmatched by identity, and only when the old and new records
+/// explicitly state a lesson name and an instructor.
+/// <para>
+/// The academic department participates only when both records name exactly one,
+/// which is the strong case. When the source names none, or names several for an
+/// integrated session, the match is made on title and instructor against a
+/// higher composite bar (ADR-035 as amended). Which basis was used is visible on
+/// the entry: <c>DepartmentScore</c> is null for a match made without one.
+/// </para>
+/// A many-to-one or one-to-many candidate set remains ambiguous and is never
 /// converted into a destructive delete-and-create pair.
 /// </remarks>
 public sealed class SemanticScheduleDiffer
@@ -177,9 +184,7 @@ public sealed class SemanticScheduleDiffer
         if (string.IsNullOrWhiteSpace(previousTitle)
             || string.IsNullOrWhiteSpace(currentTitle)
             || string.IsNullOrWhiteSpace(previous.Instructor)
-            || string.IsNullOrWhiteSpace(current.Instructor)
-            || string.IsNullOrWhiteSpace(previous.Department)
-            || string.IsNullOrWhiteSpace(current.Department))
+            || string.IsNullOrWhiteSpace(current.Instructor))
         {
             candidate = null!;
             return false;
@@ -187,17 +192,44 @@ public sealed class SemanticScheduleDiffer
 
         decimal title = Similarity(previousTitle, currentTitle);
         decimal instructor = Similarity(previous.Instructor, current.Instructor);
-        decimal department = Similarity(previous.Department, current.Department);
+
+        if (title < options.MinimumTitleSimilarity
+            || instructor < options.MinimumInstructorSimilarity)
+        {
+            candidate = null!;
+            return false;
+        }
+
+        return TryScoreWithDepartment(previous, current, title, instructor, out candidate)
+            || TryScoreWithoutDepartment(previous, current, title, instructor, out candidate);
+    }
+
+    private bool TryScoreWithDepartment(
+        CanonicalScheduleRecord previous,
+        CanonicalScheduleRecord current,
+        decimal title,
+        decimal instructor,
+        out SecondaryCandidate candidate)
+    {
+        candidate = null!;
+
+        // Only one named department on each side is comparable. None and several
+        // both fall through to the two-attribute rule rather than being refused,
+        // because refusing would mean deleting and recreating the lesson.
+        if (previous.ComparableDepartment is not { } previousDepartment
+            || current.ComparableDepartment is not { } currentDepartment)
+        {
+            return false;
+        }
+
+        decimal department = Similarity(previousDepartment, currentDepartment);
         decimal composite = (title * options.TitleWeight)
             + (instructor * options.InstructorWeight)
             + (department * options.DepartmentWeight);
 
-        if (title < options.MinimumTitleSimilarity
-            || instructor < options.MinimumInstructorSimilarity
-            || department < options.MinimumDepartmentSimilarity
+        if (department < options.MinimumDepartmentSimilarity
             || composite < options.MinimumCompositeSimilarity)
         {
-            candidate = null!;
             return false;
         }
 
@@ -208,6 +240,43 @@ public sealed class SemanticScheduleDiffer
             decimal.Round(title, 4, MidpointRounding.ToEven),
             decimal.Round(instructor, 4, MidpointRounding.ToEven),
             decimal.Round(department, 4, MidpointRounding.ToEven));
+        return true;
+    }
+
+    private bool TryScoreWithoutDepartment(
+        CanonicalScheduleRecord previous,
+        CanonicalScheduleRecord current,
+        decimal title,
+        decimal instructor,
+        out SecondaryCandidate candidate)
+    {
+        candidate = null!;
+
+        // A record that names one department is not matched against one that
+        // names a different single department: that pair was already offered to
+        // the stronger rule and refused, and re-scoring it without the attribute
+        // that disagreed would turn a rejection into a match.
+        if (previous.ComparableDepartment is not null && current.ComparableDepartment is not null)
+        {
+            return false;
+        }
+
+        decimal weight = options.TitleWeight + options.InstructorWeight;
+        decimal composite = ((title * options.TitleWeight) + (instructor * options.InstructorWeight))
+            / weight;
+
+        if (composite < options.MinimumCompositeSimilarityWithoutDepartment)
+        {
+            return false;
+        }
+
+        candidate = new SecondaryCandidate(
+            previous,
+            current,
+            decimal.Round(composite, 4, MidpointRounding.ToEven),
+            decimal.Round(title, 4, MidpointRounding.ToEven),
+            decimal.Round(instructor, 4, MidpointRounding.ToEven),
+            DepartmentScore: null);
         return true;
     }
 
@@ -336,7 +405,7 @@ public sealed class SemanticScheduleDiffer
         decimal CompositeScore,
         decimal TitleScore,
         decimal InstructorScore,
-        decimal DepartmentScore)
+        decimal? DepartmentScore)
     {
         public ScheduleDiffEntry ToEntry(ScheduleDiffChange change) => new()
         {

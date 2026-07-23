@@ -342,6 +342,52 @@ def test_identity_ignores_room_and_instructor_but_content_does_not() -> None:
     assert moved.content_hash != first.content_hash
 
 
+def test_the_block_cell_publishes_a_curriculum_block_and_a_department() -> None:
+    candidate = parse([worksheet(lesson_row(1))]).candidates[0]
+
+    assert candidate.curriculum_block == "HÜCRE DİLİMİ"
+    assert candidate.departments == ["TIBBİ BİYOLOJİ AD."]
+
+
+def test_an_integrated_session_publishes_every_department_it_names() -> None:
+    row = lesson_row(1, block="HÜCRE DİLİMİ / BİYOFİZİK AD. - TIBBİ BİYOLOJİ AD.")
+    response = parse([worksheet(row)])
+
+    assert response.candidates[0].departments == ["BİYOFİZİK AD.", "TIBBİ BİYOLOJİ AD."]
+    assert metrics(response)["departments.integratedSession"] == 1.0
+
+
+def test_a_block_segment_that_names_no_department_is_reported_once() -> None:
+    rows = [
+        *lesson_row(1, block="DOKU DİLİMİ / DİKEY KORİDOR"),
+        *lesson_row(2, date_serial=DATE_SERIAL + 1, block="DOKU DİLİMİ / DİKEY KORİDOR"),
+    ]
+    response = parse([worksheet(rows)])
+
+    assert [candidate.departments for candidate in response.candidates] == [[], []]
+    assert metrics(response)["departments.ignored.unmarkedSegment"] == 2.0
+
+    # Two rows, one note: the same wording repeats on dozens of real rows, and a
+    # note per row would bury the finding it is meant to surface.
+    notes = [
+        warning for warning in response.warnings if warning.code == "unmarkedBlockDepartmentSegment"
+    ]
+    assert len(notes) == 1
+    assert notes[0].severity is ParserWarningSeverity.INFORMATION
+    assert notes[0].evidence is not None
+
+
+def test_a_corrected_department_updates_the_lesson_instead_of_replacing_it() -> None:
+    """Departments are content, not identity: a fix must not orphan the event."""
+    first = parse([worksheet(lesson_row(1))]).candidates[0]
+    corrected = parse(
+        [worksheet(lesson_row(1, block="HÜCRE DİLİMİ / TIBBİ BİYOKİMYA AD."))]
+    ).candidates[0]
+
+    assert corrected.stable_identity == first.stable_identity
+    assert corrected.content_hash != first.content_hash
+
+
 def test_identity_changes_when_the_lesson_moves_to_another_day() -> None:
     first = parse([worksheet(lesson_row(1))]).candidates[0]
     later = parse([worksheet(lesson_row(1, date_serial=DATE_SERIAL + 1))]).candidates[0]

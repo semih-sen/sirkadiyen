@@ -1154,7 +1154,8 @@ added after real operator authentication exists.
 
 ## ADR-035: Secondary matching uses title, instructor and academic department
 
-**Status:** Accepted
+**Status:** Accepted, amended 2026-07-23 (see the amendment at the end of this
+entry; the department is no longer a precondition)
 **Date:** 2026-07-22
 **Implements:** semantic diff model, pure matching engine, persistence and
 post-publication orchestration
@@ -1210,6 +1211,56 @@ must never become delete-and-create automatically.
 - Existing canonical records have null `Department` after the additive
   migration and remain safely ineligible until a future parsed revision states
   it.
+
+### Amendment 2026-07-23: the department is evidence, not a precondition
+
+**Status:** Accepted
+**Supersedes:** the requirement above that all three attributes be present
+
+The original rule was written expecting the department to be present on most
+records. Fixture evidence says otherwise. Of the candidates the two committed
+Grade 1 annual workbooks publish, 419 of 901 Turkish and 417 of 953 English name
+a department at all — under half. Eleven candidates per source name *several*,
+because an integrated session is taught by two to four departments, and a list is
+not a comparable value: two integrated sessions that share one department out of
+three are not the same lesson, and comparing the joined text would score them as
+nearly identical.
+
+Requiring the attribute therefore meant that most lessons whose time moved would
+reach the calendar as a delete followed by a create — exactly the outcome this
+ADR exists to prevent — and, through ADR-040, would hold the diff on the deletion
+count.
+
+The rule is now two-tier. Structural compatibility, the per-attribute title and
+instructor minima, and the uniqueness requirement are unchanged.
+
+1. **With a department.** When both records name exactly one department, score all
+   three attributes against the thresholds above.
+2. **Without a comparable department.** When either record names none, or names
+   several, score title and instructor with their weights renormalized to sum to
+   one, and require a composite of at least `0.94`.
+
+A pair where both records name exactly one department but disagree about it is
+*not* re-scored by the second rule. It was already offered to the stronger rule
+and refused, and re-scoring it without the attribute that disagreed would turn a
+rejection into a match.
+
+`DepartmentScore` on the diff entry is null exactly when the second rule was
+used, so a consumer and an operator reviewing a held diff can tell the weaker
+basis from the stronger one. The composite threshold without a department is
+configuration-validated to be at least the one with a department, so no operator
+can make weaker evidence easier to satisfy.
+
+**Consequences**
+
+- Every lesson with a stable title and instructor survives a time change as an
+  `Updated`, whether or not its source names a department.
+- The weaker rule demands near-identical title and instructor: with an identical
+  instructor, a title similarity below about `0.90` is refused.
+- The department still strengthens a match and still blocks one when two single
+  departments disagree.
+- An integrated session is matched without its department list, and the list is
+  kept for display (ADR-049).
 
 ---
 
@@ -1565,9 +1616,9 @@ configuration.
 
 ## ADR-045: Bootstrap administration with one Google SuperAdmin identity
 
-**Status:** Accepted
+**Status:** Accepted, amended 2026-07-23 with the address and the role column
 **Date:** 2026-07-23
-**Implements:** not yet; the exact email address is still required
+**Implements:** not yet; blocked only on Google sign-in existing
 **Amends:** ADR-032, ADR-034 and ADR-042 operator identity follow-up
 
 ### Context
@@ -1596,6 +1647,31 @@ removed.
   inferred from Git configuration, a service account or a client request.
 - Adding a second operator or another role is a later explicit decision and data
   migration, not a comma-separated client setting.
+
+### Amendment 2026-07-23: the address, and the users table carries a role
+
+**Status:** Accepted
+
+The bootstrap address is `halil.semih.sen@gmail.com`, normalized and required to
+be Google-verified. It is a backend-owned literal, not configuration a client can
+influence.
+
+This is explicitly not a permanently single-operator system. The `users` table
+will carry an explicit `role` column from the moment it is created, so the
+bootstrap allowlist grants that role rather than standing in for one. The literal
+is then the seed for the first row, not the authorization mechanism, and a second
+operator becomes a data change instead of a code change.
+
+What stays deferred is only the role *editor* and general RBAC: no delegated
+administration, no permission matrix, no role-management UI in the first release.
+
+**Consequences**
+
+- `ApprovedBy`, `ReleasedBy` and every freeze transition can record a verified
+  identity as soon as sign-in exists; until then they remain claims guarded by
+  the shared key.
+- The identity work is no longer blocked on a decision. It is blocked on Google
+  sign-in, which is Phase 2 work.
 
 ---
 
@@ -1632,7 +1708,9 @@ Google Calendar.
 
 **Status:** Accepted
 **Date:** 2026-07-23
-**Implements:** not yet
+**Implements:** parser contract, canonical domain model, persistence and both
+implemented Grade 1 profiles, 2026-07-23. The annual profiles read it from the
+same cell as the department, so it shipped together with ADR-049.
 
 ### Context
 
@@ -1655,6 +1733,19 @@ from the course title.
 - Profiles that do not state a block keep it null.
 - Parser fixtures and migrations must add the field before Calendar
   synchronization consumes it.
+
+### Implementation note 2026-07-23
+
+The annual profiles read the block from the first slash-separated segment of the
+`DİLİM ADI / ANABİLİM DALI` cell, verbatim, including compound values the source
+writes such as `DOKU + HAREKET-1 DİLİMİ`. The practice profile reads it from the
+merged block heading above each rotation table. 611 of 901 Turkish and 547 of 953
+English annual candidates state one.
+
+Replacing the raw block cell in the content hash with the split fields changed
+every content hash. That was done deliberately now, while no student calendar
+exists: after launch the same change would patch every managed event for every
+user.
 
 ---
 
@@ -1696,3 +1787,132 @@ captured.
 - A new cohort in a future workbook is held for review rather than silently
   accepted.
 - Fixture refresh is part of each academic-year rollover.
+
+---
+
+## ADR-049: A department is read only from an explicit marker, and all of them are kept
+
+**Status:** Accepted
+**Date:** 2026-07-23
+**Implements:** shared parser primitive, parser contract, canonical domain model,
+persistence and both implemented Grade 1 profiles
+**Relates to:** ADR-035 as amended, ADR-047
+
+### Context
+
+`Department` existed on the canonical record and was a precondition for ADR-035
+secondary matching, but nothing could ever populate it: the parser contract had
+no such field, so every record ever produced had it null. The whole
+secondary-matching path was therefore unreachable in production while passing its
+own unit tests, which construct records directly.
+
+The sources do state the department. The Grade 1 Turkish annual header is
+`DİLİM ADI / ANABİLİM DALI` — block name, then owning department — and the
+English workbook uses the same convention under a generic `Description` header
+with Turkish department names.
+
+Splitting that cell on the slash would fabricate departments. The sources also
+write a second curriculum block, a nested block name or a whole faculty after it:
+`YAŞAMIN MOLEKÜLER TEMELLERİ DİLİMİ / DİKEY KORİDOR` names no department, and
+`HAYATIN EVRELERİ DİLİMİ / DİŞ HEKİMLİĞİ FAKÜLTESİ` names a faculty. A naive
+split would have invented a department for 29 Turkish and 10 English rows.
+
+### Decision
+
+A slash-separated segment becomes a department only when it carries an explicit
+marker: `AD.`, `A.D.` or `ANABİLİM DALI`, compared on the folded comparison key,
+optionally followed by a parenthesised sub-department. The sub-department is kept
+verbatim — `İÇ HASTALIKLARI AD. (ENDOKRİNOLOJİ BD.)` is one department, because
+that is what the cell states.
+
+The first segment is the curriculum block (ADR-047), unless it carries a marker
+itself, in which case the cell states a department and no block.
+
+The canonical record carries **every** department the source names, in source
+order, as a required list that is empty when none was named. An integrated
+session ("entegre oturum") is taught by several and a student must see all of
+them.
+
+Within a segment that carries at least one marker, the source is enumerating
+departments, so an unmarked member of that dashed list is kept too, at reduced
+confidence with a confidence indicator naming the rule. That is a rule about the
+list the source wrote, not an inference about the words in it. It affects two
+candidates per annual source today and is what keeps `İÇ HASTALIKLARI HEMATOLOJİ`
+visible in `BİYOFİZİK AD. - TIBBİ BİYOLOJİ AD. - İÇ HASTALIKLARI HEMATOLOJİ`.
+
+A segment with no marker anywhere in it is never a department. It is counted in
+`departments.ignored.unmarkedSegment` and reported once per distinct wording as
+an informational finding with the address of the first cell that carries it, so
+widening the rule later starts from evidence.
+
+Departments are content, not identity: a corrected department updates the existing
+logical lesson.
+
+### Consequences
+
+- Secondary matching can now actually use a department, and ADR-035's amended
+  two-tier rule decides when it is comparable.
+- A department the source states without a marker — `TIBBİ EKOLOJİ VE
+  HİDROKLİMATOLOJİ` — is deliberately not published. Publishing it would make the
+  rule depend on knowing Turkish faculty structure rather than on the cell.
+- The practice profile states no department: its columns are practice subjects,
+  and reading one as a department would be an inference.
+- The single `Department` column is replaced by a `Departments` JSONB list. The
+  migration carries any existing single value into the list before dropping the
+  column, even though no row can hold one.
+- A future profile whose source marks departments differently adds an alias to
+  this rule with its fixture, and does not weaken the marker requirement.
+
+---
+
+## ADR-050: A parse run left running past a timeout is recovered, not abandoned
+
+**Status:** Accepted
+**Date:** 2026-07-23
+**Implements:** domain boundary, persistence path, worker logging and
+configuration
+
+### Context
+
+A parse run is keyed by snapshot, parser profile and profile version, and
+`Resume` accepted only a `Failed` run. A worker killed mid-parse — a deploy, a
+crash, a lost host — therefore left the run `Running` forever with no lease,
+heartbeat or timeout anywhere. Every later cycle reported `ParseAlreadyRunning`
+for that snapshot and did nothing.
+
+Because the key includes the snapshot, the source recovered only when its content
+next changed. A schedule change captured in the wedged snapshot was silently never
+published until the faculty edited the workbook again, which can be days. That
+violates the rule that every background job must be safe to retry.
+
+### Decision
+
+A run is stale when it is `Running` and has been open at least
+`SIRKADIYEN_PARSER__STALE_RUN_TIMEOUT`, default 30 minutes. A stale run is
+recovered in place: same run, new correlation ID, `AttemptCount` incremented, and
+`LastStaleRecoveryAtUtc` recorded and never cleared by a later resume.
+
+Recovery reuses the run rather than creating a second one. The run is the logical
+execution of one profile version against one snapshot, and a duplicate would break
+that uniqueness and could produce a second revision for the same snapshot.
+
+The timeout is the caller's policy, passed into the store, not a constant inside
+it. It must stay well above the parser transport timeout.
+
+Recovery is not silent: the poll result carries `ParseRunStartKind.RecoveredStale`
+and the worker logs a warning, because a recovered run says something about the
+host rather than about the source.
+
+### Consequences
+
+- A killed worker costs one cycle, not an unbounded wait for the source to change.
+- If the original worker was merely slow rather than dead and answers after
+  recovery, its response is rejected because the correlation ID no longer matches
+  the run. No duplicate revision can be created; the attempt is wasted and looks
+  like a transport fault, which is why the default timeout leaves a wide margin.
+- Two workers recovering the same run at once may both increment the attempt
+  count and both call the parser. Only one response can complete the run. There
+  is no row version on `parse_runs` yet; the worker processes sources sequentially
+  and avoids overlapping cycles, so this needs a second worker instance to occur.
+- A run that failed and was recorded as failed keeps using the existing resume
+  path, and is never treated as stale.

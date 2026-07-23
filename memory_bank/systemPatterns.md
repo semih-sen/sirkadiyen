@@ -241,6 +241,13 @@ breaks with explicit dates use the all-day shape and never receive invented
 times. `CurriculumBlock` is nullable and populated only when the source states a
 block; it is content, not stable identity or audience (ADR-047).
 
+`Departments` is a required list, empty when the source names none, holding every
+academic department the source explicitly marked, in source order (ADR-049). An
+integrated session names several and all of them are kept, because a student has
+to see who teaches the session. A list is not a comparable value, so matching uses
+this field only when both records name exactly one; the domain exposes that as
+`ComparableDepartment`. Departments are content, not identity.
+
 ## 8. Stable identity pattern
 
 A stable identity identifies the logical lesson across revisions.
@@ -340,14 +347,23 @@ Diff uses:
 1. exact stable identity match
 2. content hash comparison
 3. deterministic secondary matching for unmatched records using normalized
-   lesson title, instructor and explicitly sourced academic department
+   lesson title and instructor, strengthened by the academic department when the
+   source states exactly one on both sides
 4. ambiguity quarantine
 
 Secondary matching is limited to records with the same source, academic
-context, local date, event type, status, audience and timezone. All three
-matching attributes must exist on both sides and cross their individual
-similarity thresholds plus the composite threshold (ADR-035). A one-to-many or
-many-to-one candidate set is always ambiguous.
+context, local date, event type, status, audience and timezone. Title and
+instructor must exist on both sides and cross their individual thresholds.
+
+The department is evidence, not a precondition (ADR-035 as amended): under half of
+the lessons the sources publish name one, and an integrated session names several,
+which is not comparable. When both records name exactly one, all three attributes
+are scored against the composite threshold. Otherwise title and instructor are
+renormalized and must clear a higher composite bar, and the entry records a null
+department score so the weaker basis stays visible. Two records that each name one
+department and disagree are never re-scored without it.
+
+A one-to-many or many-to-one candidate set is always ambiguous.
 
 Output:
 

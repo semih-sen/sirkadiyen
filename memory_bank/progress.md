@@ -35,7 +35,8 @@
 - [x] Define parser request and response contracts
 - [x] Define canonical schedule model
 - [ ] Add all-day canonical schedule items for holidays and semester breaks (ADR-046)
-- [ ] Add canonical curriculum block with explicit source provenance (ADR-047)
+- [x] Add canonical curriculum block with explicit source provenance (ADR-047)
+- [x] Add the canonical academic department list with an explicit marker rule (ADR-049)
 - [x] Define schedule revision model
 - [x] Define semantic diff model
 - [ ] Define user calendar event mapping
@@ -139,6 +140,7 @@
 - [x] Decide forward-fix policy; no rollback operation (ADR-033)
 - [x] Add validation regression tests
 - [x] Implement bounded snapshot payload retention and cleanup (ADR-044)
+- [x] Recover parse runs left running by an abrupt worker shutdown (ADR-050)
 
 ## Phase 8: Semantic diff
 
@@ -150,7 +152,8 @@
 - [x] Implement created/updated/deleted classification
 - [x] Add mass-deletion safety guard (validation rule and diff dispatch gate)
 - [x] Add semantic diff test matrix
-- [ ] Populate canonical Department in profiles whose source explicitly states it
+- [x] Populate canonical departments in profiles whose source explicitly states them
+- [x] Match a moved lesson without a comparable department (ADR-035 amendment)
 - [x] Persist semantic diffs
 - [x] Calculate and store a diff after publication
 - [x] Provide an operator path for releasing a held diff (ADR-042)
@@ -235,13 +238,20 @@ active academic year, the latest content, the last ten days of changes, and
 parser-recovery inputs while pruning only expired normalized JSON (ADR-044).
 Metadata and the entire parse/revision/diff trail remain.
 
-The next implementation step is to survey parser profiles for explicitly stated
-academic departments and populate canonical `Department` only where the source
-provides it. Without that data, historical and current records safely skip
-secondary matching. The newly accepted all-day item shape and canonical
-`CurriculumBlock` (ADR-046, ADR-047) then close known canonical-model gaps before
-the consumer side begins with user/profile modeling and affected-user resolution
-over `Ready` and `Released` diffs.
+Semantic secondary matching now works in production. It previously could not:
+`Department` gated it and no parser could populate the field, so every lesson
+whose time moved became a delete plus a create. The annual
+`DİLİM ADI / ANABİLİM DALI` cell is now split into canonical `CurriculumBlock` and
+a `Departments` list under an explicit marker rule (ADR-047, ADR-049), and ADR-035
+is amended so a lesson with no comparable department is still matched on title and
+instructor against a higher bar. Parse runs left running by a killed worker are
+recovered after a timeout instead of wedging their snapshot (ADR-050).
+
+The next implementation step is the per-profile date-format declaration, then
+all-day holidays and semester breaks (ADR-046), which is the last known
+canonical-model gap. After that the consumer side begins with identity, the
+`users` table with its explicit `role` column and the ADR-045 SuperAdmin
+bootstrap, then affected-user resolution over `Ready` and `Released` diffs.
 
 There is deliberately no rollback (ADR-033). A bad publication is corrected at
 the authoritative source and reaches calendars as a newer forward-fix revision.
@@ -254,10 +264,11 @@ One parser-safety item blocks on implementation rather than discussion:
 - per-profile declaration of date format, replacing the global day-first
   assumption that would silently misparse a month-first source
 
-The initial operator model is also decided: one Google-verified SuperAdmin
-email (ADR-045). Its exact address must be supplied before the shared key can be
-removed.
+The initial operator model is fully decided: one Google-verified SuperAdmin,
+`halil.semih.sen@gmail.com`, granted through an explicit `role` column on the
+future `users` table (ADR-045 as amended). It is no longer blocked on a decision,
+only on Google sign-in existing.
 
 The Google source credential is resolved; a service account is configured.
-Drive/HTTP acquisition adapters, DOCX conversion, recovery of stale `Running`
-parse runs, and the remaining 17 parser profiles are still required.
+Drive/HTTP acquisition adapters, DOCX conversion and the remaining 17 parser
+profiles are still required.

@@ -104,6 +104,19 @@ public sealed record CanonicalScheduleCandidate
 
     public string? Location { get; init; }
 
+    /// <summary>
+    /// The curriculum block the lesson belongs to, when the source states it
+    /// (ADR-047). Never derived from the lesson title.
+    /// </summary>
+    public string? CurriculumBlock { get; init; }
+
+    /// <summary>
+    /// Every academic department the source explicitly names, in source order
+    /// (ADR-049). An integrated session names several; empty means the source
+    /// named none.
+    /// </summary>
+    public IReadOnlyList<string> Departments { get; init; } = [];
+
     public required string StableIdentity { get; init; }
 
     public required string ContentHash { get; init; }
