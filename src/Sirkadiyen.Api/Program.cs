@@ -1,8 +1,20 @@
+using System.Security.Claims;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Sirkadiyen.Api.Administration;
+using Sirkadiyen.Api.Identity;
+using Sirkadiyen.Api.Licensing;
+using Sirkadiyen.Api.Onboarding;
+using Sirkadiyen.Application.Identity;
+using Sirkadiyen.Application.Licensing;
+using Sirkadiyen.Application.Onboarding;
 using Sirkadiyen.Application.ScheduleDiffing;
 using Sirkadiyen.Application.SchedulePublication;
+using Sirkadiyen.Domain.Identity;
 using Sirkadiyen.Infrastructure.Configuration;
+using Sirkadiyen.Infrastructure.Google;
+using Sirkadiyen.Infrastructure.Licensing;
 using Sirkadiyen.Infrastructure.Persistence;
 
 // Before the builder, because the environment-variable provider reads the
@@ -16,10 +28,13 @@ string connectionString = Required(
     builder.Configuration,
     "SIRKADIYEN_DATABASE:CONNECTION_STRING");
 
-// Required rather than optional. The administrative endpoints can push a
-// quarantined schedule into student calendars, so an unset key must stop the
-// process from starting instead of silently leaving them open.
-string adminApiKey = Required(builder.Configuration, "SIRKADIYEN_ADMIN:API_KEY");
+string googleAuthClientId = Required(
+    builder.Configuration,
+    "SIRKADIYEN_GOOGLE:AUTH_CLIENT_ID");
+
+string licenseHashKey = Required(
+    builder.Configuration,
+    "SIRKADIYEN_LICENSING:HASH_KEY");
 
 builder.Services.AddProblemDetails();
 
@@ -31,8 +46,58 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 builder.Services.AddHealthChecks();
 builder.Services.AddOpenApi();
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddSingleton(new AdminApiOptions { ApiKey = adminApiKey });
-builder.Services.AddScoped<AdminApiKeyFilter>();
+builder.Services.AddSingleton(new GoogleSignInOptions { ClientId = googleAuthClientId });
+builder.Services.AddSingleton(LicenseCodeOptions.FromBase64(licenseHashKey));
+builder.Services.AddSingleton<ILicenseCodeService, LicenseCodeService>();
+builder.Services.AddScoped<IGoogleIdentityVerifier, GoogleIdentityVerifier>();
+builder.Services.AddScoped<GoogleSignInService>();
+builder.Services.AddScoped<LicenseService>();
+builder.Services.AddScoped<OnboardingStateService>();
+builder.Services.AddScoped<SirkadiyenCookieAuthenticationEvents>();
+builder.Services
+    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(AuthenticationConfiguration.ConfigureCookie);
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(
+        AuthorizationPolicies.SuperAdmin,
+        policy => policy.RequireRole(UserRole.SuperAdmin.ToString()));
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = AuthenticationConfiguration.AntiforgeryHeaderName;
+    options.Cookie.Name = AuthenticationConfiguration.AntiforgeryCookieName;
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Strict;
+    options.Cookie.Path = "/";
+    options.Cookie.IsEssential = true;
+});
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy(
+        RateLimitingPolicies.GoogleSignIn,
+        context => RateLimitPartition.GetFixedWindowLimiter(
+            context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            static _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true,
+            }));
+    options.AddPolicy(
+        RateLimitingPolicies.LicenseRedemption,
+        context => RateLimitPartition.GetFixedWindowLimiter(
+            $"{context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous"}:"
+                + $"{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}",
+            static _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 5,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true,
+            }));
+});
 builder.Services.AddScoped<ScheduleRevisionPublicationService>();
 builder.Services.AddScoped<ScheduleDiffReviewService>();
 builder.Services.AddSirkadiyenPersistence(connectionString);
@@ -40,8 +105,15 @@ builder.Services.AddSirkadiyenPersistence(connectionString);
 var app = builder.Build();
 
 app.UseExceptionHandler();
+app.UseAuthentication();
+app.UseRateLimiter();
+app.UseAuthorization();
+app.UseAntiforgery();
 app.MapHealthChecks("/health");
 app.MapOpenApi();
+app.MapAuthenticationEndpoints();
+app.MapLicenseEndpoints();
+app.MapOnboardingEndpoints();
 app.MapRevisionEndpoints();
 app.MapDiffEndpoints();
 app.MapOperationalEndpoints();

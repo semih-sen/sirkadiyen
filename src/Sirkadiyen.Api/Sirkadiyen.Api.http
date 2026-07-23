@@ -1,43 +1,113 @@
-@host = http://localhost:5080
-@adminKey = {{$dotenv SIRKADIYEN_ADMIN__API_KEY}}
+@host = https://localhost:7080
+@googleCredential = paste-a-fresh-google-identity-services-credential
 
-### The revisions validation is holding for review.
-GET {{host}}/api/revisions?state=ReviewRequired&limit=50
-X-Admin-Api-Key: {{adminKey}}
+### Issue a CSRF token. The HTTP client keeps the paired cookie.
+# @name csrf
+GET {{host}}/api/auth/csrf
 
-### One revision with the findings that explain its state.
-GET {{host}}/api/revisions/00000000-0000-0000-0000-000000000000
-X-Admin-Api-Key: {{adminKey}}
+###
+@csrfToken = {{csrf.response.body.$.requestToken}}
 
-### Approve a quarantined revision and publish it.
-### Both fields are stored against the revision as its audit trail.
-POST {{host}}/api/revisions/00000000-0000-0000-0000-000000000000/approve
-X-Admin-Api-Key: {{adminKey}}
+### Exchange a fresh Google ID credential for the secure local session.
+POST {{host}}/api/auth/google
+X-CSRF-TOKEN: {{csrfToken}}
 Content-Type: application/json
 
 {
-  "approvedBy": "semih",
+  "credential": "{{googleCredential}}"
+}
+
+### The local user and current onboarding state.
+GET {{host}}/api/auth/me
+
+### Authoritative resumable onboarding details.
+GET {{host}}/api/onboarding
+
+### Redeem a single-use license.
+POST {{host}}/api/licenses/redeem
+X-CSRF-TOKEN: {{csrfToken}}
+Content-Type: application/json
+
+{
+  "code": "SRK-XXXXX-XXXXX"
+}
+
+### SuperAdmin: create a code. The plaintext response is shown only once.
+POST {{host}}/api/admin/licenses
+X-CSRF-TOKEN: {{csrfToken}}
+Content-Type: application/json
+
+{
+  "expiresAtUtc": "2026-08-31T20:59:59Z",
+  "notes": "2026 incoming cohort"
+}
+
+### SuperAdmin: revoke without deleting the user's calendar or events.
+POST {{host}}/api/admin/licenses/00000000-0000-0000-0000-000000000000/revoke
+X-CSRF-TOKEN: {{csrfToken}}
+Content-Type: application/json
+
+{
+  "reason": "Administrative revocation."
+}
+
+### SuperAdmin: activate an existing user without generating a code.
+POST {{host}}/api/admin/users/00000000-0000-0000-0000-000000000000/activate
+X-CSRF-TOKEN: {{csrfToken}}
+Content-Type: application/json
+
+{
+  "reason": "Activation confirmed manually through the administration panel."
+}
+
+### SuperAdmin: inspect and change the global operational freeze.
+GET {{host}}/api/operations/freeze
+
+###
+POST {{host}}/api/operations/freeze
+X-CSRF-TOKEN: {{csrfToken}}
+Content-Type: application/json
+
+{
+  "isFrozen": true,
+  "reason": "Unexpected source structure is under investigation."
+}
+
+### The revisions validation is holding for review.
+GET {{host}}/api/revisions?state=ReviewRequired&limit=50
+
+### One revision with the findings that explain its state.
+GET {{host}}/api/revisions/00000000-0000-0000-0000-000000000000
+
+### Approve a quarantined revision and publish it.
+### The actor comes from the verified SuperAdmin session.
+POST {{host}}/api/revisions/00000000-0000-0000-0000-000000000000/approve
+X-CSRF-TOKEN: {{csrfToken}}
+Content-Type: application/json
+
+{
   "approvalReason": "Checked the source: the drop is the exam period, not a parse fault."
 }
 
 ### The diffs the dispatch gate is holding.
 GET {{host}}/api/diffs?state=Held&limit=50
-X-Admin-Api-Key: {{adminKey}}
 
 ### One diff with the changes behind its hold, deletions first.
 GET {{host}}/api/diffs/00000000-0000-0000-0000-000000000000?entryLimit=100
-X-Admin-Api-Key: {{adminKey}}
 
 ### Release a held diff for dispatch.
 ### Refused with 409 when the hold is ambiguity: that is fixed at the source.
 POST {{host}}/api/diffs/00000000-0000-0000-0000-000000000000/release
-X-Admin-Api-Key: {{adminKey}}
+X-CSRF-TOKEN: {{csrfToken}}
 Content-Type: application/json
 
 {
-  "releasedBy": "semih",
   "releaseReason": "Checked the source: the 38 deleted lessons are the ended anatomy block."
 }
+
+### End the local session.
+POST {{host}}/api/auth/logout
+X-CSRF-TOKEN: {{csrfToken}}
 
 ### The OpenAPI document, for importing into Postman.
 GET {{host}}/openapi/v1.json

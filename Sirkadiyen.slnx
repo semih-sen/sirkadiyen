@@ -8,6 +8,7 @@
     <Project Path="src/Sirkadiyen.Worker/Sirkadiyen.Worker.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Sirkadiyen.Api.UnitTests/Sirkadiyen.Api.UnitTests.csproj" />
     <Project Path="tests/Sirkadiyen.Contracts.UnitTests/Sirkadiyen.Contracts.UnitTests.csproj" />
     <Project Path="tests/Sirkadiyen.Infrastructure.UnitTests/Sirkadiyen.Infrastructure.UnitTests.csproj" />
     <Project Path="tests/Sirkadiyen.Persistence.Tests/Sirkadiyen.Persistence.Tests.csproj" />

@@ -25,8 +25,8 @@
 
 ## Phase 1: Domain and contracts
 
-- [ ] Define user entity and onboarding states
-- [ ] Define license entity and state transitions
+- [~] Define user entity and onboarding states (user and license-derived states complete; profile/Calendar states pending)
+- [x] Define license entity and state transitions
 - [ ] Define student profile model
 - [ ] Define supported profile option model
 - [ ] Define Google connection model
@@ -45,24 +45,24 @@
 
 ## Phase 2: Authentication and licensing
 
-- [ ] Implement Google sign-in
-- [ ] Implement local user creation
-- [ ] Implement secure session
-- [ ] Implement admin role authorization
-- [ ] Implement license generation
-- [ ] Implement secure license hashing
-- [ ] Implement license redemption transaction
-- [ ] Implement license revocation
-- [ ] Add rate limiting
-- [ ] Add audit logging
-- [ ] Add concurrency tests
+- [x] Implement Google sign-in
+- [x] Implement local user creation
+- [x] Implement secure session
+- [x] Implement admin role authorization
+- [x] Implement license generation
+- [x] Implement secure license hashing
+- [x] Implement license redemption transaction
+- [x] Implement license revocation
+- [x] Add authentication-adjacent rate limiting
+- [x] Add license audit logging
+- [x] Add license concurrency tests
 
 ## Phase 3: Student onboarding
 
 - [ ] Implement dynamic profile schema
 - [ ] Implement supported option administration
 - [ ] Implement profile validation
-- [ ] Implement resumable onboarding
+- [~] Implement resumable onboarding (license-required, profile-required and suspended states complete)
 - [ ] Implement Calendar permission state
 - [ ] Implement initial sync request
 - [ ] Implement user-visible progress state
@@ -181,8 +181,8 @@
 ## Phase 10: Administration and operations
 
 - [x] Implement audited global freeze core and pipeline gates (ADR-034, ADR-043)
-- [ ] Add authenticated freeze/unfreeze administration surface
-- [ ] License administration
+- [x] Add authenticated freeze/unfreeze administration surface
+- [~] License administration (create/revoke/manual activation complete; listing and audit inspection pending)
 - [ ] Source status dashboard
 - [ ] Snapshot inspection
 - [ ] Parser warning review
@@ -226,12 +226,11 @@ through `POST /api/diffs/{id}/release`, which records who took responsibility
 and why — except an ambiguous one, which is only ever fixed at the source
 (ADR-042).
 
-The runtime global freeze is now persisted as one authoritative PostgreSQL row
-with append-only transition audit. It gates acquisition, parse-run admission and
-publication and fails closed when its state cannot be read. The operator-key API
-exposes the state read-only at `GET /api/operations/freeze`; authenticated
-freeze/unfreeze administration remains deliberately deferred until real
-operator identity exists. Future diff dispatch and every Calendar job must use
+The runtime global freeze is persisted as one authoritative PostgreSQL row with
+append-only transition audit. It gates acquisition, parse-run admission and
+publication and fails closed when its state cannot be read. The
+SuperAdmin-protected API reads it and performs CSRF-protected audited
+freeze/unfreeze transitions. Future diff dispatch and every Calendar job must use
 the same gate.
 
 Snapshot payload retention now preserves the first snapshot of the source's
@@ -265,11 +264,14 @@ is amended so a lesson with no comparable department is still matched on title a
 instructor against a higher bar. Parse runs left running by a killed worker are
 recovered after a timeout instead of wedging their snapshot (ADR-050).
 
-The canonical model now has no known gap. The next implementation step is the
-consumer side: identity, the `users` table with its explicit `role` column and the
-ADR-045 SuperAdmin bootstrap, then affected-user resolution over `Ready` and
-`Released` diffs. `grade2_yearly_v1` is the next parser profile and needs no new
-canonical field.
+The canonical model now has no known gap. The consumer-side identity and
+activation foundation is implemented: Google sign-in, secure cookie/CSRF
+session, explicit roles, keyed single-use license hashes, transaction-safe
+redemption/revocation, append-only license audits and backend-derived onboarding
+state (ADR-052, ADR-053). The next user slice is the validated student profile;
+after profile and Calendar authorization, affected-user resolution can consume
+`Ready` and `Released` diffs. `grade2_yearly_v1` remains the next parser profile
+and needs no new canonical field.
 
 There is deliberately no rollback (ADR-033). A bad publication is corrected at
 the authoritative source and reaches calendars as a newer forward-fix revision.
@@ -277,10 +279,10 @@ The existing acquisition, parsing and publication boundaries are frozen now;
 diff dispatch and downstream jobs do not exist yet and must be gated as they are
 introduced.
 
-The initial operator model is fully decided: one Google-verified SuperAdmin,
-`halil.semih.sen@gmail.com`, granted through an explicit `role` column on the
-future `users` table (ADR-045 as amended). It is no longer blocked on a decision,
-only on Google sign-in existing.
+The initial operator model is implemented: one Google-verified SuperAdmin,
+`halil.semih.sen@gmail.com`, grants an explicit persisted `role` (ADR-045 as
+amended). The shared key is gone; approval and release derive the actor from the
+verified session.
 
 The Google source credential is resolved; a service account is configured.
 Drive/HTTP acquisition adapters, DOCX conversion and the remaining 17 parser

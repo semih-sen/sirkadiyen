@@ -2,9 +2,13 @@
 
 ## Current phase
 
-Semantic diff complete through persistence and now actually reachable; snapshot
-payload retention complete; parse runs recoverable; every parser reading rule now
-declared rather than assumed; the canonical model has no known gap left.
+The identity and activation foundation is implemented: Google ID credentials are
+verified server-side, users are persisted, browser sessions use secure cookies
+with CSRF protection, single-use licenses activate accounts transactionally, and
+administration is authorized by the explicit `SuperAdmin` role. Onboarding is
+derived through `ProfileRequired` or `Suspended`; student profiles are the next
+user module. Semantic diff remains complete through persistence; nothing
+dispatches it yet.
 
 The Google Sheets path now runs end to end from catalog seeding to a stored
 diff: adaptive polling, immutable snapshot storage, strict parser HTTP calls,
@@ -24,8 +28,8 @@ API, which moves it to `Released` and keeps the reason it was held; an ambiguity
 hold is never releasable and is corrected at the source (ADR-042).
 
 Nothing consumes a diff yet. Affected-user resolution, Drive and HTTP
-acquisition, DOCX conversion, identity, licensing, Calendar sync, and the
-frontend do not exist yet.
+acquisition, DOCX conversion, student profiles, Calendar authorization/sync, and
+the frontend do not exist yet.
 
 The source credential is resolved: a Google service account is configured and the
 worker can reach the real Sheets API.
@@ -42,6 +46,76 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- Replaced new license generation with the WhatsApp-friendly
+  `SRK-XXXXX-XXXXX` format (ADR-054). It omits ambiguous characters, retains 50
+  random bits, and keeps already-issued long `SIRK-...` codes redeemable.
+- Added explicit manual activation for the future admin panel. A SuperAdmin can
+  activate a known Google user with a required reason; the resulting `Manual`
+  license contains no code/hash, starts `Redeemed`, and writes a
+  `ManuallyActivated` audit.
+- Manual activation is idempotent and shares the same partial unique index as
+  code redemption. Real PostgreSQL tests prove a manual request and a code
+  redemption racing for one user still produce exactly one current activation.
+- Migration `AddManualLicenseActivation` backfills existing rows as `Code` and
+  was applied from scratch to `sirkadiyen_test` and incrementally to the local
+  `sirkadiyen` database. Its rollback refuses while manual licenses exist rather
+  than inventing code hashes.
+- Implemented single-use licenses (ADR-053). A high-entropy plaintext code is
+  returned once; PostgreSQL stores only a keyed HMAC-SHA256 hash. Creation,
+  redemption, expiration and revocation append audit rows transactionally.
+- Redemption locks the code row. A partial unique index also admits only one
+  current redeemed license per user, so both same-code/two-user and
+  two-code/same-user races have one winner. Repeating the winning code by its
+  user is idempotent.
+- Added CSRF-protected user redemption and SuperAdmin creation/revocation APIs.
+  Redemption is limited to five attempts per authenticated user and remote
+  address per minute; unavailable codes share one response.
+- Added backend-derived onboarding. No license is `LicenseRequired`, redemption
+  advances to `ProfileRequired`, and later revocation is `Suspended`. Profile,
+  Calendar permission and sync states remain future authoritative inputs.
+- Added the authenticated global freeze/unfreeze endpoint. It derives the actor
+  from the verified SuperAdmin session and calls the existing atomic
+  control-plus-audit store with the HTTP trace correlation ID.
+- Migration `AddSingleUseLicensing` was applied from scratch to
+  `sirkadiyen_test` and incrementally to the local `sirkadiyen` database.
+  PostgreSQL concurrency tests run without skips.
+- All 272 .NET tests pass: 173 unit/API/contract tests and 99 real PostgreSQL
+  tests. Release build has no warnings, EF reports no pending model changes, and
+  HTTPS smoke checks return `200` for health/CSRF and `401` for anonymous
+  onboarding, freeze and license-administration requests.
+
+## Previous identity implementation session
+
+- Added the `User` aggregate and the `users` migration with independent unique
+  constraints for immutable Google subject and normalized verified email,
+  explicit string-backed `role`, UTC sign-in timestamps, and PostgreSQL `xmin`
+  optimistic concurrency.
+- Added the Google Identity Services sign-in boundary (ADR-052). The API validates
+  signature, issuer, audience, expiry and `email_verified`, never persists the ID
+  credential, and refuses automatic linking when one email is already owned by a
+  different Google subject.
+- Added transaction-safe, retry-safe local user creation. Concurrent first
+  callbacks for one Google subject converge on the winning row; a different
+  subject colliding on email remains a conflict.
+- Added `__Host-Sirkadiyen.Session`: HTTP-only, secure, `SameSite=Lax`, eight-hour
+  sliding expiry. Session claims are reloaded from the user row on every request;
+  missing users are signed out and changed claims rotate the cookie.
+- Added a same-site CSRF bootstrap and mandatory anti-forgery validation on Google
+  sign-in, logout, revision approval and diff release.
+- Google sign-in is limited to ten attempts per remote address per minute; license
+  redemption still needs its own limiter when that endpoint exists.
+- Replaced the shared admin API key with the `SuperAdmin` authorization policy.
+  The ADR-045 email grants the explicit persisted role; approval/release actors
+  are now derived from the verified session and no longer accepted from JSON.
+- Added API, application/domain and EF-model tests. 156 unit tests and two
+  database-free persistence model tests pass; the solution builds with no
+  warning, formatting is clean, and an HTTPS smoke test proves health/CSRF,
+  secure cookie flags, and `401` for anonymous user/admin reads. The destructive
+  PostgreSQL fixture was not run because the configured target could not be
+  confirmed as the dedicated `sirkadiyen_tests` database.
+
+## Previous implementation session
 
 - **Holidays and semester breaks publish (ADR-046).** A canonical record is now
   either timed or all-day. 22 Turkish and 11 English rows that were dropped for
@@ -529,9 +603,8 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Immediate objectives
 
-1. Implement Google sign-in and the one-email `SuperAdmin` bootstrap from
-   ADR-045, with an explicit `role` column on `users`, then add the
-   freeze/unfreeze administration surface and replace the shared operator key.
+1. Implement the validated student profile and supported-option schema, then
+   extend derived onboarding beyond `ProfileRequired`.
 2. Implement `grade2_yearly_v1`, which should reuse the annual implementation
    with its own header aliases. Its block/department cell is expected to follow
    the ADR-049 convention, which the fixture must confirm, and its date column
@@ -546,9 +619,8 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
    special-program sources.
 7. Add CI quality gates, including a PostgreSQL service for the integration
    tests.
-8. Model identity, single-use licensing, secure-cookie sessions, flexible
-   student profiles, initial sync, and the dedicated managed calendar from
-   ADR-022 through ADR-027.
+8. Model Calendar authorization, initial sync, and the dedicated managed calendar
+   from ADR-023 through ADR-027.
 
 ## Product gaps
 
@@ -609,13 +681,14 @@ safety nets. A `ReviewRequired` revision reaches publication only through an
 approval that names its approver and states a reason, over the internal API.
 
 Forward-fix without rollback and the global freeze are resolved and implemented
-by ADR-033, ADR-034 and ADR-043. The authenticated write surface remains part of
-the real-operator-authentication work.
+by ADR-033, ADR-034 and ADR-043, including the authenticated audited write
+surface.
 
-The initial operator model is fully decided by ADR-045 as amended: one
-Google-verified SuperAdmin, `halil.semih.sen@gmail.com`, granted through an
-explicit `role` column on the future `users` table. Still needed: Google sign-in
-and the authenticated surface to replace the shared key.
+The initial operator model is implemented from ADR-045 as amended: one
+Google-verified SuperAdmin, `halil.semih.sen@gmail.com`, grants the explicit
+`role` on `users`. Administrative reads, revision approvals and diff releases
+use that policy and derive actors from the authenticated session, including
+freeze/unfreeze and license administration.
 
 ### Profile schema
 
@@ -631,7 +704,11 @@ Still missing: a current Grade 2 English fixture and Grade 3 English fixtures.
 - users may revoke Google authorization
 - concurrent sync jobs may duplicate events without strong idempotency
 - initial sync may hit Google API quotas
-- license brute-force attempts require rate limiting
+- proxy deployments must configure trusted forwarded headers before the
+  authentication and license rate limiters can treat the remote address as the
+  internet client
+- rotating `SIRKADIYEN_LICENSING__HASH_KEY` makes every unredeemed license
+  impossible to look up; rotation needs an explicit invalidation/reissue plan
 - a profile change may require removing and adding many events safely
 - weekly amphitheatre data may conflict with annual schedules
 - the shared resolvers are calibrated against synthetic fixtures only, so real
@@ -694,15 +771,16 @@ Still missing: a current Grade 2 English fixture and Grade 3 English fixtures.
   is absent. Only `G1-TR-PRACTICE` declares its cohorts today
 - overlap detection compares exact selector sets, so a lesson for group `A` and
   one for subgroup `A1` at the same time are not seen as overlapping
-- the administrative API is guarded by a single shared key. Anyone holding it can
-  publish a quarantined schedule into student calendars, and `ApprovedBy` records
-  a claim rather than a verified identity. ADR-045 decides the replacement as
-  one Google SuperAdmin, but the exact email and implementation are still absent;
-  the API must not be publicly exposed until that replacement exists
-- releasing a held diff is guarded only by the shared operator key, and
-  `ReleasedBy` is a claim rather than a verified identity. Releasing is the last
-  gate before calendar deletions, so this is a stronger reason than approval was
-  to replace the key before the calendar adapter exists
+- Google sign-in currently supports the same-site HTTPS browser topology only.
+  A separately hosted frontend must not be enabled until credentialed CORS and
+  the cookie `SameSite` policy are explicitly designed and tested
+- local sessions reload the user row on every authenticated request. This makes
+  role changes immediate and safe, but it adds a database read to the hot path;
+  any later cache must preserve revocation semantics rather than trading them
+  away silently
+- ASP.NET Core Data Protection still uses its host default. A container or
+  multi-instance production deployment needs a shared persistent key ring before
+  sessions can be expected to survive restarts or move between instances
 - the diff gate's deletion share is computed against the previous revision as
   the diff accounted for it. A source that legitimately shrinks — an ended
   semester block — is held on every revision that shrinks it, and each one needs
@@ -716,10 +794,6 @@ Still missing: a current Grade 2 English fixture and Grade 3 English fixtures.
 - pointing `SIRKADIYEN_TEST_DATABASE__CONNECTION_STRING` at a working database
   in `.env` now destroys it, because the fixture drops and re-migrates whatever
   it is given and no longer needs a deliberate export to find it
-- the global freeze has no remote mutation endpoint until real operator
-  authentication exists. The state, atomic audited mutation port and pipeline
-  gates are implemented, but production operations must not bypass that port
-  with direct SQL because doing so would lose the audit trail
 
 ## Working assumptions
 

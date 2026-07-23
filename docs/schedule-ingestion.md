@@ -114,19 +114,19 @@ records who decided and why in `ApprovedBy` and `ApprovalReason`. Approval moves
 the revision to `Validated` and nothing further, so an approved revision goes
 live through exactly the same publication transaction as one that was never held.
 
-There is no administration frontend yet, so this runs over an internal API
-guarded by `SIRKADIYEN_ADMIN__API_KEY`:
+There is no administration frontend yet, so this runs over the API under the
+authenticated `SuperAdmin` policy:
 
 ```text
 GET  /api/revisions?state=ReviewRequired   the review queue
 GET  /api/revisions/{id}                   one revision with the findings behind its state
-POST /api/revisions/{id}/approve           { "approvedBy": ..., "approvalReason": ... }
+POST /api/revisions/{id}/approve           { "approvalReason": ... }
 ```
 
-The key establishes that the caller is an operator, not which operator they are,
-so `approvedBy` is a recorded claim rather than a verified identity. The API
-publishes the OpenAPI document at `/openapi/v1.json` for Postman; the requests
-are also in `src/Sirkadiyen.Api/Sirkadiyen.Api.http`.
+`ApprovedBy` comes from the verified session email rather than a caller-supplied
+field. The write requires the CSRF token described in `docs/authentication.md`.
+The API publishes the OpenAPI document at `/openapi/v1.json`; requests are also
+in `src/Sirkadiyen.Api/Sirkadiyen.Api.http`.
 
 ## Semantic diff
 
@@ -188,7 +188,7 @@ it was held, so it reads as "held for this, then released by that person".
 ```text
 GET  /api/diffs?state=Held                  the hold queue
 GET  /api/diffs/{id}?entryLimit=100         the changes behind the hold, deletions first
-POST /api/diffs/{id}/release                { "releasedBy": ..., "releaseReason": ... }
+POST /api/diffs/{id}/release                { "releaseReason": ... }
 ```
 
 The detail view names the lessons rather than record identifiers, and excludes
@@ -203,8 +203,8 @@ the source, and the next revision produces the next diff. The endpoint refuses
 with `409`.
 
 Release is guarded by the diff's row version, so two operators acting at once
-get a `409` rather than silently overwriting each other. Like approval, the
-identity is a claim recorded against a shared operator key, not a verified one.
+get a `409` rather than silently overwriting each other. Like approval, its actor
+comes from the verified SuperAdmin session.
 
 The ADR-035 matching thresholds are deliberately not configurable. They are a
 matching rule with a decision record behind them, and loosening them from an
@@ -253,13 +253,12 @@ snapshot must still be persisted immutably whenever the hash is new.
 
 Production ingestion still needs:
 
-1. an unattended source credential in each deployed environment;
-2. Google Drive and HTTP acquisition adapters plus DOCX conversion;
-3. recovery of parse runs left `Running` by abrupt process termination;
+1. Google Drive and HTTP acquisition adapters plus DOCX conversion;
+2. single-use licensing and student profiles;
+3. Google Calendar authorization;
 4. affected-user resolution and the Google Calendar adapter, which consume
    `Ready` and `Released` diffs;
-5. an administration frontend to replace the internal approval API;
-6. real authentication in place of the shared administrative key.
+5. authenticated freeze/unfreeze mutation and an administration frontend.
 
 ## Local XLSX fixture conversion
 

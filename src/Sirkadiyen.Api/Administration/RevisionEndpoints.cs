@@ -1,3 +1,6 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Antiforgery;
+using Sirkadiyen.Api.Identity;
 using Sirkadiyen.Application.SchedulePublication;
 using Sirkadiyen.Domain.SchedulePublication;
 
@@ -17,7 +20,7 @@ public static class RevisionEndpoints
 
         RouteGroupBuilder revisions = builder
             .MapGroup("/api/revisions")
-            .AddEndpointFilter<AdminApiKeyFilter>()
+            .RequireAuthorization(AuthorizationPolicies.SuperAdmin)
             .WithTags("Revisions");
 
         revisions.MapGet("/", ListAsync)
@@ -27,6 +30,7 @@ public static class RevisionEndpoints
             .WithSummary("Returns one revision with the findings behind its state.");
 
         revisions.MapPost("/{id:guid}/approve", ApproveAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
             .WithSummary("Approves a quarantined revision and publishes it.");
 
         return builder;
@@ -63,21 +67,22 @@ public static class RevisionEndpoints
     private static async Task<IResult> ApproveAsync(
         Guid id,
         ApproveRevisionRequest request,
+        ClaimsPrincipal principal,
         ScheduleRevisionPublicationService publication,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        string approvedBy = request.ApprovedBy?.Trim() ?? string.Empty;
+        string approvedBy = UserClaimsPrincipalFactory.GetRequiredEmail(principal);
         string approvalReason = request.ApprovalReason?.Trim() ?? string.Empty;
 
-        if (approvedBy.Length == 0 || approvalReason.Length == 0)
+        if (approvalReason.Length == 0)
         {
             // Both are the whole point of the endpoint. An approval that does not
             // say who made it and why is not an audit trail.
             return Results.Problem(
                 title: "Incomplete approval",
-                detail: "'approvedBy' and 'approvalReason' are both required.",
+                detail: "'approvalReason' is required.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -126,18 +131,14 @@ public static class RevisionEndpoints
 }
 
 /// <summary>
-/// Who is approving a quarantined revision, and why.
+/// Why the authenticated SuperAdmin is approving a quarantined revision.
 /// </summary>
 /// <remarks>
-/// The identity is supplied by the caller because there is no identity provider
-/// yet. It is therefore a record of a claim, not a verified one; the API key
-/// establishes that the caller is an operator, not which operator they are.
+/// The actor is derived from the backend-authenticated Google identity and is
+/// never accepted from this payload.
 /// </remarks>
 public sealed record ApproveRevisionRequest
 {
-    /// <example>semih</example>
-    public required string? ApprovedBy { get; init; }
-
     /// <example>Checked the source: the 40% drop is the exam period, not a parse fault.</example>
     public required string? ApprovalReason { get; init; }
 }

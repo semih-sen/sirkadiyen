@@ -2066,3 +2066,184 @@ rather than only in a reader's attention.
 - `resolve_date_text` and `resolve_cell_date` default to `undeclared`, so a future
   caller that forgets to pass the profile's declaration refuses ambiguity rather
   than inheriting day-first.
+
+---
+
+## ADR-052: Exchange a verified Google ID credential for a local cookie session
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-23
+**Implements:** user domain/persistence, Google sign-in API, secure cookie,
+anti-forgery protection and SuperAdmin authorization
+**Relates to:** ADR-003, ADR-023, ADR-045
+
+### Context
+
+ADR-003 selected Google-only authentication and ADR-023 selected a
+backend-managed cookie, but the browser-to-backend Google exchange was still
+open. A redirect handler would work, but the planned frontend already owns the
+Google sign-in entry point and Google Identity Services can return a short-lived
+ID credential without granting Calendar or other Google API access.
+
+Sign-in identity must also remain separate from the later incremental Calendar
+authorization. Persisting an access or refresh token during login would couple
+the two and broaden the first consent unnecessarily.
+
+### Decision
+
+The frontend obtains a Google Identity Services ID credential and posts it once
+to the same-site API. The request is anti-forgery protected. The backend uses
+`Google.Apis.Auth` to validate the Google signature, issuer, configured client-ID
+audience, expiry and `email_verified`. It persists only the immutable `sub`,
+verified email/profile fields and the local role, then discards the credential
+and issues the ADR-023 application cookie.
+
+The browser client ID is required as
+`SIRKADIYEN_GOOGLE__AUTH_CLIENT_ID`. It is intentionally separate from
+unattended source-access credentials. Google Calendar scopes and refresh-token
+storage remain a later, separate authorization flow.
+
+The session cookie is `HttpOnly`, `Secure`, `SameSite=Lax`, host-prefixed and has
+an eight-hour sliding expiry. State-changing browser endpoints carry explicit
+anti-forgery metadata. The API reloads the local user for every authenticated
+request; a missing user invalidates the session and changed role/profile claims
+renew it. Google sign-in is rate-limited per remote address; a proxy deployment
+must configure trusted forwarded headers before relying on that address as the
+internet client.
+
+The `users` table gives Google subject and normalized email independent unique
+constraints. A second subject with the same email is rejected rather than
+silently linked. Concurrent first callbacks for the same subject converge on the
+unique winner and retry as an update.
+
+### Consequences
+
+- Normal sign-in grants no Calendar access and stores no Google credential.
+- Same-site HTTPS is the supported browser topology for this foundation. A later
+  cross-site frontend deployment must explicitly revisit CORS, credentialed
+  requests and SameSite policy rather than weakening cookies implicitly.
+- The frontend must first fetch `/api/auth/csrf`, then send its request token with
+  the Google credential.
+- Revoking Google API access will not terminate a local session; account/session
+  revocation is a separate local concern to add with licensing and suspension.
+- A containerized or multi-instance deployment must configure a shared persistent
+  ASP.NET Core Data Protection key ring; the host default does not guarantee
+  cookie continuity across restarts or instances.
+- The old shared admin key is removed. Revision approval and diff release now
+  require the persisted `SuperAdmin` role and derive their actor from the
+  verified session.
+
+---
+
+## ADR-053: Store keyed license hashes and derive activation onboarding
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-23
+**Implements:** license domain/persistence, administration and redemption APIs,
+rate limiting, audits, onboarding state and PostgreSQL concurrency tests
+**Relates to:** ADR-004, ADR-022, ADR-045, ADR-052
+
+### Context
+
+The product requires administrator-issued, single-use activation codes. A code
+must be looked up during redemption without retaining plaintext, while ordinary
+fast hashes of a human-entered value allow cheap offline guessing after a
+database leak. The same user can also submit two codes concurrently, which a
+lock on either individual code does not serialize.
+
+Onboarding must resume from backend facts. At this stage licensing exists but
+student profiles and Calendar authorization do not, so persisting a client-set
+workflow state would invent authority the later modules need to own.
+
+### Decision
+
+Generate 100 random payload bits in a display code prefixed `SIRK`. Return its
+plaintext only in the successful creation response. Store a deterministic
+HMAC-SHA256 lookup hash keyed by the required Base64
+`SIRKADIYEN_LICENSING__HASH_KEY`, never the code itself.
+
+Licenses use explicit `Active`, `Redeemed`, `Revoked`, and `Expired` states. An
+optional expiration is an unused-code redemption deadline; it does not turn a
+completed activation off later. Redemption locks the license row. A partial
+unique index on `RedeemedByUserId` where status is `Redeemed` also permits at
+most one current activation per user, so two different codes cannot both win a
+same-user race. Revoked history leaves that index and remains auditable.
+
+Creation, redemption, expiration discovered during redemption, and revocation
+append an audit row in the same transaction. Redemption is idempotent only for
+the winning user and code. The public failure does not distinguish unknown,
+expired, revoked, or another user's code and is rate-limited by authenticated
+user plus remote address.
+
+Derive onboarding as follows until later authoritative records exist:
+
+```text
+no redeemed license        -> LicenseRequired
+redeemed license           -> ProfileRequired
+redeemed then revoked      -> Suspended
+```
+
+### Consequences
+
+- Two users racing one code and one user racing two codes each produce exactly
+  one winner under real PostgreSQL.
+- Rotating the HMAC key invalidates lookup for every unredeemed code. Key
+  rotation is therefore an explicit invalidate-and-reissue operation.
+- A revoked user may later receive a new license without deleting historical
+  redemption and revocation records.
+- Student profile, Calendar permission and sync modules extend onboarding from
+  their own records; the browser never submits a trusted onboarding state.
+
+---
+
+## ADR-054: Generate short human-friendly codes and support manual activation
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-23
+**Amends:** ADR-004 and the generated-code format in ADR-053
+**Implements:** compact code generation, legacy-code redemption, explicit
+license kind, audited SuperAdmin manual activation, additive migration and
+PostgreSQL concurrency tests
+
+### Context
+
+The first generated format, `SIRK-XXXXX-XXXXX-XXXXX-XXXXX`, carried 100 random
+bits but was unnecessarily long for the actual distribution channel. Codes are
+sent to students through WhatsApp, where quick copying, reading and occasional
+manual typing matter more than carrying entropy far beyond the online attack
+surface.
+
+The future administration panel also needs to activate a user directly. Creating
+an undisclosed fake code for that action would make the record lie about how
+activation happened and would leave an unredeemable hash with no operational
+meaning.
+
+### Decision
+
+Generate new codes as `SRK-XXXXX-XXXXX`. The ten random characters use the
+32-character alphabet `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`, omitting `I`, `O`,
+`0`, and `1`. This carries 50 random bits. HMAC lookup, the five-per-minute
+user/address redemption limit, unique hash constraint, and collision retry from
+ADR-053 remain unchanged. Long `SIRK` codes already generated remain redeemable;
+only generation changes.
+
+Add explicit `LicenseKind` values `Code` and `Manual`. A `Code` license requires
+a 32-byte keyed hash. A `Manual` license requires no hash, starts in `Redeemed`,
+names the target user, and writes one `ManuallyActivated` audit with the
+SuperAdmin actor and mandatory reason.
+
+Manual activation and code redemption use the same partial unique index allowing
+only one current `Redeemed` license per user. The manual endpoint is idempotent,
+CSRF-protected, and restricted to `SuperAdmin`.
+
+### Consequences
+
+- A code is short enough to share and type comfortably in WhatsApp while online
+  brute-force remains impractical under the keyed hash and rate limit.
+- At one million generated codes, the approximate probability of at least one
+  random collision is 0.044 percent; the unique index and generation retry
+  resolve one without exposing the discarded plaintext.
+- The admin panel can display whether activation came from a code or a manual
+  decision and can show the responsible actor and reason.
+- Migration rollback is refused while `Manual` rows exist, because the older
+  schema cannot represent an activation without inventing a code hash.

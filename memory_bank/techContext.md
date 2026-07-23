@@ -47,7 +47,7 @@ Choose one consistent validation style and record the decision.
 
 ### Authentication
 
-- Google OpenID Connect for sign-in
+- Google Identity Services ID credentials, validated by `Google.Apis.Auth`
 - backend-issued HTTP-only secure cookie session
 - no password authentication
 
@@ -59,9 +59,10 @@ Do not expose Google refresh tokens to the frontend.
 - explicit admin policies
 - active-license and completed-profile requirements enforced server-side
 
-For the initial single-operator release, the admin policy maps one
-Google-verified backend-owned email literal to `SuperAdmin` (ADR-045). A general
-role-management system is deferred until a second operator or role exists.
+For the initial single-operator release, one Google-verified backend-owned email
+literal grants the explicit persisted `SuperAdmin` role (ADR-045). Policies read
+that role from a backend-issued cookie and revalidate it against the user row on
+every request. A general role-management system is deferred.
 
 ### Background processing
 
@@ -288,6 +289,7 @@ Suggested prefixes:
 SIRKADIYEN_DATABASE__
 SIRKADIYEN_REDIS__
 SIRKADIYEN_GOOGLE__
+SIRKADIYEN_LICENSING__
 SIRKADIYEN_PARSER__
 SIRKADIYEN_JOBS__
 SIRKADIYEN_SECURITY__

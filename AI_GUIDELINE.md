@@ -125,7 +125,8 @@ The Python parser must not:
 - Do not implement password registration.
 - Do not store user passwords.
 - A Google-authenticated account is not automatically an active Sirkadiyen account.
-- Account activation requires a valid license code.
+- Account activation requires either a valid license code or an explicit,
+  audited SuperAdmin manual activation.
 - Authorization must be enforced by the backend, never only by the frontend.
 - Admin permissions must use explicit roles or policies.
 - Never trust role, license, grade, language, or group data supplied by the client without server-side validation.
@@ -160,8 +161,10 @@ The expected onboarding flow is:
 
 1. User signs in with Google.
 2. Backend creates or finds the local user account.
-3. User enters a license code.
-4. Backend validates and redeems the code.
+3. User enters a license code, unless a SuperAdmin has manually activated the
+   account through the audited administration flow.
+4. Backend validates and redeems the code, or resumes from the authoritative
+   manual activation.
 5. User enters academic profile data.
 6. Backend validates supported combinations.
 7. User grants the necessary Google Calendar permission if not already granted.

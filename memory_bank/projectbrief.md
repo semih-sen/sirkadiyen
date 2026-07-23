@@ -83,8 +83,10 @@ Known grouping includes Turkish A and Turkish B. Exact English group combination
 ## Core product behavior
 
 1. User registers and signs in using Google only.
-2. User enters a license code issued by an administrator.
-3. The backend activates the account after successful license redemption.
+2. User enters a license code issued by an administrator, unless a SuperAdmin
+   has manually activated the account.
+3. The backend activates the account after successful license redemption or an
+   explicit audited SuperAdmin manual activation.
 4. User enters academic profile and group information.
 5. User starts initial synchronization.
 6. The backend resolves applicable canonical lessons.

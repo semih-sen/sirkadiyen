@@ -1,3 +1,6 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Antiforgery;
+using Sirkadiyen.Api.Identity;
 using Sirkadiyen.Application.ScheduleDiffing;
 using Sirkadiyen.Domain.ScheduleDiffing;
 
@@ -19,7 +22,7 @@ public static class DiffEndpoints
 
         RouteGroupBuilder diffs = builder
             .MapGroup("/api/diffs")
-            .AddEndpointFilter<AdminApiKeyFilter>()
+            .RequireAuthorization(AuthorizationPolicies.SuperAdmin)
             .WithTags("Diffs");
 
         diffs.MapGet("/", ListAsync)
@@ -29,6 +32,7 @@ public static class DiffEndpoints
             .WithSummary("Returns one diff with the changes behind its hold.");
 
         diffs.MapPost("/{id:guid}/release", ReleaseAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
             .WithSummary("Releases a held diff for dispatch.");
 
         return builder;
@@ -76,21 +80,22 @@ public static class DiffEndpoints
     private static async Task<IResult> ReleaseAsync(
         Guid id,
         ReleaseDiffRequest request,
+        ClaimsPrincipal principal,
         ScheduleDiffReviewService review,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
 
-        string releasedBy = request.ReleasedBy?.Trim() ?? string.Empty;
+        string releasedBy = UserClaimsPrincipalFactory.GetRequiredEmail(principal);
         string releaseReason = request.ReleaseReason?.Trim() ?? string.Empty;
 
-        if (releasedBy.Length == 0 || releaseReason.Length == 0)
+        if (releaseReason.Length == 0)
         {
             // Both are the whole point of the endpoint. A release that does not
             // say who made it and why is not an audit trail.
             return Results.Problem(
                 title: "Incomplete release",
-                detail: "'releasedBy' and 'releaseReason' are both required.",
+                detail: "'releaseReason' is required.",
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
@@ -148,18 +153,14 @@ public static class DiffEndpoints
 }
 
 /// <summary>
-/// Who is releasing a held diff, and why.
+/// Why the authenticated SuperAdmin is releasing a held diff.
 /// </summary>
 /// <remarks>
-/// The identity is supplied by the caller because there is no identity provider
-/// yet. It is therefore a record of a claim, not a verified one; the API key
-/// establishes that the caller is an operator, not which operator they are.
+/// The actor is derived from the backend-authenticated Google identity and is
+/// never accepted from this payload.
 /// </remarks>
 public sealed record ReleaseDiffRequest
 {
-    /// <example>semih</example>
-    public required string? ReleasedBy { get; init; }
-
     /// <example>Checked the source: the 38 deleted lessons are the ended anatomy block.</example>
     public required string? ReleaseReason { get; init; }
 }

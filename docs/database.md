@@ -1,14 +1,16 @@
 # Database
 
-PostgreSQL holds the schedule pipeline and its operational safety state:
-configured sources, immutable snapshots, parse runs, revisions, canonical
-records, semantic diffs, and the global freeze. Entity Framework Core owns the
-schema through version-controlled migrations.
+PostgreSQL holds local users, the schedule pipeline, and its operational safety
+state. Entity Framework Core owns the schema through version-controlled
+migrations.
 
 ## What is stored, and what is not
 
 | Table | Holds |
 | --- | --- |
+| `users` | Google subject, verified/normalized email, display name, explicit role and sign-in timestamps (ADR-045, ADR-052) |
+| `licenses` | explicit `Code`/`Manual` activation kind, optional keyed code hash, lifecycle state, redemption/revocation ownership and timestamps (ADR-022, ADR-053, ADR-054) |
+| `license_audits` | append-only creation, redemption, expiration and revocation transitions; never plaintext codes |
 | `schedule_sources` | the configured catalog, including the source context a workbook never states (ADR-017) |
 | `source_snapshots` | immutable acquisition metadata and retained normalized payloads, one row per changed poll (ADR-007, ADR-044) |
 | `parse_runs` | one deterministic parser execution per snapshot/profile, including retry attempt count |
@@ -24,9 +26,10 @@ The freeze control migration seeds exactly one unfrozen baseline row. That seed
 is not an operator action and therefore has no audit entry. Every later state
 transition updates the singleton and appends its audit row in one transaction;
 repeating the current state is idempotent and writes no fictional transition.
-The current API exposes the state read-only at `GET /api/operations/freeze`
-behind the operator key. A remote write surface waits for real operator
-authentication, as ADR-034 requires.
+The API exposes `GET /api/operations/freeze` and the CSRF-protected
+`POST /api/operations/freeze` behind the `SuperAdmin` policy. The write endpoint
+derives its actor from the verified session and uses the same atomic store as the
+worker gates; operators must not bypass it with direct SQL.
 
 `source_snapshots.AcademicYear` copies the source context at acquisition, so an
 academic-year catalog rollover cannot reclassify historical evidence. The
@@ -40,8 +43,9 @@ explicit retention deletion, never an overwrite with different evidence.
 `schedule_revisions.ApprovedBy`, `ApprovalReason` and `ApprovedAtUtc` record who
 released a quarantined revision and why (ADR-032). They are null on the ordinary
 path: a null means the revision was published on its own validation, **not** that
-the approver went unrecorded. There is no identity provider yet, so `ApprovedBy`
-is a claim the caller made, not a verified identity.
+the approver went unrecorded. `ApprovedBy` is now the verified email derived
+from the authenticated SuperAdmin session; it is never accepted from the
+approval payload.
 
 `schedule_sources.SupportedAudienceSelectors` is a nullable JSONB document naming
 the selector values each source may state. **Null means "not declared"** and
@@ -55,10 +59,9 @@ diff never derives it from a title or evidence and does not use secondary
 matching unless both records explicitly carry it (ADR-035). Migration
 `AddCanonicalDepartment` is additive and does not rewrite historical records.
 
-Identity, licensing, student profiles and calendar event mappings are **not**
-here yet. Their behavioral decisions are now recorded in ADR-022 through
-ADR-027, but their schemas remain future migrations rather than changes to the
-already-applied schedule-pipeline migration.
+Student profiles, Google Calendar connections and event mappings are **not**
+here yet. Licensing is implemented by `licenses` and `license_audits`; profile
+and Calendar schemas remain future migrations.
 
 ## Local setup
 
@@ -113,10 +116,11 @@ unique constraint fails the ordinary test run.
 
 The integration tests need a real PostgreSQL, because the guarantees they check
 are enforced by the database rather than by application code: the single
-published revision per source, the unique lesson identity per revision, and the
-row lock that makes the unchanged-source short circuit safe under concurrent
-polls. They report themselves as **skipped** when no database is configured
-rather than passing quietly:
+published revision per source, the unique lesson identity per revision, the row
+lock that makes the unchanged-source short circuit safe under concurrent polls,
+and single-use license redemption under competing requests. They report
+themselves as **skipped** when no database is configured rather than passing
+quietly:
 
 ```powershell
 $env:SIRKADIYEN_TEST_DATABASE__CONNECTION_STRING = "Host=localhost;Port=5432;Database=sirkadiyen_tests;Username=sirkadiyen;Password=sirkadiyen"
@@ -129,6 +133,15 @@ does not apply cleanly fails there rather than in production.
 ## Conventions
 
 - Enums are stored by name, so their numeric values may be reordered freely.
+- Google subject and normalized email are independently unique; the application
+  never auto-links two Google subjects merely because their verified email
+  collides.
+- License code hashes are unique and exactly 32 bytes. A partial unique index on
+  `RedeemedByUserId` allows at most one current `Redeemed` activation per user;
+  revoked history remains and a later explicit replacement license is possible.
+- `Code` licenses require a 32-byte hash. `Manual` activations require the hash
+  to be null and are distinguished explicitly rather than backed by a hidden
+  generated code.
 - Candidate IDs and scheduled/cancelled status are retained rather than inferred
   later from parser response JSON.
 - A failed parser transport attempt resumes the same deterministic parse run and

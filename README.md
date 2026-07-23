@@ -79,8 +79,8 @@ The .NET 10 solution foundation is initialized with the following projects:
 - `Sirkadiyen.Api`
 - `Sirkadiyen.Worker`
 
-The API exposes `GET /health` plus the internal revision review and approval
-endpoints guarded by the required administrative key. Beyond that:
+The API exposes `GET /health`, Google-only sign-in, a backend-managed secure
+cookie session, and SuperAdmin-protected revision/diff operations. Beyond that:
 
 - The .NET ingestion layer acquires a Google Sheets v4 response and normalizes
   values, formulas, formatting, merges, and hidden dimensions into the versioned
@@ -93,13 +93,23 @@ endpoints guarded by the required administrative key. Beyond that:
 - PostgreSQL holds configured sources, immutable snapshots, parse runs,
   revisions and canonical records, including the unchanged-source short circuit.
   See `docs/database.md`.
+- PostgreSQL also holds Google-authenticated local users. Google ID credentials
+  are verified server-side and discarded; the browser receives only an
+  HTTP-only secure application cookie. See `docs/authentication.md`.
+- PostgreSQL-backed single-use licenses use keyed hashes, transactional
+  redemption, append-only audits, concurrency constraints and revocation-driven
+  suspension. New codes use the compact `SRK-XXXXX-XXXXX` format, while
+  SuperAdmins can activate an existing user directly with a required audited
+  reason. Onboarding state is derived from these records. See
+  `docs/licensing-and-onboarding.md`.
 - The worker seeds the source catalog, polls Google Sheets on an adaptive
   Istanbul-time schedule, calls the Python parser over its strict v1 HTTP
   contract, transactionally persists candidate revisions, validates them, and
   publishes healthy revisions while quarantining suspicious ones for review.
 - A PostgreSQL-backed global operational freeze is read at runtime before every
   source acquisition, before a parse run starts or resumes, and immediately
-  before publication. Its transitions are append-only audit records; an
+  before publication. SuperAdmins can freeze or unfreeze it through the
+  CSRF-protected API. Its transitions are append-only audit records; an
   unreadable control fails closed (ADR-034, ADR-043).
 - The semantic diff is a pure deterministic engine — exact identity/content
   comparison, created/updated/deleted/unchanged classification, and
@@ -110,9 +120,9 @@ endpoints guarded by the required administrative key. Beyond that:
   is released only by a named operator stating a reason, and never when the hold
   is ambiguity (ADR-042).
 
-Not implemented: Drive/HTTP acquisition, DOCX conversion, authenticated
-freeze/unfreeze administration, calendar synchronization, identity, licensing,
-and the Next.js frontend.
+Not implemented: Drive/HTTP acquisition, DOCX conversion, calendar
+synchronization, student profiles, Calendar authorization, and the Next.js
+frontend.
 
 Published schedule mistakes use forward-fix rather than rollback: correct the
 authoritative source and let polling publish a newer revision (ADR-033).

@@ -50,7 +50,8 @@ Cannot:
 
 ### Authenticated but inactive user
 
-Has a valid Google identity but has not redeemed a license.
+Has a valid Google identity but has neither redeemed a license nor received an
+audited manual activation.
 
 Can:
 
@@ -64,7 +65,8 @@ Cannot:
 
 ### Activated but incomplete user
 
-Has redeemed a license but has not completed academic profile or permissions.
+Has a valid code-based or manual activation but has not completed academic
+profile or permissions.
 
 Can:
 
@@ -134,6 +136,8 @@ State must be derived from authoritative backend data where possible.
 
 - license codes are issued by administrators
 - every license code is single-use and activates at most one user account
+- a SuperAdmin may manually activate a known Google-authenticated user without
+  creating a code; the actor and required reason remain auditable
 - codes may optionally include expiration, cohort restrictions, or notes
 - a redeemed code remains auditable
 - revoking a license disables all future synchronization for the user

@@ -23,6 +23,212 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Sirkadiyen.Domain.Identity.User", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<string>("GoogleSubject")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<bool>("IsEmailVerified")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset>("LastSignedInAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("NormalizedEmail")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<uint>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GoogleSubject")
+                        .IsUnique();
+
+                    b.HasIndex("LastSignedInAtUtc");
+
+                    b.HasIndex("NormalizedEmail")
+                        .IsUnique();
+
+                    b.ToTable("users", "sirkadiyen", t =>
+                        {
+                            t.HasCheckConstraint("ck_users_role", "\"Role\" IN ('User', 'SuperAdmin')");
+
+                            t.HasCheckConstraint("ck_users_verified_email", "\"IsEmailVerified\" = TRUE");
+                        });
+                });
+
+            modelBuilder.Entity("Sirkadiyen.Domain.Licensing.License", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<byte[]>("CodeHash")
+                        .HasColumnType("bytea");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedByEmail")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTimeOffset?>("RedeemedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("RedeemedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("RevocationReason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<DateTimeOffset?>("RevokedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("RevokedByEmail")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<Guid?>("RevokedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<uint>("RowVersion")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("xid")
+                        .HasColumnName("xmin");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CodeHash")
+                        .IsUnique();
+
+                    b.HasIndex("CreatedByUserId");
+
+                    b.HasIndex("ExpiresAtUtc");
+
+                    b.HasIndex("RedeemedByUserId")
+                        .IsUnique()
+                        .HasFilter("\"Status\" = 'Redeemed'");
+
+                    b.HasIndex("RevokedByUserId");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("licenses", "sirkadiyen", t =>
+                        {
+                            t.HasCheckConstraint("ck_licenses_code_hash", "(\"Kind\" = 'Code' AND octet_length(\"CodeHash\") = 32)\nOR (\"Kind\" = 'Manual' AND \"CodeHash\" IS NULL)");
+
+                            t.HasCheckConstraint("ck_licenses_expiration", "\"ExpiresAtUtc\" IS NULL OR \"ExpiresAtUtc\" > \"CreatedAtUtc\"");
+
+                            t.HasCheckConstraint("ck_licenses_kind", "\"Kind\" IN ('Code', 'Manual')");
+
+                            t.HasCheckConstraint("ck_licenses_redemption", "(\"RedeemedByUserId\" IS NULL) = (\"RedeemedAtUtc\" IS NULL)\nAND (\"Status\" <> 'Redeemed'\n     OR (\"RedeemedByUserId\" IS NOT NULL AND \"RedeemedAtUtc\" IS NOT NULL))\nAND (\"Status\" NOT IN ('Active', 'Expired')\n     OR \"RedeemedByUserId\" IS NULL)");
+
+                            t.HasCheckConstraint("ck_licenses_revocation", "(\"Status\" = 'Revoked'\n AND \"RevokedByUserId\" IS NOT NULL\n AND \"RevokedByEmail\" IS NOT NULL\n AND \"RevocationReason\" IS NOT NULL\n AND \"RevokedAtUtc\" IS NOT NULL)\nOR\n(\"Status\" <> 'Revoked'\n AND \"RevokedByUserId\" IS NULL\n AND \"RevokedByEmail\" IS NULL\n AND \"RevocationReason\" IS NULL\n AND \"RevokedAtUtc\" IS NULL)");
+
+                            t.HasCheckConstraint("ck_licenses_status", "\"Status\" IN ('Active', 'Redeemed', 'Revoked', 'Expired')");
+                        });
+                });
+
+            modelBuilder.Entity("Sirkadiyen.Domain.Licensing.LicenseAudit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("ActorEmail")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<Guid>("ActorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("LicenseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("LicenseId");
+
+                    b.HasIndex("OccurredAtUtc");
+
+                    b.ToTable("license_audits", "sirkadiyen", t =>
+                        {
+                            t.HasCheckConstraint("ck_license_audits_action", "\"Action\" IN ('Created', 'Redeemed', 'ManuallyActivated', 'Revoked', 'Expired')");
+                        });
+                });
+
             modelBuilder.Entity("Sirkadiyen.Domain.Operations.OperationalFreezeAudit", b =>
                 {
                     b.Property<Guid>("Id")
@@ -728,6 +934,40 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("ck_schedule_sources_class_year", "\"ClassYear\" BETWEEN 1 AND 6");
                         });
+                });
+
+            modelBuilder.Entity("Sirkadiyen.Domain.Licensing.License", b =>
+                {
+                    b.HasOne("Sirkadiyen.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Sirkadiyen.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("RedeemedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Sirkadiyen.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("RevokedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Sirkadiyen.Domain.Licensing.LicenseAudit", b =>
+                {
+                    b.HasOne("Sirkadiyen.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Sirkadiyen.Domain.Licensing.License", null)
+                        .WithMany()
+                        .HasForeignKey("LicenseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Sirkadiyen.Domain.Operations.OperationalFreezeAudit", b =>

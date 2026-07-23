@@ -541,18 +541,53 @@ Audit entries must be append-only from the application perspective.
 
 ## 20. Session pattern
 
-Web sessions use backend-managed HTTP-only secure cookies. Google identity and
-Calendar OAuth credentials remain server-side and are never exposed to browser
-JavaScript. Cookie authentication must use `Secure`, an explicit `SameSite`
-policy, rotation/expiry, anti-forgery protection for state-changing requests,
-and server-side authorization for role, license, and onboarding state.
+Web sessions use backend-managed HTTP-only secure cookies. The browser receives
+a short-lived Google Identity Services ID credential and sends it once to the
+backend; the backend validates its signature, issuer, audience, expiry and
+verified email, then discards it. Google access/refresh tokens and Calendar OAuth
+credentials remain server-side and are never exposed to browser JavaScript.
+Cookie authentication uses `Secure`, an explicit `SameSite` policy,
+rotation/expiry, anti-forgery protection for state-changing requests, and
+server-side authorization for role, license, and onboarding state (ADR-052).
 
 The initial administration bootstrap has exactly one backend-owned,
 Google-verified email mapped to `SuperAdmin` (ADR-045). This is not a
 client-supplied claim or a general RBAC system. Approval, release and freeze
-actors come from the authenticated identity once implemented.
+actors come from the authenticated identity. The bootstrap literal grants the
+explicit persisted role; authorization reads the role rather than comparing the
+email on every request.
 
-## 21. Flexible profile selector pattern
+## 21. Single-use licensing and onboarding pattern
+
+License plaintext exists only in the successful administrator creation response.
+The database stores a deterministic HMAC-SHA256 lookup hash keyed by
+`SIRKADIYEN_LICENSING__HASH_KEY`; the key is separate from authentication and
+token-encryption secrets (ADR-053).
+
+New codes are generated as `SRK-XXXXX-XXXXX` from an ambiguity-reduced
+32-character alphabet (ADR-054). This is 50 random bits, protected against
+offline enumeration by the keyed hash and against online guessing by endpoint
+rate limiting. Legacy long codes remain readable but are no longer generated.
+
+Redemption locks the submitted license row and uses a partial unique index to
+permit only one current `Redeemed` license per user. The row lock prevents two
+users from winning one code; the index prevents one user from winning two codes
+submitted concurrently. Repeating the winning user/code pair is idempotent.
+Every lifecycle transition and its audit row commit in one transaction.
+
+A `SuperAdmin` may activate an existing Google-authenticated user without a
+code. That creates an explicit `Manual` license already in `Redeemed`, with no
+code hash, and records the actor and required reason as `ManuallyActivated`.
+Manual activation and code redemption share the same one-current-activation
+constraint, so they cannot both win a race.
+
+Onboarding state is derived, never accepted from the client. With only the
+implemented modules, no license maps to `LicenseRequired`, a redeemed license to
+`ProfileRequired`, and a later revocation to `Suspended`. Profile, Calendar
+authorization and sync modules extend that derivation from their own
+authoritative records.
+
+## 22. Flexible profile selector pattern
 
 Keep `academicYear`, `classYear`, and `programLanguage` as relational columns.
 Store variable cohort dimensions in a schema-versioned JSONB document, for
@@ -575,7 +610,7 @@ year and language. Both profile writes and audience matching use the same
 validator. Do not use an unconstrained EAV model and do not trust arbitrary
 JSONB supplied by a client.
 
-## 22. Adaptive polling interval pattern
+## 23. Adaptive polling interval pattern
 
 Polling intervals are selected in `Europe/Istanbul` and remain configuration,
 not hard-coded scheduling assumptions. The initial policy is:
@@ -591,7 +626,7 @@ Weekday 21:00-24:00            45 minutes
 The exact boundaries and durations may be changed through validated worker
 configuration. A configuration change must not create overlapping polling runs.
 
-## 23. Global operational freeze pattern
+## 24. Global operational freeze pattern
 
 A runtime-readable, audited global freeze gates every mutating pipeline boundary
 (ADR-034). While frozen, the worker does not start acquisition, parsing,
@@ -608,3 +643,7 @@ again after immutable evidence storage, and the publication service checks
 immediately before each revision. A later diff dispatcher and every Calendar
 job must consume the same application port rather than introducing a queue-local
 flag.
+
+The `SuperAdmin` API exposes both the read and the audited transition. Mutation
+is CSRF-protected, requires a non-empty reason, derives the actor from the
+verified session and uses the request trace as its correlation ID.
