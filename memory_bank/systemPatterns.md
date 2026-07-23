@@ -243,9 +243,16 @@ ScheduleRevision
 
 The model should support field-level provenance where practical.
 
-A schedule item is either timed or all-day (ADR-046). Holidays and semester
-breaks with explicit dates use the all-day shape and never receive invented
-times. `CurriculumBlock` is nullable and populated only when the source states a
+A schedule item is either timed or all-day (ADR-046). `IsAllDay` and the two
+nullable times are one invariant, asserted in the parser contract, the domain
+constructor and a database check constraint: both times or neither, never one.
+An all-day record covers exactly one local date, because the sources write a
+closure as one row per closed day; the exclusive end date Google Calendar wants
+is the calendar adapter's conversion. Holidays and semester breaks never receive
+invented times, and a dated row with no times that names no closure is not
+published at all.
+
+`CurriculumBlock` is nullable and populated only when the source states a
 block; it is content, not stable identity or audience (ADR-047).
 
 `Departments` is a required list, empty when the source names none, holding every
@@ -312,10 +319,14 @@ Validation has multiple levels:
 Examples:
 
 - date exists
-- start precedes end
+- start precedes end, for a timed item
 - supported group syntax
 - supported class year
 - valid event type
+
+The duration and overlap rules read times, so they apply to timed items only. An
+all-day item has no duration to find implausible and no time range to clash with
+the teaching around it (ADR-046).
 
 ### Revision validation
 

@@ -53,6 +53,7 @@ from sirkadiyen_parser.parsers.annual import (
     MIN_PLAUSIBLE_DURATION_MINUTES,
     WARNING_IMPLAUSIBLE_DURATION,
     WARNING_WEEKDAY_MISMATCH,
+    encode_all_day,
 )
 from sirkadiyen_parser.profiles import ParserProfileDefinition
 
@@ -755,6 +756,10 @@ def _build_candidate(
                 "displayTitle": subject.display_title,
                 "eventType": event_type.value,
                 "localDate": local_date.isoformat(),
+                # A rotation is always a timed practice: a cell states which
+                # groups attend a slot, so a row without a time range is refused
+                # rather than published as an all-day item (ADR-046).
+                "isAllDay": encode_all_day(False),
                 "startLocalTime": slot.start.isoformat(),
                 "endLocalTime": slot.end.isoformat(),
                 "timeZoneId": context.time_zone_id,
@@ -859,7 +864,9 @@ def _accept(
             ),
         )
 
-    duration = duration_minutes(candidate.start_local_time, candidate.end_local_time)
+    # Read from the slot rather than the candidate: a rotation is always timed,
+    # and the slot states both times without the all-day shape's nullability.
+    duration = duration_minutes(slot.start, slot.end)
     if not MIN_PLAUSIBLE_DURATION_MINUTES <= duration <= MAX_PLAUSIBLE_DURATION_MINUTES:
         diagnostics.warning(
             WARNING_IMPLAUSIBLE_DURATION,

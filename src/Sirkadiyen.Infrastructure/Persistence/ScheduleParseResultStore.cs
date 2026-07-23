@@ -259,6 +259,7 @@ public sealed class ScheduleParseResultStore(SirkadiyenDbContext dbContext)
             candidate.LocalDate,
             candidate.StartLocalTime,
             candidate.EndLocalTime,
+            candidate.IsAllDay,
             candidate.TimeZoneId,
             candidate.StableIdentity,
             candidate.ContentHash,

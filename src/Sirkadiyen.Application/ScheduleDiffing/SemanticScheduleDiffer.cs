@@ -295,6 +295,10 @@ public sealed class SemanticScheduleDiffer
             current.AudienceSelectors,
             StringComparison.Ordinal)
         && previous.LocalDate == current.LocalDate
+        // An all-day closure and a timed lesson are never the same logical entry,
+        // whatever their titles score. Secondary matching also demands an
+        // instructor, which no closure states, so this is the second of two locks.
+        && previous.IsAllDay == current.IsAllDay
         && string.Equals(previous.TimeZoneId, current.TimeZoneId, StringComparison.Ordinal);
 
     private static Dictionary<string, CanonicalScheduleRecord> IndexByIdentity(

@@ -179,6 +179,7 @@ public sealed class RetriableTransactionTests(PostgresFixture fixture)
             new DateOnly(2025, 10, 3),
             new TimeOnly(9, 0),
             new TimeOnly(10, 50),
+            isAllDay: false,
             "Europe/Istanbul",
             "identity-0",
             "sha256:content-0",

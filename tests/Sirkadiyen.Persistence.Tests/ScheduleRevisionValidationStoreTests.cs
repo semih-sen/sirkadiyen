@@ -287,6 +287,7 @@ public sealed class ScheduleRevisionValidationStoreTests(PostgresFixture fixture
             new DateOnly(2025, 10, 3).AddDays(specification.Index),
             new TimeOnly(9, 0),
             new TimeOnly(10, 50),
+            isAllDay: false,
             "Europe/Istanbul",
             $"identity-{specification.Index}",
             $"sha256:content-{specification.Index}",

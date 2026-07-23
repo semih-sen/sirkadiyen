@@ -5,6 +5,7 @@ the individual rules with small, labelled worksheets, so a failure names the
 rule that broke rather than pointing at a large diff.
 """
 
+from datetime import time
 from typing import Any
 
 import pytest
@@ -25,6 +26,7 @@ from sirkadiyen_parser.normalization.dates import (
 )
 from sirkadiyen_parser.parsers import get_parser, implemented_profiles
 from sirkadiyen_parser.parsers.annual import (
+    METRIC_CANDIDATES_ALL_DAY,
     METRIC_DATE_RULE_PREFIX,
     METRIC_LOCATION_DEFERRED,
     METRIC_ROWS_HIDDEN,
@@ -207,8 +209,8 @@ def test_a_lesson_row_becomes_a_candidate() -> None:
     assert candidate.display_title == "1-Hücre zarı"
     assert candidate.instructor == "Prof.Dr. Ayşe DEMİR"
     assert candidate.local_date.isoformat() == "2025-10-01"
-    assert candidate.start_local_time.isoformat() == "09:00:00"
-    assert candidate.end_local_time.isoformat() == "09:45:00"
+    assert candidate.start_local_time == time(9, 0)
+    assert candidate.end_local_time == time(9, 45)
     assert candidate.time_zone_id == "Europe/Istanbul"
     assert candidate.academic_year == "2025-2026"
     assert candidate.audience.scope is AudienceScope.ALL_STUDENTS_IN_PROGRAM
@@ -343,16 +345,83 @@ def test_times_written_with_a_dot_are_read() -> None:
     response = parse([worksheet(lesson_row(1, start="09.30", end="10.20"))])
 
     candidate = response.candidates[0]
-    assert candidate.start_local_time.isoformat() == "09:30:00"
-    assert candidate.end_local_time.isoformat() == "10:20:00"
+    assert candidate.start_local_time == time(9, 30)
+    assert candidate.end_local_time == time(10, 20)
 
 
-def test_a_dated_row_without_times_is_not_published_as_a_lesson() -> None:
+@pytest.mark.parametrize(
+    "title",
+    [
+        "KURBAN BAYRAMI",
+        "YARIYIL TATİL",
+        "YILBAŞI TATİLİ",
+        "LABOR DAY",
+        "ULUSAL EGEMENLİK VE ÇOCUK BAYRAMI",
+    ],
+)
+def test_a_dated_row_naming_a_closure_without_times_becomes_an_all_day_item(title: str) -> None:
+    response = parse([worksheet(lesson_row(1, start=None, end=None, title=title))])
+
+    candidate = response.candidates[0]
+    assert candidate.is_all_day is True
+    assert candidate.start_local_time is None
+    assert candidate.end_local_time is None
+    assert candidate.local_date.isoformat() == "2025-10-01"
+    assert candidate.display_title == title
+    # A closure is not teaching, so its type follows its shape and not the
+    # keywords a classifier would find in the title.
+    assert candidate.event_type is ScheduleEventType.OTHER
+    assert response.status is ParserResultStatus.COMPLETED
+    assert metrics(response)[METRIC_CANDIDATES_ALL_DAY] == 1
+
+
+def test_an_all_day_item_reports_that_a_title_rule_shaped_it() -> None:
     response = parse([worksheet(lesson_row(1, start=None, end=None, title="KURBAN BAYRAMI"))])
 
+    indicator = next(
+        indicator for indicator in response.confidence_indicators if indicator.field == "isAllDay"
+    )
+    assert indicator.score < 1.0
+    assert indicator.candidate_id == "1!R2"
+    assert response.candidates[0].confidence == indicator.score
+
+
+def test_a_dated_row_without_times_that_names_no_closure_is_still_refused() -> None:
+    # The safe direction: a lesson whose times the faculty forgot must not become
+    # an all-day block on every student's calendar.
+    response = parse([worksheet(lesson_row(1, start=None, end=None, title="Hücre zarı"))])
+
     assert response.candidates == []
-    assert metrics(response)["rows.ignored.noScheduledTime"] == 1
-    assert response.status is ParserResultStatus.COMPLETED
+    assert metrics(response)["rows.ignored.noScheduledTimeAndNoClosure"] == 1
+    ignored = [warning for warning in response.warnings if warning.code == "rowsIgnored"]
+    assert ignored[0].severity is ParserWarningSeverity.WARNING
+    assert "Hücre zarı" in ignored[0].message
+
+
+def test_a_closure_title_on_a_timed_row_stays_a_timed_lesson() -> None:
+    # The sources do this: the eve of Republic Day is three real hours of
+    # teaching, and the English workbook writes its semester break with times.
+    response = parse(
+        [worksheet(lesson_row(1, title="CUMHURİYET BAYRAMI AREFESİ", start=0.5625, end=0.6805))]
+    )
+
+    candidate = response.candidates[0]
+    assert candidate.is_all_day is False
+    assert candidate.start_local_time is not None
+    assert candidate.event_type is ScheduleEventType.THEORY
+
+
+def test_an_all_day_item_and_a_lesson_on_one_date_are_different_lessons() -> None:
+    response = parse(
+        [
+            worksheet(
+                lesson_row(1, title="KURBAN BAYRAMI", start=None, end=None)
+                + lesson_row(2, title="KURBAN BAYRAMI")
+            )
+        ]
+    )
+
+    assert len({candidate.stable_identity for candidate in response.candidates}) == 2
 
 
 def test_an_end_time_that_does_not_follow_the_start_is_refused() -> None:
@@ -390,7 +459,7 @@ def test_two_rows_that_disagree_about_one_lesson_are_reported() -> None:
     response = parse([worksheet([*lesson_row(1), *lesson_row(2, end=0.5)])])
 
     assert len(response.candidates) == 1
-    assert response.candidates[0].end_local_time.isoformat() == "09:45:00"
+    assert response.candidates[0].end_local_time == time(9, 45)
     codes = [warning.code for warning in response.warnings]
     assert WARNING_CONFLICTING_DUPLICATE in codes
     assert response.status is ParserResultStatus.COMPLETED_WITH_WARNINGS

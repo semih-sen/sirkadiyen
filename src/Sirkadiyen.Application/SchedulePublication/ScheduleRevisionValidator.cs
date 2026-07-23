@@ -128,10 +128,15 @@ public sealed class ScheduleRevisionValidator(RevisionValidationOptions options)
         List<RevisionValidationFinding> findings,
         DateTimeOffset atUtc)
     {
+        // An all-day item has no duration to find implausible (ADR-046). Measuring
+        // one against the lesson thresholds would quarantine every revision that
+        // publishes a holiday.
         List<CanonicalScheduleRecord> impossible = input.Records
+            .Where(record => !record.IsAllDay)
             .Where(record =>
             {
-                double minutes = (record.EndLocalTime - record.StartLocalTime).TotalMinutes;
+                double minutes = (record.EndLocalTime!.Value - record.StartLocalTime!.Value)
+                    .TotalMinutes;
                 return minutes < options.MinimumLessonMinutes
                     || minutes > options.MaximumLessonMinutes;
             })
@@ -152,8 +157,8 @@ public sealed class ScheduleRevisionValidator(RevisionValidationOptions options)
             detail: Detail(impossible.Take(20).Select(record => new
             {
                 record.CandidateId,
-                Start = record.StartLocalTime.ToString("HH:mm", CultureInfo.InvariantCulture),
-                End = record.EndLocalTime.ToString("HH:mm", CultureInfo.InvariantCulture),
+                Start = record.StartLocalTime!.Value.ToString("HH:mm", CultureInfo.InvariantCulture),
+                End = record.EndLocalTime!.Value.ToString("HH:mm", CultureInfo.InvariantCulture),
             })),
             affectedRecordCount: impossible.Count));
     }
@@ -277,24 +282,29 @@ public sealed class ScheduleRevisionValidator(RevisionValidationOptions options)
         // is the only audience statement available before student profiles exist.
         // A group and one of its own subgroups therefore do not register as
         // overlapping; that needs the ADR-027 profile schema to detect.
+        // Only timed records can overlap. An all-day closure states no times, and
+        // reading it as booking the whole day would report every lesson published
+        // on a half-day holiday as a double booking.
         List<string> overlaps = [];
         IEnumerable<IGrouping<(string Audience, DateOnly Date), CanonicalScheduleRecord>> groups =
-            input.Records.GroupBy(record => (
-                Audience: $"{record.AudienceScope}|{record.AudienceSelectors}",
-                Date: record.LocalDate));
+            input.Records
+                .Where(record => !record.IsAllDay)
+                .GroupBy(record => (
+                    Audience: $"{record.AudienceScope}|{record.AudienceSelectors}",
+                    Date: record.LocalDate));
 
         foreach (var group in groups)
         {
             List<CanonicalScheduleRecord> ordered = group
-                .OrderBy(record => record.StartLocalTime)
-                .ThenBy(record => record.EndLocalTime)
+                .OrderBy(record => record.StartLocalTime!.Value)
+                .ThenBy(record => record.EndLocalTime!.Value)
                 .ToList();
 
             for (int index = 1; index < ordered.Count; index++)
             {
                 CanonicalScheduleRecord previous = ordered[index - 1];
                 CanonicalScheduleRecord current = ordered[index];
-                if (current.StartLocalTime >= previous.EndLocalTime)
+                if (current.StartLocalTime!.Value >= previous.EndLocalTime!.Value)
                 {
                     continue;
                 }

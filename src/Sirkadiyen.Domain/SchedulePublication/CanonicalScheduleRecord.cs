@@ -42,8 +42,9 @@ public sealed class CanonicalScheduleRecord
         string displayTitle,
         string? normalizedCourseIdentity,
         DateOnly localDate,
-        TimeOnly startLocalTime,
-        TimeOnly endLocalTime,
+        TimeOnly? startLocalTime,
+        TimeOnly? endLocalTime,
+        bool isAllDay,
         string timeZoneId,
         string stableIdentity,
         string contentHash,
@@ -61,7 +62,25 @@ public sealed class CanonicalScheduleRecord
         ArgumentException.ThrowIfNullOrWhiteSpace(stableIdentity);
         ArgumentException.ThrowIfNullOrWhiteSpace(contentHash);
 
-        if (endLocalTime <= startLocalTime)
+        // A record is either timed or all-day, never half of each (ADR-046). A
+        // half-stated shape would reach Google Calendar as an event with no end,
+        // so it is refused here rather than corrected downstream.
+        if (isAllDay)
+        {
+            if (startLocalTime is not null || endLocalTime is not null)
+            {
+                throw new ArgumentException(
+                    "An all-day canonical record must state no local time.",
+                    nameof(isAllDay));
+            }
+        }
+        else if (startLocalTime is null || endLocalTime is null)
+        {
+            throw new ArgumentException(
+                "A timed canonical record must state both local times.",
+                nameof(startLocalTime));
+        }
+        else if (endLocalTime <= startLocalTime)
         {
             throw new ArgumentException(
                 "A canonical record must end after it starts.",
@@ -84,6 +103,7 @@ public sealed class CanonicalScheduleRecord
         LocalDate = localDate;
         StartLocalTime = startLocalTime;
         EndLocalTime = endLocalTime;
+        IsAllDay = isAllDay;
         TimeZoneId = timeZoneId;
         StableIdentity = stableIdentity;
         ContentHash = contentHash;
@@ -125,9 +145,23 @@ public sealed class CanonicalScheduleRecord
 
     public DateOnly LocalDate { get; private set; }
 
-    public TimeOnly StartLocalTime { get; private set; }
+    /// <summary>The local start time, or <c>null</c> for an all-day item.</summary>
+    public TimeOnly? StartLocalTime { get; private set; }
 
-    public TimeOnly EndLocalTime { get; private set; }
+    /// <summary>The local end time, or <c>null</c> for an all-day item.</summary>
+    public TimeOnly? EndLocalTime { get; private set; }
+
+    /// <summary>
+    /// Whether this item occupies the whole local date instead of a time range
+    /// (ADR-046).
+    /// </summary>
+    /// <remarks>
+    /// Holidays and semester breaks are stated by the sources as a dated row with
+    /// no times, one row per closed day, so an all-day record covers exactly one
+    /// local date. Google Calendar wants an exclusive end date, which is the
+    /// calendar adapter's conversion to make and not a second stored field.
+    /// </remarks>
+    public bool IsAllDay { get; private set; }
 
     public string TimeZoneId { get; private set; }
 

@@ -96,13 +96,30 @@ HEADER_ALIASES: Mapping[str, frozenset[str]] = {
 MIN_PLAUSIBLE_DURATION_MINUTES = 5
 MAX_PLAUSIBLE_DURATION_MINUTES = 12 * 60
 
+#: Words that name a whole-day closure. Matched on prefixes as whole words, so
+#: `TATİL`/`TATİLİ` and `BAYRAM`/`BAYRAMI` are all caught.
+CLOSURE_TOKENS = frozenset({"tatil", "bayram", "holiday"})
+
+#: Closures the sources name without any closure word. `LABOR DAY` is the English
+#: workbook's rendering of `İŞÇİ BAYRAMI`; both sources state it on the same date,
+#: so this is read from the sources rather than from knowing the Turkish calendar.
+CLOSURE_PHRASES = ("labor day", "labour day")
+
+#: The all-day shape is decided by a title rule rather than read from a cell, so
+#: it is published below full confidence with an explicit indicator.
+CONFIDENCE_ALL_DAY_CLOSURE = 0.9
+
+#: An all-day item has no start time, and identity components may not be empty,
+#: so the slot states the shape instead. Timed identities are unaffected.
+IDENTITY_ALL_DAY = "allDay"
+
 REASON_BLANK_ROW = "blankRow"
 REASON_OTHER_CLASS_YEAR = "otherClassYear"
 REASON_UNRESOLVED_TERM = "unresolvedTerm"
 REASON_MISSING_TITLE = "missingTitle"
 REASON_MISSING_DATE = "missingDate"
 REASON_UNRESOLVED_DATE = "unresolvedDate"
-REASON_NO_SCHEDULED_TIME = "noScheduledTime"
+REASON_NO_TIME_AND_NO_CLOSURE = "noScheduledTimeAndNoClosure"
 REASON_UNRESOLVED_START_TIME = "unresolvedStartTime"
 REASON_UNRESOLVED_END_TIME = "unresolvedEndTime"
 REASON_END_NOT_AFTER_START = "endTimeNotAfterStartTime"
@@ -121,6 +138,7 @@ METRIC_WORKSHEETS_IGNORED_NO_HEADER = "worksheets.ignored.noHeaderRow"
 METRIC_ROWS_SCANNED = "rows.scanned"
 METRIC_ROWS_HIDDEN = "rows.hidden"
 METRIC_CANDIDATES_EMITTED = "candidates.emitted"
+METRIC_CANDIDATES_ALL_DAY = "candidates.allDayClosure"
 METRIC_CANDIDATE_EVENT_TYPE_PREFIX = "candidates.eventType."
 #: Counted per published lesson so a source that changes how it writes dates —
 #: from a serial to numeric text, say — is visible before a reader has to notice
@@ -142,6 +160,7 @@ RULE_TITLE_CELL = "annual.titleCell"
 RULE_BLOCK_CELL = "annual.blockCell"
 RULE_LOCATION_CELL = "annual.locationCell"
 RULE_ROW = "annual.row"
+RULE_ALL_DAY_CLOSURE = "annual.allDayClosureTitle"
 
 #: Titles whose first token marks a non-teaching entry. Checked before the
 #: teaching keywords, because "SERBEST ÇALIŞMA (Dönem 2 Sınav)" is free study
@@ -193,6 +212,20 @@ class _RowContext:
             columns[-1] + 1,
             extraction_rule=extraction_rule,
         )
+
+
+@dataclass(frozen=True, slots=True)
+class _Schedule:
+    """When a row happens: a time range, or the whole local date (ADR-046)."""
+
+    start: time | None
+    end: time | None
+    confidence: float
+
+    @property
+    def all_day(self) -> bool:
+        """Whether the row occupies its date instead of a time range."""
+        return self.start is None
 
 
 @dataclass(frozen=True, slots=True)
@@ -390,19 +423,16 @@ def _parse_row(
     if resolved_date is None:
         return None
 
-    times = _resolve_times(row=row, diagnostics=diagnostics)
-    if times is None:
+    schedule = _resolve_schedule(row=row, title_text=title_text, diagnostics=diagnostics)
+    if schedule is None:
         return None
 
-    start_time, end_time, time_confidence = times
     return _build_draft(
         row=row,
         context=context,
         title_text=title_text,
         resolved_date=resolved_date,
-        start_time=start_time,
-        end_time=end_time,
-        time_confidence=time_confidence,
+        schedule=schedule,
     )
 
 
@@ -488,23 +518,17 @@ def _resolve_date(
     return resolution
 
 
-def _resolve_times(
+def _resolve_schedule(
     *,
     row: _RowContext,
+    title_text: str,
     diagnostics: ParseDiagnostics,
-) -> tuple[time, time, float] | None:
+) -> _Schedule | None:
     start_text = row.text(ROLE_START_TIME)
     end_text = row.text(ROLE_END_TIME)
 
     if not start_text and not end_text:
-        # Holidays and semester breaks are written as a dated row without times.
-        # They are real schedule information but not timed lessons, and this
-        # profile only publishes timed lessons.
-        diagnostics.record_ignored_row(
-            REASON_NO_SCHEDULED_TIME,
-            row.row_evidence(extraction_rule=RULE_ROW),
-        )
-        return None
+        return _resolve_all_day(row=row, title_text=title_text, diagnostics=diagnostics)
 
     start = _resolve_time_cell(
         row=row,
@@ -541,7 +565,57 @@ def _resolve_times(
         )
         return None
 
-    return start.value, end.value, min(start.confidence, end.confidence)
+    return _Schedule(
+        start=start.value,
+        end=end.value,
+        confidence=min(start.confidence, end.confidence),
+    )
+
+
+def _resolve_all_day(
+    *,
+    row: _RowContext,
+    title_text: str,
+    diagnostics: ParseDiagnostics,
+) -> _Schedule | None:
+    """Read a dated row whose time pair is empty.
+
+    The sources write a holiday or a semester break as a dated row with no times,
+    one row per closed day, and that becomes an all-day item (ADR-046). A row that
+    states no times and names no closure states no schedule this profile can
+    publish; inventing a time for it would put a lesson on a student's calendar at
+    an hour nobody chose.
+    """
+    if states_closure(title_text):
+        return _Schedule(start=None, end=None, confidence=CONFIDENCE_ALL_DAY_CLOSURE)
+
+    diagnostics.record_ignored_row(
+        REASON_NO_TIME_AND_NO_CLOSURE,
+        row.row_evidence(extraction_rule=RULE_ROW),
+        severity=ParserWarningSeverity.WARNING,
+        message=(
+            f"Row states a date and the title '{title_text}' but no times, and the title "
+            "names no holiday or semester break, so it was published neither as a lesson "
+            "nor as an all-day item."
+        ),
+    )
+    return None
+
+
+def states_closure(title: str) -> bool:
+    """Report whether a title names a holiday or a semester break.
+
+    A title alone never makes an entry a closure. This is read only for a row that
+    states a date and no times at all, because that conjunction is the source's own
+    statement that nothing is taught that day. The same words appear on timed rows —
+    `CUMHURİYET BAYRAMI AREFESİ` is three real hours of teaching, and the English
+    workbook writes its semester break as timed rows — and those are published as
+    the source states them.
+    """
+    key = comparison_key(title)
+    if any(phrase in key for phrase in CLOSURE_PHRASES):
+        return True
+    return _matches(_words(title), CLOSURE_TOKENS)
 
 
 def _resolve_time_cell(
@@ -576,9 +650,7 @@ def _build_draft(
     context: ParseSourceContext,
     title_text: str,
     resolved_date: DateResolution,
-    start_time: time,
-    end_time: time,
-    time_confidence: float,
+    schedule: _Schedule,
 ) -> _CandidateDraft:
     candidate_id = f"{row.worksheet.sheet_id}!R{row.row_index + 1}"
 
@@ -592,8 +664,13 @@ def _build_draft(
 
     # Classification still reads the whole cell. The block and the department
     # both carry keywords the event type depends on, and splitting the cell must
-    # not silently reclassify a lesson.
-    event_type = classify_event_type(title=display_title, block=block_text)
+    # not silently reclassify a lesson. A closure is not teaching of any kind,
+    # so its type follows from its shape rather than from its keywords.
+    event_type = (
+        ScheduleEventType.OTHER
+        if schedule.all_day
+        else classify_event_type(title=display_title, block=block_text)
+    )
     block_departments = resolve_block_and_departments(block_text)
 
     identity_components = build_identity_components(
@@ -602,14 +679,17 @@ def _build_draft(
             ("classYear", str(context.class_year)),
             ("programLanguage", context.program_language.value),
             ("localDate", resolved_date.value.isoformat() if resolved_date.value else ""),
-            ("startLocalTime", start_time.isoformat()),
+            (
+                "startLocalTime",
+                IDENTITY_ALL_DAY if schedule.start is None else schedule.start.isoformat(),
+            ),
             ("courseIdentity", course_identity(display_title) or ""),
         )
     )
 
     confidence = min(
         resolved_date.confidence,
-        time_confidence,
+        schedule.confidence,
         course_title.confidence,
         split.confidence if split.resolved else 1.0,
     )
@@ -625,8 +705,9 @@ def _build_draft(
         normalized_course_identity=course_identity(display_title),
         display_title=display_title,
         local_date=_require_date(resolved_date),
-        start_local_time=start_time,
-        end_local_time=end_time,
+        start_local_time=schedule.start,
+        end_local_time=schedule.end,
+        is_all_day=schedule.all_day,
         time_zone_id=context.time_zone_id,
         instructor=instructor,
         location=location_text,
@@ -638,8 +719,7 @@ def _build_draft(
             display_title=display_title,
             event_type=event_type,
             local_date=_require_date(resolved_date),
-            start_time=start_time,
-            end_time=end_time,
+            schedule=schedule,
             instructor=instructor,
             location=location_text,
             block_departments=block_departments,
@@ -671,8 +751,7 @@ def _content_hash(
     display_title: str,
     event_type: ScheduleEventType,
     local_date: date,
-    start_time: time,
-    end_time: time,
+    schedule: _Schedule,
     instructor: str | None,
     location: str | None,
     block_departments: BlockDepartmentResolution,
@@ -685,8 +764,9 @@ def _content_hash(
             "displayTitle": display_title,
             "eventType": event_type.value,
             "localDate": local_date.isoformat(),
-            "startLocalTime": start_time.isoformat(),
-            "endLocalTime": end_time.isoformat(),
+            "isAllDay": encode_all_day(schedule.all_day),
+            "startLocalTime": None if schedule.start is None else schedule.start.isoformat(),
+            "endLocalTime": None if schedule.end is None else schedule.end.isoformat(),
             "timeZoneId": context.time_zone_id,
             "instructor": instructor,
             "location": location,
@@ -694,6 +774,15 @@ def _content_hash(
             "departments": join_departments(block_departments.departments),
         }
     )
+
+
+def encode_all_day(all_day: bool) -> str:
+    """Encode the schedule shape for hashing.
+
+    Both shapes are always present in the hash, so a timed item cannot silently
+    become all-day without moving its content hash (ADR-046).
+    """
+    return "true" if all_day else "false"
 
 
 def join_departments(departments: tuple[str, ...]) -> str | None:
@@ -733,6 +822,17 @@ def _record_candidate_diagnostics(
     if draft.deferred_location:
         diagnostics.increment(METRIC_LOCATION_DEFERRED)
 
+    if candidate.is_all_day:
+        # The shape came from a title rule rather than from a cell, so every
+        # all-day item says so on its own record.
+        diagnostics.increment(METRIC_CANDIDATES_ALL_DAY)
+        diagnostics.confidence(
+            field_name="isAllDay",
+            score=CONFIDENCE_ALL_DAY_CLOSURE,
+            reason=RULE_ALL_DAY_CLOSURE,
+            candidate_id=candidate.candidate_id,
+        )
+
     _record_block_department_diagnostics(
         draft=draft,
         diagnostics=diagnostics,
@@ -763,6 +863,10 @@ def _record_candidate_diagnostics(
             candidate_id=candidate.candidate_id,
             evidence=row.evidence(ROLE_DATE, extraction_rule=RULE_DATE_CELL),
         )
+
+    if candidate.start_local_time is None or candidate.end_local_time is None:
+        # An all-day item has no duration to find implausible.
+        return
 
     duration = duration_minutes(candidate.start_local_time, candidate.end_local_time)
     if not MIN_PLAUSIBLE_DURATION_MINUTES <= duration <= MAX_PLAUSIBLE_DURATION_MINUTES:

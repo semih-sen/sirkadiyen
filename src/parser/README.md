@@ -94,11 +94,34 @@ so `G` is group G and `A2` is a subgroup of group A, and it refuses any cell
 whose value it cannot fully read — a makeup marker naming no group publishes
 nothing rather than reaching every student.
 
+### A holiday is an all-day item, not a lesson at midnight
+
+The annual sources write a holiday or a semester break as a dated row with an
+empty time pair, one row per closed day. Those publish as all-day candidates:
+`isAllDay` is true, both times are null, and the event type is `other` (ADR-046).
+
+The shape decides, not the title. A row becomes all-day only when it states a
+date, no times **at all**, and a title naming a closure — `tatil`, `bayram`,
+`holiday`, or the phrase `labor day`. The same words appear on timed rows, and
+those are published as the source states them: `CUMHURİYET BAYRAMI AREFESİ` is
+three real hours of teaching, and the English workbook writes its own semester
+break as eleven timed 08:30–16:20 rows.
+
+A dated row with no times whose title names no closure is refused with a warning
+citing the cell, counted as `rows.ignored.noScheduledTimeAndNoClosure`. A lesson
+whose times the faculty forgot must not become an all-day block on every
+student's calendar.
+
+Consecutive closed days stay separate records. The source states one row per day
+and skips weekends inside a break, so merging them into a span would cover days
+the source excluded.
+
 What it deliberately refuses:
 
 - a numeric date column cell that does not declare a date format
 - a numeric date text whose meaning depends on a component order the profile has
   not declared
+- a dated row with no times that names no closure
 - a time cell that the source spreadsheet converted into a date, which would
   otherwise publish a lesson at midnight
 - an end time that does not follow its start

@@ -169,6 +169,7 @@ public sealed class SchedulePipelineIntegrityTests(PostgresFixture fixture)
             new DateOnly(2025, 10, 1),
             new TimeOnly(9, 0),
             new TimeOnly(9, 45),
+            isAllDay: false,
             "Europe/Istanbul",
             stableIdentity,
             "sha256:content",

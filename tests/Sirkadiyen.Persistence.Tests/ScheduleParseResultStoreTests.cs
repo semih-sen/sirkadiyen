@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using Sirkadiyen.Application.ScheduleParsing;
 using Sirkadiyen.Contracts.Parsing;
 using Sirkadiyen.Domain.ScheduleIngestion;
@@ -65,6 +66,93 @@ public sealed class ScheduleParseResultStoreTests(PostgresFixture fixture)
         Assert.Equal("HÜCRE DİLİMİ", record.CurriculumBlock);
         Assert.Equal(["TIBBİ BİYOLOJİ AD.", "BİYOFİZİK AD."], record.Departments);
         Assert.Null(record.ComparableDepartment);
+    }
+
+    /// <summary>
+    /// A holiday must survive persistence as a shape, not as a lesson at midnight
+    /// (ADR-046).
+    /// </summary>
+    [Fact]
+    public async Task AnAllDayClosureIsStoredWithNoTimesAtAll()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        (ScheduleSource source, SourceSnapshot snapshot) = await AddSourceAndSnapshotAsync(context);
+        ScheduleParseResultStore store = new(context);
+        DateTimeOffset now = new(2026, 7, 23, 9, 0, 0, TimeSpan.Zero);
+
+        var begun = await store.BeginOrResumeAsync(
+            snapshot,
+            source,
+            "correlation-1",
+            now,
+            StaleAfter,
+            Token);
+        ScheduleRevision? revision = await store.CompleteAsync(
+            begun.ParseRunId,
+            Response(source, snapshot, "correlation-1", withClosure: true),
+            now.AddSeconds(2),
+            Token);
+
+        Assert.NotNull(revision);
+        context.ChangeTracker.Clear();
+        CanonicalScheduleRecord closure = await context.CanonicalScheduleRecords.SingleAsync(
+            candidate => candidate.ScheduleRevisionId == revision.Id && candidate.IsAllDay,
+            Token);
+
+        Assert.Equal("CUMHURİYET BAYRAMI", closure.DisplayTitle);
+        Assert.Equal(new DateOnly(2026, 7, 24), closure.LocalDate);
+        Assert.Null(closure.StartLocalTime);
+        Assert.Null(closure.EndLocalTime);
+        // The timed lesson in the same revision keeps its times, so the shape is
+        // per record rather than per revision.
+        CanonicalScheduleRecord lesson = await context.CanonicalScheduleRecords.SingleAsync(
+            candidate => candidate.ScheduleRevisionId == revision.Id && !candidate.IsAllDay,
+            Token);
+        Assert.Equal(new TimeOnly(9, 0), lesson.StartLocalTime);
+    }
+
+    /// <summary>
+    /// The schema refuses a timed record whose times went missing, even though a
+    /// check constraint passes on NULL: every branch of the shape rule tests
+    /// nullness explicitly, so this cannot slip through.
+    /// </summary>
+    [Fact]
+    public async Task TheDatabaseRefusesATimedRecordWithoutTimes()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        (ScheduleSource source, SourceSnapshot snapshot) = await AddSourceAndSnapshotAsync(context);
+        ScheduleParseResultStore store = new(context);
+        DateTimeOffset now = new(2026, 7, 23, 9, 0, 0, TimeSpan.Zero);
+
+        var begun = await store.BeginOrResumeAsync(
+            snapshot,
+            source,
+            "correlation-1",
+            now,
+            StaleAfter,
+            Token);
+        ScheduleRevision? revision = await store.CompleteAsync(
+            begun.ParseRunId,
+            Response(source, snapshot, "correlation-1"),
+            now.AddSeconds(2),
+            Token);
+        Assert.NotNull(revision);
+
+        // Straight past the domain, the way a future producer or a repair script
+        // would reach the table.
+        PostgresException error = await Assert.ThrowsAsync<PostgresException>(
+            () => context.Database.ExecuteSqlRawAsync(
+                """
+                UPDATE sirkadiyen.canonical_schedule_records
+                SET "StartLocalTime" = NULL
+                WHERE "ScheduleRevisionId" = {0}
+                """,
+                [revision.Id],
+                Token));
+
+        Assert.Equal("ck_canonical_schedule_records_schedule_shape", error.ConstraintName);
     }
 
     [Fact]
@@ -269,7 +357,8 @@ public sealed class ScheduleParseResultStoreTests(PostgresFixture fixture)
     private static ParseSnapshotResponse Response(
         ScheduleSource source,
         SourceSnapshot snapshot,
-        string correlationId) => new()
+        string correlationId,
+        bool withClosure = false) => new()
         {
             ContractVersion = ParserContractVersions.V1,
             CorrelationId = correlationId,
@@ -315,6 +404,33 @@ public sealed class ScheduleParseResultStoreTests(PostgresFixture fixture)
                     ContentHash = "sha256:content",
                     Confidence = 0.95m,
                 },
+                .. withClosure
+                    ?
+                    [
+                        // A holiday as the annual sources state it: a date, a
+                        // title, and deliberately no times (ADR-046).
+                        new CanonicalScheduleCandidate
+                        {
+                            CandidateId = "candidate-2",
+                            AcademicYear = source.AcademicYear,
+                            ClassYear = source.ClassYear,
+                            ProgramLanguage = ContractLanguage.Turkish,
+                            Audience = new ScheduleAudienceCandidate
+                            {
+                                Scope = ContractAudienceScope.AllStudentsInProgram,
+                            },
+                            EventType = ContractEventType.Other,
+                            Status = CandidateRecordStatus.Scheduled,
+                            DisplayTitle = "CUMHURİYET BAYRAMI",
+                            LocalDate = new DateOnly(2026, 7, 24),
+                            IsAllDay = true,
+                            TimeZoneId = source.TimeZoneId,
+                            StableIdentity = "sha256:identity-closure",
+                            ContentHash = "sha256:content-closure",
+                            Confidence = 0.9m,
+                        },
+                    ]
+                    : (CanonicalScheduleCandidate[])[],
             ],
             Warnings =
             [

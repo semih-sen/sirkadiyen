@@ -145,6 +145,38 @@ public sealed class SemanticScheduleDifferTests
     }
 
     /// <summary>
+    /// An all-day closure and a timed lesson are different logical entries even
+    /// when everything a similarity score reads is identical (ADR-046).
+    /// </summary>
+    [Fact]
+    public void AnAllDayItemIsNeverMatchedToATimedLesson()
+    {
+        CanonicalScheduleRecord previous = Record(
+            PreviousRevisionId,
+            "previous",
+            stableIdentity: "was-timed",
+            title: "KURBAN BAYRAMI",
+            normalizedTitle: "kurban-bayrami",
+            hour: 9);
+        CanonicalScheduleRecord current = Record(
+            CurrentRevisionId,
+            "current",
+            stableIdentity: "now-all-day",
+            title: "KURBAN BAYRAMI",
+            normalizedTitle: "kurban-bayrami",
+            allDay: true);
+
+        IReadOnlyList<ScheduleDiffEntry> entries = Differ().Diff([previous], [current]);
+
+        // A delete and a create, not an update: the shape of the entry changed,
+        // and the calendar has to replace it rather than patch its times away.
+        Assert.Equal(2, entries.Count);
+        Assert.Contains(entries, entry => entry.Change is ScheduleDiffChange.Deleted);
+        Assert.Contains(entries, entry => entry.Change is ScheduleDiffChange.Created);
+        Assert.DoesNotContain(entries, entry => entry.Change is ScheduleDiffChange.Updated);
+    }
+
+    /// <summary>
     /// An integrated session ("entegre oturum") names several departments. The
     /// list is kept for the student to read but is not a comparable value, so
     /// matching falls back to the two-attribute rule.
@@ -338,7 +370,8 @@ public sealed class SemanticScheduleDifferTests
         string? department = "Fizyoloji Anabilim Dalı",
         IReadOnlyList<string>? departments = null,
         string audienceSelectors = "[]",
-        int hour = 9) => new(
+        int hour = 9,
+        bool allDay = false) => new(
             revisionId,
             SourceId.Parse("G1-TR-ANNUAL"),
             candidateId,
@@ -346,14 +379,15 @@ public sealed class SemanticScheduleDifferTests
             "2025-2026",
             1,
             ProgramLanguage.Turkish,
-            ScheduleEventType.Theory,
+            allDay ? ScheduleEventType.Other : ScheduleEventType.Theory,
             AudienceScope.AllStudentsInProgram,
             audienceSelectors,
             title,
             normalizedTitle,
             new DateOnly(2025, 10, 3),
-            new TimeOnly(hour, 0),
-            new TimeOnly(hour + 1, 0),
+            allDay ? null : new TimeOnly(hour, 0),
+            allDay ? null : new TimeOnly(hour + 1, 0),
+            allDay,
             "Europe/Istanbul",
             stableIdentity,
             contentHash,

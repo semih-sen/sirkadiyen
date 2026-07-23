@@ -217,7 +217,7 @@ A canonical record must be able to express:
 - original display title
 - curriculum block when explicitly stated by the source
 - date
-- either start/end time or an explicit all-day date span
+- either a start/end time or an explicit all-day marker with no times at all
 - instructor
 - every academic department explicitly stated by the source, in source order
 - location

@@ -92,6 +92,52 @@ public sealed class ContractJsonTests
         Assert.Equal("Europe/Istanbul", roundTripped.SourceContext.TimeZoneId);
     }
 
+    /// <summary>
+    /// A holiday crosses the wire as a date with no times and an explicit all-day
+    /// flag (ADR-046).
+    /// </summary>
+    /// <remarks>
+    /// The absent times are the point: a serializer that wrote midnight instead of
+    /// omitting them would turn every closure into a lesson nobody teaches, and the
+    /// .NET side would accept it.
+    /// </remarks>
+    [Fact]
+    public void AnAllDayCandidateCrossesTheWireWithoutTimes()
+    {
+        CanonicalScheduleCandidate candidate = new()
+        {
+            CandidateId = "1!R140",
+            AcademicYear = "2025-2026",
+            ClassYear = 1,
+            ProgramLanguage = ProgramLanguage.Turkish,
+            Audience = new ScheduleAudienceCandidate
+            {
+                Scope = AudienceScope.AllStudentsInProgram,
+            },
+            EventType = ScheduleEventType.Other,
+            Status = CandidateRecordStatus.Scheduled,
+            DisplayTitle = "CUMHURİYET BAYRAMI",
+            LocalDate = new DateOnly(2025, 10, 29),
+            IsAllDay = true,
+            TimeZoneId = "Europe/Istanbul",
+            StableIdentity = "sha256:identity",
+            ContentHash = "sha256:content",
+        };
+        JsonSerializerOptions options = ContractJson.CreateOptions();
+
+        string json = JsonSerializer.Serialize(candidate, options);
+        CanonicalScheduleCandidate? roundTripped =
+            JsonSerializer.Deserialize<CanonicalScheduleCandidate>(json, options);
+
+        Assert.Contains("\"isAllDay\":true", json, StringComparison.Ordinal);
+        Assert.Contains("\"startLocalTime\":null", json, StringComparison.Ordinal);
+        Assert.NotNull(roundTripped);
+        Assert.True(roundTripped.IsAllDay);
+        Assert.Null(roundTripped.StartLocalTime);
+        Assert.Null(roundTripped.EndLocalTime);
+        Assert.Equal(new DateOnly(2025, 10, 29), roundTripped.LocalDate);
+    }
+
     private static NormalizedSpreadsheetSnapshot CreateSnapshot() => new()
     {
         ContractVersion = SpreadsheetContractVersions.V1,

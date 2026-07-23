@@ -34,7 +34,7 @@
 - [x] Define immutable snapshot model
 - [x] Define parser request and response contracts
 - [x] Define canonical schedule model
-- [ ] Add all-day canonical schedule items for holidays and semester breaks (ADR-046)
+- [x] Add all-day canonical schedule items for holidays and semester breaks (ADR-046)
 - [x] Add canonical curriculum block with explicit source provenance (ADR-047)
 - [x] Add the canonical academic department list with an explicit marker rule (ADR-049)
 - [x] Define schedule revision model
@@ -239,6 +239,15 @@ active academic year, the latest content, the last ten days of changes, and
 parser-recovery inputs while pruning only expired normalized JSON (ADR-044).
 Metadata and the entire parse/revision/diff trail remain.
 
+Holidays and semester breaks now publish as all-day items (ADR-046), closing the
+last known canonical-model gap. 22 Turkish and 11 English rows that were dropped
+for having no times are now canonical records, and
+`rows.ignored.noScheduledTimeAndNoClosure` is zero for both sources, so every
+untimed dated row they state is accounted for. A row becomes all-day only when it
+states a date, a closure title and no times at all: the English source writes its
+own semester break as timed rows, and the eve of Republic Day is three real hours
+of teaching, so the title alone never decides.
+
 The day-first numeric date assumption is gone. Each parser profile now declares
 its `numeric_date_order`, and an undeclared profile publishes a numeric date only
 when both readings agree (ADR-051). No committed fixture writes one: the metrics
@@ -256,11 +265,11 @@ is amended so a lesson with no comparable department is still matched on title a
 instructor against a higher bar. Parse runs left running by a killed worker are
 recovered after a timeout instead of wedging their snapshot (ADR-050).
 
-The next implementation step is all-day holidays and semester breaks (ADR-046),
-which is the last known canonical-model gap and would publish twenty-two rows
-that are currently dropped. After that the consumer side begins with identity, the
-`users` table with its explicit `role` column and the ADR-045 SuperAdmin
-bootstrap, then affected-user resolution over `Ready` and `Released` diffs.
+The canonical model now has no known gap. The next implementation step is the
+consumer side: identity, the `users` table with its explicit `role` column and the
+ADR-045 SuperAdmin bootstrap, then affected-user resolution over `Ready` and
+`Released` diffs. `grade2_yearly_v1` is the next parser profile and needs no new
+canonical field.
 
 There is deliberately no rollback (ADR-033). A bad publication is corrected at
 the authoritative source and reaches calendars as a newer forward-fix revision.

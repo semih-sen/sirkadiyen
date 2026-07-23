@@ -94,9 +94,19 @@ public sealed record CanonicalScheduleCandidate
 
     public required DateOnly LocalDate { get; init; }
 
-    public required TimeOnly StartLocalTime { get; init; }
+    /// <summary>
+    /// The local times, or <c>null</c> on both when the item is all-day
+    /// (ADR-046). A parser states both or neither.
+    /// </summary>
+    public TimeOnly? StartLocalTime { get; init; }
 
-    public required TimeOnly EndLocalTime { get; init; }
+    public TimeOnly? EndLocalTime { get; init; }
+
+    /// <summary>
+    /// Whether the item occupies the whole local date. A dated holiday or
+    /// semester-break row is all-day; no time is invented for it.
+    /// </summary>
+    public bool IsAllDay { get; init; }
 
     public required string TimeZoneId { get; init; }
 

@@ -1679,7 +1679,9 @@ administration, no permission matrix, no role-management UI in the first release
 
 **Status:** Accepted
 **Date:** 2026-07-23
-**Implements:** not yet
+**Implements:** parser contract, both annual profiles, canonical domain model,
+persistence, revision validation and semantic diff, 2026-07-23. See the
+implementation note below for the four questions the sources answered.
 
 ### Context
 
@@ -1701,6 +1703,76 @@ Google Calendar.
   Calendar mapping must support all-day items before these rows publish.
 - All-day/timed shape changes are content changes and remain deterministic.
 - A row without an explicit date still does not publish.
+
+### Implementation note 2026-07-23
+
+Implemented through the parser contract, both annual profiles, the canonical
+domain model, persistence, revision validation and the semantic diff. 22 Turkish
+and 11 English rows now publish; `rows.ignored.noScheduledTimeAndNoClosure` is
+zero for both sources, so every untimed dated row they contain is accounted for
+as a closure.
+
+Four decisions the ADR left open were settled by reading the sources:
+
+1. **No span field.** The ADR anticipated an inclusive start and exclusive end
+   date. The sources do not state a range: a closure is written as one row per
+   closed day, and the ten `YARIYIL TATİL` rows skip 31 January and 1 February
+   because the weekend is not a teaching day. A stored span would therefore have
+   to either invent those two days or be populated from nothing. An all-day
+   canonical record covers exactly one local date, and the exclusive end date
+   Google Calendar wants is `LocalDate + 1`, computed by the calendar adapter.
+   Consecutive rows are deliberately not merged: merging is an inference, and it
+   would cover days the source excluded.
+2. **The shape decides, not the title.** A row becomes all-day only when it states
+   a date, a title naming a closure, and *no times at all*. The title alone is not
+   enough, and the sources prove why: `CUMHURİYET BAYRAMI AREFESİ` is a timed
+   three-hour session, and the English workbook writes its own semester break as
+   eleven timed 08:30–16:20 rows. Those are published as the source states them.
+   A dated row with no times whose title names no closure stays unpublished with a
+   warning naming the cell, because a lesson whose times the faculty forgot must
+   not become an all-day block on every student's calendar.
+3. **The closure vocabulary is `tatil`, `bayram`, `holiday` and the phrase
+   `labor day`.** The first three are matched as whole-word prefixes, which covers
+   `TATİL`/`TATİLİ` and `BAYRAM`/`BAYRAMI`. `LABOR DAY` states no closure word at
+   all; it is included because the English workbook puts it on 1 May, the same
+   date the Turkish workbook calls `İŞÇİ BAYRAMI`, so the two sources identify it
+   between them. Any other wording is refused and reported, and the list grows
+   from that evidence rather than from knowing the Turkish calendar.
+4. **A closure is `other`, decided by shape.** Its event type follows from being
+   all-day rather than from its keywords, so the keyword classifier is not widened
+   and no timed lesson is reclassified by this change.
+
+Consequences that fell out of the implementation:
+
+- `IsAllDay` and the two nullable times are one invariant, enforced in the Pydantic
+  contract, the domain constructor and a database check constraint. Every branch of
+  the constraint tests nullness explicitly, because a check constraint passes on
+  NULL and a bare `"EndLocalTime" > "StartLocalTime"` would have let a timed record
+  with no times through the one gate meant to catch it.
+- Revision validation excludes all-day records from the lesson-duration and
+  overlap rules. Measuring a closure as zero minutes would have quarantined every
+  revision that published one, and treating it as booking its whole date would
+  have reported the teaching around a half-day holiday as a clash.
+- Secondary matching cannot pair an all-day record with a timed one: the shape
+  joins the structural context, and matching also demands an instructor, which no
+  closure states. A closure that gains times is a delete and a create, which is
+  correct — the calendar cannot patch an all-day event into a timed one.
+- The identity component that normally carries the start time holds the literal
+  `allDay` for a closure, because an identity component may not be empty. Timed
+  identities are byte-identical to before.
+- Every content hash moved again, because `isAllDay` is now part of it for both
+  profiles. Adding the key only to all-day records would have avoided the churn but
+  would have made the hash schema depend on the record's shape, which is how a
+  field silently stops being covered. Taken now for the same reason as ADR-047: no
+  student calendar exists yet.
+- The migration's `Down` refuses while all-day records exist. The old schema cannot
+  represent one: making the time columns required again would have to invent
+  midnight, and deleting the rows would discard published schedule data a diff may
+  cite. The guard raises a message naming the count instead.
+- Known asymmetry, left as the sources state it: the Turkish source publishes the
+  semester break as ten all-day items and the English source publishes the same
+  break as eleven timed lessons labelled `theory`. Correcting that belongs to the
+  source or to a separate event-type decision, not to this one.
 
 ---
 

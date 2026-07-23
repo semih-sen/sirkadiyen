@@ -4,7 +4,7 @@
 
 Semantic diff complete through persistence and now actually reachable; snapshot
 payload retention complete; parse runs recoverable; every parser reading rule now
-declared rather than assumed.
+declared rather than assumed; the canonical model has no known gap left.
 
 The Google Sheets path now runs end to end from catalog seeding to a stored
 diff: adaptive polling, immutable snapshot storage, strict parser HTTP calls,
@@ -42,6 +42,44 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- **Holidays and semester breaks publish (ADR-046).** A canonical record is now
+  either timed or all-day. 22 Turkish and 11 English rows that were dropped for
+  having no times are canonical records, and
+  `rows.ignored.noScheduledTimeAndNoClosure` is zero for both sources, so every
+  untimed dated row they state is accounted for rather than merely unexplained.
+- **The shape decides a closure, not the title.** A row becomes all-day only when
+  it states a date, a title naming a closure and no times at all. The sources prove
+  why the title alone is not enough: `CUMHURİYET BAYRAMI AREFESİ` is a timed
+  three-hour session, and the English workbook writes its own semester break as
+  eleven timed 08:30–16:20 rows. A dated row with no times whose title names no
+  closure is still refused, with a warning naming the cell, because a lesson whose
+  times the faculty forgot must not become an all-day block on every calendar.
+- The closure vocabulary is `tatil`, `bayram`, `holiday` and the phrase
+  `labor day` — the last included because the English workbook puts it on 1 May,
+  the date the Turkish workbook calls `İŞÇİ BAYRAMI`, so the sources identify it
+  between them. Any other wording is refused and reported.
+- **No span field.** ADR-046 anticipated an inclusive start and exclusive end date,
+  but the sources write one row per closed day and the ten `YARIYIL TATİL` rows
+  skip the weekend. A stored span would have to invent those days. An all-day
+  record covers exactly one local date, and `LocalDate + 1` is the calendar
+  adapter's conversion. Consecutive rows are deliberately not merged.
+- `IsAllDay` plus two nullable times is one invariant, enforced in the Pydantic
+  contract, the domain constructor and a database check constraint whose every
+  branch tests nullness explicitly — a check constraint passes on NULL, so a bare
+  `"EndLocalTime" > "StartLocalTime"` would have let a timed record with no times
+  through the one gate meant to catch it.
+- Revision validation now excludes all-day records from the duration and overlap
+  rules, and secondary matching can never pair an all-day record with a timed one.
+- Every content hash moved again, because `isAllDay` is part of it for both
+  profiles. A shape-dependent hash schema would have avoided the churn and is
+  exactly how a field silently stops being covered.
+- 292 Python tests and 231 .NET tests pass, up from 284 and 214. Migration
+  `AddAllDayScheduleItems` was verified Up, Down and Up again against the real
+  PostgreSQL, and its rollback guard was proved to refuse while an all-day record
+  exists.
+
+## Previous numeric-date-order session
 
 - **Removed the last silent parser assumption.** The shared date resolver read
   every numeric date as day-first. Nothing declared it, and it is the one reading
@@ -491,27 +529,24 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Immediate objectives
 
-1. Add all-day canonical schedule items for holidays and semester breaks
-   (ADR-046). This is the last known canonical-model gap and would publish the
-   twenty-two rows both annual sources currently drop for having no times.
-2. Implement Google sign-in and the one-email `SuperAdmin` bootstrap from
+1. Implement Google sign-in and the one-email `SuperAdmin` bootstrap from
    ADR-045, with an explicit `role` column on `users`, then add the
    freeze/unfreeze administration surface and replace the shared operator key.
-3. Implement `grade2_yearly_v1`, which should reuse the annual implementation
+2. Implement `grade2_yearly_v1`, which should reuse the annual implementation
    with its own header aliases. Its block/department cell is expected to follow
    the ADR-049 convention, which the fixture must confirm, and its date column
    must be checked for a numeric form before its profile declares an order
    (ADR-051).
-4. Widen the group resolver for the confirmed Grade 1 English practice cohorts
+3. Widen the group resolver for the confirmed Grade 1 English practice cohorts
    `İ1`, `İ2` and `İ3`; the source also lays dates out differently.
-5. Establish .NET architecture tests.
-6. Acquire the missing Grade 1 anatomy, current Grade 2 English and Grade 3
+4. Establish .NET architecture tests.
+5. Acquire the missing Grade 1 anatomy, current Grade 2 English and Grade 3
    English fixtures.
-7. Add Google Drive/HTTP acquisition and DOCX conversion for the confirmed
+6. Add Google Drive/HTTP acquisition and DOCX conversion for the confirmed
    special-program sources.
-8. Add CI quality gates, including a PostgreSQL service for the integration
+7. Add CI quality gates, including a PostgreSQL service for the integration
    tests.
-9. Model identity, single-use licensing, secure-cookie sessions, flexible
+8. Model identity, single-use licensing, secure-cookie sessions, flexible
    student profiles, initial sync, and the dedicated managed calendar from
    ADR-022 through ADR-027.
 
@@ -523,8 +558,6 @@ incomplete until they are closed.
 
 - thirteen rows whose time cells the spreadsheet software converted into dates
   (seven Grade 1 Turkish, six Grade 1 English); these need a source-side fix
-- twenty-two holiday and semester-break rows, whose all-day behavior is decided
-  by ADR-046 but whose canonical and Calendar implementation is not built
 - twenty Grade 1 Turkish practice cells reading only `TELAFİ`, naming no group
 
 PDÖ and recurring undated rows are **not** on this list. They are deliberately
@@ -614,9 +647,19 @@ Still missing: a current Grade 2 English fixture and Grade 3 English fixtures.
 - the annual sources contain time cells that the spreadsheet software converted
   into dates; the parser refuses them, so seven Grade 1 Turkish rows and six
   Grade 1 English rows are currently unpublished and need a source-side fix
-- twenty-two holiday and semester-break rows carry no times and are therefore
-  not published; ADR-046 decides all-day events, but the canonical shape and
-  Calendar implementation remain
+- an all-day closure reaches Google Calendar as one event per closed day, since
+  the sources state one row per day and consecutive rows are deliberately not
+  merged. A student sees ten `YARIYIL TATİL` entries rather than one span, which
+  is faithful to the source and may still read as noise; merging is a product
+  decision, not a parser one
+- the closure vocabulary is `tatil`, `bayram`, `holiday` and the phrase
+  `labor day`. A closure worded differently — an administrative closure, a snow
+  day, an election — is refused rather than published, and the refusal names the
+  cell so the list grows from evidence
+- the two annual sources disagree about the semester break: Turkish states it as
+  untimed rows, which now publish as all-day items, and English states the same
+  break as eleven timed rows labelled `theory`. Both are published as stated, so
+  the two programs' calendars show that break differently
 - the annual event type is keyword-classified, so a lecture whose title mentions
   a practice is labelled `practice`; four Grade 1 Turkish lessons are affected
   and only the label is wrong

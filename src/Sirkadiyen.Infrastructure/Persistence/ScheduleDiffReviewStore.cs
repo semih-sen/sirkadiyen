@@ -177,6 +177,7 @@ public sealed class ScheduleDiffReviewStore(SirkadiyenDbContext dbContext) : ISc
                 LocalDate = record.LocalDate,
                 StartLocalTime = record.StartLocalTime,
                 EndLocalTime = record.EndLocalTime,
+                IsAllDay = record.IsAllDay,
                 AudienceSelectors = record.AudienceSelectors,
                 Instructor = record.Instructor,
                 Location = record.Location,

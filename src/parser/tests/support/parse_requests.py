@@ -67,7 +67,7 @@ def candidate_digest(candidate: CanonicalScheduleCandidate) -> str:
         (
             candidate.candidate_id,
             candidate.local_date.isoformat(),
-            f"{candidate.start_local_time:%H:%M}-{candidate.end_local_time:%H:%M}",
+            _when(candidate),
             candidate.event_type.value,
             f"id:{_short(candidate.stable_identity)}",
             f"content:{_short(candidate.content_hash)}",
@@ -93,6 +93,13 @@ def build_response_projection(response: ParseSnapshotResponse) -> dict[str, Any]
         "metrics": payload["metrics"],
         "confidenceIndicators": payload["confidenceIndicators"],
     }
+
+
+def _when(candidate: CanonicalScheduleCandidate) -> str:
+    """Render the candidate's time range, or mark it as covering the whole day."""
+    if candidate.start_local_time is None or candidate.end_local_time is None:
+        return "all-day"
+    return f"{candidate.start_local_time:%H:%M}-{candidate.end_local_time:%H:%M}"
 
 
 def _digest(response: ParseSnapshotResponse) -> str:

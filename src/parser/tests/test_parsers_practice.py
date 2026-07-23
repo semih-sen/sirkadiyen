@@ -4,6 +4,7 @@ Each test builds one small block, because the rules that matter here decide
 which students receive an event and a failure has to name the rule that broke.
 """
 
+from datetime import time
 from typing import Any
 
 import pytest
@@ -175,8 +176,8 @@ def test_a_cell_becomes_a_candidate_for_the_group_it_names() -> None:
     first = response.candidates[0]
     assert first.display_title == "Tıbbi Biyoloji"
     assert first.local_date.isoformat() == "2025-10-03"
-    assert first.start_local_time.isoformat() == "10:30:00"
-    assert first.end_local_time.isoformat() == "12:20:00"
+    assert first.start_local_time == time(10, 30)
+    assert first.end_local_time == time(12, 20)
     assert first.audience.scope is AudienceScope.SELECTED_GROUPS
     assert [(s.dimension, s.value) for s in first.audience.selectors] == [
         (DIMENSION_PRACTICE_GROUP, "A")

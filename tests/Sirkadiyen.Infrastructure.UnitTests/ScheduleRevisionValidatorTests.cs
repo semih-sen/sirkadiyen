@@ -229,6 +229,36 @@ public sealed class ScheduleRevisionValidatorTests
         Assert.Empty(result.Findings);
     }
 
+    /// <summary>
+    /// An all-day holiday has no duration, so the lesson-length rule must not read
+    /// one from it (ADR-046). Before this, a published holiday would have measured
+    /// as zero minutes and quarantined every revision that carried one.
+    /// </summary>
+    [Fact]
+    public void AnAllDayItemIsNotMeasuredAgainstTheLessonLengthRule()
+    {
+        RevisionValidationResult result = Validate([Record("r1", allDay: true)]);
+
+        Assert.Equal(RevisionState.Validated, result.Outcome);
+        Assert.Empty(result.Findings);
+    }
+
+    [Fact]
+    public void AnAllDayItemDoesNotOverlapTheLessonsOnItsDate()
+    {
+        // A half-day holiday coexists with the teaching around it, and a closure
+        // that booked its whole date would report every one of those as a clash.
+        RevisionValidationResult result = Validate(
+            [
+                Record("holiday", allDay: true),
+                Record("r1", hour: 9),
+                Record("r2", hour: 13),
+            ]);
+
+        Assert.Equal(RevisionState.Validated, result.Outcome);
+        Assert.Empty(result.Findings);
+    }
+
     [Theory]
     [InlineData(5, true)]
     [InlineData(10, false)]
@@ -367,7 +397,8 @@ public sealed class ScheduleRevisionValidatorTests
         DateOnly? date = null,
         string? stableIdentity = null,
         decimal confidence = 1.0m,
-        IReadOnlyList<(string Dimension, string Value)>? selectors = null)
+        IReadOnlyList<(string Dimension, string Value)>? selectors = null,
+        bool allDay = false)
     {
         IReadOnlyList<AudienceSelector> audience = (selectors ?? [("practiceGroup", "A")])
             .Select(selector => new AudienceSelector
@@ -387,14 +418,15 @@ public sealed class ScheduleRevisionValidatorTests
             "2025-2026",
             1,
             DomainLanguage.Turkish,
-            DomainEventType.Practice,
+            allDay ? DomainEventType.Other : DomainEventType.Practice,
             DomainAudienceScope.SelectedGroups,
             JsonSerializer.Serialize(audience, ContractJson.CreateOptions()),
             $"Lesson {candidateId}",
             null,
             date ?? new DateOnly(2025, 10, 3),
-            start,
-            start.AddMinutes(durationMinutes),
+            allDay ? null : start,
+            allDay ? null : start.AddMinutes(durationMinutes),
+            allDay,
             "Europe/Istanbul",
             stableIdentity ?? $"identity-{candidateId}",
             $"sha256:{candidateId}",

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Sirkadiyen.Domain.Operations;
 using Sirkadiyen.Domain.SchedulePublication;
@@ -127,6 +128,41 @@ public sealed class ScheduleModelTests
         Assert.Equal("jsonb", departments.GetColumnType());
         Assert.NotNull(departments.GetValueConverter());
         Assert.NotNull(departments.GetValueComparer());
+    }
+
+    /// <summary>
+    /// A record is either timed or all-day, and the database says so too, so a
+    /// producer that bypasses the domain still cannot store a half-stated shape
+    /// (ADR-046).
+    /// </summary>
+    [Fact]
+    public void AnAllDayItemStatesNoTimeAndTheSchemaEnforcesTheShape()
+    {
+        IEntityType record = Model.FindEntityType(typeof(CanonicalScheduleRecord))!;
+
+        Assert.True(record.FindProperty("StartLocalTime")!.IsNullable);
+        Assert.True(record.FindProperty("EndLocalTime")!.IsNullable);
+        Assert.False(record.FindProperty("IsAllDay")!.IsNullable);
+
+        // Check constraints are not kept in the read-optimized runtime model.
+        IEntityType designTime = CreateContext()
+            .GetService<IDesignTimeModel>()
+            .Model
+            .FindEntityType(typeof(CanonicalScheduleRecord))!;
+        ICheckConstraint shape = Assert.Single(
+            designTime.GetCheckConstraints(),
+            constraint => constraint.Name == "ck_canonical_schedule_records_schedule_shape");
+        // Nullness is tested explicitly in every branch: a check constraint only
+        // fails on FALSE, so a comparison left to return NULL would pass.
+        Assert.Contains("IS NOT NULL", shape.Sql, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void AllDayScheduleItemsHaveTheirOwnMigration()
+    {
+        Assert.Contains(
+            "20260723141930_AddAllDayScheduleItems",
+            CreateContext().Database.GetMigrations());
     }
 
     [Fact]

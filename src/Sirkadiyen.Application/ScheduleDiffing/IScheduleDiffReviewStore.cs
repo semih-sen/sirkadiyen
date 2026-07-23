@@ -117,9 +117,17 @@ public sealed record ScheduleDiffRecordView
 
     public required DateOnly LocalDate { get; init; }
 
-    public required TimeOnly StartLocalTime { get; init; }
+    /// <summary>The local times, or <c>null</c> on both for an all-day item.</summary>
+    /// <remarks>
+    /// An operator reading the hold queue has to be able to tell a holiday from a
+    /// lesson whose times went missing, so the shape is shown rather than filled in
+    /// with midnight.
+    /// </remarks>
+    public TimeOnly? StartLocalTime { get; init; }
 
-    public required TimeOnly EndLocalTime { get; init; }
+    public TimeOnly? EndLocalTime { get; init; }
+
+    public required bool IsAllDay { get; init; }
 
     public required string AudienceSelectors { get; init; }
 

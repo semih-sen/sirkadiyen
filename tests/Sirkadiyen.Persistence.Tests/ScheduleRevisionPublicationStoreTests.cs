@@ -450,6 +450,7 @@ public sealed class ScheduleRevisionPublicationStoreTests(PostgresFixture fixtur
             DateOnly.FromDateTime(createdAtUtc.UtcDateTime),
             new TimeOnly(9, 0),
             new TimeOnly(10, 50),
+            isAllDay: false,
             "Europe/Istanbul",
             "identity-0",
             "sha256:content-0",

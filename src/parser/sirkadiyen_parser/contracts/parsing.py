@@ -1,8 +1,8 @@
 from datetime import date, time
 from enum import StrEnum
-from typing import Literal
+from typing import Literal, Self
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from sirkadiyen_parser.contracts.base import ContractModel, OutboundContractModel
 from sirkadiyen_parser.contracts.snapshot import NormalizedSpreadsheetSnapshot
@@ -86,8 +86,16 @@ class CanonicalScheduleCandidate(OutboundContractModel):
     normalized_course_identity: str | None = None
     display_title: str = Field(min_length=1)
     local_date: date
-    start_local_time: time
-    end_local_time: time
+
+    #: A timed item states both times; an all-day item states neither (ADR-046).
+    #: The two are validated together, so a half-stated shape cannot reach .NET.
+    start_local_time: time | None = None
+    end_local_time: time | None = None
+
+    #: Whether the item occupies the whole local date instead of a time range.
+    #: A dated holiday or semester-break row is all-day, because the source
+    #: states no times for it and none may be invented (ADR-046).
+    is_all_day: bool = False
     time_zone_id: str = Field(min_length=1)
     instructor: str | None = None
     location: str | None = None
@@ -106,6 +114,25 @@ class CanonicalScheduleCandidate(OutboundContractModel):
     confidence: float = Field(ge=0, le=1)
     identity_components: list[IdentityComponent] = Field(default_factory=list)
     evidence: list[SourceEvidence] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _validate_schedule_shape(self) -> Self:
+        """Refuse a candidate that is neither clearly timed nor clearly all-day.
+
+        A record with one time missing would reach Google Calendar as an event
+        with no end, so the shape is an invariant of the contract rather than a
+        rule each profile is trusted to remember.
+        """
+        if self.is_all_day:
+            if self.start_local_time is not None or self.end_local_time is not None:
+                raise ValueError("An all-day candidate must state no local time.")
+            return self
+
+        if self.start_local_time is None or self.end_local_time is None:
+            raise ValueError("A timed candidate must state both local times.")
+        if self.end_local_time <= self.start_local_time:
+            raise ValueError("A timed candidate must end after it starts.")
+        return self
 
 
 class ParserWarning(OutboundContractModel):

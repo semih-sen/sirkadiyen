@@ -133,8 +133,21 @@ internal sealed class CanonicalScheduleRecordConfiguration
             record.LocalDate,
         });
 
+        // A record is either timed with ordered times or all-day with none
+        // (ADR-046). Expressed as one constraint because the two halves are one
+        // rule: a row that states an all-day flag and a start time is neither.
+        //
+        // Every branch tests nullness explicitly. A check constraint only fails on
+        // FALSE, so a comparison left to return NULL would let a timed row with no
+        // times through the one gate meant to catch it.
         builder.ToTable(table => table.HasCheckConstraint(
-            "ck_canonical_schedule_records_time_order",
-            "\"EndLocalTime\" > \"StartLocalTime\""));
+            "ck_canonical_schedule_records_schedule_shape",
+            """
+            ("IsAllDay" AND "StartLocalTime" IS NULL AND "EndLocalTime" IS NULL)
+            OR (NOT "IsAllDay"
+                AND "StartLocalTime" IS NOT NULL
+                AND "EndLocalTime" IS NOT NULL
+                AND "EndLocalTime" > "StartLocalTime")
+            """));
     }
 }
