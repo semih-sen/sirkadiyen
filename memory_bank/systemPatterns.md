@@ -610,6 +610,15 @@ year and language. Both profile writes and audience matching use the same
 validator. Do not use an unconstrained EAV model and do not trust arbitrary
 JSONB supplied by a client.
 
+The schema is implemented as server-owned code covering one current academic
+year, cross-checked by test against the source catalog's declared selectors
+(ADR-055). A dimension is either independent (explicit values) or dependent (a
+parent key plus child values per parent value, so a subgroup is valid only under
+its group). It is not a runtime config file: the confirmed matrix changes only at
+year rollover, which is a deployment. The profile write requires an active
+license first, and derived onboarding advances to `CalendarAuthorizationRequired`
+once a profile row exists.
+
 ## 23. Adaptive polling interval pattern
 
 Polling intervals are selected in `Europe/Istanbul` and remain configuration,

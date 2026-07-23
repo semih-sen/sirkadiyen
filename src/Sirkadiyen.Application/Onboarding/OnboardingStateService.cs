@@ -1,11 +1,14 @@
 using Sirkadiyen.Application.Licensing;
+using Sirkadiyen.Application.StudentProfiles;
 
 namespace Sirkadiyen.Application.Onboarding;
 
 /// <summary>
 /// Derives resumable onboarding state from authoritative backend records.
 /// </summary>
-public sealed class OnboardingStateService(ILicenseStore licenseStore)
+public sealed class OnboardingStateService(
+    ILicenseStore licenseStore,
+    IStudentProfileStore profileStore)
 {
     public async Task<OnboardingSnapshot> GetAsync(
         Guid userId,
@@ -25,15 +28,34 @@ public sealed class OnboardingStateService(ILicenseStore licenseStore)
                 OnboardingState.Suspended,
                 hasActiveLicense: false,
                 OnboardingNextAction.ContactSupport),
-            UserLicenseState.Active => Snapshot(
-                OnboardingState.ProfileRequired,
-                hasActiveLicense: true,
-                OnboardingNextAction.CompleteAcademicProfile),
+            UserLicenseState.Active => await ActivatedStateAsync(userId, cancellationToken),
             _ => throw new ArgumentOutOfRangeException(
                 nameof(licenseState),
                 licenseState,
                 "Unknown user license state."),
         };
+    }
+
+    /// <summary>
+    /// An activated account still needs an academic profile before it can grant
+    /// Calendar access. The step is derived from whether a profile row exists, so
+    /// an interrupted onboarding resumes at the right place.
+    /// </summary>
+    private async Task<OnboardingSnapshot> ActivatedStateAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        bool hasProfile = await profileStore.ExistsForUserAsync(userId, cancellationToken);
+
+        return hasProfile
+            ? Snapshot(
+                OnboardingState.CalendarAuthorizationRequired,
+                hasActiveLicense: true,
+                OnboardingNextAction.AuthorizeCalendar)
+            : Snapshot(
+                OnboardingState.ProfileRequired,
+                hasActiveLicense: true,
+                OnboardingNextAction.CompleteAcademicProfile);
     }
 
     private static OnboardingSnapshot Snapshot(

@@ -8,6 +8,7 @@ using Sirkadiyen.Application.ScheduleIngestion;
 using Sirkadiyen.Application.ScheduleParsing;
 using Sirkadiyen.Application.SchedulePublication;
 using Sirkadiyen.Application.ScheduleSources;
+using Sirkadiyen.Application.StudentProfiles;
 
 namespace Sirkadiyen.Infrastructure.Persistence;
 
@@ -48,6 +49,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IOperationalFreezeStore, OperationalFreezeStore>();
         services.AddScoped<IUserStore, UserStore>();
         services.AddScoped<ILicenseStore, LicenseStore>();
+        services.AddScoped<IStudentProfileStore, StudentProfileStore>();
 
         return services;
     }

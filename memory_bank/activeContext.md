@@ -5,10 +5,12 @@
 The identity and activation foundation is implemented: Google ID credentials are
 verified server-side, users are persisted, browser sessions use secure cookies
 with CSRF protection, single-use licenses activate accounts transactionally, and
-administration is authorized by the explicit `SuperAdmin` role. Onboarding is
-derived through `ProfileRequired` or `Suspended`; student profiles are the next
-user module. Semantic diff remains complete through persistence; nothing
-dispatches it yet.
+administration is authorized by the explicit `SuperAdmin` role. The validated
+student profile is implemented (ADR-055): an activated account now derives
+`ProfileRequired`, then `CalendarAuthorizationRequired` once a profile exists.
+Calendar authorization and the dedicated managed calendar are the next user
+module. Semantic diff remains complete through persistence; nothing dispatches it
+yet.
 
 The Google Sheets path now runs end to end from catalog seeding to a stored
 diff: adaptive polling, immutable snapshot storage, strict parser HTTP calls,
@@ -46,6 +48,45 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- **Implemented the validated student profile (ADR-055).** A `StudentProfile`
+  aggregate keeps academic year, class year and program language relational and
+  the variable cohort selectors as a schema-versioned JSONB document keyed by
+  dimension, each holding one value. The aggregate enforces only structural bounds
+  (class year 1-6, bounded/non-blank keys and values, a selector cap); the
+  allowlist lives elsewhere so the domain never carries what changes at rollover.
+- The supported-profile schema is **server-owned code**, not a config file or a
+  projection of the source catalog, covering one current academic year. Each
+  `(classYear, programLanguage)` program lists dimensions that are either
+  independent (explicit values) or dependent (a parent plus child values per
+  parent value). Only fixture-confirmed cohorts appear: Grade 1 Turkish
+  `practiceGroup` A-H with `practiceSubgroup` A1-H2, and Grade 1 English `İ` with
+  `İ1`-`İ3`. Grade 1 anatomy, Grade 2 and Grade 3 are deliberately absent (ADR-048).
+- A single validator serves the profile write and, later, audience matching. A
+  unit test cross-checks every schema value against the source catalog's declared
+  `supportedAudienceSelectors`, so the code-defined schema cannot silently drift
+  from the evidence.
+- The write path requires an active license first (`ActivationRequired`
+  otherwise), enforcing the onboarding order in the backend. Onboarding now
+  derives `CalendarAuthorizationRequired` when a profile row exists and
+  `ProfileRequired` when it does not, so an interrupted onboarding resumes
+  correctly.
+- Persistence is a transactional `UserId`-unique upsert; a concurrent first-time
+  save reruns once as an update. Added `GET /api/profile`, `GET
+  /api/profile/options` and a CSRF-protected `PUT /api/profile` returning the
+  stored profile and the fresh onboarding snapshot.
+- Migration `AddStudentProfiles` (new `student_profiles` table, JSONB selectors,
+  `UserId` unique index, class-year and program-language check constraints,
+  cascade FK to `users`, `xmin`) was verified Up, Down and Up again against the
+  real PostgreSQL and applied incrementally to the local `sirkadiyen` database.
+- 297 .NET tests pass, up from 272, with nothing skipped: 4 new PostgreSQL
+  profile-store tests (insert, upsert-replaces-row, concurrent convergence,
+  absent) and new domain, validator, schema-well-formedness and catalog
+  cross-check unit tests. Release build has no warnings, `dotnet format
+  --verify-no-changes` is clean, and EF reports no pending model changes. No
+  Python file changed, so its 292 tests were not re-run.
+
+## Previous single-use licensing session
 
 - Replaced new license generation with the WhatsApp-friendly
   `SRK-XXXXX-XXXXX` format (ADR-054). It omits ambiguous characters, retains 50
@@ -603,8 +644,10 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Immediate objectives
 
-1. Implement the validated student profile and supported-option schema, then
-   extend derived onboarding beyond `ProfileRequired`.
+1. Model Calendar authorization and the dedicated managed calendar, extending
+   derived onboarding beyond `CalendarAuthorizationRequired` toward
+   `ReadyForInitialSync`. The validated student profile is now implemented
+   (ADR-055).
 2. Implement `grade2_yearly_v1`, which should reuse the annual implementation
    with its own header aliases. Its block/department cell is expected to follow
    the ADR-049 convention, which the fixture must confirm, and its date column
@@ -692,8 +735,11 @@ freeze/unfreeze and license administration.
 
 ### Profile schema
 
-The derivation rule and currently confirmed values are accepted in ADR-048.
-Still missing: a current Grade 2 English fixture and Grade 3 English fixtures.
+The derivation rule and currently confirmed values are accepted in ADR-048 and
+now implemented as the server-owned code schema in ADR-055 (Grade 1 Turkish and
+English only). Still missing: a current Grade 2 English fixture and Grade 3
+English fixtures, plus the Grade 1 anatomy source before an `anatomyGroup`
+dimension can be added with evidence.
 
 ## Known risks
 
@@ -794,6 +840,19 @@ Still missing: a current Grade 2 English fixture and Grade 3 English fixtures.
 - pointing `SIRKADIYEN_TEST_DATABASE__CONNECTION_STRING` at a working database
   in `.env` now destroys it, because the fixture drops and re-migrates whatever
   it is given and no longer needs a deliberate export to find it
+- a student profile stored under one supported-schema version is not re-validated
+  when the schema changes at academic-year rollover (ADR-055). A cohort that
+  disappears from the new fixture leaves existing profiles pointing at it until an
+  explicit re-validation pass is built; audience resolution must not assume a
+  stored selector is still a published cohort
+- the supported-profile schema models a one-level parent dependency only
+  (subgroup under group). A future requirement such as a rotation within a
+  subgroup would need to extend the model; a test asserts the current depth so the
+  limit is visible rather than silently violated
+- the profile write path enforces the onboarding order by requiring an active
+  license, but a license revoked after a profile is saved leaves the stored
+  profile in place; onboarding correctly reports `Suspended` from the license
+  state, and the profile row is retained deliberately for later reactivation
 
 ## Working assumptions
 

@@ -7,6 +7,7 @@ using Sirkadiyen.Domain.ScheduleIngestion;
 using Sirkadiyen.Domain.ScheduleParsing;
 using Sirkadiyen.Domain.SchedulePublication;
 using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.StudentProfiles;
 
 namespace Sirkadiyen.Infrastructure.Persistence;
 
@@ -15,9 +16,8 @@ namespace Sirkadiyen.Infrastructure.Persistence;
 /// </summary>
 /// <remarks>
 /// Mapping lives in configuration classes rather than in the entities, so the
-/// domain project stays free of Entity Framework. Student-profile and calendar
-/// synchronization tables remain deliberately absent until their accepted
-/// designs are implemented.
+/// domain project stays free of Entity Framework. Calendar synchronization tables
+/// remain deliberately absent until their accepted designs are implemented.
 /// </remarks>
 public sealed class SirkadiyenDbContext(DbContextOptions<SirkadiyenDbContext> options)
     : DbContext(options)
@@ -29,6 +29,8 @@ public sealed class SirkadiyenDbContext(DbContextOptions<SirkadiyenDbContext> op
     public DbSet<License> Licenses => Set<License>();
 
     public DbSet<LicenseAudit> LicenseAudits => Set<LicenseAudit>();
+
+    public DbSet<StudentProfile> StudentProfiles => Set<StudentProfile>();
 
     public DbSet<ScheduleSource> ScheduleSources => Set<ScheduleSource>();
 

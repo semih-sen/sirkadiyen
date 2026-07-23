@@ -25,10 +25,10 @@
 
 ## Phase 1: Domain and contracts
 
-- [~] Define user entity and onboarding states (user and license-derived states complete; profile/Calendar states pending)
+- [~] Define user entity and onboarding states (user, license and profile states complete; Calendar/sync states pending)
 - [x] Define license entity and state transitions
-- [ ] Define student profile model
-- [ ] Define supported profile option model
+- [x] Define student profile model
+- [x] Define supported profile option model
 - [ ] Define Google connection model
 - [x] Define schedule source model
 - [x] Define immutable snapshot model
@@ -59,10 +59,10 @@
 
 ## Phase 3: Student onboarding
 
-- [ ] Implement dynamic profile schema
-- [ ] Implement supported option administration
-- [ ] Implement profile validation
-- [~] Implement resumable onboarding (license-required, profile-required and suspended states complete)
+- [x] Implement dynamic profile schema
+- [ ] Implement supported option administration (schema is server-owned code, no admin CRUD yet — ADR-055)
+- [x] Implement profile validation
+- [~] Implement resumable onboarding (license-required, profile-required, calendar-authorization-required and suspended states complete)
 - [ ] Implement Calendar permission state
 - [ ] Implement initial sync request
 - [ ] Implement user-visible progress state
@@ -268,10 +268,15 @@ The canonical model now has no known gap. The consumer-side identity and
 activation foundation is implemented: Google sign-in, secure cookie/CSRF
 session, explicit roles, keyed single-use license hashes, transaction-safe
 redemption/revocation, append-only license audits and backend-derived onboarding
-state (ADR-052, ADR-053). The next user slice is the validated student profile;
-after profile and Calendar authorization, affected-user resolution can consume
-`Ready` and `Released` diffs. `grade2_yearly_v1` remains the next parser profile
-and needs no new canonical field.
+state (ADR-052, ADR-053). The validated student profile is now implemented too
+(ADR-055): a `StudentProfile` aggregate with relational year/class/language and a
+JSONB selector document, a server-owned code-defined supported schema and shared
+validator, transactional upsert persistence, and a CSRF-protected profile API.
+Onboarding now advances an activated account to `CalendarAuthorizationRequired`
+once a profile exists. Calendar authorization and the dedicated managed calendar
+are the next user slice; after that, affected-user resolution can consume `Ready`
+and `Released` diffs. `grade2_yearly_v1` remains the next parser profile and needs
+no new canonical field.
 
 There is deliberately no rollback (ADR-033). A bad publication is corrected at
 the authoritative source and reaches calendars as a newer forward-fix revision.

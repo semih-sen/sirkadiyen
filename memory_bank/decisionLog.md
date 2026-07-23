@@ -2247,3 +2247,71 @@ CSRF-protected, and restricted to `SuperAdmin`.
   decision and can show the responsible actor and reason.
 - Migration rollback is refused while `Manual` rows exist, because the older
   schema cannot represent an activation without inventing a code hash.
+
+---
+
+## ADR-055: The student profile and its server-owned supported schema
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-23
+**Implements:** the `StudentProfile` aggregate, a code-defined supported-profile
+schema and validator, transactional upsert persistence, onboarding advancement to
+`CalendarAuthorizationRequired`, the profile API, and unit/PostgreSQL tests
+**Depends on:** ADR-027 (validated JSONB selectors), ADR-048 (evidence-based
+selector matrix), ADR-052/053 (identity and derived onboarding)
+
+### Context
+
+An activated account could not progress past `ProfileRequired`: no profile module
+existed, so audience resolution had nothing to match a schedule change against and
+the pipeline had no one to synchronize to. A profile has to record the academic
+year, class year and program language, plus variable cohort selectors that differ
+by class year, and it must never trust a client's claim about which cohort exists.
+
+Two questions had to be answered. Where does the allowlist of valid cohorts live,
+and how are the group/subgroup dependency and the required/optional distinction
+expressed — neither of which the source catalog's flat
+`supportedAudienceSelectors` map carries.
+
+### Decision
+
+Model a `StudentProfile` aggregate with relational `AcademicYear`, `ClassYear`
+and `ProgramLanguage`, and a schema-versioned JSONB selector document keyed by
+dimension, each holding the single value the student belongs to (systemPatterns
+§22). The aggregate enforces only structural bounds; it never carries the
+allowlist, which changes at year rollover.
+
+Define the supported-profile schema as **server-owned code**, not a runtime config
+file and not a projection of the source catalog. It covers exactly **one current
+academic year** because there is one at a time, and each `(classYear,
+programLanguage)` program lists selector dimensions. A dimension is either
+independent, with an explicit value list, or dependent, naming a parent and the
+child values allowed per parent value (`practiceSubgroup A1` is valid only under
+`practiceGroup A`). Only cohorts a committed current-year fixture confirms appear;
+Grade 1 anatomy, Grade 2 and Grade 3 selectors are deliberately absent until their
+sources are captured (ADR-048). A unit test cross-checks every allowed value
+against the catalog's declared selectors, so the schema cannot drift from the
+evidence even though it is defined separately.
+
+One validator serves the profile write and, later, audience matching, so a stored
+selector is always one the sources publish. The profile write path first requires
+an active license (`ActivationRequired` otherwise), enforcing the onboarding order
+in the backend rather than the UI. Onboarding now derives
+`CalendarAuthorizationRequired` when a profile row exists and `ProfileRequired`
+when it does not, so an interrupted onboarding resumes at the right step.
+
+Persistence is a transactional upsert against a `UserId`-unique row; a concurrent
+first-time save reruns once as an update rather than failing.
+
+### Consequences
+
+- The supported matrix changes only at year rollover, which is a deployment
+  anyway, so code with a fixture-backed test is simpler and safer than a second
+  runtime config loader in the API host.
+- The frontend renders its form from `GET /api/profile/options`, which returns the
+  schema including the parent-keyed child values for dependent dropdowns.
+- The one-level dependency model does not express a deeper chain; a future
+  rotation-within-subgroup requirement would extend it, and a test asserts the
+  current depth so the assumption is visible.
+- A profile stored under one schema version is not re-validated when the schema
+  changes; re-validation on rollover is future work, tracked as a known risk.
