@@ -17,8 +17,15 @@ from sirkadiyen_parser.contracts.parsing import (
     ParseSnapshotResponse,
     ScheduleEventType,
 )
+from sirkadiyen_parser.normalization.dates import (
+    REASON_NUMERIC_ORDER_NOT_DECLARED,
+    RULE_NUMERIC_DAY_FIRST,
+    RULE_SERIAL,
+    NumericDateOrder,
+)
 from sirkadiyen_parser.parsers import get_parser, implemented_profiles
 from sirkadiyen_parser.parsers.annual import (
+    METRIC_DATE_RULE_PREFIX,
     METRIC_LOCATION_DEFERRED,
     METRIC_ROWS_HIDDEN,
     METRIC_WORKSHEETS_IGNORED_NO_HEADER,
@@ -29,7 +36,20 @@ from sirkadiyen_parser.parsers.annual import (
 )
 from sirkadiyen_parser.profiles import ParserProfileDefinition, get_profile
 
-PROFILE = ParserProfileDefinition("grade1_yearly_v1", "1.0.0", "annual")
+PROFILE = ParserProfileDefinition(
+    "grade1_yearly_v1",
+    "1.0.0",
+    "annual",
+    NumericDateOrder.UNDECLARED,
+)
+
+#: The same profile as if a real workbook had shown it writes ``01/10/2025``.
+DAY_FIRST_PROFILE = ParserProfileDefinition(
+    "grade1_yearly_v1",
+    "1.0.0",
+    "annual",
+    NumericDateOrder.DAY_FIRST,
+)
 
 TURKISH_HEADERS = [
     "Dönem",
@@ -79,17 +99,24 @@ def lesson_row(
     *,
     term: str = "Dönem 1",
     date_serial: float | None = DATE_SERIAL,
+    date_text: str | None = None,
     start: float | str | None = 0.375,
     end: float | str | None = 0.40625,
     title: str | None = "1-Hücre zarı / Prof.Dr. Ayşe DEMİR",
     block: str | None = "HÜCRE DİLİMİ / TIBBİ BİYOLOJİ AD.",
     location: str | None = "AZİZ SANCAR AMFİSİ",
 ) -> list[dict[str, Any]]:
-    """Build one data row. ``None`` leaves a column empty."""
+    """Build one data row. ``None`` leaves a column empty.
+
+    ``date_text`` replaces the typed date cell with written text, which is how a
+    numeric date reaches the profile.
+    """
     cells: list[dict[str, Any]] = []
     if term is not None:
         cells.append(text_cell(row, 0, term))
-    if date_serial is not None:
+    if date_text is not None:
+        cells.append(text_cell(row, 1, date_text))
+    elif date_serial is not None:
         cells.append(typed_cell(row, 1, date_serial, "DATE"))
     for column, value in ((2, start), (3, end)):
         if isinstance(value, str):
@@ -128,12 +155,17 @@ def worksheet(
     }
 
 
-def parse(worksheets: list[dict[str, Any]], *, class_year: int = 1) -> ParseSnapshotResponse:
+def parse(
+    worksheets: list[dict[str, Any]],
+    *,
+    class_year: int = 1,
+    profile: ParserProfileDefinition = PROFILE,
+) -> ParseSnapshotResponse:
     request = ParseSnapshotRequest.model_validate(
         {
             "contractVersion": "1.0",
             "correlationId": "unit-test",
-            "parserProfile": {"name": PROFILE.name, "version": PROFILE.version},
+            "parserProfile": {"name": profile.name, "version": profile.version},
             "sourceContext": {
                 "academicYear": "2025-2026",
                 "classYear": class_year,
@@ -152,7 +184,7 @@ def parse(worksheets: list[dict[str, Any]], *, class_year: int = 1) -> ParseSnap
             },
         }
     )
-    return parse_annual_snapshot(request, PROFILE)
+    return parse_annual_snapshot(request, profile)
 
 
 def metrics(response: ParseSnapshotResponse) -> dict[str, float]:
@@ -254,6 +286,37 @@ def test_a_date_written_as_a_bare_number_is_not_read_as_a_serial() -> None:
 
     assert response.candidates == []
     assert metrics(response)["rows.ignored.unresolvedDate"] == 1
+
+
+def test_an_ambiguous_numeric_date_is_refused_while_the_profile_declares_no_order() -> None:
+    response = parse([worksheet(lesson_row(1, date_text="01/10/2025"))])
+
+    # 01/10 is 1 October read day-first and 10 January read month-first, a
+    # ten-month error nobody would see in a published calendar.
+    assert response.candidates == []
+    assert metrics(response)["rows.ignored.unresolvedDate"] == 1
+    ignored = [warning for warning in response.warnings if warning.code == "rowsIgnored"]
+    assert ignored[0].severity is ParserWarningSeverity.WARNING
+    assert REASON_NUMERIC_ORDER_NOT_DECLARED in ignored[0].message
+    assert ignored[0].evidence is not None
+    assert ignored[0].evidence.raw_text == "01/10/2025"
+
+
+def test_the_same_numeric_date_is_published_once_the_profile_declares_its_order() -> None:
+    response = parse(
+        [worksheet(lesson_row(1, date_text="01/10/2025"))],
+        profile=DAY_FIRST_PROFILE,
+    )
+
+    candidate = response.candidates[0]
+    assert candidate.local_date.isoformat() == "2025-10-01"
+    assert metrics(response)[f"{METRIC_DATE_RULE_PREFIX}{RULE_NUMERIC_DAY_FIRST}"] == 1
+
+
+def test_the_rule_each_published_date_was_read_under_is_counted() -> None:
+    response = parse([worksheet(lesson_row(1) + lesson_row(2, title="2-Hücre iskeleti"))])
+
+    assert metrics(response)[f"{METRIC_DATE_RULE_PREFIX}{RULE_SERIAL}"] == 2
 
 
 def test_a_date_serial_in_the_time_column_is_refused_rather_than_read_as_midnight() -> None:

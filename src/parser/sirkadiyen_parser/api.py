@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel, ConfigDict
 
 from sirkadiyen_parser.contracts.parsing import ParseSnapshotRequest, ParseSnapshotResponse
+from sirkadiyen_parser.normalization.dates import NumericDateOrder
 from sirkadiyen_parser.parsers import get_parser
 from sirkadiyen_parser.profiles import get_profile, list_profiles
 
@@ -18,6 +19,7 @@ class ProfileResponse(BaseModel):
     name: str
     version: str
     source_family: str
+    numeric_date_order: NumericDateOrder
     audience_dimensions: tuple[str, ...]
     annual_markers: tuple[str, ...]
     implemented: bool
@@ -38,6 +40,7 @@ def profiles() -> list[ProfileResponse]:
             name=profile.name,
             version=profile.version,
             source_family=profile.source_family,
+            numeric_date_order=profile.numeric_date_order,
             audience_dimensions=profile.audience_dimensions,
             annual_markers=profile.annual_markers,
             implemented=get_parser(profile.name, profile.version) is not None,

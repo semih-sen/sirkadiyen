@@ -1916,3 +1916,81 @@ host rather than about the source.
   and avoids overlapping cycles, so this needs a second worker instance to occur.
 - A run that failed and was recorded as failed keeps using the existing resume
   path, and is never treated as stale.
+
+---
+
+## ADR-051: A parser profile declares the component order of a numeric date
+
+**Status:** Accepted
+**Date:** 2026-07-23
+**Implements:** `normalization/dates.py`, the profile registry, both implemented
+profiles, `GET /v1/profiles`
+
+### Context
+
+The shared date resolver read every numeric date as day-first. The assumption was
+never declared anywhere and no source had been shown to need it. It is the one
+resolver rule that can be wrong without producing any evidence: `25/12/2026` has
+a single possible meaning, but `05/06/2026` is a real date under either reading,
+so a month-first source would publish lessons a few months from where they belong
+on every date whose components are both twelve or lower, and refuse nothing.
+
+Every other reading rule in the resolver already fails loudly. A bare serial, a
+missing year and a compact time all stay unresolved unless the caller opts in
+(ADR-011). Numeric order was the exception, and it was the most dangerous one.
+
+Measured evidence: no numeric date exists in any committed fixture. The two annual
+sources and the practice source write dates as spreadsheet serials or as text
+naming the month — 896 serial and 5 month-name dates in Grade 1 Turkish annual,
+953 serial in Grade 1 English annual, 60 serial and 100 month-name rotation rows
+in Grade 1 Turkish practice. The day-first branch was dead code against every
+source we hold, which is why nothing had failed and why the fix is cheap now.
+
+### Decision
+
+`ParserProfileDefinition` carries a required `numeric_date_order`, one of
+`dayFirst`, `monthFirst` or `undeclared`. The field has no default: a profile
+added without considering its source's date layout must not inherit an order.
+
+Both readings are computed before anything is decided, and what the alternative
+yields is treated as evidence:
+
+- a declared order reads as declared. A cell that only the other order can explain
+  is refused as `numericDateImpossibleUnderDeclaredOrder`, because either the cell
+  or the declaration is wrong and silently reordering it would hide both.
+- an undeclared profile publishes a numeric date only when the order cannot change
+  the answer — when just one order names a real date, or when the components are
+  equal. That is arithmetic, not an inference: the result is identical under either
+  declaration, so no rule is being guessed.
+- an undeclared profile refuses a date that means two different things, as
+  `numericDateOrderNotDeclaredByProfile`, with the row unpublished and the cell
+  cited.
+
+Every profile declares `undeclared` today, because that is what the fixtures
+support. Declaring an order is a claim about a document, so it waits for a document
+that shows one.
+
+The declaration lives on the parser profile rather than in the source catalog or
+`sourceContext`. It describes a document family's layout, which is exactly what a
+profile is; putting it in the .NET catalog would move a spreadsheet-interpretation
+rule outside the parser boundary.
+
+`dates.rule.<rule>` is now counted per published date, so a source that changes
+how it writes dates is visible in the metrics of the first parse after the change
+rather than only in a reader's attention.
+
+### Consequences
+
+- A month-first source can no longer be silently misparsed. Its rows are refused
+  with the cell address until a profile declares `monthFirst`.
+- One profile serves the Turkish and English workbooks of a family, so if those
+  two ever disagree on date order the family needs two profile versions. That is
+  the correct pressure: the declaration is about the document.
+- An undeclared profile meeting a numeric source publishes the unambiguous part of
+  it and refuses the rest. The parse is `completedWithWarnings`, and the warnings
+  name the cells the declaration would fix.
+- Golden output for all three fixtures is unchanged except for the new metrics, so
+  no content hash moved and no calendar event would be touched by this change.
+- `resolve_date_text` and `resolve_cell_date` default to `undeclared`, so a future
+  caller that forgets to pass the profile's declaration refuses ambiguity rather
+  than inheriting day-first.

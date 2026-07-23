@@ -3,7 +3,8 @@
 ## Current phase
 
 Semantic diff complete through persistence and now actually reachable; snapshot
-payload retention complete; parse runs recoverable.
+payload retention complete; parse runs recoverable; every parser reading rule now
+declared rather than assumed.
 
 The Google Sheets path now runs end to end from catalog seeding to a stored
 diff: adaptive polling, immutable snapshot storage, strict parser HTTP calls,
@@ -41,6 +42,36 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- **Removed the last silent parser assumption.** The shared date resolver read
+  every numeric date as day-first. Nothing declared it, and it is the one reading
+  rule that can be wrong without leaving evidence: a month-first source would have
+  published lessons months from where they belong on every date whose components
+  are both twelve or lower, and refused nothing.
+- Each `ParserProfileDefinition` now carries a required `numeric_date_order` with
+  no default, one of `dayFirst`, `monthFirst` or `undeclared` (ADR-051). A declared
+  order is enforced, and a cell only the other order could explain is refused as
+  `numericDateImpossibleUnderDeclaredOrder` rather than quietly reordered.
+- An undeclared profile still publishes a numeric date when the order cannot change
+  the answer — one valid reading, or equal components. That is arithmetic, not
+  inference. A date that means two different things is refused as
+  `numericDateOrderNotDeclaredByProfile` with the row unpublished and the cell
+  cited.
+- Every profile declares `undeclared`, because that is what the fixtures support.
+  No committed fixture writes a numeric date at all: the new `dates.rule.<rule>`
+  metric counts 896 serial and 5 month-name dates in Grade 1 Turkish annual, 953
+  serial in Grade 1 English annual, and 60 serial and 100 month-name rotation rows
+  in Grade 1 Turkish practice. The day-first branch was dead against every real
+  source, which is why nothing had broken and why this was cheap to fix now.
+- `GET /v1/profiles` reports the declaration, so an operator looking at a source
+  that writes `12/11/2026` can see what the profile will do without reading code.
+- Golden output for all three fixtures changed only by the added metrics. No
+  candidate, date or content hash moved, so this change would touch no calendar
+  event.
+- 284 Python tests pass, up from 270, with Ruff check/format and MyPy clean. No
+  .NET file changed; its 214 tests were re-run unchanged.
+
+## Previous department and recovery session
 
 - **Fixed a latent defect that made ADR-035 secondary matching unreachable.**
   `Department` was a precondition for it and nothing could ever populate it: the
@@ -460,29 +491,29 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Immediate objectives
 
-1. Move the date-format assumption into the parser profile, so each profile
-   declares its order explicitly instead of relying on the global day-first
-   default that would silently misparse a month-first source.
+1. Add all-day canonical schedule items for holidays and semester breaks
+   (ADR-046). This is the last known canonical-model gap and would publish the
+   twenty-two rows both annual sources currently drop for having no times.
 2. Implement Google sign-in and the one-email `SuperAdmin` bootstrap from
    ADR-045, with an explicit `role` column on `users`, then add the
    freeze/unfreeze administration surface and replace the shared operator key.
-3. Add all-day canonical schedule items for holidays and semester breaks
-   (ADR-046).
-4. Implement `grade2_yearly_v1`, which should reuse the annual implementation
+3. Implement `grade2_yearly_v1`, which should reuse the annual implementation
    with its own header aliases. Its block/department cell is expected to follow
-   the ADR-049 convention, which the fixture must confirm.
-5. Widen the group resolver for the confirmed Grade 1 English practice cohorts
+   the ADR-049 convention, which the fixture must confirm, and its date column
+   must be checked for a numeric form before its profile declares an order
+   (ADR-051).
+4. Widen the group resolver for the confirmed Grade 1 English practice cohorts
    `İ1`, `İ2` and `İ3`; the source also lays dates out differently.
-6. Establish .NET architecture tests.
-7. Acquire the missing Grade 1 anatomy, current Grade 2 English and Grade 3
+5. Establish .NET architecture tests.
+6. Acquire the missing Grade 1 anatomy, current Grade 2 English and Grade 3
    English fixtures.
-8. Add Google Drive/HTTP acquisition and DOCX conversion for the confirmed
+7. Add Google Drive/HTTP acquisition and DOCX conversion for the confirmed
    special-program sources.
-9. Add CI quality gates, including a PostgreSQL service for the integration
+8. Add CI quality gates, including a PostgreSQL service for the integration
    tests.
-10. Model identity, single-use licensing, secure-cookie sessions, flexible
-    student profiles, initial sync, and the dedicated managed calendar from
-    ADR-022 through ADR-027.
+9. Model identity, single-use licensing, secure-cookie sessions, flexible
+   student profiles, initial sync, and the dedicated managed calendar from
+   ADR-022 through ADR-027.
 
 ## Product gaps
 
@@ -573,9 +604,11 @@ Still missing: a current Grade 2 English fixture and Grade 3 English fixtures.
 - the shared resolvers are calibrated against synthetic fixtures only, so real
   sources will contain date, time and group forms they refuse; each refusal must
   be reviewed as evidence before the resolver is widened
-- the day-first reading of numeric dates is a documented assumption; a source
-  using month-first order would parse silently wrong whenever both components
-  are twelve or lower
+- a source that writes numeric dates will publish nothing from its ambiguous ones
+  until its profile declares an order (ADR-051). This is the intended direction —
+  refusing beats misdating — but it means the first such source arrives partially
+  parsed, and the operator has to read the refused cells and declare the order
+  before that source is usable
 - group values are capped at two digits, which is correct for every confirmed
   cohort but would refuse a three-digit group if one is ever introduced
 - the annual sources contain time cells that the spreadsheet software converted

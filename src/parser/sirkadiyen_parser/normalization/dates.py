@@ -4,16 +4,23 @@ Schedule dates arrive either as Google Sheets serial numbers or as human text in
 Turkish or English. Resolution is explicit: every result records the rule that
 produced it, and an unresolvable value stays unresolved with a reason.
 
-Two behaviours are deliberately opt-in, because guessing them would silently
+Three behaviours are deliberately opt-in, because guessing them would silently
 invent schedule data:
 
-- a bare numeric cell is only read as a serial when the profile allows it
-- a date without a year is only completed when the profile supplies a year
+- a bare numeric cell is only read as a serial when the caller allows it
+- a date without a year is only completed when the caller supplies a year
+- ``12/11/2026`` is only read in a component order the parser profile declares
+
+The last one is the dangerous case, because both readings of it are real dates
+and a wrong one is indistinguishable from a right one. An undeclared profile
+therefore publishes a numeric date only when both orders agree on what it means
+(ADR-051).
 """
 
 import re
 from dataclasses import dataclass
 from datetime import date, timedelta
+from enum import StrEnum
 
 from sirkadiyen_parser.contracts.snapshot import NormalizedCell
 from sirkadiyen_parser.normalization.grid import cell_display_text, cell_number
@@ -29,8 +36,18 @@ MIN_SUPPORTED_SERIAL = 61
 RULE_SERIAL = "serialDate"
 RULE_ISO = "isoDate"
 RULE_NUMERIC_DAY_FIRST = "numericDayFirstDate"
+RULE_NUMERIC_MONTH_FIRST = "numericMonthFirstDate"
+RULE_NUMERIC_SINGLE_READING = "numericSingleReadingDate"
 RULE_MONTH_NAME = "monthNameDate"
 RULE_UNRESOLVED = "unresolvedDate"
+
+#: The numeric cell has two possible meanings and the profile has not said which
+#: one this source writes, so nothing is published from it.
+REASON_NUMERIC_ORDER_NOT_DECLARED = "numericDateOrderNotDeclaredByProfile"
+
+#: The order the profile declared yields no real date but the other order does.
+#: Either the cell is wrong or the declaration is, and both are worth a look.
+REASON_NUMERIC_ORDER_CONTRADICTED = "numericDateImpossibleUnderDeclaredOrder"
 
 CONFIDENCE_SERIAL = 1.0
 CONFIDENCE_ISO = 1.0
@@ -39,6 +56,22 @@ CONFIDENCE_MONTH_NAME = 0.9
 #: A year supplied by profile configuration is weaker evidence than a year read
 #: from the source cell.
 CONFIDENCE_YEAR_FROM_PROFILE = 0.7
+
+
+class NumericDateOrder(StrEnum):
+    """The component order a parser profile declares for numeric date cells.
+
+    ``UNDECLARED`` is not a synonym for day-first. It states that no source
+    evidence has established the order yet, which is the honest position for
+    every profile whose committed fixtures write dates only as serials or with a
+    month name. Declaring an order is a claim about the source document, so it
+    belongs to the parser profile rather than to a shared default.
+    """
+
+    DAY_FIRST = "dayFirst"
+    MONTH_FIRST = "monthFirst"
+    UNDECLARED = "undeclared"
+
 
 _MONTHS_BY_KEY = {
     "ocak": 1,
@@ -141,12 +174,21 @@ def date_from_serial(serial: float) -> date | None:
         return None
 
 
-def resolve_date_text(value: str, *, year_hint: int | None = None) -> DateResolution:
+def resolve_date_text(
+    value: str,
+    *,
+    year_hint: int | None = None,
+    numeric_order: NumericDateOrder = NumericDateOrder.UNDECLARED,
+) -> DateResolution:
     """Interpret human-readable date text.
 
     ``year_hint`` completes a date written without a year. It represents an
     explicit parser-profile rule, so the result is reported with reduced
     confidence and an explicit reason.
+
+    ``numeric_order`` is the order the parser profile declares for ``12/11/2026``
+    style cells. It defaults to undeclared, so a caller that has not stated the
+    order cannot silently read one.
     """
     text = normalize_text(value)
     if not text:
@@ -155,7 +197,7 @@ def resolve_date_text(value: str, *, year_hint: int | None = None) -> DateResolu
     weekday_text, weekday_index = _extract_weekday(text)
     remainder = _strip_weekday(text) if weekday_text is not None else text
 
-    resolution = _resolve_date_body(remainder, year_hint=year_hint)
+    resolution = _resolve_date_body(remainder, year_hint=year_hint, numeric_order=numeric_order)
     resolved_value = resolution.value
     if resolved_value is None or weekday_index is None:
         return resolution
@@ -176,12 +218,14 @@ def resolve_cell_date(
     *,
     year_hint: int | None = None,
     allow_bare_serial: bool = False,
+    numeric_order: NumericDateOrder = NumericDateOrder.UNDECLARED,
 ) -> DateResolution:
     """Interpret a cell as a schedule date.
 
     A numeric cell is read as a serial when its number format declares a date,
     or when ``allow_bare_serial`` records that the parser profile has confirmed
-    the column holds serial dates. Otherwise the readable text is interpreted.
+    the column holds serial dates. Otherwise the readable text is interpreted
+    under the profile's declared ``numeric_order``.
     """
     if cell is None:
         return unresolved_date("missingCell")
@@ -196,7 +240,7 @@ def resolve_cell_date(
     text = cell_display_text(cell)
     if text is None:
         return unresolved_date("emptyCell")
-    return resolve_date_text(text, year_hint=year_hint)
+    return resolve_date_text(text, year_hint=year_hint, numeric_order=numeric_order)
 
 
 def _declares_date_format(cell: NormalizedCell) -> bool:
@@ -222,7 +266,12 @@ def _strip_weekday(text: str) -> str:
     return " ".join(kept).strip(" ,-")
 
 
-def _resolve_date_body(text: str, *, year_hint: int | None) -> DateResolution:
+def _resolve_date_body(
+    text: str,
+    *,
+    year_hint: int | None,
+    numeric_order: NumericDateOrder,
+) -> DateResolution:
     iso_match = _ISO_PATTERN.match(text)
     if iso_match is not None:
         return _build(
@@ -235,18 +284,7 @@ def _resolve_date_body(text: str, *, year_hint: int | None) -> DateResolution:
 
     numeric_match = _NUMERIC_PATTERN.match(text)
     if numeric_match is not None:
-        year_text = numeric_match.group(3)
-        year, confidence, reason = _resolve_year(year_text, year_hint, CONFIDENCE_NUMERIC)
-        if year is None:
-            return unresolved_date(reason or "missingYear")
-        return _build(
-            year,
-            int(numeric_match.group(2)),
-            int(numeric_match.group(1)),
-            rule=RULE_NUMERIC_DAY_FIRST,
-            confidence=confidence,
-            reason=reason,
-        )
+        return _resolve_numeric(numeric_match, year_hint=year_hint, numeric_order=numeric_order)
 
     month_match = _MONTH_NAME_PATTERN.match(text)
     if month_match is not None:
@@ -268,6 +306,77 @@ def _resolve_date_body(text: str, *, year_hint: int | None) -> DateResolution:
         )
 
     return unresolved_date("unrecognizedDateFormat")
+
+
+def _resolve_numeric(
+    match: re.Match[str],
+    *,
+    year_hint: int | None,
+    numeric_order: NumericDateOrder,
+) -> DateResolution:
+    """Interpret ``12/11/2026`` under the order the profile declared.
+
+    Both components are read both ways before anything is decided, because what
+    the alternative reading yields is the evidence: a declared order that cannot
+    produce a date while the other one can is a contradiction worth reporting,
+    and two readings that agree need no declaration at all.
+    """
+    year, confidence, reason = _resolve_year(match.group(3), year_hint, CONFIDENCE_NUMERIC)
+    if year is None:
+        return unresolved_date(reason or "missingYear")
+
+    first = int(match.group(1))
+    second = int(match.group(2))
+    as_day_first = _try_build(year, month=second, day=first)
+    as_month_first = _try_build(year, month=first, day=second)
+
+    if numeric_order is NumericDateOrder.DAY_FIRST:
+        return _as_declared(
+            as_day_first, as_month_first, RULE_NUMERIC_DAY_FIRST, confidence, reason
+        )
+    if numeric_order is NumericDateOrder.MONTH_FIRST:
+        return _as_declared(
+            as_month_first, as_day_first, RULE_NUMERIC_MONTH_FIRST, confidence, reason
+        )
+
+    if as_day_first is not None and as_month_first is not None and as_day_first != as_month_first:
+        # The cell states two different real dates depending on a rule this
+        # profile has never stated. Publishing either one would be a guess.
+        return unresolved_date(REASON_NUMERIC_ORDER_NOT_DECLARED)
+
+    single = as_day_first if as_day_first is not None else as_month_first
+    if single is None:
+        return unresolved_date("impossibleCalendarDate")
+
+    # Either only one order yields a real date, or both yield the same one. The
+    # reading is then independent of the order, so no declaration is needed.
+    return DateResolution(
+        value=single,
+        rule=RULE_NUMERIC_SINGLE_READING,
+        confidence=confidence,
+        reason=reason,
+    )
+
+
+def _as_declared(
+    declared: date | None,
+    alternative: date | None,
+    rule: str,
+    confidence: float,
+    reason: str | None,
+) -> DateResolution:
+    if declared is not None:
+        return DateResolution(value=declared, rule=rule, confidence=confidence, reason=reason)
+    if alternative is not None:
+        return unresolved_date(REASON_NUMERIC_ORDER_CONTRADICTED)
+    return unresolved_date("impossibleCalendarDate")
+
+
+def _try_build(year: int, *, month: int, day: int) -> date | None:
+    try:
+        return date(year, month, day)
+    except ValueError:
+        return None
 
 
 def _resolve_year(
@@ -295,8 +404,7 @@ def _build(
     confidence: float,
     reason: str | None = None,
 ) -> DateResolution:
-    try:
-        value = date(year, month, day)
-    except ValueError:
+    value = _try_build(year, month=month, day=day)
+    if value is None:
         return unresolved_date("impossibleCalendarDate")
     return DateResolution(value=value, rule=rule, confidence=confidence, reason=reason)

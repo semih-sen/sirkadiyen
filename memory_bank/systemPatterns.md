@@ -216,6 +216,13 @@ and interpretation timezone arrive with the parse request as source context
 (ADR-017), so one profile serves several sources and never infers what the
 workbook does not state.
 
+A profile also declares how its source family writes an ambiguous value, not only
+which values it refuses. `numeric_date_order` is required and has no default
+(ADR-051): an undeclared profile publishes `12/11/2026` only if both readings
+agree, and a declared one refuses a cell only the other order could explain.
+Ambiguity is treated like absence — the profile states the rule or the parser
+publishes nothing.
+
 ## 7. Canonical schedule pattern
 
 The canonical model isolates business logic from source layout.

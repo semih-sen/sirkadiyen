@@ -35,7 +35,11 @@ from sirkadiyen_parser.contracts.snapshot import NormalizedWorksheet
 from sirkadiyen_parser.diagnostics import ParseDiagnostics
 from sirkadiyen_parser.identity import build_identity_components, content_hash, stable_identity
 from sirkadiyen_parser.normalization.courses import course_identity, normalize_course_title
-from sirkadiyen_parser.normalization.dates import DateResolution, resolve_cell_date
+from sirkadiyen_parser.normalization.dates import (
+    DateResolution,
+    NumericDateOrder,
+    resolve_cell_date,
+)
 from sirkadiyen_parser.normalization.departments import (
     RULE_DEPARTMENT_LIST_MEMBER,
     BlockDepartmentResolution,
@@ -118,6 +122,10 @@ METRIC_ROWS_SCANNED = "rows.scanned"
 METRIC_ROWS_HIDDEN = "rows.hidden"
 METRIC_CANDIDATES_EMITTED = "candidates.emitted"
 METRIC_CANDIDATE_EVENT_TYPE_PREFIX = "candidates.eventType."
+#: Counted per published lesson so a source that changes how it writes dates —
+#: from a serial to numeric text, say — is visible before a reader has to notice
+#: it row by row.
+METRIC_DATE_RULE_PREFIX = "dates.rule."
 METRIC_LOCATION_DEFERRED = "location.deferredToOtherProgram"
 METRIC_CURRICULUM_BLOCK_STATED = "curriculumBlock.stated"
 METRIC_DEPARTMENTS_STATED = "departments.stated"
@@ -249,6 +257,7 @@ def parse_annual_snapshot(
             header_row=header_row,
             columns=mapping,
             context=request.source_context,
+            numeric_date_order=profile.numeric_date_order,
             diagnostics=diagnostics,
             accumulator=accumulator,
         )
@@ -316,6 +325,7 @@ def _parse_worksheet(
     header_row: int,
     columns: Mapping[str, int],
     context: ParseSourceContext,
+    numeric_date_order: NumericDateOrder,
     diagnostics: ParseDiagnostics,
     accumulator: _Accumulator,
 ) -> None:
@@ -333,7 +343,12 @@ def _parse_worksheet(
             row_index=row_index,
             columns=columns,
         )
-        draft = _parse_row(row=row, context=context, diagnostics=diagnostics)
+        draft = _parse_row(
+            row=row,
+            context=context,
+            numeric_date_order=numeric_date_order,
+            diagnostics=diagnostics,
+        )
         if draft is None:
             continue
 
@@ -344,6 +359,7 @@ def _parse_row(
     *,
     row: _RowContext,
     context: ParseSourceContext,
+    numeric_date_order: NumericDateOrder,
     diagnostics: ParseDiagnostics,
 ) -> _CandidateDraft | None:
     if not any(row.text(role) for role in (*REQUIRED_ROLES, *OPTIONAL_ROLES)):
@@ -366,7 +382,11 @@ def _parse_row(
         )
         return None
 
-    resolved_date = _resolve_date(row=row, diagnostics=diagnostics)
+    resolved_date = _resolve_date(
+        row=row,
+        numeric_date_order=numeric_date_order,
+        diagnostics=diagnostics,
+    )
     if resolved_date is None:
         return None
 
@@ -432,7 +452,12 @@ def _read_class_year(term_text: str) -> int | None:
     return value if 1 <= value <= 6 else None
 
 
-def _resolve_date(*, row: _RowContext, diagnostics: ParseDiagnostics) -> DateResolution | None:
+def _resolve_date(
+    *,
+    row: _RowContext,
+    numeric_date_order: NumericDateOrder,
+    diagnostics: ParseDiagnostics,
+) -> DateResolution | None:
     column = row.columns[ROLE_DATE]
     cell = row.grid.resolve(row.row_index, column).cell
     date_text = row.text(ROLE_DATE)
@@ -447,7 +472,7 @@ def _resolve_date(*, row: _RowContext, diagnostics: ParseDiagnostics) -> DateRes
     # The date column is declared to hold dates, but a bare number is still not
     # read as a serial: the source has put serials into neighbouring columns by
     # accident, and a wrongly typed cell must surface rather than resolve.
-    resolution = resolve_cell_date(cell)
+    resolution = resolve_cell_date(cell, numeric_order=numeric_date_order)
     if not resolution.resolved:
         diagnostics.record_ignored_row(
             REASON_UNRESOLVED_DATE,
@@ -704,6 +729,7 @@ def _record_candidate_diagnostics(
     resolved_date = draft.resolved_date
 
     diagnostics.increment(f"{METRIC_CANDIDATE_EVENT_TYPE_PREFIX}{candidate.event_type.value}")
+    diagnostics.increment(f"{METRIC_DATE_RULE_PREFIX}{resolved_date.rule}")
     if draft.deferred_location:
         diagnostics.increment(METRIC_LOCATION_DEFERRED)
 

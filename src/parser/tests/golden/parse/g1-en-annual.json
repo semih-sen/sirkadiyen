@@ -1190,6 +1190,11 @@
         "value": 547.0
       },
       {
+        "name": "dates.rule.serialDate",
+        "unit": null,
+        "value": 953.0
+      },
+      {
         "name": "departments.ignored.unmarkedSegment",
         "unit": null,
         "value": 10.0
@@ -1284,7 +1289,7 @@
       "name": "grade1_yearly_v1",
       "version": "1.0.0"
     },
-    "responseDigest": "sha256:db37258fd7c884535726dc163aa7113109e55d78dce8215f28e81b16318a565b",
+    "responseDigest": "sha256:c4f791887fc6634487c762ef596cc8e56a03a7b2af797524fd4231d392e8553f",
     "snapshotId": "fixture:sha256:c6bd6de674e28e7abef83247281d72e7a30953b38f6f1b729900071baf628d68",
     "sourceId": "G1-EN-ANNUAL",
     "status": "completedWithWarnings",

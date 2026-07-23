@@ -16,7 +16,13 @@ from sirkadiyen_parser.contracts.parsing import (
     ParseSnapshotResponse,
     ScheduleEventType,
 )
+from sirkadiyen_parser.normalization.dates import (
+    REASON_NUMERIC_ORDER_NOT_DECLARED,
+    RULE_NUMERIC_DAY_FIRST,
+    NumericDateOrder,
+)
 from sirkadiyen_parser.parsers import get_parser, implemented_profiles
+from sirkadiyen_parser.parsers.annual import METRIC_DATE_RULE_PREFIX
 from sirkadiyen_parser.parsers.practice import (
     DIMENSION_PRACTICE_GROUP,
     DIMENSION_PRACTICE_SUBGROUP,
@@ -32,6 +38,16 @@ PROFILE = ParserProfileDefinition(
     "grade1_practice_v1",
     "1.0.0",
     "practice",
+    NumericDateOrder.UNDECLARED,
+    ("practiceGroup", "practiceSubgroup"),
+)
+
+#: The same profile as if a real workbook had shown it writes ``03/10/2025``.
+DAY_FIRST_PROFILE = ParserProfileDefinition(
+    "grade1_practice_v1",
+    "1.0.0",
+    "practice",
+    NumericDateOrder.DAY_FIRST,
     ("practiceGroup", "practiceSubgroup"),
 )
 
@@ -108,12 +124,16 @@ def block(
     }
 
 
-def parse(worksheets: list[dict[str, Any]]) -> ParseSnapshotResponse:
+def parse(
+    worksheets: list[dict[str, Any]],
+    *,
+    profile: ParserProfileDefinition = PROFILE,
+) -> ParseSnapshotResponse:
     request = ParseSnapshotRequest.model_validate(
         {
             "contractVersion": "1.0",
             "correlationId": "unit-test",
-            "parserProfile": {"name": PROFILE.name, "version": PROFILE.version},
+            "parserProfile": {"name": profile.name, "version": profile.version},
             "sourceContext": {
                 "academicYear": "2025-2026",
                 "classYear": 1,
@@ -132,7 +152,7 @@ def parse(worksheets: list[dict[str, Any]]) -> ParseSnapshotResponse:
             },
         }
     )
-    return parse_practice_snapshot(request, PROFILE)
+    return parse_practice_snapshot(request, profile)
 
 
 def metrics(response: ParseSnapshotResponse) -> dict[str, float]:
@@ -245,6 +265,31 @@ def test_a_row_without_a_readable_date_publishes_none_of_its_cells() -> None:
 
     assert response.candidates == []
     assert metrics(response)["rows.ignored.unresolvedDate"] == 1
+
+
+def test_an_ambiguous_numeric_date_costs_the_whole_rotation_row() -> None:
+    response = parse([block(rows=(("03/10/2025", "10:30-12:20", ("A", "B")),))])
+
+    # A refused date row costs every group in it, which is the safe direction:
+    # the alternative is sending two groups to a practice ten months early.
+    assert response.candidates == []
+    assert metrics(response)["rows.ignored.unresolvedDate"] == 1
+    ignored = [warning for warning in response.warnings if warning.code == "rowsIgnored"]
+    assert REASON_NUMERIC_ORDER_NOT_DECLARED in ignored[0].message
+
+
+def test_the_declared_order_reaches_the_rotation_date() -> None:
+    response = parse(
+        [block(rows=(("03/10/2025", "10:30-12:20", ("A", "B")),))],
+        profile=DAY_FIRST_PROFILE,
+    )
+
+    assert [candidate.local_date.isoformat() for candidate in response.candidates] == [
+        "2025-10-03",
+        "2025-10-03",
+    ]
+    # Counted once for the row, not once per group attending it.
+    assert metrics(response)[f"{METRIC_DATE_RULE_PREFIX}{RULE_NUMERIC_DAY_FIRST}"] == 1
 
 
 def test_a_row_without_a_readable_time_range_publishes_none_of_its_cells() -> None:

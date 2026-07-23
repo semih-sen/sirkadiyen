@@ -37,7 +37,11 @@ from sirkadiyen_parser.contracts.snapshot import NormalizedWorksheet
 from sirkadiyen_parser.diagnostics import ParseDiagnostics
 from sirkadiyen_parser.identity import build_identity_components, content_hash, stable_identity
 from sirkadiyen_parser.normalization.courses import course_identity, normalize_course_title
-from sirkadiyen_parser.normalization.dates import DateResolution, resolve_cell_date
+from sirkadiyen_parser.normalization.dates import (
+    DateResolution,
+    NumericDateOrder,
+    resolve_cell_date,
+)
 from sirkadiyen_parser.normalization.grid import WorksheetGrid
 from sirkadiyen_parser.normalization.groups import GroupExpression, parse_group_expression
 from sirkadiyen_parser.normalization.instructors import starts_with_academic_title
@@ -45,6 +49,7 @@ from sirkadiyen_parser.normalization.text import comparison_key, normalize_text,
 from sirkadiyen_parser.normalization.times import duration_minutes, resolve_cell_time_range
 from sirkadiyen_parser.parsers.annual import (
     MAX_PLAUSIBLE_DURATION_MINUTES,
+    METRIC_DATE_RULE_PREFIX,
     MIN_PLAUSIBLE_DURATION_MINUTES,
     WARNING_IMPLAUSIBLE_DURATION,
     WARNING_WEEKDAY_MISMATCH,
@@ -200,6 +205,7 @@ def parse_practice_snapshot(
                 grid=grid,
                 block=block,
                 context=request.source_context,
+                numeric_date_order=profile.numeric_date_order,
                 diagnostics=diagnostics,
                 accumulator=accumulator,
             )
@@ -385,6 +391,7 @@ def _parse_block(
     grid: WorksheetGrid,
     block: _Block,
     context: ParseSourceContext,
+    numeric_date_order: NumericDateOrder,
     diagnostics: ParseDiagnostics,
     accumulator: _Accumulator,
 ) -> None:
@@ -408,9 +415,19 @@ def _parse_block(
 
     for row_index in range(block.header_row + 1, block.end_row_exclusive):
         diagnostics.increment(METRIC_ROWS_SCANNED)
-        slot = _read_slot(grid=grid, block=block, row_index=row_index, diagnostics=diagnostics)
+        slot = _read_slot(
+            grid=grid,
+            block=block,
+            row_index=row_index,
+            numeric_date_order=numeric_date_order,
+            diagnostics=diagnostics,
+        )
         if slot is None:
             continue
+
+        # Counted once per dated row rather than once per published cell, because
+        # it reports how the source writes its dates, not how many groups attend.
+        diagnostics.increment(f"{METRIC_DATE_RULE_PREFIX}{slot.resolved_date.rule}")
 
         for subject in subjects:
             diagnostics.increment(METRIC_CELLS_SCANNED)
@@ -471,6 +488,7 @@ def _read_slot(
     grid: WorksheetGrid,
     block: _Block,
     row_index: int,
+    numeric_date_order: NumericDateOrder,
     diagnostics: ParseDiagnostics,
 ) -> _Slot | None:
     date_text = grid.text(row_index, block.date_column)
@@ -497,7 +515,10 @@ def _read_slot(
         )
         return None
 
-    resolved_date = resolve_cell_date(grid.resolve(row_index, block.date_column).cell)
+    resolved_date = resolve_cell_date(
+        grid.resolve(row_index, block.date_column).cell,
+        numeric_order=numeric_date_order,
+    )
     if not resolved_date.resolved or resolved_date.value is None:
         diagnostics.record_ignored_row(
             REASON_UNRESOLVED_DATE,

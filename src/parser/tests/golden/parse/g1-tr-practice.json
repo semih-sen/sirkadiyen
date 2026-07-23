@@ -2361,6 +2361,16 @@
         "value": 1212.0
       },
       {
+        "name": "dates.rule.monthNameDate",
+        "unit": null,
+        "value": 100.0
+      },
+      {
+        "name": "dates.rule.serialDate",
+        "unit": null,
+        "value": 60.0
+      },
+      {
         "name": "rows.ignored",
         "unit": null,
         "value": 19.0
@@ -2405,7 +2415,7 @@
       "name": "grade1_practice_v1",
       "version": "1.0.0"
     },
-    "responseDigest": "sha256:12d9e38a5d9cb62769a22f2deb1705dfb4d5b4857367055ae06cf944a5a104b5",
+    "responseDigest": "sha256:1c74fc4d4bf88f06e699de12b40649b7be048a6b3b43e2299d7c067d152a0489",
     "snapshotId": "fixture:sha256:78952dc7ab2504d0dc3f7d5341d653d5998388e193a92f471a34e589a1d382e2",
     "sourceId": "G1-TR-PRACTICE",
     "status": "completedWithWarnings",

@@ -195,6 +195,8 @@ Do not silently discard rows. Every ignored row must be explainable through metr
 
 Do not infer missing dates, times, groups, or course identities unless an explicit rule exists in the parser profile.
 
+An ambiguous value is as dangerous as a missing one. A parser profile must declare the component order it reads a numeric date in; a profile that has not declared one may publish a numeric date only when every order yields the same date, and must refuse the cell otherwise.
+
 A parser warning must never be converted into a silent success merely to keep the pipeline moving.
 
 ## 10. Canonical schedule rules

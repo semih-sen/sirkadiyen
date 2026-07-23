@@ -1168,6 +1168,16 @@
         "value": 611.0
       },
       {
+        "name": "dates.rule.monthNameDate",
+        "unit": null,
+        "value": 5.0
+      },
+      {
+        "name": "dates.rule.serialDate",
+        "unit": null,
+        "value": 896.0
+      },
+      {
         "name": "departments.ignored.unmarkedSegment",
         "unit": null,
         "value": 29.0
@@ -1257,7 +1267,7 @@
       "name": "grade1_yearly_v1",
       "version": "1.0.0"
     },
-    "responseDigest": "sha256:ce31bbb9941cb1a5b2a1f9b824dda7946f5271d5a1790f5abb384dc9196db045",
+    "responseDigest": "sha256:981cb9d2157bc26ca8d2a307f27faef1530d3b323213bdfa8b44726d8679cd93",
     "snapshotId": "fixture:sha256:16350cb5bbee7efd78a2a05e2a67cc11453edbd205deb58df2fa17758fe21e23",
     "sourceId": "G1-TR-ANNUAL",
     "status": "completedWithWarnings",

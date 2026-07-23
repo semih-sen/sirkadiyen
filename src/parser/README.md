@@ -58,6 +58,24 @@ therefore carries them explicitly (ADR-017):
 The profile validates rows against this context instead of inferring it. A row
 whose term cell names another class year is excluded and counted.
 
+### Profiles declare how their source writes a numeric date
+
+`12/11/2026` is 12 November read day-first and 11 December read month-first, and
+nothing in the cell says which. Each profile therefore declares its
+`numericDateOrder`, reported by `GET /v1/profiles` (ADR-051):
+
+| Declaration | Effect |
+| --- | --- |
+| `dayFirst` / `monthFirst` | read as declared; a cell only the other order can explain is refused as `numericDateImpossibleUnderDeclaredOrder` |
+| `undeclared` | published only when both orders agree, refused as `numericDateOrderNotDeclaredByProfile` otherwise |
+
+Every profile currently declares `undeclared`, because no committed fixture
+writes a date that way: the annual and practice sources use spreadsheet serials
+and month names, which the `dates.rule.<rule>` metric reports per parse. The
+first source that does write one refuses those rows and names the cells, and that
+evidence — not the Turkish writing convention — is what a declaration is
+corrected from.
+
 ## Implemented parser profiles
 
 | Profile | Sources | Fixtures |
@@ -79,6 +97,8 @@ nothing rather than reaching every student.
 What it deliberately refuses:
 
 - a numeric date column cell that does not declare a date format
+- a numeric date text whose meaning depends on a component order the profile has
+  not declared
 - a time cell that the source spreadsheet converted into a date, which would
   otherwise publish a lesson at midnight
 - an end time that does not follow its start
@@ -114,7 +134,8 @@ Two rules run through all of them:
 - **Nothing is guessed.** An unresolvable value is returned as unresolved with a
   reason code, so the profile records a warning rather than inventing schedule
   data. Reading a bare numeric cell as a date serial, completing a date that has
-  no year, and reading `0900` as a time are all opt-in per profile.
+  no year, choosing the component order of `12/11/2026`, and reading `0900` as a
+  time are all opt-in per profile.
 - **Nothing is dropped.** `diagnostics.ParseDiagnostics` accounts for every
   ignored row by reason and derives the result status from what was recorded.
 

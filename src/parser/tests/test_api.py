@@ -31,6 +31,18 @@ def test_registered_profiles_include_independent_anatomy_group() -> None:
     assert anatomy_profile["implemented"] is False
 
 
+def test_every_profile_advertises_the_numeric_date_order_it_declares() -> None:
+    # An operator reading a source that writes 12/11/2026 has to be able to see
+    # what the profile will do with it without reading the parser.
+    response = client.get("/v1/profiles")
+
+    declared = {profile["name"]: profile["numeric_date_order"] for profile in response.json()}
+    assert set(declared.values()) <= {"dayFirst", "monthFirst", "undeclared"}
+    # No committed fixture writes a numeric date, so nothing has established an
+    # order yet. Changing this line means a source finally showed one.
+    assert declared["grade1_yearly_v1"] == "undeclared"
+
+
 def test_the_annual_profile_is_advertised_as_implemented() -> None:
     response = client.get("/v1/profiles")
 

@@ -104,6 +104,7 @@
 - [x] Add golden-file test harness
 - [x] Add parser profile implementation registry
 - [x] Add stable identity and content hashing
+- [x] Declare the numeric date order per parser profile (ADR-051)
 
 ## Phase 6: Parser profiles
 
@@ -238,6 +239,14 @@ active academic year, the latest content, the last ten days of changes, and
 parser-recovery inputs while pruning only expired normalized JSON (ADR-044).
 Metadata and the entire parse/revision/diff trail remain.
 
+The day-first numeric date assumption is gone. Each parser profile now declares
+its `numeric_date_order`, and an undeclared profile publishes a numeric date only
+when both readings agree (ADR-051). No committed fixture writes one: the metrics
+report 896 serial and 5 month-name dates in Grade 1 Turkish annual, 953 serial in
+Grade 1 English annual, and 60 serial and 100 month-name rotation rows in Grade 1
+Turkish practice, so the branch that could have misparsed silently was never
+reached by a real source.
+
 Semantic secondary matching now works in production. It previously could not:
 `Department` gated it and no parser could populate the field, so every lesson
 whose time moved became a delete plus a create. The annual
@@ -247,9 +256,9 @@ is amended so a lesson with no comparable department is still matched on title a
 instructor against a higher bar. Parse runs left running by a killed worker are
 recovered after a timeout instead of wedging their snapshot (ADR-050).
 
-The next implementation step is the per-profile date-format declaration, then
-all-day holidays and semester breaks (ADR-046), which is the last known
-canonical-model gap. After that the consumer side begins with identity, the
+The next implementation step is all-day holidays and semester breaks (ADR-046),
+which is the last known canonical-model gap and would publish twenty-two rows
+that are currently dropped. After that the consumer side begins with identity, the
 `users` table with its explicit `role` column and the ADR-045 SuperAdmin
 bootstrap, then affected-user resolution over `Ready` and `Released` diffs.
 
@@ -258,11 +267,6 @@ the authoritative source and reaches calendars as a newer forward-fix revision.
 The existing acquisition, parsing and publication boundaries are frozen now;
 diff dispatch and downstream jobs do not exist yet and must be gated as they are
 introduced.
-
-One parser-safety item blocks on implementation rather than discussion:
-
-- per-profile declaration of date format, replacing the global day-first
-  assumption that would silently misparse a month-first source
 
 The initial operator model is fully decided: one Google-verified SuperAdmin,
 `halil.semih.sen@gmail.com`, granted through an explicit `role` column on the
