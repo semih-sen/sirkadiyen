@@ -3,10 +3,18 @@
     <PackageReference Include="DocumentFormat.OpenXml" Version="3.5.1" />
     <PackageReference Include="Google.Apis.Auth" Version="1.75.0" />
     <PackageReference Include="Google.Apis.Sheets.v4" Version="1.75.0.4178" />
+    <!--
+      Encrypts the stored Google refresh token at rest (ADR-057). The standalone
+      package keeps this a class library: the hosts supply the key ring. Pinned to
+      the patched servicing release; 10.0.0 carries a critical advisory
+      (GHSA-9mv3-2cwr-p262) and the build audits packages as errors.
+    -->
+    <PackageReference Include="Microsoft.AspNetCore.DataProtection" Version="10.0.10" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
       <PrivateAssets>none</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.0" />
+    <!-- Kept at the Data Protection servicing level above to avoid a downgrade. -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.10" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
     <!--

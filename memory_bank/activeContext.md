@@ -10,8 +10,11 @@ student profile is implemented (ADR-055): an activated account now derives
 `ProfileRequired`, then `CalendarAuthorizationRequired` once a profile exists. The
 profile also carries the university student number, validated for its ten-digit
 format and cross-validated so its faculty and program-language digits match the
-selected program (ADR-056). Calendar authorization and the dedicated managed
-calendar are the next user module. Semantic diff remains complete through persistence; nothing dispatches it
+selected program (ADR-056). Calendar authorization is implemented (ADR-057): a
+separate, minimally scoped offline consent exchanged server-side for a refresh token
+that is encrypted at rest, advancing an authorized account to `ReadyForInitialSync`.
+Initial sync — creating the dedicated calendar (ADR-024), the Google Calendar client
+and affected-user resolution — is the next module. Semantic diff remains complete through persistence; nothing dispatches it
 yet.
 
 The Google Sheets path now runs end to end from catalog seeding to a stored
@@ -50,6 +53,49 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- **Implemented Calendar authorization (ADR-057).** ADR-052 had deliberately left
+  sign-in free of any Calendar scope, so this is the second, separate consent. A
+  `GoogleCalendarConnection` aggregate holds the grant, one row per user.
+- The flow mirrors ADR-052's shape: the frontend obtains a one-time authorization
+  code with offline access and posts it to a CSRF-protected
+  `POST /api/calendar/authorization`; the backend performs the exchange because it
+  carries the client secret. No redirect handler and no server-side redirect state.
+  The exchange `redirect_uri` defaults to `postmessage`, which Google requires for the
+  browser popup code flow.
+- **Only `calendar.app.created` is requested** — access solely to calendars this app
+  creates, which is ADR-024's model and structurally cannot reach the primary calendar.
+  Google reports what was actually granted, and a user can clear the permission while
+  still completing consent, so a grant missing the scope is refused rather than stored
+  as an authorization that could never synchronize.
+- **The refresh token is encrypted at rest** with Data Protection under a dedicated
+  purpose. The domain never sees plaintext: the application layer protects it through
+  `ICalendarTokenProtector` before the aggregate exists, so the aggregate holds opaque
+  ciphertext. The read projection omits the credential entirely, so no API response can
+  carry it by accident.
+- Authorization requires an active license **and** a profile; the code is not even sent
+  to Google when the account may not connect. Onboarding now derives
+  `ReadyForInitialSync`, and a connection needing re-authorization does not count as
+  authorized, so a revoked grant returns the user to consent.
+- Creating the dedicated calendar stays in initial sync (ADR-024). The aggregate
+  reserves a nullable `ManagedCalendarId`, and re-authorizing preserves it so
+  re-granting never orphans the calendar the user's events live in.
+- `Microsoft.AspNetCore.DataProtection` had to be pinned to the patched servicing
+  release: 10.0.0 carries a critical advisory and the build audits packages as errors.
+- Migration `AddGoogleCalendarConnections` verified Up → Down → Up against the real
+  PostgreSQL, with the unique `UserId` index and status check constraint confirmed; the
+  local database is left at the latest migration.
+- 337 .NET tests pass, up from 311, nothing skipped: domain invariants, service
+  behaviour against a fake exchange client (scope refusal, rejected code, prerequisites,
+  and that the credential is protected before it reaches the store), Data Protection
+  round-trip and purpose isolation, the new onboarding case, and 5 PostgreSQL
+  connection-store tests. Release build has no warnings, `dotnet format
+  --verify-no-changes` is clean, EF reports no pending model changes. No Python changed.
+- **Not covered by tests:** the real Google exchange client. It needs a registered Web
+  OAuth client and a live consent, so it is abstracted behind an interface and only the
+  fake is exercised.
+
+## Previous student number session
 
 - **Added the university student number to the profile (ADR-056).** The
   `StudentProfile` aggregate now carries a `StudentNumber`, stored as text so its
@@ -892,6 +938,17 @@ dimension can be added with evidence.
   Both are deliberate: neither rule is confirmed against real registrar data, and a
   repeat student or a legitimately shared prefix must not be rejected. A future
   integration that needs uniqueness or an entry-year rule would add it with evidence
+
+- the stored Google refresh tokens are only decryptable by the Data Protection key ring
+  that encrypted them (ADR-057). A containerized or multi-instance deployment without a
+  shared, persistent key ring loses every stored token on restart and silently forces
+  all users to authorize again; the Worker needs the same ring once sync consumes them
+- the real Google authorization-code exchange has no automated coverage. It requires a
+  registered Web OAuth client and a live consent, so only the fake client is tested; the
+  first live grant is the first real exercise of that path
+- a Calendar grant is never re-verified against Google after it is stored. Access
+  revoked from the Google account side is only discovered when synchronization tries to
+  use the token, which is what `NeedsReauthorization` exists for; nothing sets it yet
 
 ## Working assumptions
 

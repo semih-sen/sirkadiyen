@@ -25,11 +25,11 @@
 
 ## Phase 1: Domain and contracts
 
-- [~] Define user entity and onboarding states (user, license and profile states complete; Calendar/sync states pending)
+- [~] Define user entity and onboarding states (user, license, profile and Calendar-authorization states complete; sync states pending)
 - [x] Define license entity and state transitions
 - [x] Define student profile model
 - [x] Define supported profile option model
-- [ ] Define Google connection model
+- [x] Define Google connection model
 - [x] Define schedule source model
 - [x] Define immutable snapshot model
 - [x] Define parser request and response contracts
@@ -62,8 +62,8 @@
 - [x] Implement dynamic profile schema
 - [ ] Implement supported option administration (schema is server-owned code, no admin CRUD yet — ADR-055)
 - [x] Implement profile validation
-- [~] Implement resumable onboarding (license-required, profile-required, calendar-authorization-required and suspended states complete)
-- [ ] Implement Calendar permission state
+- [~] Implement resumable onboarding (license-required, profile-required, calendar-authorization-required, ready-for-initial-sync and suspended states complete)
+- [x] Implement Calendar permission state
 - [ ] Implement initial sync request
 - [ ] Implement user-visible progress state
 
@@ -276,11 +276,18 @@ profile also carries the university student number (Öğrenci Numarası), valida
 three layers — a ten-digit structural invariant in the domain and at the database,
 and semantic cross-validation in the application layer that pins the faculty code to
 Istanbul Medical Faculty and the program-language digits to the selected program
-(ADR-056). Onboarding now advances an activated account to
-`CalendarAuthorizationRequired` once a profile exists. Calendar authorization and the dedicated managed calendar
-are the next user slice; after that, affected-user resolution can consume `Ready`
-and `Released` diffs. `grade2_yearly_v1` remains the next parser profile and needs
-no new canonical field.
+(ADR-056). Calendar authorization is implemented too (ADR-057): a separate, minimally
+scoped offline consent whose one-time code is exchanged server-side for a refresh
+token, encrypted at rest with Data Protection and held in a `UserId`-unique
+`GoogleCalendarConnection`. The grant is refused unless Google actually returned the
+required scope, and it requires an active license and a profile first. Onboarding now
+walks an activated account from `ProfileRequired` through
+`CalendarAuthorizationRequired` to `ReadyForInitialSync`. Creating the dedicated
+calendar stays part of initial sync (ADR-024); the connection reserves
+`ManagedCalendarId` for it. Initial sync — calendar creation, the Google Calendar
+client, and affected-user resolution over `Ready` and `Released` diffs — is the next
+slice. `grade2_yearly_v1` remains the next parser profile and needs no new canonical
+field.
 
 There is deliberately no rollback (ADR-033). A bad publication is corrected at
 the authoritative source and reaches calendars as a newer forward-fix revision.

@@ -1,3 +1,4 @@
+using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Licensing;
 using Sirkadiyen.Application.Onboarding;
 using Sirkadiyen.Application.StudentProfiles;
@@ -13,11 +14,13 @@ public sealed class OnboardingStateServiceTests
     [InlineData(
         UserLicenseState.None,
         false,
+        false,
         OnboardingState.LicenseRequired,
         OnboardingNextAction.RedeemLicense,
         false)]
     [InlineData(
         UserLicenseState.Suspended,
+        false,
         false,
         OnboardingState.Suspended,
         OnboardingNextAction.ContactSupport,
@@ -25,25 +28,36 @@ public sealed class OnboardingStateServiceTests
     [InlineData(
         UserLicenseState.Active,
         false,
+        false,
         OnboardingState.ProfileRequired,
         OnboardingNextAction.CompleteAcademicProfile,
         true)]
     [InlineData(
         UserLicenseState.Active,
         true,
+        false,
         OnboardingState.CalendarAuthorizationRequired,
         OnboardingNextAction.AuthorizeCalendar,
         true)]
-    public async Task StateIsDerivedFromAuthoritativeLicenseAndProfileState(
+    [InlineData(
+        UserLicenseState.Active,
+        true,
+        true,
+        OnboardingState.ReadyForInitialSync,
+        OnboardingNextAction.StartInitialSync,
+        true)]
+    public async Task StateIsDerivedFromAuthoritativeLicenseProfileAndCalendarState(
         UserLicenseState licenseState,
         bool hasProfile,
+        bool hasCalendarAuthorization,
         OnboardingState expected,
         OnboardingNextAction expectedNextAction,
         bool hasActiveLicense)
     {
         OnboardingStateService service = new(
             new StubLicenseStore(licenseState),
-            new StubProfileStore(hasProfile));
+            new StubProfileStore(hasProfile),
+            new StubConnectionStore(hasCalendarAuthorization));
 
         OnboardingSnapshot result = await service.GetAsync(
             Guid.NewGuid(),
@@ -52,6 +66,24 @@ public sealed class OnboardingStateServiceTests
         Assert.Equal(expected, result.State);
         Assert.Equal(expectedNextAction, result.NextAction);
         Assert.Equal(hasActiveLicense, result.HasActiveLicense);
+    }
+
+    private sealed class StubConnectionStore(bool isAuthorized) : IGoogleCalendarConnectionStore
+    {
+        public Task<bool> IsAuthorizedForUserAsync(
+            Guid userId,
+            CancellationToken cancellationToken) => Task.FromResult(isAuthorized);
+
+        public Task<GoogleCalendarConnectionView?> GetByUserIdAsync(
+            Guid userId,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<GoogleCalendarConnectionView> UpsertAuthorizationAsync(
+            Guid userId,
+            string protectedRefreshToken,
+            string grantedScopes,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class StubProfileStore(bool hasProfile) : IStudentProfileStore

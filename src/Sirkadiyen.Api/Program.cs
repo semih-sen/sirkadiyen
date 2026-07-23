@@ -3,10 +3,12 @@ using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Sirkadiyen.Api.Administration;
+using Sirkadiyen.Api.GoogleCalendar;
 using Sirkadiyen.Api.Identity;
 using Sirkadiyen.Api.Licensing;
 using Sirkadiyen.Api.Onboarding;
 using Sirkadiyen.Api.StudentProfiles;
+using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Identity;
 using Sirkadiyen.Application.Licensing;
 using Sirkadiyen.Application.Onboarding;
@@ -18,6 +20,7 @@ using Sirkadiyen.Infrastructure.Configuration;
 using Sirkadiyen.Infrastructure.Google;
 using Sirkadiyen.Infrastructure.Licensing;
 using Sirkadiyen.Infrastructure.Persistence;
+using Sirkadiyen.Infrastructure.Security;
 
 // Before the builder, because the environment-variable provider reads the
 // process environment as it is added. A deployed host injects its own variables
@@ -33,6 +36,22 @@ string connectionString = Required(
 string googleAuthClientId = Required(
     builder.Configuration,
     "SIRKADIYEN_GOOGLE:AUTH_CLIENT_ID");
+
+// The Calendar grant is a confidential-client exchange, so unlike sign-in it needs a
+// secret. It may reuse the browser client, but it is configured separately so the
+// secret is never implied by the public sign-in client (ADR-057).
+string calendarClientId = Required(
+    builder.Configuration,
+    "SIRKADIYEN_GOOGLE:CALENDAR_CLIENT_ID");
+
+string calendarClientSecret = Required(
+    builder.Configuration,
+    "SIRKADIYEN_GOOGLE:CALENDAR_CLIENT_SECRET");
+
+string calendarRedirectUri =
+    builder.Configuration["SIRKADIYEN_GOOGLE:CALENDAR_REDIRECT_URI"] is { Length: > 0 } configured
+        ? configured
+        : GoogleCalendarAuthorizationOptions.PostMessageRedirectUri;
 
 string licenseHashKey = Required(
     builder.Configuration,
@@ -56,6 +75,17 @@ builder.Services.AddScoped<GoogleSignInService>();
 builder.Services.AddScoped<LicenseService>();
 builder.Services.AddSingleton(CurrentSupportedProfileSchema.Create());
 builder.Services.AddScoped<StudentProfileService>();
+builder.Services.AddSingleton(new GoogleCalendarAuthorizationOptions
+{
+    ClientId = calendarClientId,
+    ClientSecret = calendarClientSecret,
+    RedirectUri = calendarRedirectUri,
+});
+builder.Services.AddSingleton<
+    IGoogleCalendarAuthorizationClient,
+    GoogleCalendarAuthorizationClient>();
+builder.Services.AddSingleton<ICalendarTokenProtector, DataProtectionCalendarTokenProtector>();
+builder.Services.AddScoped<CalendarAuthorizationService>();
 builder.Services.AddScoped<OnboardingStateService>();
 builder.Services.AddScoped<SirkadiyenCookieAuthenticationEvents>();
 builder.Services
@@ -118,6 +148,7 @@ app.MapOpenApi();
 app.MapAuthenticationEndpoints();
 app.MapLicenseEndpoints();
 app.MapStudentProfileEndpoints();
+app.MapCalendarAuthorizationEndpoints();
 app.MapOnboardingEndpoints();
 app.MapRevisionEndpoints();
 app.MapDiffEndpoints();

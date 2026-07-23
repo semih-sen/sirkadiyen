@@ -1,3 +1,4 @@
+using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Licensing;
 using Sirkadiyen.Application.StudentProfiles;
 
@@ -8,7 +9,8 @@ namespace Sirkadiyen.Application.Onboarding;
 /// </summary>
 public sealed class OnboardingStateService(
     ILicenseStore licenseStore,
-    IStudentProfileStore profileStore)
+    IStudentProfileStore profileStore,
+    IGoogleCalendarConnectionStore connectionStore)
 {
     public async Task<OnboardingSnapshot> GetAsync(
         Guid userId,
@@ -37,25 +39,40 @@ public sealed class OnboardingStateService(
     }
 
     /// <summary>
-    /// An activated account still needs an academic profile before it can grant
-    /// Calendar access. The step is derived from whether a profile row exists, so
-    /// an interrupted onboarding resumes at the right place.
+    /// An activated account still needs an academic profile, and then a Calendar
+    /// authorization, before anything can be synchronized. Each step is derived from
+    /// whether its record exists, so an interrupted onboarding resumes at the right
+    /// place rather than trusting the client to remember how far it got.
     /// </summary>
     private async Task<OnboardingSnapshot> ActivatedStateAsync(
         Guid userId,
         CancellationToken cancellationToken)
     {
         bool hasProfile = await profileStore.ExistsForUserAsync(userId, cancellationToken);
-
-        return hasProfile
-            ? Snapshot(
-                OnboardingState.CalendarAuthorizationRequired,
-                hasActiveLicense: true,
-                OnboardingNextAction.AuthorizeCalendar)
-            : Snapshot(
+        if (!hasProfile)
+        {
+            return Snapshot(
                 OnboardingState.ProfileRequired,
                 hasActiveLicense: true,
                 OnboardingNextAction.CompleteAcademicProfile);
+        }
+
+        // A connection that needs re-authorization does not count as authorized, so a
+        // revoked grant sends the user back to consent instead of stalling in a state
+        // that cannot synchronize.
+        bool hasCalendarAuthorization = await connectionStore.IsAuthorizedForUserAsync(
+            userId,
+            cancellationToken);
+
+        return hasCalendarAuthorization
+            ? Snapshot(
+                OnboardingState.ReadyForInitialSync,
+                hasActiveLicense: true,
+                OnboardingNextAction.StartInitialSync)
+            : Snapshot(
+                OnboardingState.CalendarAuthorizationRequired,
+                hasActiveLicense: true,
+                OnboardingNextAction.AuthorizeCalendar);
     }
 
     private static OnboardingSnapshot Snapshot(

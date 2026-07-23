@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sirkadiyen.Domain.GoogleCalendar;
 using Sirkadiyen.Domain.Identity;
 using Sirkadiyen.Domain.Licensing;
 using Sirkadiyen.Domain.Operations;
@@ -16,8 +17,10 @@ namespace Sirkadiyen.Infrastructure.Persistence;
 /// </summary>
 /// <remarks>
 /// Mapping lives in configuration classes rather than in the entities, so the
-/// domain project stays free of Entity Framework. Calendar synchronization tables
-/// remain deliberately absent until their accepted designs are implemented.
+/// domain project stays free of Entity Framework. The Calendar authorization a user
+/// grants is stored here; the synchronization tables it will feed — event mappings
+/// and sync job state — remain deliberately absent until their accepted designs are
+/// implemented.
 /// </remarks>
 public sealed class SirkadiyenDbContext(DbContextOptions<SirkadiyenDbContext> options)
     : DbContext(options)
@@ -31,6 +34,9 @@ public sealed class SirkadiyenDbContext(DbContextOptions<SirkadiyenDbContext> op
     public DbSet<LicenseAudit> LicenseAudits => Set<LicenseAudit>();
 
     public DbSet<StudentProfile> StudentProfiles => Set<StudentProfile>();
+
+    public DbSet<GoogleCalendarConnection> GoogleCalendarConnections =>
+        Set<GoogleCalendarConnection>();
 
     public DbSet<ScheduleSource> ScheduleSources => Set<ScheduleSource>();
 

@@ -666,3 +666,34 @@ flag.
 The `SuperAdmin` API exposes both the read and the audited transition. Mutation
 is CSRF-protected, requires a non-empty reason, derives the actor from the
 verified session and uses the request trace as its correlation ID.
+
+## 25. Delegated third-party authorization pattern
+
+Sign-in and resource authorization are separate consents. Authenticating a user
+grants no API access, and the scope needed to act on their data is requested later,
+only from an account that has already met the product's prerequisites (ADR-052,
+ADR-057).
+
+Request the **narrowest scope that satisfies the design**. Where the product manages
+only objects it creates, prefer a create-scoped grant over a full-access one, so the
+user's existing data is out of reach structurally rather than by convention.
+
+Never trust the requested scope: the provider reports what was **actually granted**,
+and a user can complete consent while withholding a permission. Verify the required
+scope is present and refuse the grant otherwise, rather than storing an authorization
+that cannot do its job.
+
+The browser obtains a one-time authorization code and posts it to the same-site,
+CSRF-protected API; the exchange happens server-side because it carries the client
+secret. The long-lived credential is **encrypted at rest** through an application-layer
+abstraction, so the aggregate stores opaque ciphertext and the domain keeps no
+cryptographic dependency. Read projections omit the credential entirely, so no response
+can carry it by accident.
+
+A stored grant is not proof of continued access. Model an explicit
+"needs re-authorization" state for the moment the provider rejects the credential, and
+treat only a healthy grant as satisfying onboarding. Re-authorizing must preserve the
+resources already provisioned under the old grant.
+
+Encrypting at rest binds the data to a key ring: any deployment that does not share a
+persistent one loses every stored credential on restart.

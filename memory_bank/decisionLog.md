@@ -2369,3 +2369,82 @@ Up → Down → Up against real PostgreSQL on an empty table.
   and the number is **not** enforced unique. Both are deliberate omissions recorded
   as known risks; a repeat student or a legitimately shared-prefix cohort must not
   be rejected by a rule we have not confirmed.
+
+---
+
+## ADR-057: Grant Calendar access as a separate, minimally scoped offline authorization
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-24
+**Implements:** the `GoogleCalendarConnection` aggregate, encrypted refresh-token
+storage, the authorization-code exchange and its client abstraction, the Calendar
+authorization API, onboarding advancement to `ReadyForInitialSync`, migration
+`AddGoogleCalendarConnections`, and unit/PostgreSQL tests
+**Depends on:** ADR-003 (Google-only authentication), ADR-024 (one dedicated calendar
+per user), ADR-052 (verified credential for a local cookie session)
+
+### Context
+
+ADR-052 deliberately left sign-in free of any Calendar scope or stored Google
+credential, noting that Calendar scopes and refresh-token storage were a later,
+separate authorization flow. That flow did not exist, so an activated student with a
+profile stopped at `CalendarAuthorizationRequired` and nothing could ever be
+synchronized. Unattended synchronization needs a long-lived refresh token, which is a
+credential the product must hold and protect.
+
+### Decision
+
+Keep the Calendar grant a **separate, second consent**, and model it as its own
+`GoogleCalendarConnection` aggregate rather than as fields on the user.
+
+**Flow.** The frontend obtains a one-time authorization code with offline access and
+posts it to a same-site, anti-forgery protected `POST /api/calendar/authorization`; the
+backend performs the code exchange because it carries the client secret. This mirrors
+ADR-052's shape — the frontend owns the Google entry point, the backend does the
+sensitive part — so there is no redirect handler and no server-side redirect state. The
+exchange `redirect_uri` is configurable and defaults to `postmessage`, the value Google
+requires for the browser popup code flow.
+
+**Scope.** Request only
+`https://www.googleapis.com/auth/calendar.app.created`, which grants access solely to
+calendars this application itself creates. That is exactly ADR-024's dedicated-calendar
+model and structurally cannot reach the user's primary calendar. Google reports what was
+actually granted, and a user can clear the permission while still completing consent, so
+the service verifies the required scope is present and refuses the grant otherwise
+rather than storing an authorization that cannot synchronize.
+
+**Credential at rest.** The refresh token is encrypted with ASP.NET Core Data
+Protection under a dedicated purpose string. The domain never sees plaintext: the
+application layer protects the value through an `ICalendarTokenProtector` abstraction
+before the aggregate is constructed, so the aggregate stores opaque ciphertext and the
+domain keeps no cryptographic dependency. The read projection deliberately omits the
+credential entirely, so no API response can carry it by accident.
+
+**Ordering.** Authorization requires an active license *and* an existing profile,
+enforced in the backend exactly as the profile write requires an active license. The
+code is not even sent to Google when the account may not connect.
+
+**Boundary.** This is authorization only. Creating the dedicated calendar remains part
+of initial sync (ADR-024); the aggregate reserves a nullable `ManagedCalendarId` and a
+re-authorization deliberately preserves it, so re-granting access never orphans the
+calendar the user's events already live in.
+
+### Consequences
+
+- Onboarding now derives `ReadyForInitialSync` once an authorized connection exists, and
+  a connection marked `NeedsReauthorization` does not count as authorized, so a revoked
+  grant returns the user to consent instead of stalling in a state that cannot sync.
+- The Calendar client is configured separately from both the public sign-in client and
+  the unattended source credential, because it is the only one of the three that is a
+  confidential client acting for a signed-in student.
+- A multi-instance or containerized deployment **must** configure a shared, persistent
+  Data Protection key ring. Without one, a host restart makes every stored token
+  undecryptable and forces all users to authorize again. The Worker will need the same
+  key ring when synchronization consumes the token.
+- `Microsoft.AspNetCore.DataProtection` is pinned to the patched servicing release;
+  10.0.0 carries a critical advisory and the build audits packages as errors.
+- The live consent and exchange cannot be exercised without a registered Web OAuth
+  client, so the exchange is abstracted behind an interface and the service is tested
+  against a fake. The real client is not covered by automated tests.
+- Disconnect, token refresh, and reacting to Google-side revocation are not implemented;
+  they belong with synchronization.

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Identity;
 using Sirkadiyen.Application.Licensing;
 using Sirkadiyen.Application.Operations;
@@ -50,6 +51,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IUserStore, UserStore>();
         services.AddScoped<ILicenseStore, LicenseStore>();
         services.AddScoped<IStudentProfileStore, StudentProfileStore>();
+        services.AddScoped<IGoogleCalendarConnectionStore, GoogleCalendarConnectionStore>();
 
         return services;
     }
