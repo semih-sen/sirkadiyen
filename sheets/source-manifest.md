@@ -25,12 +25,12 @@ Validated
 | G1-TR-ANNUAL | 1 | TR | Annual | All | Annual | `donem-1-tr/xlsx/2025-2026 D1 Türkçe Tıp Ders Programı.xlsx` | grade1_yearly_v1 | Collected | Worksheet `DÖNEM 1`, used range `A1:M942` |
 | G1-TR-PRACTICE | 1 | TR | Practice | Dynamic | Annual | `donem-1-tr/xlsx/2025-2026 Dönem 1 Türkçe Uygulama Tablosu (1).xlsx` | grade1_practice_v1 | Collected | Worksheet `Sayfa1`, used range `A1:N335` |
 | G1-EN-ANNUAL | 1 | EN | Annual | All | Annual | `donem-1-ing/xlsx/2025-2026 Term 1 Medicine Program in English Course Program.xlsx` | grade1_yearly_v1 | Collected | Main worksheet `CLASS 1`; separate location lookup worksheet exists |
-| G1-EN-PRACTICE | 1 | EN | Practice | Dynamic | Annual | `donem-1-ing/xlsx/2025-2026 Term 1 Medicine Program in English-Med. Skill Practices.xlsx` | grade1_practice_v1 | Collected | Worksheet `Sayfa1`, used range `A1:O278` |
+| G1-EN-PRACTICE | 1 | EN | Practice | İ1, İ2, İ3 | Annual | `donem-1-ing/xlsx/2025-2026 Term 1 Medicine Program in English-Med. Skill Practices.xlsx` | grade1_practice_v1 | Collected | Worksheet `Sayfa1`, used range `A1:O278`; selector matrix confirmed from the 2025-2026 fixture |
 | G1-ANATOMY | 1 | TR+EN | Anatomy practice | 1, 2, 3 | Annual |  | grade1_anatomy_v1 | Missing | Same structural family as Grade 2 anatomy; anatomy group is independent from the normal practice group |
 | G2-TR-ANNUAL | 2 | TR | Annual | All | Annual | `donem-2-tr/xlsx/2025-2026 Dönem 2 Türkçe Tıp Programı Ders Programı.xlsx` | grade2_yearly_v1 | Collected | Worksheet `DÖNEM 2`, used range `A1:G1157` |
-| G2-TR-PRACTICE | 2 | TR | Practice | Dynamic | Annual | `donem-2-tr/xlsx/2025-2026 Dönem 2 Türkçe Tıp Programı Uygulama Tablosu (1).xlsx` | grade2_practice_v1 | Collected | Worksheet `Sayfa1`, used range `A1:S265` |
+| G2-TR-PRACTICE | 2 | TR | Practice | A-H | Annual | `donem-2-tr/xlsx/2025-2026 Dönem 2 Türkçe Tıp Programı Uygulama Tablosu (1).xlsx` | grade2_practice_v1 | Collected | Worksheet `Sayfa1`, used range `A1:S265`; no subgroup values in the fixture |
 | G2-EN-ANNUAL | 2 | EN | Annual | All | Annual | `donem-2-ing/xlsx/2025-2026 Term 2 Medicine Program in English Course Program.....xlsx` | grade2_yearly_v1 | Collected | Worksheet `CLASS 2`, used range `A1:I1253` |
-| G2-EN-PRACTICE | 2 | EN | Practice | Dynamic | Annual | `donem-2-ing/xlsx/2024-2025 Term 2 Medicine Program in English PRACTICUM TABLE.xlsx` | grade2_practice_v1 | Collected | Fixture belongs to the prior academic year |
+| G2-EN-PRACTICE | 2 | EN | Practice | İ1, İ2 (provisional) | Annual | `donem-2-ing/xlsx/2024-2025 Term 2 Medicine Program in English PRACTICUM TABLE.xlsx` | grade2_practice_v1 | Collected | Fixture belongs to the prior academic year; capture the current source before adding these values to validation |
 | G2-ANATOMY-AUTUMN | 2 | TR+EN | Anatomy practice | 1, 2, 3 | Autumn | `donem-2-tr/2. SINIF SALON GRUP SAATLERİ 2025-2026 GÜZ.docx` | grade2_anatomy_autumn_v1 | Collected | Shared by Turkish and English programs; lessons appear as `Diseksiyon` in the annual program |
 | G2-ANATOMY-SPRING | 2 | TR+EN | Anatomy practice | 1, 2, 3 | Spring | `donem-2-tr/2. SINIF SALON GRUP SAATLERİ 2025-2026  BAHAR.docx` | grade2_anatomy_spring_v1 | Collected | Shared by Turkish and English programs; lessons appear as `Diseksiyon` in the annual program |
 | G2-VERTICAL | 2 | TR+EN | Vertical corridor | Dynamic | Annual | `donem-2-tr/Dönem 2 Beceri uygulama takvimi güz.docx`<br>`donem-2-tr/Dönem 2 Beceri Uyg BAHAR Takvim 26.01.2025.docx` | grade2_vertical_corridor_v1 | Collected | Shared by Turkish and English programs; lessons appear as `Uygulama` in the annual program |
@@ -43,7 +43,7 @@ Validated
 | G3-EN-ANNUAL | 3 | EN | Annual | TBD | Annual |  | grade3_yearly_v1 | Missing | Confirm exact group layout |
 | G3-EN-BEDSIDE | 3 | EN | Bedside practice | TBD | Annual |  | grade3_bedside_v1 | Missing | Confirm exact group layout |
 | G3-EN-FACULTY | 3 | EN | Faculty practice | TBD | Annual |  | grade3_faculty_practice_v1 | Missing | Confirm exact group layout |
-| SHARED-AMPHI | Shared | Dynamic | Amphitheatre assignment | Dynamic | Weekly | `amfi/` | weekly_amphitheatre_v1 | Collected | Three weekly versions; room-oriented multi-worksheet layout |
+| SHARED-AMPHI | Shared | Dynamic | Amphitheatre assignment | Dynamic | Weekly | `amfi/` | weekly_amphitheatre_v1 | Collected | Three weekly versions; room-oriented multi-worksheet layout; dated CDN URL returned HTTP 200 to a browser-like GET on 2026-07-23 |
 
 ## Questions to answer per fixture
 

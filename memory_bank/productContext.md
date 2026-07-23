@@ -108,6 +108,9 @@ Can:
 - inspect audit history
 - manage supported student profile options
 
+The initial deployment has one Google-authenticated `SuperAdmin`; multi-operator
+role management is deliberately deferred (ADR-045).
+
 ## Onboarding state model
 
 Suggested states:
@@ -167,6 +170,10 @@ The frontend should request only fields applicable to the selected class year an
 
 The backend must validate every combination against supported options.
 
+Supported combinations are derived from the current academic year's source
+fixtures rather than maintained from memory. Older fixtures may guide parser
+work but do not silently become the current allowlist (ADR-048).
+
 Core profile fields (`academicYear`, `classYear`, and `programLanguage`) remain
 relational. Variable selections such as `practiceGroup`, `practiceSubgroup`,
 `anatomyGroup`, `verticalCorridorGroup`, `bedsideGroup`, and future rotation or
@@ -194,6 +201,9 @@ The frontend must not remain blocked on a single long HTTP request.
 ## Change synchronization experience
 
 Routine schedule changes should be invisible when successful.
+
+Explicitly dated holidays and semester breaks appear as all-day managed events,
+without invented start or end times (ADR-046).
 
 When user action is required, the system should clearly distinguish:
 

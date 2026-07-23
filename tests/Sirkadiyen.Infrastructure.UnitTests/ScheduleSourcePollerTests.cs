@@ -207,6 +207,7 @@ public sealed class ScheduleSourcePollerTests
             source.SourceId,
             snapshot.SnapshotId,
             snapshot.SpreadsheetId,
+            source.AcademicYear,
             snapshot.AcquiredAtUtc,
             snapshot.ContentHash,
             snapshot.ContractVersion,

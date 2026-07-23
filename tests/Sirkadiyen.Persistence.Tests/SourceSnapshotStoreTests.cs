@@ -105,7 +105,7 @@ public sealed class SourceSnapshotStoreTests(PostgresFixture fixture)
 
         NormalizedSpreadsheetSnapshot? roundTripped =
             System.Text.Json.JsonSerializer.Deserialize<NormalizedSpreadsheetSnapshot>(
-                stored.Payload,
+                stored.RequirePayload(),
                 Contracts.Serialization.ContractJson.CreateOptions());
 
         Assert.NotNull(roundTripped);

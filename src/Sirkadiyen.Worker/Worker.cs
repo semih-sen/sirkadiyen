@@ -45,12 +45,54 @@ internal sealed class Worker(
             await PollAllSourcesAsync(stoppingToken);
             await PublishValidatedRevisionsAsync(stoppingToken);
             await CalculatePendingDiffsAsync(stoppingToken);
+            await PruneExpiredSnapshotPayloadsAsync(stoppingToken);
 
             TimeSpan interval = intervalPolicy.GetInterval(timeProvider.GetUtcNow());
             logger.LogInformation(
                 "Schedule polling cycle completed. Next cycle starts in {PollingInterval}.",
                 interval);
             await Task.Delay(interval, timeProvider, stoppingToken);
+        }
+    }
+
+    /// <summary>
+    /// Bounds the large normalized snapshot documents while retaining the
+    /// active academic year's first snapshot, the latest source content and the
+    /// recent change window.
+    /// </summary>
+    private async Task PruneExpiredSnapshotPayloadsAsync(
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
+            SnapshotRetentionService retention = scope.ServiceProvider
+                .GetRequiredService<SnapshotRetentionService>();
+            SnapshotRetentionResult result = await retention.RunAsync(cancellationToken);
+
+            if (result.Outcome is SnapshotRetentionOutcome.Frozen)
+            {
+                logger.LogInformation(
+                    "Snapshot retention skipped because the global operational freeze is active.");
+                return;
+            }
+
+            if (result.Pruned.Count > 0)
+            {
+                logger.LogInformation(
+                    "Snapshot retention pruned {PrunedCount} payloads older than {CutoffUtc}; "
+                    + "snapshot metadata and downstream evidence remain.",
+                    result.Pruned.Count,
+                    result.CutoffUtc);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Snapshot retention failed.");
         }
     }
 

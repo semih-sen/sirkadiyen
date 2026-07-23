@@ -10,7 +10,7 @@ schema through version-controlled migrations.
 | Table | Holds |
 | --- | --- |
 | `schedule_sources` | the configured catalog, including the source context a workbook never states (ADR-017) |
-| `source_snapshots` | immutable acquisitions, one row per changed poll (ADR-007) |
+| `source_snapshots` | immutable acquisition metadata and retained normalized payloads, one row per changed poll (ADR-007, ADR-044) |
 | `parse_runs` | one deterministic parser execution per snapshot/profile, including retry attempt count |
 | `schedule_revisions` | candidate schedules and the states they move through before publication |
 | `canonical_schedule_records` | the lessons of one revision, with candidate ID, scheduled/cancelled status, stable identity, content hash and an optional explicitly sourced academic department (ADR-018, ADR-035) |
@@ -27,6 +27,15 @@ repeating the current state is idempotent and writes no fictional transition.
 The current API exposes the state read-only at `GET /api/operations/freeze`
 behind the operator key. A remote write surface waits for real operator
 authentication, as ADR-034 requires.
+
+`source_snapshots.AcademicYear` copies the source context at acquisition, so an
+academic-year catalog rollover cannot reclassify historical evidence. The
+worker keeps the first payload of the source's current academic year, the latest
+payload, every changed payload from the last ten days and every payload needed
+by an absent/running/failed parse run. It sets `Payload` to null and records
+`PayloadPrunedAtUtc` only after a snapshot is eligible (ADR-044). Metadata,
+parse responses, revisions, canonical records and diffs remain. This is an
+explicit retention deletion, never an overwrite with different evidence.
 
 `schedule_revisions.ApprovedBy`, `ApprovalReason` and `ApprovedAtUtc` record who
 released a quarantined revision and why (ADR-032). They are null on the ordinary
@@ -124,8 +133,8 @@ does not apply cleanly fails there rather than in production.
   later from parser response JSON.
 - A failed parser transport attempt resumes the same deterministic parse run and
   increments `AttemptCount`; it does not create a duplicate run.
-- Evidence documents — snapshot payloads, audience selectors, parser evidence —
-  are `jsonb`, so they can be inspected and queried in place.
+- Retained evidence documents — snapshot payloads, audience selectors, parser
+  evidence — are `jsonb`, so they can be inspected and queried in place.
 - Contested rows carry PostgreSQL's `xmin` as an optimistic concurrency token.
   Raw SQL that materializes such an entity must select `xmin` explicitly.
 - A store that opens its own transaction must go through `RetriableTransaction`.

@@ -63,6 +63,7 @@ internal static class ScheduleDiffScenario
             source.SourceId,
             $"snapshot-{Guid.NewGuid():N}",
             "spreadsheet-1",
+            source.AcademicYear,
             createdAtUtc,
             $"sha256:{Guid.NewGuid():N}",
             "1.0",

@@ -1504,3 +1504,195 @@ diff dispatchers and Calendar jobs must use the same port.
   bypass the append-only audit.
 - The authenticated write surface remains explicit follow-up work; the shared
   key is not extended with another safety-critical mutation.
+
+---
+
+## ADR-044: Retain the active-year anchor, latest source, and ten recent days
+
+**Status:** Accepted
+**Date:** 2026-07-23
+**Implements:** snapshot payload retention and worker maintenance
+**Amends:** ADR-007
+
+### Context
+
+Changed polls store normalized snapshot documents that can be several megabytes.
+The faculty schedule is continuously corrected, so keeping every old payload
+online forever has little operational value. Operators need the main schedule as
+the academic year began and a short recent history to answer "what changed?".
+
+Deleting complete pipeline lineages is unsafe before diff dispatch has a durable
+completion marker: parse runs, revisions, canonical records and diffs are still
+audit and future synchronization evidence. The large snapshot JSON is the part
+that drives unbounded storage.
+
+### Decision
+
+For each source, retain the normalized payload of:
+
+- the first snapshot captured under the source's currently configured academic
+  year
+- the latest snapshot, even after a long quiet period
+- every changed snapshot acquired in the last ten days
+- every snapshot with no parse run or with a `Running` or `Failed` parse run
+
+Snapshots are stored only when content changes, so the ten-day window contains
+every change rather than one artificial copy per calendar day.
+
+After the window, a maintenance batch removes only eligible normalized payloads.
+The snapshot row, source and external identifiers, academic year at acquisition,
+content hash, counts, acquisition time and prune time remain. Parse responses,
+revisions, canonical records and semantic diffs are not deleted. The payload is
+never overwritten with different evidence; it is either retained exactly or
+explicitly pruned.
+
+The maintenance boundary reads the global operational freeze and does nothing
+while frozen. The initial window is ten days and the batch size is operational
+configuration.
+
+### Consequences
+
+- Storage is bounded primarily by one annual anchor, one latest payload and the
+  changed snapshots from the recent window per source.
+- A parser-profile version can still reparse the latest unchanged source.
+- Abrupt-shutdown and transport-failure recovery never loses its input.
+- Historical metadata and the "what changed?" diff record remain queryable after
+  raw JSON is pruned.
+- Whole-lineage retention waits until diff dispatch records durable completion;
+  this ADR does not silently delete an undispatched calendar change.
+
+---
+
+## ADR-045: Bootstrap administration with one Google SuperAdmin identity
+
+**Status:** Accepted
+**Date:** 2026-07-23
+**Implements:** not yet; the exact email address is still required
+**Amends:** ADR-032, ADR-034 and ADR-042 operator identity follow-up
+
+### Context
+
+The first release has one operator. A general role-management UI and multi-role
+RBAC model would add work that has no current user. The shared administrative
+key is not an acceptable identity once Calendar dispatch exists.
+
+### Decision
+
+After Google sign-in is implemented, the backend will recognize exactly one
+normalized, Google-verified email address as `SuperAdmin`. The address is a
+backend-owned literal bootstrap allowlist, not a role claimed by the browser.
+No role editor, delegated administration or general RBAC schema is added in the
+first release.
+
+Every approval, held-diff release and freeze/unfreeze transition derives its
+actor from that authenticated Google identity. The existing shared key is then
+removed.
+
+### Consequences
+
+- The first administration surface stays small while authorization remains
+  server-side.
+- The exact Google email must be supplied before implementation; it is not
+  inferred from Git configuration, a service account or a client request.
+- Adding a second operator or another role is a later explicit decision and data
+  migration, not a comma-separated client setting.
+
+---
+
+## ADR-046: Publish holidays and semester breaks as all-day events
+
+**Status:** Accepted
+**Date:** 2026-07-23
+**Implements:** not yet
+
+### Context
+
+Twenty-two annual-program rows state holidays or semester breaks with dates but
+no times. Inventing a start or end time would violate ADR-011 and omitting them
+leaves student calendars knowingly incomplete.
+
+### Decision
+
+The canonical schedule model will represent a schedule item as either timed or
+all-day. A holiday or semester-break row with an explicit date becomes an
+all-day canonical event; no synthetic time is assigned. Multi-day closures use
+an inclusive local start date and an exclusive local end date when sent to
+Google Calendar.
+
+### Consequences
+
+- Canonical contracts, persistence, validation, stable/content hashing and
+  Calendar mapping must support all-day items before these rows publish.
+- All-day/timed shape changes are content changes and remain deterministic.
+- A row without an explicit date still does not publish.
+
+---
+
+## ADR-047: Curriculum block is canonical when the source states it
+
+**Status:** Accepted
+**Date:** 2026-07-23
+**Implements:** not yet
+
+### Context
+
+Annual and practice sources name curriculum blocks ("dilim"), such as `Hücre`,
+`Doku`, `Solunum` and `Dolaşım`. The parser currently keeps that value only in
+evidence and the content hash, so downstream product code cannot query or show
+it as a first-class schedule attribute.
+
+### Decision
+
+Add nullable `CurriculumBlock` to the canonical parser contract, domain model
+and persistence. Populate it only when the source explicitly states the block.
+It is lesson content and provenance, not an audience selector and not inferred
+from the course title.
+
+### Consequences
+
+- A corrected curriculum-block label updates the existing logical lesson rather
+  than changing its stable identity.
+- Profiles that do not state a block keep it null.
+- Parser fixtures and migrations must add the field before Calendar
+  synchronization consumes it.
+
+---
+
+## ADR-048: Derive supported profile selectors from academic-year fixtures
+
+**Status:** Accepted
+**Date:** 2026-07-23
+**Implements:** partially in the source catalog
+
+### Context
+
+Exact class/language group combinations were left open even though the committed
+faculty workbooks contain the values. Guessing them is unsafe, but fixture
+inspection can make the server-owned selector schema evidence-based.
+
+### Decision
+
+For each academic year, derive the supported selector matrix from the committed
+or captured source fixture and record it in the source catalog with a fixture
+test. Values from an older academic year are evidence for parser design but do
+not become the current year's validation allowlist without a current capture.
+
+The currently confirmed matrix is:
+
+- Grade 1 Turkish practice: groups `A`-`H`, subgroups `A1`-`H2`
+- Grade 1 English practice: group `İ`, subgroups `İ1`, `İ2`, `İ3`
+- Grade 2 Turkish practice: groups `A`-`H`, no subgroup values in the fixture
+- Grade 1 and Grade 2 anatomy: independent groups `1`, `2`, `3`
+- Grade 3 Turkish curriculum sources: curriculum groups `A` and `B`
+
+The available Grade 2 English fixture states `İ1` and `İ2` but belongs to
+2024-2025, so those values remain provisional until a current fixture is
+captured.
+
+### Consequences
+
+- Unknown-selector validation can be enabled source by source as evidence is
+  confirmed.
+- A new cohort in a future workbook is held for review rather than silently
+  accepted.
+- Fixture refresh is part of each academic-year rollover.

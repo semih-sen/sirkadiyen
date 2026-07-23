@@ -126,6 +126,7 @@ public sealed class SchedulePipelineIntegrityTests(PostgresFixture fixture)
             sourceId,
             snapshotDiscriminator,
             "spreadsheet-001",
+            "2025-2026",
             now,
             $"sha256:{snapshotDiscriminator}",
             "1.0",

@@ -115,6 +115,7 @@ public sealed class ScheduleParseResultStoreTests(PostgresFixture fixture)
             source.SourceId,
             "snapshot-1",
             "spreadsheet-1",
+            source.AcademicYear,
             new DateTimeOffset(2026, 7, 22, 9, 0, 0, TimeSpan.Zero),
             $"sha256:{Guid.NewGuid():N}",
             "1.0",

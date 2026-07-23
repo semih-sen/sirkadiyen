@@ -2,7 +2,7 @@
 
 ## Current phase
 
-Semantic diff, complete through persistence.
+Semantic diff complete through persistence; snapshot payload retention complete.
 
 The Google Sheets path now runs end to end from catalog seeding to a stored
 diff: adaptive polling, immutable snapshot storage, strict parser HTTP calls,
@@ -40,6 +40,35 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- Implemented ADR-044 snapshot payload retention. The worker keeps the first
+  snapshot captured under each source's currently configured academic year, the
+  latest snapshot, every changed snapshot from the last ten days, and every
+  snapshot still needed by an absent, running or failed parse run.
+- Retention removes only the large normalized JSON payload. Snapshot metadata,
+  hashes, parse responses, revisions, canonical records and semantic diffs
+  remain, so pruning cannot discard an undispatched calendar change.
+- Snapshots now copy the source's configured academic year at acquisition and
+  record `PayloadPrunedAtUtc`. Migration `AddSnapshotPayloadRetention` backfills
+  existing rows before making the year required.
+- Retention is batched, retry-safe, explicitly logged and gated by the global
+  operational freeze. The default window is ten days and the default batch is
+  fifty payloads.
+- Derived selector evidence from the committed fixtures (ADR-048). The catalog
+  now declares Grade 1 English `İ1`-`İ3` and Grade 2 Turkish `A`-`H`, in addition
+  to the existing Grade 1 Turkish matrix. Grade 2 English remains provisional
+  because its fixture is from 2024-2025.
+- Rechecked the dated amphitheatre URL with a browser-like GET on 2026-07-23. It
+  returned HTTP 200, the XLSX MIME type and 345,269 bytes. The old 403 claim was
+  wrong; only discovery of each next dated URL remains open.
+- Accepted one Google-verified SuperAdmin bootstrap identity (ADR-045), all-day
+  holidays and breaks (ADR-046), and canonical curriculum block (ADR-047).
+  Their implementation remains follow-up work.
+- 195 .NET tests pass against the real PostgreSQL with nothing skipped. The
+  Release build and `dotnet format --verify-no-changes` are clean. All 239
+  Python tests, Ruff check/format and MyPy also pass.
+
+## Previous operational-freeze session
 
 - Implemented the runtime-readable global operational freeze from ADR-034. One
   singleton PostgreSQL row is the authoritative current state and every actual
@@ -290,7 +319,9 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 - Added `config/schedule-sources.json` with all 18 supplied source IDs, URLs,
   transports, document formats, parser profiles, and fixture mappings.
 - Verified representative Google Sheets and Drive exports against collected
-  fixture bytes; the amphitheatre CDN rejects a generic probe with HTTP 403.
+  fixture bytes. A generic amphitheatre probe returned HTTP 403 in that session;
+  this was later shown not to be a valid availability test because a
+  browser-like GET returns the XLSX with HTTP 200.
 - Added a deterministic Open XML fixture converter and snapshot CLI with
   semantic used-range trimming.
 - Generated and contract-validated the Grade 1 Turkish annual and practice
@@ -386,29 +417,30 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 1. Survey each parser profile for an explicitly stated academic department and
    populate canonical `Department` only where the source provides it. Current
    historical records remain null and safely skip secondary matching.
-2. Define the snapshot retention policy and implement cleanup. Snapshots are
-   stored whole, one Grade 1 annual snapshot is about seven megabytes, and 18
-   sources poll as often as every 15 minutes. This is now a decided requirement,
-   not an open question.
-3. Move the date-format assumption into the parser profile, so each profile
+2. Move the date-format assumption into the parser profile, so each profile
    declares its order explicitly instead of relying on the global day-first
    default that would silently misparse a month-first source.
-4. Replace the shared administrative key with real authentication, add the
-   freeze/unfreeze administration surface, and replace the internal approval API
-   with an administration frontend.
-5. Implement `grade2_yearly_v1`, which should reuse the annual implementation
+3. Implement Google sign-in and the one-email `SuperAdmin` bootstrap from
+   ADR-045, then add the freeze/unfreeze administration surface and replace the
+   shared operator key. The exact Google email still has to be supplied.
+4. Add all-day canonical schedule items for holidays and semester breaks
+   (ADR-046).
+5. Add canonical `CurriculumBlock` to the parser contract, domain and persistence
+   and populate it only from explicit source cells (ADR-047).
+6. Implement `grade2_yearly_v1`, which should reuse the annual implementation
    with its own header aliases.
-6. Widen the group resolver for the English practice cohort labels (`İ1`) after
-   reviewing that source's structure; it also lays dates out differently.
-7. Recover parse runs left `Running` by an abrupt worker shutdown without
+7. Widen the group resolver for the confirmed Grade 1 English practice cohorts
+   `İ1`, `İ2` and `İ3`; the source also lays dates out differently.
+8. Recover parse runs left `Running` by an abrupt worker shutdown without
    creating duplicate runs or revisions.
-8. Establish .NET architecture tests.
-9. Acquire the missing Grade 1 anatomy and Grade 3 English fixtures.
-10. Add Google Drive/HTTP acquisition and DOCX conversion for the confirmed
+9. Establish .NET architecture tests.
+10. Acquire the missing Grade 1 anatomy, current Grade 2 English and Grade 3
+    English fixtures.
+11. Add Google Drive/HTTP acquisition and DOCX conversion for the confirmed
     special-program sources.
-11. Add CI quality gates, including a PostgreSQL service for the integration
+12. Add CI quality gates, including a PostgreSQL service for the integration
     tests.
-12. Model identity, single-use licensing, secure-cookie sessions, flexible
+13. Model identity, single-use licensing, secure-cookie sessions, flexible
     student profiles, initial sync, and the dedicated managed calendar from
     ADR-022 through ADR-027.
 
@@ -420,8 +452,8 @@ incomplete until they are closed.
 
 - thirteen rows whose time cells the spreadsheet software converted into dates
   (seven Grade 1 Turkish, six Grade 1 English); these need a source-side fix
-- twenty-two holiday and semester-break rows, which carry no times and need
-  all-day entries to be modelled
+- twenty-two holiday and semester-break rows, whose all-day behavior is decided
+  by ADR-046 but whose canonical and Calendar implementation is not built
 - twenty Grade 1 Turkish practice cells reading only `TELAFİ`, naming no group
 
 PDÖ and recurring undated rows are **not** on this list. They are deliberately
@@ -462,8 +494,9 @@ so it carries no rotation to publish.
 
 - polling interval and retry policy per transport
 - whether Google Drive metadata is used for a preliminary change signal
-- discovery strategy for the dated amphitheatre CDN URL, whose generic probe
-  currently returns HTTP 403
+- discovery strategy for each next dated amphitheatre CDN URL. The current
+  dated URL is reachable with a browser-like GET; a generic HEAD probe is not an
+  availability contract
 
 ### Publication governance
 
@@ -475,11 +508,14 @@ Forward-fix without rollback and the global freeze are resolved and implemented
 by ADR-033, ADR-034 and ADR-043. The authenticated write surface remains part of
 the real-operator-authentication work.
 
-Still open: real authentication to replace the shared administrative key.
+The initial operator model is decided by ADR-045: one Google-verified
+SuperAdmin email. Still needed: the exact email and its authentication
+implementation to replace the shared key.
 
 ### Profile schema
 
-Exact required groups for each class year and language must be derived from source files.
+The derivation rule and currently confirmed values are accepted in ADR-048.
+Still missing: a current Grade 2 English fixture and Grade 3 English fixtures.
 
 ## Known risks
 
@@ -505,22 +541,24 @@ Exact required groups for each class year and language must be derived from sour
   into dates; the parser refuses them, so seven Grade 1 Turkish rows and six
   Grade 1 English rows are currently unpublished and need a source-side fix
 - twenty-two holiday and semester-break rows carry no times and are therefore
-  not published; students will not see them until all-day entries are modelled
+  not published; ADR-046 decides all-day events, but the canonical shape and
+  Calendar implementation remain
 - the annual event type is keyword-classified, so a lecture whose title mentions
   a practice is labelled `practice`; four Grade 1 Turkish lessons are affected
   and only the label is wrong
-- the curriculum block stated by the annual sources has no canonical field and
-  survives only as evidence and as part of the content hash
+- the curriculum block stated by the annual sources still survives only as
+  evidence and as part of the content hash; ADR-047 requires a canonical field,
+  but its contract/model migration is not implemented
 - the Grade 1 English practice source labels cohorts `İ1`, `İ2`, `İ3` and lays
   its dates out differently, so `grade1_practice_v1` publishes almost nothing
   from it; its fixture is deliberately not committed until the source has been
   reviewed
 - reading `AB` as groups A and B follows from the cohort model rather than from
   the cell, so those candidates carry reduced confidence
-- snapshot payloads are stored whole and nothing deletes them; one Grade 1 annual
-  snapshot is about seven megabytes and 18 sources poll as often as every 15
-  minutes. A retention policy is now a decided requirement and an immediate
-  objective, but it is not implemented, so storage still grows without bound
+- snapshot payload retention keeps the active-year anchor, latest content, last
+  ten days and parser-recovery inputs. Full parse/revision/diff lineage cleanup
+  remains intentionally absent until diff dispatch has a durable completion
+  marker
 - an audience selector that a source has not declared cannot be detected, because
   the unknown-selector rule is unenforced wherever `supportedAudienceSelectors`
   is absent. Only `G1-TR-PRACTICE` declares its cohorts today
@@ -528,8 +566,9 @@ Exact required groups for each class year and language must be derived from sour
   one for subgroup `A1` at the same time are not seen as overlapping
 - the administrative API is guarded by a single shared key. Anyone holding it can
   publish a quarantined schedule into student calendars, and `ApprovedBy` records
-  a claim rather than a verified identity. The API must not be publicly exposed
-  until real authentication replaces the key
+  a claim rather than a verified identity. ADR-045 decides the replacement as
+  one Google SuperAdmin, but the exact email and implementation are still absent;
+  the API must not be publicly exposed until that replacement exists
 - releasing a held diff is guarded only by the shared operator key, and
   `ReleasedBy` is a claim rather than a verified identity. Releasing is the last
   gate before calendar deletions, so this is a stronger reason than approval was

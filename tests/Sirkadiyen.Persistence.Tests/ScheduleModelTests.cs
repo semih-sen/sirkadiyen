@@ -152,6 +152,20 @@ public sealed class ScheduleModelTests
             CreateContext().Database.GetMigrations());
     }
 
+    [Fact]
+    public void SnapshotPayloadRetentionHasItsOwnMigrationAndExplicitMetadata()
+    {
+        IEntityType snapshot =
+            Model.FindEntityType(typeof(Domain.ScheduleIngestion.SourceSnapshot))!;
+
+        Assert.Contains(
+            "20260723111607_AddSnapshotPayloadRetention",
+            CreateContext().Database.GetMigrations());
+        Assert.True(snapshot.FindProperty("Payload")!.IsNullable);
+        Assert.Equal(20, snapshot.FindProperty("AcademicYear")!.GetMaxLength());
+        Assert.True(snapshot.FindProperty("PayloadPrunedAtUtc")!.IsNullable);
+    }
+
     [Theory]
     [InlineData(typeof(Domain.ScheduleIngestion.SourceSnapshot), "Payload")]
     [InlineData(typeof(CanonicalScheduleRecord), "AudienceSelectors")]

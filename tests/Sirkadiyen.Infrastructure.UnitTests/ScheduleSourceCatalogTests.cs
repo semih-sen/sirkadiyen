@@ -30,6 +30,20 @@ public sealed class ScheduleSourceCatalogTests
         Assert.Equal(1054469518, annual.SheetGid);
         Assert.Equal("grade1_yearly_v1", annual.ParserProfile);
 
+        ScheduleSourceDefinition grade1EnglishPractice = Assert.Single(
+            catalog.Sources,
+            source => source.SourceId == "G1-EN-PRACTICE");
+        Assert.Equal(
+            ["İ1", "İ2", "İ3"],
+            grade1EnglishPractice.SupportedAudienceSelectors!["practiceSubgroup"]);
+
+        ScheduleSourceDefinition grade2TurkishPractice = Assert.Single(
+            catalog.Sources,
+            source => source.SourceId == "G2-TR-PRACTICE");
+        Assert.Equal(
+            ["A", "B", "C", "D", "E", "F", "G", "H"],
+            grade2TurkishPractice.SupportedAudienceSelectors!["practiceGroup"]);
+
         ScheduleSourceDefinition vertical = Assert.Single(
             catalog.Sources,
             source => source.SourceId == "G2-VERTICAL-SPRING");

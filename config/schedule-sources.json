@@ -70,7 +70,12 @@
       "classYear": 1,
       "programLanguage": "english",
       "timeZoneId": "Europe/Istanbul",
-      "fixturePath": "sheets/donem-1-ing/xlsx/2025-2026 Term 1 Medicine Program in English-Med. Skill Practices.xlsx"
+      "supportedAudienceSelectors": {
+        "practiceGroup": ["İ"],
+        "practiceSubgroup": ["İ1", "İ2", "İ3"]
+      },
+      "fixturePath": "sheets/donem-1-ing/xlsx/2025-2026 Term 1 Medicine Program in English-Med. Skill Practices.xlsx",
+      "notes": "The committed 2025-2026 fixture states the three English cohorts İ1, İ2 and İ3."
     },
     {
       "sourceId": "G2-TR-ANNUAL",
@@ -102,7 +107,11 @@
       "classYear": 2,
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
-      "fixturePath": "sheets/donem-2-tr/xlsx/2025-2026 Dönem 2 Türkçe Tıp Programı Uygulama Tablosu (1).xlsx"
+      "supportedAudienceSelectors": {
+        "practiceGroup": ["A", "B", "C", "D", "E", "F", "G", "H"]
+      },
+      "fixturePath": "sheets/donem-2-tr/xlsx/2025-2026 Dönem 2 Türkçe Tıp Programı Uygulama Tablosu (1).xlsx",
+      "notes": "The committed 2025-2026 fixture states eight practice cohorts A-H and no subgroup values."
     },
     {
       "sourceId": "G2-VERTICAL-SPRING",
@@ -286,7 +295,7 @@
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
       "fixturePath": "sheets/amfi/20-24-temmuz-2026--amfi.xlsx",
-      "notes": "The dated URL must be advanced by source discovery; the current endpoint rejects generic HEAD/download probes with HTTP 403."
+      "notes": "The dated URL must be advanced by source discovery. A browser-like GET returned HTTP 200 with the XLSX payload on 2026-07-23; do not use a generic HEAD probe as the availability test."
     }
   ]
 }

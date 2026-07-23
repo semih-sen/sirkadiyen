@@ -85,7 +85,7 @@ public sealed class ScheduleSourcePoller(
         NormalizedSpreadsheetSnapshot snapshotForParsing = stored.Changed
             ? snapshot
             : JsonSerializer.Deserialize<NormalizedSpreadsheetSnapshot>(
-                stored.Snapshot.Payload,
+                stored.Snapshot.RequirePayload(),
                 JsonOptions)
                 ?? throw new InvalidDataException(
                     "The stored immutable snapshot payload is empty.");

@@ -75,6 +75,7 @@ public sealed class SourceSnapshotStore(SirkadiyenDbContext dbContext) : ISource
             sourceId,
             snapshot.SnapshotId,
             snapshot.SpreadsheetId,
+            source.AcademicYear,
             snapshot.AcquiredAtUtc,
             snapshot.ContentHash,
             snapshot.ContractVersion,

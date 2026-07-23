@@ -8,8 +8,9 @@ namespace Sirkadiyen.Domain.ScheduleIngestion;
 /// <remarks>
 /// A snapshot is evidence (ADR-007). Nothing in the system may rewrite one: a
 /// parser run is explained by the snapshot it read, and a rewritten snapshot
-/// would make past decisions unexplainable. The type therefore exposes no
-/// mutators at all.
+/// would make past decisions unexplainable. The only post-acquisition mutation
+/// is the explicit ADR-044 retention deletion of an expired payload; metadata
+/// and every downstream decision remain.
 /// </remarks>
 public sealed class SourceSnapshot
 {
@@ -18,6 +19,7 @@ public sealed class SourceSnapshot
         // Materialization constructor.
         ExternalSnapshotId = string.Empty;
         SpreadsheetId = string.Empty;
+        AcademicYear = string.Empty;
         ContentHash = string.Empty;
         ContractVersion = string.Empty;
         Payload = string.Empty;
@@ -28,6 +30,7 @@ public sealed class SourceSnapshot
         SourceId sourceId,
         string externalSnapshotId,
         string spreadsheetId,
+        string academicYear,
         DateTimeOffset acquiredAtUtc,
         string contentHash,
         string contractVersion,
@@ -38,6 +41,7 @@ public sealed class SourceSnapshot
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(externalSnapshotId);
         ArgumentException.ThrowIfNullOrWhiteSpace(spreadsheetId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(academicYear);
         ArgumentException.ThrowIfNullOrWhiteSpace(contentHash);
         ArgumentException.ThrowIfNullOrWhiteSpace(contractVersion);
         ArgumentException.ThrowIfNullOrWhiteSpace(payload);
@@ -54,6 +58,7 @@ public sealed class SourceSnapshot
         SourceId = sourceId;
         ExternalSnapshotId = externalSnapshotId;
         SpreadsheetId = spreadsheetId;
+        AcademicYear = academicYear;
         AcquiredAtUtc = acquiredAtUtc;
         ContentHash = contentHash;
         ContractVersion = contractVersion;
@@ -74,6 +79,16 @@ public sealed class SourceSnapshot
 
     public string SpreadsheetId { get; private set; }
 
+    /// <summary>
+    /// The source's configured academic year when this evidence was acquired.
+    /// </summary>
+    /// <remarks>
+    /// The source row is updated when a new academic year begins. Copying the
+    /// value here lets retention preserve the correct first snapshot of each
+    /// active year instead of reclassifying historical evidence.
+    /// </remarks>
+    public string AcademicYear { get; private set; }
+
     public DateTimeOffset AcquiredAtUtc { get; private set; }
 
     /// <summary>
@@ -85,11 +100,48 @@ public sealed class SourceSnapshot
     public string ContractVersion { get; private set; }
 
     /// <summary>The normalized snapshot document, exactly as it was acquired.</summary>
-    public string Payload { get; private set; }
+    public string? Payload { get; private set; }
+
+    /// <summary>
+    /// When the normalized document was removed under the retention policy.
+    /// Metadata, hashes and downstream parse/revision evidence remain.
+    /// </summary>
+    public DateTimeOffset? PayloadPrunedAtUtc { get; private set; }
 
     public int WorksheetCount { get; private set; }
 
     public int CellCount { get; private set; }
 
     public int DiagnosticCount { get; private set; }
+
+    /// <summary>
+    /// Returns the normalized document or fails explicitly when retention has
+    /// removed it.
+    /// </summary>
+    public string RequirePayload() =>
+        Payload
+        ?? throw new InvalidOperationException(
+            $"Snapshot '{Id}' no longer has a retained payload.");
+
+    /// <summary>
+    /// Removes the large normalized document without changing any evidence
+    /// metadata. This is the sole allowed post-acquisition mutation.
+    /// </summary>
+    public void PrunePayload(DateTimeOffset prunedAtUtc)
+    {
+        if (prunedAtUtc.Offset != TimeSpan.Zero)
+        {
+            throw new ArgumentException(
+                "A payload prune time must be expressed in UTC.",
+                nameof(prunedAtUtc));
+        }
+
+        if (Payload is null)
+        {
+            return;
+        }
+
+        Payload = null;
+        PayloadPrunedAtUtc = prunedAtUtc;
+    }
 }

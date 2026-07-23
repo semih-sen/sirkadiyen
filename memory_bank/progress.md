@@ -34,6 +34,8 @@
 - [x] Define immutable snapshot model
 - [x] Define parser request and response contracts
 - [x] Define canonical schedule model
+- [ ] Add all-day canonical schedule items for holidays and semester breaks (ADR-046)
+- [ ] Add canonical curriculum block with explicit source provenance (ADR-047)
 - [x] Define schedule revision model
 - [x] Define semantic diff model
 - [ ] Define user calendar event mapping
@@ -136,7 +138,7 @@
 - [x] Implement transactional publication
 - [x] Decide forward-fix policy; no rollback operation (ADR-033)
 - [x] Add validation regression tests
-- [ ] Implement snapshot retention and cleanup
+- [x] Implement bounded snapshot payload retention and cleanup (ADR-044)
 
 ## Phase 8: Semantic diff
 
@@ -228,11 +230,18 @@ freeze/unfreeze administration remains deliberately deferred until real
 operator identity exists. Future diff dispatch and every Calendar job must use
 the same gate.
 
+Snapshot payload retention now preserves the first snapshot of the source's
+active academic year, the latest content, the last ten days of changes, and
+parser-recovery inputs while pruning only expired normalized JSON (ADR-044).
+Metadata and the entire parse/revision/diff trail remain.
+
 The next implementation step is to survey parser profiles for explicitly stated
 academic departments and populate canonical `Department` only where the source
 provides it. Without that data, historical and current records safely skip
-secondary matching. After that, the consumer side begins with user/profile
-modeling and affected-user resolution over `Ready` and `Released` diffs.
+secondary matching. The newly accepted all-day item shape and canonical
+`CurriculumBlock` (ADR-046, ADR-047) then close known canonical-model gaps before
+the consumer side begins with user/profile modeling and affected-user resolution
+over `Ready` and `Released` diffs.
 
 There is deliberately no rollback (ADR-033). A bad publication is corrected at
 the authoritative source and reaches calendars as a newer forward-fix revision.
@@ -240,11 +249,14 @@ The existing acquisition, parsing and publication boundaries are frozen now;
 diff dispatch and downstream jobs do not exist yet and must be gated as they are
 introduced.
 
-Two things block on decisions already made rather than on discussion:
+One parser-safety item blocks on implementation rather than discussion:
 
-- snapshot retention and cleanup, which is unimplemented while storage grows
 - per-profile declaration of date format, replacing the global day-first
   assumption that would silently misparse a month-first source
+
+The initial operator model is also decided: one Google-verified SuperAdmin
+email (ADR-045). Its exact address must be supplied before the shared key can be
+removed.
 
 The Google source credential is resolved; a service account is configured.
 Drive/HTTP acquisition adapters, DOCX conversion, recovery of stale `Running`

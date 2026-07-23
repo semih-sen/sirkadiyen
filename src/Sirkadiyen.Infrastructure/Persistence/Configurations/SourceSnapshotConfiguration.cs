@@ -21,12 +21,15 @@ internal sealed class SourceSnapshotConfiguration : IEntityTypeConfiguration<Sou
 
         builder.Property(snapshot => snapshot.ExternalSnapshotId).HasMaxLength(200).IsRequired();
         builder.Property(snapshot => snapshot.SpreadsheetId).HasMaxLength(200).IsRequired();
+        builder.Property(snapshot => snapshot.AcademicYear).HasMaxLength(20).IsRequired();
         builder.Property(snapshot => snapshot.ContentHash).HasMaxLength(100).IsRequired();
         builder.Property(snapshot => snapshot.ContractVersion).HasMaxLength(20).IsRequired();
 
         // The payload is stored as jsonb so a snapshot can be inspected and
-        // queried in place. It is never updated: a snapshot is evidence.
-        builder.Property(snapshot => snapshot.Payload).HasColumnType("jsonb").IsRequired();
+        // queried in place. It is never overwritten; retention may explicitly
+        // remove it while preserving this metadata row and the downstream
+        // parse/revision/diff evidence.
+        builder.Property(snapshot => snapshot.Payload).HasColumnType("jsonb");
 
         builder.HasOne<Domain.ScheduleSources.ScheduleSource>()
             .WithMany()
@@ -39,5 +42,11 @@ internal sealed class SourceSnapshotConfiguration : IEntityTypeConfiguration<Sou
             .IsDescending(false, true);
 
         builder.HasIndex(snapshot => new { snapshot.SourceId, snapshot.ContentHash });
+        builder.HasIndex(snapshot => new
+        {
+            snapshot.ScheduleSourceId,
+            snapshot.AcademicYear,
+            snapshot.AcquiredAtUtc,
+        });
     }
 }

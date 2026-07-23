@@ -373,6 +373,7 @@ public sealed class ScheduleRevisionPublicationStoreTests(PostgresFixture fixtur
             source.SourceId,
             $"snapshot-{Guid.NewGuid():N}",
             "spreadsheet-1",
+            source.AcademicYear,
             createdAtUtc,
             $"sha256:{Guid.NewGuid():N}",
             "1.0",

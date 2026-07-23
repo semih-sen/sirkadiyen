@@ -175,6 +175,13 @@ A source snapshot is immutable and includes:
 
 The snapshot is evidence. Never rewrite it after parsing.
 
+The normalized payload is retained online for the source's current academic-year
+anchor, latest content, last ten days of changed snapshots, and any input still
+needed by parser recovery (ADR-044). After that window, maintenance may prune
+only the large payload; immutable identity, hashes, counts, timestamps, parse
+responses, revisions and diffs remain. A payload is never replaced with
+different content.
+
 ## 6. Parser profile pattern
 
 Parser behavior must be selected through a named, versioned parser profile.
@@ -221,12 +228,18 @@ ScheduleAudience
 ScheduleLocation
 ScheduleInstructor
 SourceEvidence
+CurriculumBlock
 StableIdentity
 ContentHash
 ScheduleRevision
 ```
 
 The model should support field-level provenance where practical.
+
+A schedule item is either timed or all-day (ADR-046). Holidays and semester
+breaks with explicit dates use the all-day shape and never receive invented
+times. `CurriculumBlock` is nullable and populated only when the source states a
+block; it is content, not stable identity or audience (ADR-047).
 
 ## 8. Stable identity pattern
 
@@ -499,6 +512,11 @@ Calendar OAuth credentials remain server-side and are never exposed to browser
 JavaScript. Cookie authentication must use `Secure`, an explicit `SameSite`
 policy, rotation/expiry, anti-forgery protection for state-changing requests,
 and server-side authorization for role, license, and onboarding state.
+
+The initial administration bootstrap has exactly one backend-owned,
+Google-verified email mapped to `SuperAdmin` (ADR-045). This is not a
+client-supplied claim or a general RBAC system. Approval, release and freeze
+actors come from the authenticated identity once implemented.
 
 ## 21. Flexible profile selector pattern
 

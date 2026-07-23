@@ -59,6 +59,10 @@ Do not expose Google refresh tokens to the frontend.
 - explicit admin policies
 - active-license and completed-profile requirements enforced server-side
 
+For the initial single-operator release, the admin policy maps one
+Google-verified backend-owned email literal to `SuperAdmin` (ADR-045). A general
+role-management system is deferred until a second operator or role exists.
+
 ### Background processing
 
 Selected (ADR-037):
@@ -151,6 +155,11 @@ PostgreSQL stores:
 - background workflow state
 - audit logs
 - outbox messages
+
+Snapshot rows copy the source academic year at acquisition. Their normalized
+JSON payload is nullable only because the ADR-044 maintenance policy may prune
+expired payloads after parsing; identifiers, hashes, counts, prune time and the
+downstream evidence remain.
 
 Student profiles keep academic year, class year, and program language in
 relational columns. Variable cohort, anatomy, rotation, and elective selectors

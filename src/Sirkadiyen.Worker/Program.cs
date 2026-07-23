@@ -109,6 +109,17 @@ ScheduleDiffSafetyThresholds diffThresholds = new()
 };
 diffThresholds.Validate();
 
+SnapshotRetentionOptions retentionOptions = new()
+{
+    RecentWindow = TimeSpan.FromDays(ParseDouble(
+        builder.Configuration["SIRKADIYEN_RETENTION:SNAPSHOT_RECENT_DAYS"],
+        10)),
+    BatchSize = ParseInteger(
+        builder.Configuration["SIRKADIYEN_RETENTION:SNAPSHOT_BATCH_SIZE"],
+        50),
+};
+retentionOptions.Validate();
+
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton(diffOptions);
 builder.Services.AddSingleton(diffThresholds);
@@ -116,7 +127,9 @@ builder.Services.AddSingleton<SemanticScheduleDiffer>();
 builder.Services.AddScoped<ScheduleDiffService>();
 builder.Services.AddSingleton(pollingOptions);
 builder.Services.AddSingleton(validationOptions);
+builder.Services.AddSingleton(retentionOptions);
 builder.Services.AddSingleton<ScheduleRevisionValidator>();
+builder.Services.AddScoped<SnapshotRetentionService>();
 builder.Services.AddScoped<ScheduleRevisionValidationService>();
 builder.Services.AddScoped<ScheduleRevisionPublicationService>();
 builder.Services.AddSingleton<AdaptivePollingIntervalPolicy>();

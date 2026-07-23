@@ -213,8 +213,9 @@ A canonical record must be able to express:
 - event type
 - normalized course identity
 - original display title
+- curriculum block when explicitly stated by the source
 - date
-- start and end time
+- either start/end time or an explicit all-day date span
 - instructor
 - academic department when explicitly stated by the source
 - location
