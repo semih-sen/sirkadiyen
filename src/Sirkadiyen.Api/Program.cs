@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.HttpOverrides;
 using Sirkadiyen.Api.Administration;
 using Sirkadiyen.Api.GoogleCalendar;
 using Sirkadiyen.Api.Identity;
@@ -63,6 +64,27 @@ string licenseHashKey = Required(
     "SIRKADIYEN_LICENSING:HASH_KEY");
 
 builder.Services.AddProblemDetails();
+
+// TLS is terminated at the edge (the Next dev server locally, a reverse proxy in
+// production) and the request reaches Kestrel over HTTP, so Request.IsHttps is
+// false unless we honour X-Forwarded-Proto. Without this the Secure cookies and
+// the antiforgery SSL guard (SecurePolicy.Always) reject every request (ADR-066).
+// The forwarded headers are trusted only from a known proxy: in Development the
+// sole caller is the local same-host proxy, whose loopback peer can present as
+// ::ffff:127.0.0.1 and not match the default known-network entries, so we trust
+// the immediate peer directly. A production deployment MUST instead pin its
+// reverse proxy through KnownProxies/KnownNetworks (ADR-052).
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+
+    if (builder.Environment.IsDevelopment())
+    {
+        options.KnownIPNetworks.Clear();
+        options.KnownProxies.Clear();
+    }
+});
 
 // States and rules are read by a person deciding whether to approve a revision.
 // "ReviewRequired" tells them something; "2" makes them go and count the enum.
@@ -143,6 +165,9 @@ builder.Services.AddScoped<ScheduleDiffReviewService>();
 builder.Services.AddSirkadiyenPersistence(connectionString);
 
 var app = builder.Build();
+
+// Must run before anything that reads the scheme (auth, antiforgery, cookies).
+app.UseForwardedHeaders();
 
 app.UseExceptionHandler();
 app.UseAuthentication();

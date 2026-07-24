@@ -73,6 +73,23 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
 
+- **Fixed the local-dev antiforgery SSL failure (ADR-066 amendment).** The HTTPS proxy edge left
+  Kestrel receiving the proxied request over plain HTTP, so `Request.IsHttps` was false and the
+  antiforgery guard (`SecurePolicy.Always`) threw on the first `GET /api/auth/csrf`. The earlier
+  "no backend change needed" claim was wrong and is corrected in the ADR.
+- **Two-part fix, matching the production TLS-termination shape.** `web/src/middleware.ts` sets
+  `X-Forwarded-Proto: https` on `/api/*` (Next's rewrite proxy forwards `X-Forwarded-Host` but not
+  the proto — verified against an echo upstream and Next's `proxy-request.js`). `Program.cs` now
+  calls `UseForwardedHeaders` first in the pipeline (`XForwardedFor | XForwardedProto`), clearing
+  `KnownIPNetworks`/`KnownProxies` in Development to trust the loopback peer. Production must pin
+  its reverse proxy through those lists instead (ADR-052).
+- Verified end to end: `GET /api/auth/csrf` returns `500` without the header and `200` with a
+  valid token when `X-Forwarded-Proto: https` is present; the middleware injects it upstream. API
+  Release build is clean (0 warnings) and the API unit tests pass. `.NET 10` deprecated
+  `KnownNetworks` → used `KnownIPNetworks`.
+
+## Previous frontend scaffold session
+
 - **Scaffolded the consumer frontend foundation (ADR-066).** New `web/` Next.js App Router +
   TypeScript project. It consumes the same-site cookie session and treats backend onboarding
   state as authoritative, mapping each `OnboardingState` to a route rather than deciding

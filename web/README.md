@@ -11,7 +11,7 @@ talks to one origin and there is no cross-origin request to configure:
 
 ```
 Browser --HTTPS--> https://localhost:3000  (Next dev server)
-                       |
+                       |  src/middleware.ts adds X-Forwarded-Proto: https
                        +-- /            React pages
                        +-- /api/:path*  -> BACKEND_ORIGIN (Kestrel)   [next.config.mjs]
 ```
@@ -25,6 +25,20 @@ Browser --HTTPS--> https://localhost:3000  (Next dev server)
 
 This keeps dev faithful to the hardened production cookie config instead of
 weakening it — the failure mode ADR-052 explicitly warned against.
+
+### The one backend requirement: forwarded scheme
+
+Because Kestrel receives the proxied request over plain HTTP, `Request.IsHttps` is
+`false` unless it is told the original scheme. The antiforgery system
+(`SecurePolicy.Always`) has a hard runtime guard that throws on a non-SSL request,
+so this must be handled. Two pieces cooperate:
+
+- **`src/middleware.ts`** sets `X-Forwarded-Proto: https` on every `/api/*`
+  request. (Next's rewrite proxy forwards `X-Forwarded-Host` but **not**
+  `X-Forwarded-Proto`, so we add it ourselves.)
+- **The backend calls `UseForwardedHeaders`** (in `Program.cs`) to honor it, which
+  sets `Request.IsHttps = true`. This is the *same* mechanism production needs
+  behind its TLS-terminating reverse proxy, so it is not a dev-only shim.
 
 ## One-time setup
 
@@ -97,13 +111,24 @@ authorization work against the API alone.
    and posts the one-time code to `POST /api/calendar/authorization`. The backend
    exchanges it server-side with `redirect_uri=postmessage`.
 
-If sign-in fails with an origin error, the dev origin is not registered (step 1).
-If the cookie is not stored, confirm the frontend is on **https** (not http).
+### Troubleshooting
+
+- **`invalid_client — The OAuth client was not found`** — the client ID sent to
+  Google is not a real, registered client. Copy the ID fresh from the Console's
+  **Web application** OAuth client into `.env.local`.
+- **Origin error after the account picker** — `https://localhost:3000` is not in
+  the client's Authorized JavaScript origins (step 1).
+- **`500` on `/api/auth/csrf` with "the current request is not an SSL request"** —
+  the backend is not seeing the forwarded scheme. Confirm the frontend runs on
+  **https** (`npm run dev`, not `dev:http`), that `src/middleware.ts` exists, and
+  that the backend has `UseForwardedHeaders` (see "The one backend requirement"
+  above). Restart the Next dev server after adding/moving `middleware.ts`.
 
 ## Structure
 
 ```
 src/
+  middleware.ts                adds X-Forwarded-Proto: https on /api/* (dev edge)
   app/
     layout.tsx                 root layout + SessionProvider
     page.tsx                   routes to the correct onboarding step

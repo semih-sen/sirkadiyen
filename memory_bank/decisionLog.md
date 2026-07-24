@@ -2976,5 +2976,38 @@ Consequences of the topology, and why the backend needs no change:
 - Production deployment still ships a separate frontend (ADR-036); the same-origin
   guarantee there is provided by the reverse proxy, not by this dev proxy.
 
+### Amendment (2026-07-24): the backend does need a forwarded-scheme change
+
+The original claim above — "why the backend needs no change" — was wrong, and is
+corrected here rather than rewritten. The HTTPS edge makes the browser↔edge hop
+secure, but Kestrel still receives the proxied request over plain HTTP, so
+`Request.IsHttps` is `false`. The antiforgery system has a hard runtime guard
+(`CheckSSLConfig`) that throws `The antiforgery system has the configuration value
+AntiforgeryOptions.Cookie.SecurePolicy = Always, but the current request is not an
+SSL request` on the first `GET /api/auth/csrf`. (Cookie *emission* was fine —
+`CookieSecurePolicy.Always` writes `Secure` regardless of scheme — which is why the
+gap was not obvious until runtime.)
+
+The fix is the same mechanism production requires behind a TLS-terminating reverse
+proxy, so it is not a dev-only shim:
+
+- **Frontend:** `web/src/middleware.ts` sets `X-Forwarded-Proto: https` on `/api/*`.
+  This is necessary because Next's rewrite proxy forwards `X-Forwarded-Host` but
+  **not** `X-Forwarded-Proto` (verified empirically against an echo upstream and in
+  `next/dist/server/lib/router-utils/proxy-request.js`, which enables neither
+  `xfwd` nor a proto header). Note the file must live at `src/middleware.ts` when a
+  `src/` directory is used, not the project root.
+- **Backend:** `Program.cs` calls `UseForwardedHeaders` (first in the pipeline) with
+  `XForwardedFor | XForwardedProto`. In `Development` it clears
+  `KnownIPNetworks`/`KnownProxies` to trust the immediate loopback peer (which can
+  present as `::ffff:127.0.0.1` and miss the default known-network entries). A
+  production reverse proxy on another host MUST instead be pinned through
+  `KnownProxies`/`KnownIPNetworks` (ADR-052) — otherwise the same antiforgery error
+  will surface in production.
+
+Verified: `GET /api/auth/csrf` returns `500` without the header and `200` with a
+valid token when `X-Forwarded-Proto: https` is present; the middleware injects that
+header into the upstream request.
+
 ---
 
