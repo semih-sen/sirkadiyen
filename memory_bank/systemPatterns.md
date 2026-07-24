@@ -488,6 +488,24 @@ The transaction writes domain state and outbox records together. A worker dispat
 
 Routine synchronization is event-driven from schedule diffs.
 
+A completed-sync connection whose credential fails records a durable reconciliation
+boundary and ordered cursor:
+
+```text
+ReconciliationRequiredSinceUtc
++ ReconciliationCursorDispatchedAtUtc
++ ReconciliationCursorDiffId
+```
+
+Re-authorization preserves that tuple. A worker may admit the connection only when it
+is authorized again, initial sync is complete, and the managed calendar still exists in
+the local connection state. Cursor advancement and completion use the required-since
+value as an optimistic workflow token so stale work cannot clear a newer request.
+
+Re-auth catch-up replays only dispatchable semantic diffs already marked `Dispatched`,
+ordered by `(DispatchedAtUtc, DiffId)`. This preserves the deletion boundary: absence
+from current truth is never enough to remove an event.
+
 A separate reconciliation job periodically checks:
 
 - expected managed events

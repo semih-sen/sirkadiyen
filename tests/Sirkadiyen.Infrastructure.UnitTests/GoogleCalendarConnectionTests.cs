@@ -174,6 +174,23 @@ public sealed class GoogleCalendarConnectionTests
         Assert.Equal("calendar-id", connection.ManagedCalendarId);
         Assert.Equal(GoogleCalendarInitialSyncState.Completed, connection.InitialSyncState);
         Assert.Equal(Now.AddDays(1), connection.UpdatedAtUtc);
+        Assert.Equal(Now.AddDays(1), connection.ReconciliationRequiredSinceUtc);
+        Assert.Equal(Now.AddDays(1), connection.ReconciliationCursorDispatchedAtUtc);
+        Assert.Equal(Guid.Empty, connection.ReconciliationCursorDiffId);
+    }
+
+    [Fact]
+    public void ACredentialFailureBeforeInitialSyncCompletesDoesNotQueueReconciliation()
+    {
+        GoogleCalendarConnection connection = Create();
+
+        connection.MarkNeedsReauthorization(Now.AddDays(1));
+
+        // Initial sync remains the authoritative way to reach current state; diff replay
+        // is only for users whose one-time population had already completed.
+        Assert.Null(connection.ReconciliationRequiredSinceUtc);
+        Assert.Null(connection.ReconciliationCursorDispatchedAtUtc);
+        Assert.Null(connection.ReconciliationCursorDiffId);
     }
 
     [Fact]
@@ -199,6 +216,51 @@ public sealed class GoogleCalendarConnectionTests
         Assert.Equal(GoogleCalendarConnectionStatus.Authorized, connection.Status);
     }
 
+    [Fact]
+    public void ReauthorizingACompletedConnectionPreservesItsReconciliationCursor()
+    {
+        GoogleCalendarConnection connection = CompletedConnection();
+        DateTimeOffset failedAt = Now.AddDays(1);
+        connection.MarkNeedsReauthorization(failedAt);
+
+        connection.Reauthorize("fresh-token", Scope, Now.AddDays(2));
+
+        Assert.Equal(failedAt, connection.ReconciliationRequiredSinceUtc);
+        Assert.Equal(failedAt, connection.ReconciliationCursorDispatchedAtUtc);
+        Assert.Equal(Guid.Empty, connection.ReconciliationCursorDiffId);
+    }
+
+    [Fact]
+    public void ReconciliationCursorAdvancesMonotonicallyAndThenClears()
+    {
+        GoogleCalendarConnection connection = CompletedConnection();
+        DateTimeOffset failedAt = Now.AddDays(1);
+        DateTimeOffset dispatchedAt = failedAt.AddMinutes(5);
+        Guid diffId = Guid.CreateVersion7();
+        connection.MarkNeedsReauthorization(failedAt);
+        connection.Reauthorize("fresh-token", Scope, failedAt.AddMinutes(1));
+
+        connection.AdvanceReconciliationCursor(
+            failedAt,
+            dispatchedAt,
+            diffId,
+            dispatchedAt.AddSeconds(1));
+
+        Assert.Equal(dispatchedAt, connection.ReconciliationCursorDispatchedAtUtc);
+        Assert.Equal(diffId, connection.ReconciliationCursorDiffId);
+        Assert.Throws<InvalidOperationException>(() => connection.AdvanceReconciliationCursor(
+            failedAt,
+            dispatchedAt,
+            diffId,
+            dispatchedAt.AddSeconds(2)));
+
+        connection.CompleteReconciliation(failedAt, dispatchedAt.AddSeconds(3));
+
+        Assert.Null(connection.ReconciliationRequiredSinceUtc);
+        Assert.Null(connection.ReconciliationCursorDispatchedAtUtc);
+        Assert.Null(connection.ReconciliationCursorDiffId);
+    }
+
     private static GoogleCalendarConnection Create(
         Guid? userId = null,
         string protectedRefreshToken = "protected-token",
@@ -208,4 +270,13 @@ public sealed class GoogleCalendarConnectionTests
             protectedRefreshToken,
             grantedScopes,
             Now);
+
+    private static GoogleCalendarConnection CompletedConnection()
+    {
+        GoogleCalendarConnection connection = Create();
+        connection.RequestInitialSync(Now.AddMinutes(1));
+        connection.AttachManagedCalendar("calendar-id", Now.AddMinutes(2));
+        connection.CompleteInitialSync(Now.AddMinutes(3));
+        return connection;
+    }
 }

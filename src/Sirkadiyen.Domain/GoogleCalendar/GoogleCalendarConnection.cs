@@ -58,6 +58,26 @@ public sealed class GoogleCalendarConnection
     /// </summary>
     public GoogleCalendarInitialSyncState InitialSyncState { get; private set; }
 
+    /// <summary>
+    /// The earliest credential failure from which this completed connection must replay
+    /// dispatchable semantic diffs after authorization is restored. Null means no
+    /// reconciliation is pending.
+    /// </summary>
+    public DateTimeOffset? ReconciliationRequiredSinceUtc { get; private set; }
+
+    /// <summary>
+    /// The dispatch timestamp of the last diff durably replayed for this user. It starts at
+    /// <see cref="ReconciliationRequiredSinceUtc"/> with an empty diff id so the diff that
+    /// discovered the dead credential is included.
+    /// </summary>
+    public DateTimeOffset? ReconciliationCursorDispatchedAtUtc { get; private set; }
+
+    /// <summary>
+    /// Tie-breaker for diffs sharing one dispatch timestamp. Null exactly when no
+    /// reconciliation is pending.
+    /// </summary>
+    public Guid? ReconciliationCursorDiffId { get; private set; }
+
     public DateTimeOffset CreatedAtUtc { get; private init; }
 
     /// <summary>When the current grant was recorded; a re-authorization advances it.</summary>
@@ -165,6 +185,64 @@ public sealed class GoogleCalendarConnection
         }
 
         Status = GoogleCalendarConnectionStatus.NeedsReauthorization;
+        if (InitialSyncState is GoogleCalendarInitialSyncState.Completed
+            && ReconciliationRequiredSinceUtc is null)
+        {
+            ReconciliationRequiredSinceUtc = atUtc;
+            ReconciliationCursorDispatchedAtUtc = atUtc;
+            ReconciliationCursorDiffId = Guid.Empty;
+        }
+
+        UpdatedAtUtc = atUtc;
+    }
+
+    /// <summary>
+    /// Advances the durable replay cursor after one dispatchable diff has been applied to
+    /// this user's calendar.
+    /// </summary>
+    /// <remarks>
+    /// The required-since value is supplied as an optimistic workflow token. A stale worker
+    /// cannot advance a newer reconciliation request that was created after another
+    /// credential failure.
+    /// </remarks>
+    public void AdvanceReconciliationCursor(
+        DateTimeOffset expectedRequiredSinceUtc,
+        DateTimeOffset dispatchedAtUtc,
+        Guid diffId,
+        DateTimeOffset atUtc)
+    {
+        EnsureReconciliationCanProgress(expectedRequiredSinceUtc);
+        if (diffId == Guid.Empty)
+        {
+            throw new ArgumentException("A replayed diff id is required.", nameof(diffId));
+        }
+
+        DateTimeOffset cursorAt = ReconciliationCursorDispatchedAtUtc!.Value;
+        Guid cursorId = ReconciliationCursorDiffId!.Value;
+        if (dispatchedAtUtc < cursorAt
+            || (dispatchedAtUtc == cursorAt && diffId.CompareTo(cursorId) <= 0))
+        {
+            throw new InvalidOperationException(
+                "The reconciliation cursor can only advance to a later dispatched diff.");
+        }
+
+        ReconciliationCursorDispatchedAtUtc = dispatchedAtUtc;
+        ReconciliationCursorDiffId = diffId;
+        UpdatedAtUtc = atUtc;
+    }
+
+    /// <summary>
+    /// Clears a reconciliation request after every eligible diff through the captured
+    /// replay boundary has been applied successfully.
+    /// </summary>
+    public void CompleteReconciliation(
+        DateTimeOffset expectedRequiredSinceUtc,
+        DateTimeOffset atUtc)
+    {
+        EnsureReconciliationCanProgress(expectedRequiredSinceUtc);
+        ReconciliationRequiredSinceUtc = null;
+        ReconciliationCursorDispatchedAtUtc = null;
+        ReconciliationCursorDiffId = null;
         UpdatedAtUtc = atUtc;
     }
 
@@ -211,6 +289,29 @@ public sealed class GoogleCalendarConnection
 
         InitialSyncState = GoogleCalendarInitialSyncState.Completed;
         UpdatedAtUtc = atUtc;
+    }
+
+    private void EnsureReconciliationCanProgress(DateTimeOffset expectedRequiredSinceUtc)
+    {
+        if (Status is not GoogleCalendarConnectionStatus.Authorized)
+        {
+            throw new InvalidOperationException(
+                "Reconciliation cannot progress while authorization is unavailable.");
+        }
+
+        if (InitialSyncState is not GoogleCalendarInitialSyncState.Completed)
+        {
+            throw new InvalidOperationException(
+                "Reconciliation is only valid after initial synchronization completes.");
+        }
+
+        if (ReconciliationRequiredSinceUtc != expectedRequiredSinceUtc
+            || ReconciliationCursorDispatchedAtUtc is null
+            || ReconciliationCursorDiffId is null)
+        {
+            throw new InvalidOperationException(
+                "The reconciliation request is absent or no longer matches this worker.");
+        }
     }
 
     private static string RequiredBounded(string value, int maximumLength, string parameterName)

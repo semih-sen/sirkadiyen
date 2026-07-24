@@ -128,6 +128,65 @@ public sealed class GoogleCalendarConnectionStore(SirkadiyenDbContext dbContext)
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<PendingCalendarReconciliation>> ListPendingReconciliationAsync(
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
+
+        return await dbContext.GoogleCalendarConnections
+            .AsNoTracking()
+            .Where(connection =>
+                connection.Status == GoogleCalendarConnectionStatus.Authorized
+                && connection.InitialSyncState == GoogleCalendarInitialSyncState.Completed
+                && connection.ManagedCalendarId != null
+                && connection.ReconciliationRequiredSinceUtc != null
+                && connection.ReconciliationCursorDispatchedAtUtc != null
+                && connection.ReconciliationCursorDiffId != null)
+            .OrderBy(connection => connection.ReconciliationRequiredSinceUtc)
+            .ThenBy(connection => connection.UserId)
+            .Take(limit)
+            .Select(connection => new PendingCalendarReconciliation
+            {
+                UserId = connection.UserId,
+                ProtectedRefreshToken = connection.ProtectedRefreshToken,
+                ManagedCalendarId = connection.ManagedCalendarId!,
+                RequiredSinceUtc = connection.ReconciliationRequiredSinceUtc!.Value,
+                CursorDispatchedAtUtc =
+                    connection.ReconciliationCursorDispatchedAtUtc!.Value,
+                CursorDiffId = connection.ReconciliationCursorDiffId!.Value,
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task AdvanceReconciliationCursorAsync(
+        Guid userId,
+        DateTimeOffset expectedRequiredSinceUtc,
+        DateTimeOffset dispatchedAtUtc,
+        Guid diffId,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken)
+    {
+        GoogleCalendarConnection connection = await SingleForUpdateAsync(userId, cancellationToken);
+        connection.AdvanceReconciliationCursor(
+            expectedRequiredSinceUtc,
+            dispatchedAtUtc,
+            diffId,
+            atUtc);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task CompleteReconciliationAsync(
+        Guid userId,
+        DateTimeOffset expectedRequiredSinceUtc,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken)
+    {
+        GoogleCalendarConnection connection = await SingleForUpdateAsync(userId, cancellationToken);
+        connection.CompleteReconciliation(expectedRequiredSinceUtc, atUtc);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     private async Task<GoogleCalendarConnection> SingleForUpdateAsync(
         Guid userId,
         CancellationToken cancellationToken) =>
@@ -201,6 +260,7 @@ public sealed class GoogleCalendarConnectionStore(SirkadiyenDbContext dbContext)
         Status = connection.Status,
         InitialSyncState = connection.InitialSyncState,
         ManagedCalendarId = connection.ManagedCalendarId,
+        ReconciliationRequiredSinceUtc = connection.ReconciliationRequiredSinceUtc,
         UpdatedAtUtc = connection.UpdatedAtUtc,
     };
 

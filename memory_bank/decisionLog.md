@@ -2616,3 +2616,68 @@ the diff or block other users.
 - `GoogleCalendarConnectionStatus.NeedsReauthorization` now has a producer for the first time; a
   distinct `GoogleCalendarCredentialException` was added to avoid clashing with the ADR-057
   authorization-code-exchange `GoogleCalendarAuthorizationException`.
+
+## ADR-060: Preserve a durable semantic-diff replay cursor across Calendar re-authorization
+
+**Status:** Accepted; admission/cursor foundation implemented, replay worker pending
+**Date:** 2026-07-24
+**Implements:** `GoogleCalendarConnection` reconciliation boundary/cursor state,
+`PendingCalendarReconciliation`, connection-store list/advance/complete operations,
+migration `AddCalendarReconciliationCursor`, and domain/PostgreSQL tests
+**Depends on:** ADR-033/042 (forward-fix and diff release), ADR-034/043 (global freeze),
+ADR-058 (completed initial sync and managed calendar), ADR-059 (credential failure and
+diff dispatch lifecycle)
+
+### Context
+
+ADR-059 deliberately lets one dead credential be skipped so it cannot block a global
+diff fan-out. The diff is still marked `Dispatched`; after that user authorizes again,
+the normal edge-triggered dispatcher will never revisit the missed diff. Rebuilding
+state by comparing only the current schedule to the mapping ledger would make deletion
+level-triggered and violate AI_GUIDELINE section 13, which requires a published revision
+and valid semantic diff.
+
+### Decision
+
+Start reconciliation with a **durable per-connection missed-diff boundary and ordered
+cursor**. On the first credential failure after initial sync has completed,
+`GoogleCalendarConnection.MarkNeedsReauthorization` stores:
+
+```text
+ReconciliationRequiredSinceUtc = failure time
+ReconciliationCursorDispatchedAtUtc = failure time
+ReconciliationCursorDiffId = Guid.Empty
+```
+
+Repeated failures do not move the boundary forward. Re-authorization replaces the
+credential and restores `Authorized` while preserving the tuple. A credential failure
+before initial sync completes creates no reconciliation request, because the resumable
+initial sync remains the authoritative route to current state.
+
+The worker-facing queue returns only connections that are `Authorized`, initial-sync
+`Completed`, attached to a managed calendar, and have a complete cursor tuple. Replay
+ordering is `(DispatchedAtUtc, DiffId)` because one dispatcher pass can give several
+diffs the same timestamp. Cursor advancement is monotonic. Both advancement and
+completion require the original `ReconciliationRequiredSinceUtc` as an optimistic
+workflow token, so stale work cannot mutate a newer request.
+
+The replay worker will consume only `Ready`/`Released` diffs whose
+`CalendarDispatchState` is `Dispatched`, after the cursor. It will apply those entries
+for the one user using the same mapping ledger and idempotent Calendar operations as
+incremental sync. In particular, a reconciliation delete must be traced to a replayed
+semantic diff; current-state absence alone never authorizes deletion.
+
+### Consequences
+
+- A re-authorized user is durably discoverable for catch-up even though the global diff
+  was already marked dispatched.
+- The database requires the three cursor fields to be all null or all populated; a
+  populated cursor also requires completed initial sync, a managed calendar, and an
+  ordered timestamp.
+- The ciphertext credential appears only in the backend-only pending-work projection,
+  like initial and incremental synchronization.
+- This decision does not yet enumerate or apply missed diffs. The next slice adds the
+  freeze-gated replay worker and its ordered diff-store query, then mocked Calendar and
+  PostgreSQL tests.
+- Actual Google inventory comparison, duplicate/missing-event repair, and marker-based
+  orphan-calendar recovery remain later reconciliation work.

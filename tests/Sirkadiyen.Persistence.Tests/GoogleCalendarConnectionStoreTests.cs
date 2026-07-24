@@ -170,6 +170,75 @@ public sealed class GoogleCalendarConnectionStoreTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task ReauthorizationExposesAndAdvancesADurableReconciliationCursor()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        UserSession user = await CreateUserAsync("calendar-reconciliation");
+        DateTimeOffset failedAt = Now.AddDays(1);
+        DateTimeOffset dispatchedAt = failedAt.AddMinutes(5);
+        Guid diffId = Guid.CreateVersion7();
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        GoogleCalendarConnectionStore store = new(context);
+        await store.UpsertAuthorizationAsync(user.UserId, "first", Scope, Now, Token);
+        await store.RequestInitialSyncAsync(user.UserId, Now.AddMinutes(1), Token);
+        await store.AttachManagedCalendarAsync(
+            user.UserId,
+            "reconciliation@group.calendar.google.com",
+            Now.AddMinutes(2),
+            Token);
+        await store.MarkInitialSyncCompletedAsync(user.UserId, Now.AddMinutes(3), Token);
+        await store.MarkNeedsReauthorizationAsync(user.UserId, failedAt, Token);
+
+        // A dead credential is not runnable work; the cursor waits durably for a fresh grant.
+        Assert.DoesNotContain(
+            await store.ListPendingReconciliationAsync(10, Token),
+            candidate => candidate.UserId == user.UserId);
+
+        await store.UpsertAuthorizationAsync(
+            user.UserId,
+            "fresh",
+            Scope,
+            failedAt.AddMinutes(1),
+            Token);
+
+        PendingCalendarReconciliation pending = Assert.Single(
+            await store.ListPendingReconciliationAsync(10, Token),
+            candidate => candidate.UserId == user.UserId);
+        Assert.Equal(failedAt, pending.RequiredSinceUtc);
+        Assert.Equal(failedAt, pending.CursorDispatchedAtUtc);
+        Assert.Equal(Guid.Empty, pending.CursorDiffId);
+        Assert.Equal("fresh", pending.ProtectedRefreshToken);
+
+        await store.AdvanceReconciliationCursorAsync(
+            user.UserId,
+            failedAt,
+            dispatchedAt,
+            diffId,
+            dispatchedAt.AddSeconds(1),
+            Token);
+
+        PendingCalendarReconciliation advanced = Assert.Single(
+            await store.ListPendingReconciliationAsync(10, Token),
+            candidate => candidate.UserId == user.UserId);
+        Assert.Equal(dispatchedAt, advanced.CursorDispatchedAtUtc);
+        Assert.Equal(diffId, advanced.CursorDiffId);
+
+        await store.CompleteReconciliationAsync(
+            user.UserId,
+            failedAt,
+            dispatchedAt.AddSeconds(2),
+            Token);
+
+        Assert.DoesNotContain(
+            await store.ListPendingReconciliationAsync(10, Token),
+            candidate => candidate.UserId == user.UserId);
+        Assert.Null(
+            (await store.GetByUserIdAsync(user.UserId, Token))!
+                .ReconciliationRequiredSinceUtc);
+    }
+
+    [Fact]
     public async Task ConcurrentFirstTimeAuthorizationsConvergeOnOneRow()
     {
         Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);

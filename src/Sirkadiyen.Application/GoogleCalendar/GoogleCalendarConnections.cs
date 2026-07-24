@@ -57,6 +57,30 @@ public interface IGoogleCalendarConnectionStore
         Guid userId,
         DateTimeOffset atUtc,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Lists authorized, initial-sync-completed connections that must replay semantic diffs
+    /// missed while their credential was unavailable, oldest request first.
+    /// </summary>
+    Task<IReadOnlyList<PendingCalendarReconciliation>> ListPendingReconciliationAsync(
+        int limit,
+        CancellationToken cancellationToken);
+
+    /// <summary>Advances one user's durable semantic-diff replay cursor.</summary>
+    Task AdvanceReconciliationCursorAsync(
+        Guid userId,
+        DateTimeOffset expectedRequiredSinceUtc,
+        DateTimeOffset dispatchedAtUtc,
+        Guid diffId,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken);
+
+    /// <summary>Clears a reconciliation request after its bounded replay succeeds.</summary>
+    Task CompleteReconciliationAsync(
+        Guid userId,
+        DateTimeOffset expectedRequiredSinceUtc,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -78,6 +102,9 @@ public sealed record GoogleCalendarConnectionView
     /// <summary>Null until initial sync creates the dedicated calendar (ADR-024).</summary>
     public string? ManagedCalendarId { get; init; }
 
+    /// <summary>Null when this connection has no missed-diff reconciliation to perform.</summary>
+    public DateTimeOffset? ReconciliationRequiredSinceUtc { get; init; }
+
     public required DateTimeOffset UpdatedAtUtc { get; init; }
 }
 
@@ -94,6 +121,25 @@ public sealed record PendingCalendarSync
 
     /// <summary>Set once the calendar has been created; null on the first pass.</summary>
     public string? ManagedCalendarId { get; init; }
+}
+
+/// <summary>
+/// A completed connection waiting to replay semantic diffs after re-authorization.
+/// The encrypted credential is confined to this backend-only worker projection.
+/// </summary>
+public sealed record PendingCalendarReconciliation
+{
+    public required Guid UserId { get; init; }
+
+    public required string ProtectedRefreshToken { get; init; }
+
+    public required string ManagedCalendarId { get; init; }
+
+    public required DateTimeOffset RequiredSinceUtc { get; init; }
+
+    public required DateTimeOffset CursorDispatchedAtUtc { get; init; }
+
+    public required Guid CursorDiffId { get; init; }
 }
 
 public sealed record RequestInitialSyncResult

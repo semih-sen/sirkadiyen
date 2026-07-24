@@ -18,9 +18,11 @@ their dedicated calendar (ADR-024), writes every currently-published event that 
 their profile with idempotent, resumable Calendar writes, and onboarding reaches `Active`.
 Diff-driven incremental sync is now implemented too (ADR-059): a worker stage dispatches every
 `Ready`/`Released` diff into per-user insert/patch/delete operations, resumable and idempotent
-via the same deterministic-id + ledger machinery, so a diff finally reaches a calendar. A
-reconciliation sweep (calendar/ledger drift, re-auth catch-up) and intra-diff quota-aware
-batching are the next module.
+via the same deterministic-id + ledger machinery, so a diff finally reaches a calendar.
+Reconciliation has now started with its durable admission/cursor foundation (ADR-060):
+a completed-sync user whose credential dies retains the earliest missed-diff boundary
+through re-authorization. The worker-side semantic-diff replay, calendar/ledger drift
+sweep, and intra-diff quota-aware batching remain next.
 
 The Google Sheets path now runs end to end from catalog seeding to a stored
 diff: adaptive polling, immutable snapshot storage, strict parser HTTP calls,
@@ -39,9 +41,11 @@ reaches dispatch only through a named operator releasing it over the internal
 API, which moves it to `Released` and keeps the reason it was held; an ambiguity
 hold is never releasable and is corrected at the source (ADR-042).
 
-Nothing consumes a diff yet. Affected-user resolution, Drive and HTTP
-acquisition, DOCX conversion, student profiles, Calendar authorization/sync, and
-the frontend do not exist yet.
+The incremental dispatcher now consumes every dispatchable diff and resolves the
+affected completed-sync users before applying idempotent Calendar operations.
+Drive and HTTP acquisition, DOCX conversion, the remaining parser profiles, the
+reconciliation replay/sweep, intra-diff quota-aware batching, and the frontend
+still do not exist.
 
 The source credential is resolved: a Google service account is configured and the
 worker can reach the real Sheets API.
@@ -58,6 +62,36 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- **Started safe Calendar reconciliation with a durable missed-diff cursor (ADR-060).**
+  The first credential failure of an initial-sync-completed connection now records
+  `ReconciliationRequiredSinceUtc` plus the ordered
+  `(ReconciliationCursorDispatchedAtUtc, ReconciliationCursorDiffId)` checkpoint.
+  Re-authorization preserves this state, so globally dispatched diffs are no longer
+  forgotten merely because one user's credential was unavailable.
+- **Admission is deliberately narrower than authorization.** Only an `Authorized`,
+  initial-sync-`Completed` connection with its managed calendar and complete cursor tuple
+  appears in `ListPendingReconciliationAsync`; a pre-initial-sync credential failure is
+  recovered by initial sync instead of diff replay.
+- **The required-since timestamp is an optimistic workflow token.** Cursor advancement and
+  completion must present the same value, preventing a stale worker from advancing or
+  clearing a newer reconciliation request. The cursor is monotonic and starts at the
+  failure timestamp with an empty diff id, so the diff that discovered the dead credential
+  remains eligible at the same timestamp.
+- Migration `AddCalendarReconciliationCursor` adds the three nullable columns, a named
+  pending-work index, and a database constraint requiring the tuple to be all-null or
+  complete, ordered, initial-sync-completed, and attached to a managed calendar.
+- This is the **admission/cursor foundation only**. The next implementation slice must list
+  `Ready`/`Released` diffs already marked `Dispatched` after the cursor and replay them for
+  one user in order. Deletion must remain authorized by those semantic diffs; reconciliation
+  must never infer deletion merely from current-state absence. Calendar inventory/drift and
+  orphan-calendar lookup follow that catch-up path.
+- 429 .NET tests pass, up from 425, nothing skipped. Release build has no warnings,
+  `dotnet format --verify-no-changes` is clean, EF reports no pending model changes, and
+  migration `AddCalendarReconciliationCursor` was verified Up → Down → Up on the real
+  PostgreSQL. No Python changed.
+
+## Previous diff-driven incremental sync session
 
 - **Implemented diff-driven incremental calendar sync (ADR-059).** A new worker stage,
   `DispatchPendingDiffsAsync`, runs after diff calculation and fans every dispatchable

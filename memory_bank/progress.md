@@ -174,7 +174,7 @@
 - [x] Implement affected-user resolution (per-user initial side + diff-driven fan-out over Ready/Released diffs, ADR-059)
 - [x] Implement initial sync
 - [x] Implement incremental sync (diff-driven insert/patch/delete dispatcher, ADR-059)
-- [ ] Implement reconciliation (calendar/ledger drift + re-auth catch-up; deferred)
+- [~] Implement reconciliation (durable re-auth admission/cursor complete in ADR-060; semantic-diff replay and calendar/ledger drift pending)
 - [x] Add mocked adapter tests
 - [~] Add quota-aware batching (per-cycle event budget + diffs-per-cycle bound; intra-diff quota-aware batching pending)
 
@@ -293,10 +293,13 @@ per-user insert/patch/delete operations, driven by a `CalendarDispatchState` on 
 resumable by the same deterministic-id + ledger idempotency as initial sync. The mapping ledger is
 the authority for who holds a lesson; a pure `IncrementalSyncPlanner` decides the operation per
 user. Transient Google failures back off and retry, then give up to `Failed`; a dead credential
-flags the connection `NeedsReauthorization`, skips that user, and leaves their events. The
-remaining synchronization work — a reconciliation sweep (calendar/ledger drift and re-auth
-catch-up) and intra-diff quota-aware batching — is the next slice; the mapping and idempotency are
-built for it. `grade2_yearly_v1` remains the next parser profile and needs no new canonical field.
+flags the connection `NeedsReauthorization`, skips that user, and leaves their events.
+Reconciliation has started with its durable re-auth admission/cursor foundation (ADR-060).
+The next synchronization slice is a worker service that reads `Ready`/`Released` diffs already
+marked `Dispatched` after each user's cursor and replays them in order. That replay, not a
+level-triggered comparison with current truth, must authorize every deletion. Calendar/ledger
+inventory drift, orphan-calendar lookup, and intra-diff quota-aware batching follow it.
+`grade2_yearly_v1` remains the next parser profile and needs no new canonical field.
 
 There is deliberately no rollback (ADR-033). A bad publication is corrected at
 the authoritative source and reaches calendars as a newer forward-fix revision.

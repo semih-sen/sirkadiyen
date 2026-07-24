@@ -166,6 +166,24 @@ public sealed class OnboardingStateServiceTests
             Guid userId,
             DateTimeOffset atUtc,
             CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<PendingCalendarReconciliation>> ListPendingReconciliationAsync(
+            int limit,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task AdvanceReconciliationCursorAsync(
+            Guid userId,
+            DateTimeOffset expectedRequiredSinceUtc,
+            DateTimeOffset dispatchedAtUtc,
+            Guid diffId,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task CompleteReconciliationAsync(
+            Guid userId,
+            DateTimeOffset expectedRequiredSinceUtc,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class StubProfileStore(bool hasProfile) : IStudentProfileStore

@@ -465,6 +465,24 @@ public sealed class IncrementalCalendarSyncServiceTests
             return Task.CompletedTask;
         }
 
+        public Task<IReadOnlyList<PendingCalendarReconciliation>> ListPendingReconciliationAsync(
+            int limit,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task AdvanceReconciliationCursorAsync(
+            Guid userId,
+            DateTimeOffset expectedRequiredSinceUtc,
+            DateTimeOffset dispatchedAtUtc,
+            Guid diffId,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task CompleteReconciliationAsync(
+            Guid userId,
+            DateTimeOffset expectedRequiredSinceUtc,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
         public Task<GoogleCalendarConnectionView?> GetByUserIdAsync(
             Guid userId,
             CancellationToken cancellationToken) => throw new NotSupportedException();

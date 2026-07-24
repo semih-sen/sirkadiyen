@@ -33,11 +33,20 @@ internal sealed class GoogleCalendarConnectionConfiguration
             .HasConversion<string>()
             .HasMaxLength(20)
             .IsRequired();
+        builder.Property(connection => connection.ReconciliationRequiredSinceUtc);
+        builder.Property(connection => connection.ReconciliationCursorDispatchedAtUtc);
+        builder.Property(connection => connection.ReconciliationCursorDiffId);
         builder.Property(connection => connection.RowVersion).IsRowVersion();
 
         // One connection per account: onboarding and the synchronization path both read
         // "the" connection, so the schema forbids a second.
         builder.HasIndex(connection => connection.UserId).IsUnique();
+        builder.HasIndex(connection => new
+        {
+            connection.Status,
+            connection.InitialSyncState,
+            connection.ReconciliationRequiredSinceUtc,
+        }).HasDatabaseName("ix_google_calendar_connections_reconciliation_pending");
         builder.HasOne<User>()
             .WithMany()
             .HasForeignKey(connection => connection.UserId)
@@ -49,5 +58,17 @@ internal sealed class GoogleCalendarConnectionConfiguration
         builder.ToTable(table => table.HasCheckConstraint(
             "ck_google_calendar_connections_initial_sync_state",
             "\"InitialSyncState\" IN ('Pending', 'InProgress', 'Completed')"));
+        builder.ToTable(table => table.HasCheckConstraint(
+            "ck_google_calendar_connections_reconciliation_cursor",
+            "(\"ReconciliationRequiredSinceUtc\" IS NULL"
+            + " AND \"ReconciliationCursorDispatchedAtUtc\" IS NULL"
+            + " AND \"ReconciliationCursorDiffId\" IS NULL)"
+            + " OR (\"ReconciliationRequiredSinceUtc\" IS NOT NULL"
+            + " AND \"ReconciliationCursorDispatchedAtUtc\" IS NOT NULL"
+            + " AND \"ReconciliationCursorDiffId\" IS NOT NULL"
+            + " AND \"InitialSyncState\" = 'Completed'"
+            + " AND \"ManagedCalendarId\" IS NOT NULL"
+            + " AND \"ReconciliationCursorDispatchedAtUtc\""
+            + " >= \"ReconciliationRequiredSinceUtc\")"));
     }
 }
