@@ -186,15 +186,14 @@ public sealed class ScheduleRevisionValidatorTests
     }
 
     [Fact]
-    public void OneOverlapIsReportedButDoesNotHoldTheRevision()
+    public void OneSameCourseOverlapIsReportedButDoesNotHoldTheRevision()
     {
-        // ADR-025 quarantines on multiple overlaps. A single one is usually a
-        // source typo that an operator should see without the schedule being
-        // withheld from students.
+        // A single same-course overlap is usually a source typo an operator should
+        // see without the schedule being withheld from students (ADR-025, ADR-068).
         RevisionValidationResult result = Validate(
             [
-                Record("r1", hour: 9),
-                Record("r2", hour: 10),
+                Record("r1", hour: 9, courseIdentity: "anatomy"),
+                Record("r2", hour: 10, courseIdentity: "anatomy"),
             ]);
 
         Assert.Equal(RevisionState.Validated, result.Outcome);
@@ -204,8 +203,31 @@ public sealed class ScheduleRevisionValidatorTests
     }
 
     [Fact]
-    public void MultipleOverlapsHoldTheRevision()
+    public void MultipleSameCourseOverlapsHoldTheRevision()
     {
+        // The same course booked over itself repeatedly is a parsing duplication
+        // that would put one lesson on a calendar several times (ADR-068).
+        RevisionValidationResult result = Validate(
+            [
+                Record("r1", hour: 9, courseIdentity: "anatomy"),
+                Record("r2", hour: 10, courseIdentity: "anatomy"),
+                Record("r3", hour: 11, courseIdentity: "anatomy"),
+            ]);
+
+        Assert.Equal(RevisionState.ReviewRequired, result.Outcome);
+        RevisionValidationFinding finding = Assert.Single(
+            result.Findings,
+            f => f.Rule == RevisionValidationRule.AudienceOverlap);
+        Assert.Equal(ValidationSeverity.Error, finding.Severity);
+    }
+
+    [Fact]
+    public void ParallelOfferingsOfDifferentCoursesDoNotHoldTheRevision()
+    {
+        // Different courses at the same time for the whole audience are a legitimate
+        // parallel offering the source deliberately schedules — electives, or a
+        // make-up exam beside the regular one — so any number of them is a
+        // non-blocking warning, never a quarantine (ADR-068).
         RevisionValidationResult result = Validate(
             [
                 Record("r1", hour: 9),
@@ -213,7 +235,10 @@ public sealed class ScheduleRevisionValidatorTests
                 Record("r3", hour: 11),
             ]);
 
-        Assert.Equal(RevisionState.ReviewRequired, result.Outcome);
+        Assert.Equal(RevisionState.Validated, result.Outcome);
+        RevisionValidationFinding finding = Assert.Single(result.Findings);
+        Assert.Equal(RevisionValidationRule.AudienceOverlap, finding.Rule);
+        Assert.Equal(ValidationSeverity.Warning, finding.Severity);
     }
 
     [Fact]
@@ -396,6 +421,7 @@ public sealed class ScheduleRevisionValidatorTests
         int durationMinutes = 110,
         DateOnly? date = null,
         string? stableIdentity = null,
+        string? courseIdentity = null,
         decimal confidence = 1.0m,
         IReadOnlyList<(string Dimension, string Value)>? selectors = null,
         bool allDay = false)
@@ -422,7 +448,7 @@ public sealed class ScheduleRevisionValidatorTests
             DomainAudienceScope.SelectedGroups,
             JsonSerializer.Serialize(audience, ContractJson.CreateOptions()),
             $"Lesson {candidateId}",
-            null,
+            courseIdentity,
             date ?? new DateOnly(2025, 10, 3),
             allDay ? null : start,
             allDay ? null : start.AddMinutes(durationMinutes),

@@ -285,7 +285,17 @@ public sealed class ScheduleRevisionValidator(RevisionValidationOptions options)
         // Only timed records can overlap. An all-day closure states no times, and
         // reading it as booking the whole day would report every lesson published
         // on a half-day holiday as a double booking.
-        List<string> overlaps = [];
+        // Two kinds of same-audience time overlap are distinguished, because they
+        // mean opposite things (ADR-068). Two records of the SAME course
+        // are a genuine duplication — almost always a parsing fault that would put
+        // the same lesson on a calendar twice — and quarantine the revision. Two
+        // records of DIFFERENT courses are a legitimate parallel offering the source
+        // deliberately schedules for the whole cohort: an elective against another
+        // activity, a make-up or retake exam beside the regular one. Those are
+        // reported for visibility but never block publication, because treating them
+        // as errors would hold every annual revision this faculty publishes.
+        List<string> duplicateOverlaps = [];
+        List<string> parallelOverlaps = [];
         IEnumerable<IGrouping<(string Audience, DateOnly Date), CanonicalScheduleRecord>> groups =
             input.Records
                 .Where(record => !record.IsAllDay)
@@ -309,28 +319,56 @@ public sealed class ScheduleRevisionValidator(RevisionValidationOptions options)
                     continue;
                 }
 
-                overlaps.Add(
+                string entry =
                     $"{Invariant(group.Key.Date)} {group.Key.Audience} "
-                    + $"'{previous.DisplayTitle}' / '{current.DisplayTitle}'");
+                    + $"'{previous.DisplayTitle}' / '{current.DisplayTitle}'";
+                (IsSameCourse(previous, current) ? duplicateOverlaps : parallelOverlaps).Add(entry);
             }
         }
 
-        if (overlaps.Count == 0)
+        if (duplicateOverlaps.Count == 0 && parallelOverlaps.Count == 0)
         {
             return;
         }
 
-        bool quarantine = overlaps.Count > options.MaximumToleratedOverlaps;
+        // Only same-course duplicates decide quarantine; parallel offerings never do.
+        if (duplicateOverlaps.Count > options.MaximumToleratedOverlaps)
+        {
+            findings.Add(Finding(
+                input,
+                RevisionValidationRule.AudienceOverlap,
+                ValidationSeverity.Error,
+                $"{duplicateOverlaps.Count} lesson(s) book the same audience for the same "
+                + "course at the same local date and time, which is almost always a parsing "
+                + "duplication rather than a real schedule.",
+                atUtc,
+                detail: Detail(duplicateOverlaps.Take(20)),
+                affectedRecordCount: duplicateOverlaps.Count));
+            return;
+        }
+
+        int total = duplicateOverlaps.Count + parallelOverlaps.Count;
         findings.Add(Finding(
             input,
             RevisionValidationRule.AudienceOverlap,
-            quarantine ? ValidationSeverity.Error : ValidationSeverity.Warning,
-            $"{overlaps.Count} overlapping lesson(s) book the same audience at the same "
-            + "local date and time.",
+            ValidationSeverity.Warning,
+            $"{total} same-audience time overlap(s): {parallelOverlaps.Count} parallel "
+            + "offering(s) of different courses (expected — for example electives or a "
+            + $"make-up exam) and {duplicateOverlaps.Count} same-course overlap(s). Parallel "
+            + "offerings do not block publication.",
             atUtc,
-            detail: Detail(overlaps.Take(20)),
-            affectedRecordCount: overlaps.Count));
+            detail: Detail(duplicateOverlaps.Concat(parallelOverlaps).Take(20)),
+            affectedRecordCount: total));
     }
+
+    // Same course when the normalized identity matches; the display title is the
+    // fallback when a record has no resolved identity, so an unresolved duplicate is
+    // still caught rather than silently treated as a parallel offering.
+    private static bool IsSameCourse(CanonicalScheduleRecord a, CanonicalScheduleRecord b) =>
+        string.Equals(CourseKey(a), CourseKey(b), StringComparison.OrdinalIgnoreCase);
+
+    private static string CourseKey(CanonicalScheduleRecord record) =>
+        record.NormalizedCourseIdentity is { Length: > 0 } identity ? identity : record.DisplayTitle;
 
     private void ValidateDeletionShare(
         RevisionValidationInput input,

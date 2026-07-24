@@ -135,6 +135,7 @@
 - [x] Implement record validation
 - [x] Implement revision validation
 - [x] Implement anomaly thresholds
+- [x] Refine AudienceOverlap: quarantine same-course duplicates, tolerate parallel offerings (ADR-068)
 - [x] Implement review-required state
 - [x] Implement admin revision review
 - [x] Implement transactional publication

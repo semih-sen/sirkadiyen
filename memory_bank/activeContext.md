@@ -73,6 +73,24 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
 
+- **Fixed the empty-theoretical-calendar cause: the held `G1-TR-ANNUAL` revision (ADR-068).** It
+  was quarantined by `AudienceOverlap` (33 whole-class collisions). The fixture showed the annual
+  parser assigned every row `ALL_STUDENTS_IN_PROGRAM`, so a group's long PDÖ block ran parallel to
+  the cohort's lecture and collided, along with lunch breaks and genuine parallel offerings.
+- **Part 1 — parser.** Extended ADR-030 PDÖ/PBL exclusion to `grade1_yearly_v1` and excluded
+  lunch/interval breaks; SERBEST ÇALIŞMA (free study) is kept. Counted via `rows.ignored.<reason>`
+  (no silent drops). TR 923→855 candidates, EN 964→893, every removal verified PDÖ/PBL or break —
+  no lecture removed. Golden files regenerated; two regression tests added.
+- **Part 2 — validator.** `AudienceOverlap` now distinguishes a same-course duplicate (a parsing
+  fault → still quarantines over the tolerated count) from a different-course parallel offering
+  (electives, a make-up exam → non-blocking `Warning`). Sameness is `NormalizedCourseIdentity`,
+  falling back to display title. So the annual revision auto-publishes once its overlaps are all
+  parallel offerings, and the theoretical program reaches calendars via incremental diff dispatch.
+- 295 Python tests pass (ruff/format/mypy clean); 322 Infrastructure + 2 API + 5 Contracts .NET
+  unit tests pass; Release build clean. PostgreSQL integration tests were not run this session.
+
+## Previous SuperAdmin-routing session
+
 - **Routed SuperAdmin to an admin panel instead of the license page (ADR-067).** Onboarding state
   is student-only and stays unchanged, so a SuperAdmin (no license) computed to `LicenseRequired`
   and was stuck on the redemption page. The frontend now picks the landing route from the

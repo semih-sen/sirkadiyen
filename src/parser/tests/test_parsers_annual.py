@@ -30,6 +30,8 @@ from sirkadiyen_parser.parsers.annual import (
     METRIC_DATE_RULE_PREFIX,
     METRIC_LOCATION_DEFERRED,
     METRIC_ROWS_HIDDEN,
+    METRIC_ROWS_NON_TEACHING_BREAK,
+    METRIC_ROWS_OUT_OF_SCOPE_SUBJECT,
     METRIC_WORKSHEETS_IGNORED_NO_HEADER,
     WARNING_CONFLICTING_DUPLICATE,
     WARNING_IMPLAUSIBLE_DURATION,
@@ -215,6 +217,31 @@ def test_a_lesson_row_becomes_a_candidate() -> None:
     assert candidate.academic_year == "2025-2026"
     assert candidate.audience.scope is AudienceScope.ALL_STUDENTS_IN_PROGRAM
     assert candidate.normalized_course_identity == "hucre-zari"
+
+
+@pytest.mark.parametrize(
+    "title",
+    ["UYGULAMA (PDÖ D3)", "LABORATORY SKILLS (BIOPHYSICS 5) İ1/ PBL"],
+)
+def test_pdo_pbl_rows_are_excluded_from_the_whole_class_program(title: str) -> None:
+    # PDÖ/PBL problem-based learning is group-specific and published by the
+    # practice source (ADR-030). An annual row naming it must not be shown to the
+    # whole class, where it would overlap the parallel lecture the cohort attends.
+    response = parse([worksheet(lesson_row(1, title=title))])
+
+    assert response.candidates == []
+    assert metrics(response)[METRIC_ROWS_OUT_OF_SCOPE_SUBJECT] == 1
+
+
+def test_a_lunch_break_is_excluded_but_free_study_is_kept() -> None:
+    # A lunch/interval break is not a lesson. Free study is a real whole-class
+    # entry and is deliberately kept, so it can still be published (ADR-067).
+    response = parse(
+        [worksheet(lesson_row(1, title="ÖĞLE ARASI") + lesson_row(2, title="SERBEST ÇALIŞMA"))]
+    )
+
+    assert [candidate.display_title for candidate in response.candidates] == ["SERBEST ÇALIŞMA"]
+    assert metrics(response)[METRIC_ROWS_NON_TEACHING_BREAK] == 1
 
 
 def test_english_headers_select_the_same_columns() -> None:

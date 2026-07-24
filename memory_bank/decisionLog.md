@@ -3064,3 +3064,70 @@ student flow with their own account to test synchronization.
 
 ---
 
+
+## ADR-068: Exclude PDÖ/lunch from the annual program and tolerate parallel offerings
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-25
+**Implements:** annual-parser PDÖ/PBL and lunch-break exclusion with regenerated
+golden files and regression tests; the `AudienceOverlap` validator refined to
+quarantine only same-course duplicates
+**Depends on:** ADR-030 (PDÖ exclusion), ADR-029 (validation severity), ADR-035
+(course identity), ADR-058 (audience resolution)
+
+### Context
+
+The `G1-TR-ANNUAL` revision was held with `AudienceOverlap`: 33 lessons booked the
+same whole-class audience at the same local date and time. The fixture showed the
+cause is structural. The annual grid schedules a group's long practice block (for
+example `UYGULAMA (PDÖ D3)`, 08:30–10:20) in parallel with the lectures the rest of
+the cohort attends, and the annual parser assigned **every** row
+`ALL_STUDENTS_IN_PROGRAM` — it had no way to express a group-specific or
+non-teaching row. So group blocks, lunch breaks and legitimately-parallel
+offerings all collapsed onto the whole class and collided.
+
+Two distinct problems were tangled together: rows that should never have been
+whole-class (or lessons at all), and genuine parallel offerings the source
+deliberately schedules for everyone (electives, a make-up/retake exam beside the
+regular one, free study opposite an activity).
+
+### Decision
+
+**Parser (annual).** Exclude two row kinds, each counted through the existing
+`rows.ignored.<reason>` metric so nothing is dropped silently (§9):
+
+- **PDÖ/PBL** problem-based learning, extending ADR-030 from the practice source to
+  the annual source. It is group-specific and already published there; on the
+  annual sheet it is what overlaps the parallel whole-class lecture.
+- **Lunch/interval breaks** (`ÖĞLE ARASI` and interval rows). **Free study**
+  (`SERBEST ÇALIŞMA`) is deliberately kept as a real whole-class entry, per the
+  product owner.
+
+TR dropped from 923 to 855 candidates and EN from 964 to 893; every removed
+candidate was verified to be PDÖ/PBL or a break, with no lecture removed.
+
+**Validator (`AudienceOverlap`).** Distinguish the two meanings of a same-audience
+time overlap. Two records of the **same course** are a parsing duplication that
+would put one lesson on a calendar twice, and quarantine the revision over the
+tolerated count. Two records of **different courses** are a legitimate parallel
+offering; they are reported for visibility as a non-blocking `Warning` and never
+quarantine. Sameness is the normalized course identity, falling back to the display
+title when identity is unresolved so an unresolved duplicate is still caught.
+
+### Consequences
+
+- The annual revision auto-publishes once its remaining overlaps are all parallel
+  offerings, so the theoretical program finally reaches student calendars, while a
+  real parser duplication is still held.
+- The `AudienceOverlap` guard keeps its purpose (catching duplication) instead of
+  being weakened by raising a tolerated count, which would have masked real bugs.
+- Both content-affecting parser changes were made now, before launch; after launch
+  the same exclusion would delete every affected managed event on the next diff.
+- Free study remaining whole-class means two identical free-study blocks in one slot
+  are still flagged as a same-course duplicate; that is a genuine redundancy worth an
+  operator's glance, and deduping it is possible later work.
+- Retake-only exams and electives are shown to the whole cohort (the product owner's
+  choice); a future per-student elective/retake audience would narrow them, but that
+  needs a profile concept that does not exist yet.
+
+---

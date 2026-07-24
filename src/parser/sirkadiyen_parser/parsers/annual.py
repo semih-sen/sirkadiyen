@@ -124,6 +124,8 @@ REASON_UNRESOLVED_START_TIME = "unresolvedStartTime"
 REASON_UNRESOLVED_END_TIME = "unresolvedEndTime"
 REASON_END_NOT_AFTER_START = "endTimeNotAfterStartTime"
 REASON_DUPLICATE_IDENTITY = "duplicateStableIdentity"
+REASON_OUT_OF_SCOPE_SUBJECT = "outOfScopeSubject"
+REASON_NON_TEACHING_BREAK = "nonTeachingBreak"
 
 WARNING_CONFLICTING_DUPLICATE = "conflictingDuplicateLesson"
 WARNING_IMPLAUSIBLE_DURATION = "implausibleLessonDuration"
@@ -150,6 +152,10 @@ METRIC_DEPARTMENTS_STATED = "departments.stated"
 METRIC_DEPARTMENTS_INTEGRATED_SESSION = "departments.integratedSession"
 METRIC_DEPARTMENTS_LIST_MEMBER = "departments.unmarkedListMember"
 METRIC_DEPARTMENTS_IGNORED_UNMARKED = "departments.ignored.unmarkedSegment"
+#: A PDÖ/PBL row excluded because it belongs to the group-specific practice source
+#: (ADR-030), and a lunch/interval break excluded because it is not a lesson.
+METRIC_ROWS_OUT_OF_SCOPE_SUBJECT = "rows.ignored.outOfScopeSubject"
+METRIC_ROWS_NON_TEACHING_BREAK = "rows.ignored.nonTeachingBreak"
 
 RULE_HEADER_ALIAS = "annual.headerAlias"
 RULE_TERM_CELL = "annual.termCell"
@@ -168,6 +174,16 @@ RULE_ALL_DAY_CLOSURE = "annual.allDayClosureTitle"
 NON_TEACHING_FIRST_TOKENS = frozenset(
     {"serbest", "free", "tatil", "bayram", "holiday", "ogle", "lunch", "ara", "arasi", "break"}
 )
+
+#: Subjects owned by another program's schedule (ADR-030). PDÖ/PBL problem-based
+#: learning is group-specific and published by the practice source, so an annual
+#: row naming it is excluded rather than shown to the whole class, where it would
+#: overlap the parallel lecture the rest of the cohort attends.
+OUT_OF_SCOPE_SUBJECT_TOKENS = frozenset({"pdo", "pbl"})
+
+#: Non-teaching break blocks. Free study ("serbest"/"free") is a real whole-class
+#: entry and is deliberately kept, so it is NOT in this set.
+BREAK_FIRST_TOKENS = frozenset({"ogle", "lunch", "ara", "arasi", "break"})
 
 EXAM_TOKENS = frozenset({"sinav", "exam"})
 ANATOMY_TOKENS = frozenset({"diseksiyon", "dissection"})
@@ -412,6 +428,16 @@ def _parse_row(
             row.row_evidence(extraction_rule=RULE_ROW),
             severity=ParserWarningSeverity.WARNING,
             message="Row carries schedule data but no lesson title, so no lesson was published.",
+        )
+        return None
+
+    exclusion = _out_of_scope_exclusion(title_text)
+    if exclusion is not None:
+        reason, message = exclusion
+        diagnostics.record_ignored_row(
+            reason,
+            row.row_evidence(extraction_rule=RULE_ROW),
+            message=message,
         )
         return None
 
@@ -974,6 +1000,38 @@ def _accept(
         candidate_id=existing.candidate_id,
         evidence=row.row_evidence(extraction_rule=RULE_ROW),
     )
+
+
+def _out_of_scope_exclusion(title: str) -> tuple[str, str] | None:
+    """Return ``(reason, message)`` when a row must be excluded, else ``None``.
+
+    Two exclusions apply to the whole-class annual program:
+
+    - **PDÖ/PBL** problem-based learning is group-specific and published by the
+      practice source (ADR-030). An annual row naming it would otherwise be shown to
+      the whole class and overlap the parallel lecture the rest of the cohort attends.
+    - A **lunch or interval break** is not a lesson. Free study is deliberately kept.
+
+    The check is deterministic and every excluded row is accounted for through the
+    ignored-row record (which counts a ``rows.ignored.<reason>`` metric), never
+    dropped silently (AI_GUIDELINE §9).
+    """
+    words = _words(title)
+    if not words:
+        return None
+    if any(word in OUT_OF_SCOPE_SUBJECT_TOKENS for word in words):
+        return (
+            REASON_OUT_OF_SCOPE_SUBJECT,
+            "Row names PDÖ/PBL problem-based learning, which is group-specific and "
+            "published by the practice source, so it was not added to the whole-class "
+            "annual program.",
+        )
+    if words[0] in BREAK_FIRST_TOKENS:
+        return (
+            REASON_NON_TEACHING_BREAK,
+            "Row is a non-teaching break (for example a lunch break), so no lesson was published.",
+        )
+    return None
 
 
 def classify_event_type(*, title: str, block: str | None) -> ScheduleEventType:
