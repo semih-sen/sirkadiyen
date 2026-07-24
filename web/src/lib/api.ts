@@ -14,6 +14,8 @@ import type {
   CurrentUser,
   GoogleCalendarConnectionView,
   OnboardingSnapshot,
+  OperationalFreezeChangeResult,
+  OperationalFreezeSnapshot,
   ProblemDetails,
   RedeemLicenseResponse,
   SaveStudentProfileRequest,
@@ -224,4 +226,31 @@ export async function getSyncStatus(): Promise<CalendarSyncStatusResponse | null
 
 export function startSync(): Promise<CalendarSyncResponse> {
   return request<CalendarSyncResponse>('/api/calendar/sync/', { method: 'POST' });
+}
+
+// ---- Administration (SuperAdmin) -----------------------------------------
+// These endpoints are enforced by the SuperAdmin policy server-side; the frontend
+// only navigates by the backend-authoritative role (AI_GUIDELINE §6, §16).
+
+export function getFreeze(): Promise<OperationalFreezeSnapshot> {
+  return request<OperationalFreezeSnapshot>('/api/operations/freeze');
+}
+
+export function setFreeze(isFrozen: boolean, reason: string): Promise<OperationalFreezeChangeResult> {
+  return request<OperationalFreezeChangeResult>('/api/operations/freeze', {
+    method: 'POST',
+    body: { isFrozen, reason },
+  });
+}
+
+/**
+ * Manual, audited activation of a user without a license code. A SuperAdmin can
+ * point this at their own userId to give themselves a student activation for
+ * testing the sync flow (ADR-053 manual activation).
+ */
+export function activateUser(userId: string, reason: string): Promise<unknown> {
+  return request<unknown>(`/api/admin/users/${userId}/activate`, {
+    method: 'POST',
+    body: { reason },
+  });
 }

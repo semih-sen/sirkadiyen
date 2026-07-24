@@ -142,6 +142,22 @@ export interface RedeemLicenseResponse {
   onboarding: OnboardingSnapshot;
 }
 
+// GET/POST /api/operations/freeze (SuperAdmin only)
+export interface OperationalFreezeSnapshot {
+  isFrozen: boolean;
+  changedBy?: string | null;
+  reason?: string | null;
+  correlationId?: string | null;
+  changedAtUtc?: string | null;
+}
+
+export type OperationalFreezeChangeOutcome = 'Changed' | 'AlreadyInRequestedState' | string;
+
+export interface OperationalFreezeChangeResult {
+  outcome: OperationalFreezeChangeOutcome;
+  state: OperationalFreezeSnapshot;
+}
+
 /** RFC 7807 problem details, as returned by AddProblemDetails / Results.Problem. */
 export interface ProblemDetails {
   type?: string;

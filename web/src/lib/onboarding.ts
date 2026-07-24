@@ -1,4 +1,4 @@
-import type { OnboardingState } from './types';
+import type { CurrentUser, OnboardingState } from './types';
 
 // Backend is the single source of truth for onboarding state (AI_GUIDELINE §16:
 // "Treat backend state as authoritative"). The frontend only maps each state to
@@ -12,7 +12,21 @@ export const ROUTES = {
   sync: '/onboarding/sync',
   dashboard: '/dashboard',
   suspended: '/onboarding/suspended',
+  admin: '/admin',
 } as const;
+
+/**
+ * The landing route for a signed-in user. A SuperAdmin is an operator, not a
+ * student, so they are not forced through student onboarding — they land on the
+ * admin panel regardless of their (student) onboarding state. The role comes from
+ * the backend session; admin APIs stay enforced server-side (AI_GUIDELINE §6).
+ */
+export function routeForUser(user: CurrentUser): string {
+  if (user.role === 'SuperAdmin') {
+    return ROUTES.admin;
+  }
+  return routeForOnboardingState(user.onboardingState);
+}
 
 /** The page a signed-in user in the given onboarding state belongs on. */
 export function routeForOnboardingState(state: OnboardingState): string {

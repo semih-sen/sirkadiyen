@@ -3011,3 +3011,56 @@ header into the upstream request.
 
 ---
 
+## ADR-067: Route a SuperAdmin to the admin panel, not student onboarding
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-24
+**Implements:** `routeForUser` role-based routing, the `web/src/app/admin` panel
+with the operational-freeze control and SuperAdmin self-activation, and a
+role guard
+**Depends on:** ADR-045 (SuperAdmin role), ADR-052 (session role claim), ADR-066
+(frontend), ADR-034/043 (operational freeze)
+
+### Context
+
+Onboarding state is derived purely from student activation records — license,
+profile, Calendar connection (`OnboardingStateService`). Role is not an input, so a
+SuperAdmin with no license correctly computes to `LicenseRequired`. The first
+frontend routed every signed-in user by onboarding state, so a SuperAdmin was sent
+to the license-redemption page and could not reach any operator surface.
+
+Making onboarding itself role-aware would conflate operator identity with student
+activation and pollute the student state machine. Letting the frontend fabricate an
+"activated" state would violate AI_GUIDELINE §6/§16 (backend is authoritative; the
+frontend must not duplicate or fake authorization).
+
+### Decision
+
+Keep onboarding state student-only and unchanged. The frontend decides the *landing
+route* from the backend-authoritative session `role`: a `SuperAdmin` lands on
+`/admin`, everyone else on their onboarding route (`routeForUser`). This is
+navigation, not authorization — every admin API remains enforced by the
+`SuperAdmin` policy server-side, and the panel reads/writes only through those
+protected endpoints.
+
+The initial `/admin` panel surfaces the one fully-wired admin capability, the
+runtime operational freeze (`GET`/`POST /api/operations/freeze`, ADR-034/043), lists
+the not-yet-built Phase 10 surfaces, and offers audited SuperAdmin self-activation
+(`POST /api/admin/users/{id}/activate`, ADR-053) so the operator can also walk the
+student flow with their own account to test synchronization.
+
+### Consequences
+
+- A SuperAdmin is never blocked by the student license gate; a student is never
+  routed to the admin panel (a role guard on `/admin` redirects non-admins to their
+  onboarding route).
+- No backend change was required; the role claim and the freeze/activation
+  endpoints already existed.
+- Self-activation makes the SuperAdmin a normal activated student from that point,
+  so they resume the ordinary onboarding routes — the operator and student roles
+  coexist on one account without special-casing the state machine.
+- The panel is intentionally minimal; the remaining Phase 10 admin surfaces are
+  still to be built behind this same role gate.
+
+---
+

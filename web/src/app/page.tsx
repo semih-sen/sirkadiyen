@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/SessionProvider';
-import { ROUTES, routeForOnboardingState } from '@/lib/onboarding';
+import { ROUTES, routeForUser } from '@/lib/onboarding';
 
 export default function HomePage() {
   const router = useRouter();
@@ -13,7 +13,7 @@ export default function HomePage() {
     if (loading) {
       return;
     }
-    router.replace(user ? routeForOnboardingState(user.onboardingState) : ROUTES.signIn);
+    router.replace(user ? routeForUser(user) : ROUTES.signIn);
   }, [loading, user, router]);
 
   return (

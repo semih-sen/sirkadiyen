@@ -73,6 +73,20 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
 
+- **Routed SuperAdmin to an admin panel instead of the license page (ADR-067).** Onboarding state
+  is student-only and stays unchanged, so a SuperAdmin (no license) computed to `LicenseRequired`
+  and was stuck on the redemption page. The frontend now picks the landing route from the
+  backend-authoritative session `role` (`routeForUser`): SuperAdmin → `/admin`, everyone else →
+  their onboarding route. Navigation only; admin APIs remain enforced by the `SuperAdmin` policy.
+- **Minimal `/admin` panel** surfaces the operational freeze (`GET`/`POST /api/operations/freeze`)
+  with an audited reason, lists the pending Phase 10 surfaces, and offers audited SuperAdmin
+  self-activation (`POST /api/admin/users/{id}/activate`) so the operator can also walk the
+  student flow to test sync. A role guard redirects non-admins off `/admin`.
+- No backend change; the role claim and endpoints already existed. `tsc --noEmit` and
+  `npm run build` are clean (10 routes).
+
+## Previous forwarded-scheme fix session
+
 - **Fixed the local-dev antiforgery SSL failure (ADR-066 amendment).** The HTTPS proxy edge left
   Kestrel receiving the proxied request over plain HTTP, so `Request.IsHttps` was false and the
   antiforgery guard (`SecurePolicy.Always`) threw on the first `GET /api/auth/csrf`. The earlier

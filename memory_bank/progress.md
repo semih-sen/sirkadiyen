@@ -209,9 +209,11 @@
 - [x] Calendar authorization UI (popup code flow)
 - [x] Initial-sync start and progress polling UI
 - [x] Onboarding route gating by authoritative backend state
+- [x] SuperAdmin routed to admin panel instead of student onboarding (ADR-067)
+- [~] Admin/operator interfaces (minimal `/admin`: operational-freeze control and
+  SuperAdmin self-activation; source/revision/diff/license/audit surfaces pending)
 - [ ] Component system / design system
 - [ ] Automated frontend tests
-- [ ] Admin/operator interfaces
 - [ ] Production deployment topology and reverse-proxy config
 
 ## Current next action

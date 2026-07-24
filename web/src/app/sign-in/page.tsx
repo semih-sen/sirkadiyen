@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/SessionProvider';
 import { signInWithGoogle, ApiError } from '@/lib/api';
 import { renderGoogleSignInButton } from '@/lib/google';
-import { routeForOnboardingState } from '@/lib/onboarding';
+import { routeForUser } from '@/lib/onboarding';
 
 const AUTH_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_AUTH_CLIENT_ID ?? '';
 
@@ -16,10 +16,10 @@ export default function SignInPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // Already signed in: send the user to wherever their onboarding stands.
+  // Already signed in: send the user to wherever they belong (admin or onboarding).
   useEffect(() => {
     if (!loading && user) {
-      router.replace(routeForOnboardingState(user.onboardingState));
+      router.replace(routeForUser(user));
     }
   }, [loading, user, router]);
 
@@ -42,7 +42,7 @@ export default function SignInPage() {
       try {
         const signedIn = await signInWithGoogle(credential);
         setUser(signedIn);
-        router.replace(routeForOnboardingState(signedIn.onboardingState));
+        router.replace(routeForUser(signedIn));
       } catch (err) {
         setBusy(false);
         setError(
