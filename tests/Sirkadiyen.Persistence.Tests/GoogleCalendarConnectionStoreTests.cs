@@ -34,15 +34,81 @@ public sealed class GoogleCalendarConnectionStoreTests(PostgresFixture fixture)
 
         Assert.Equal(user.UserId, saved.UserId);
         Assert.Equal(GoogleCalendarConnectionStatus.Authorized, saved.Status);
-        Assert.True(await store.IsAuthorizedForUserAsync(user.UserId, Token));
+        // A fresh authorization has not begun its initial sync (ADR-058).
+        Assert.Equal(GoogleCalendarInitialSyncState.Pending, saved.InitialSyncState);
 
         GoogleCalendarConnectionView? read = await store.GetByUserIdAsync(user.UserId, Token);
         Assert.NotNull(read);
         Assert.Equal(Scope, read.GrantedScopes);
         Assert.Equal(GoogleCalendarConnectionStatus.Authorized, read.Status);
+        Assert.Equal(GoogleCalendarInitialSyncState.Pending, read.InitialSyncState);
 
         // The dedicated calendar is created later, by initial sync (ADR-024).
         Assert.Null(read.ManagedCalendarId);
+    }
+
+    [Fact]
+    public async Task InitialSyncWalksFromRequestedThroughCalendarToCompleted()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        UserSession user = await CreateUserAsync("calendar-sync-walk");
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        GoogleCalendarConnectionStore store = new(context);
+        await store.UpsertAuthorizationAsync(user.UserId, "protected", Scope, Now, Token);
+
+        RequestInitialSyncResult requested = await store.RequestInitialSyncAsync(
+            user.UserId,
+            Now.AddMinutes(1),
+            Token);
+        Assert.Equal(RequestInitialSyncOutcome.Requested, requested.Outcome);
+
+        // A second request is a harmless no-op that just reports the current state.
+        Assert.Equal(
+            RequestInitialSyncOutcome.AlreadyInProgress,
+            (await store.RequestInitialSyncAsync(user.UserId, Now.AddMinutes(2), Token)).Outcome);
+
+        // The user is now visible to the worker's pending queue, carrying the credential.
+        IReadOnlyList<PendingCalendarSync> pending =
+            await store.ListPendingInitialSyncAsync(10, Token);
+        PendingCalendarSync mine = Assert.Single(
+            pending,
+            candidate => candidate.UserId == user.UserId);
+        Assert.Equal("protected", mine.ProtectedRefreshToken);
+        Assert.Null(mine.ManagedCalendarId);
+
+        await store.AttachManagedCalendarAsync(
+            user.UserId,
+            "sirkadiyen@group.calendar.google.com",
+            Now.AddMinutes(3),
+            Token);
+        await store.MarkInitialSyncCompletedAsync(user.UserId, Now.AddMinutes(4), Token);
+
+        GoogleCalendarConnectionView? completed = await store.GetByUserIdAsync(user.UserId, Token);
+        Assert.NotNull(completed);
+        Assert.Equal(GoogleCalendarInitialSyncState.Completed, completed.InitialSyncState);
+        Assert.Equal("sirkadiyen@group.calendar.google.com", completed.ManagedCalendarId);
+
+        // A completed connection is no longer pending work.
+        Assert.DoesNotContain(
+            await store.ListPendingInitialSyncAsync(10, Token),
+            candidate => candidate.UserId == user.UserId);
+    }
+
+    [Fact]
+    public async Task RequestingInitialSyncForAnUnknownUserReportsNotFound()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        GoogleCalendarConnectionStore store = new(context);
+
+        RequestInitialSyncResult result = await store.RequestInitialSyncAsync(
+            Guid.CreateVersion7(),
+            Now,
+            Token);
+
+        Assert.Equal(RequestInitialSyncOutcome.NotFound, result.Outcome);
     }
 
     [Fact]
@@ -143,7 +209,6 @@ public sealed class GoogleCalendarConnectionStoreTests(PostgresFixture fixture)
         await using SirkadiyenDbContext context = fixture.CreateContext();
         GoogleCalendarConnectionStore store = new(context);
 
-        Assert.False(await store.IsAuthorizedForUserAsync(user.UserId, Token));
         Assert.Null(await store.GetByUserIdAsync(user.UserId, Token));
     }
 

@@ -209,6 +209,7 @@ public sealed class CalendarAuthorizationServiceTests
                 UserId = userId,
                 GrantedScopes = grantedScopes,
                 Status = GoogleCalendarConnectionStatus.Authorized,
+                InitialSyncState = GoogleCalendarInitialSyncState.Pending,
                 UpdatedAtUtc = atUtc,
             });
         }
@@ -217,8 +218,24 @@ public sealed class CalendarAuthorizationServiceTests
             Guid userId,
             CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public Task<bool> IsAuthorizedForUserAsync(
+        public Task<RequestInitialSyncResult> RequestInitialSyncAsync(
             Guid userId,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<PendingCalendarSync>> ListPendingInitialSyncAsync(
+            int limit,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task AttachManagedCalendarAsync(
+            Guid userId,
+            string managedCalendarId,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task MarkInitialSyncCompletedAsync(
+            Guid userId,
+            DateTimeOffset atUtc,
             CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 

@@ -2,6 +2,7 @@ using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Licensing;
 using Sirkadiyen.Application.Onboarding;
 using Sirkadiyen.Application.StudentProfiles;
+using Sirkadiyen.Domain.GoogleCalendar;
 using Sirkadiyen.Domain.Licensing;
 using Sirkadiyen.Domain.ScheduleSources;
 using Xunit;
@@ -10,46 +11,76 @@ namespace Sirkadiyen.Infrastructure.UnitTests;
 
 public sealed class OnboardingStateServiceTests
 {
+    public enum ConnectionFixture
+    {
+        None,
+        NeedsReauthorization,
+        AuthorizedPending,
+        AuthorizedInProgress,
+        AuthorizedCompleted,
+    }
+
     [Theory]
     [InlineData(
         UserLicenseState.None,
         false,
-        false,
+        ConnectionFixture.None,
         OnboardingState.LicenseRequired,
         OnboardingNextAction.RedeemLicense,
         false)]
     [InlineData(
         UserLicenseState.Suspended,
         false,
-        false,
+        ConnectionFixture.None,
         OnboardingState.Suspended,
         OnboardingNextAction.ContactSupport,
         false)]
     [InlineData(
         UserLicenseState.Active,
         false,
-        false,
+        ConnectionFixture.None,
         OnboardingState.ProfileRequired,
         OnboardingNextAction.CompleteAcademicProfile,
         true)]
     [InlineData(
         UserLicenseState.Active,
         true,
-        false,
+        ConnectionFixture.None,
         OnboardingState.CalendarAuthorizationRequired,
         OnboardingNextAction.AuthorizeCalendar,
         true)]
     [InlineData(
         UserLicenseState.Active,
         true,
+        ConnectionFixture.NeedsReauthorization,
+        OnboardingState.CalendarAuthorizationRequired,
+        OnboardingNextAction.AuthorizeCalendar,
+        true)]
+    [InlineData(
+        UserLicenseState.Active,
         true,
+        ConnectionFixture.AuthorizedPending,
         OnboardingState.ReadyForInitialSync,
         OnboardingNextAction.StartInitialSync,
+        true)]
+    [InlineData(
+        UserLicenseState.Active,
+        true,
+        ConnectionFixture.AuthorizedInProgress,
+        OnboardingState.InitialSyncInProgress,
+        OnboardingNextAction.WaitForInitialSync,
+        true)]
+    [InlineData(
+        UserLicenseState.Active,
+        true,
+        ConnectionFixture.AuthorizedCompleted,
+        OnboardingState.Active,
+        OnboardingNextAction.None,
         true)]
     public async Task StateIsDerivedFromAuthoritativeLicenseProfileAndCalendarState(
         UserLicenseState licenseState,
         bool hasProfile,
-        bool hasCalendarAuthorization,
+        ConnectionFixture connection,
         OnboardingState expected,
         OnboardingNextAction expectedNextAction,
         bool hasActiveLicense)
@@ -57,7 +88,7 @@ public sealed class OnboardingStateServiceTests
         OnboardingStateService service = new(
             new StubLicenseStore(licenseState),
             new StubProfileStore(hasProfile),
-            new StubConnectionStore(hasCalendarAuthorization));
+            new StubConnectionStore(ConnectionOf(connection)));
 
         OnboardingSnapshot result = await service.GetAsync(
             Guid.NewGuid(),
@@ -68,20 +99,66 @@ public sealed class OnboardingStateServiceTests
         Assert.Equal(hasActiveLicense, result.HasActiveLicense);
     }
 
-    private sealed class StubConnectionStore(bool isAuthorized) : IGoogleCalendarConnectionStore
+    private static GoogleCalendarConnectionView? ConnectionOf(ConnectionFixture fixture) => fixture switch
     {
-        public Task<bool> IsAuthorizedForUserAsync(
-            Guid userId,
-            CancellationToken cancellationToken) => Task.FromResult(isAuthorized);
+        ConnectionFixture.None => null,
+        ConnectionFixture.NeedsReauthorization => View(
+            GoogleCalendarConnectionStatus.NeedsReauthorization,
+            GoogleCalendarInitialSyncState.Pending),
+        ConnectionFixture.AuthorizedPending => View(
+            GoogleCalendarConnectionStatus.Authorized,
+            GoogleCalendarInitialSyncState.Pending),
+        ConnectionFixture.AuthorizedInProgress => View(
+            GoogleCalendarConnectionStatus.Authorized,
+            GoogleCalendarInitialSyncState.InProgress),
+        ConnectionFixture.AuthorizedCompleted => View(
+            GoogleCalendarConnectionStatus.Authorized,
+            GoogleCalendarInitialSyncState.Completed),
+        _ => throw new ArgumentOutOfRangeException(nameof(fixture), fixture, null),
+    };
 
+    private static GoogleCalendarConnectionView View(
+        GoogleCalendarConnectionStatus status,
+        GoogleCalendarInitialSyncState initialSyncState) => new()
+        {
+            UserId = Guid.NewGuid(),
+            GrantedScopes = "https://www.googleapis.com/auth/calendar.app.created",
+            Status = status,
+            InitialSyncState = initialSyncState,
+            UpdatedAtUtc = DateTimeOffset.UnixEpoch,
+        };
+
+    private sealed class StubConnectionStore(GoogleCalendarConnectionView? connection)
+        : IGoogleCalendarConnectionStore
+    {
         public Task<GoogleCalendarConnectionView?> GetByUserIdAsync(
             Guid userId,
-            CancellationToken cancellationToken) => throw new NotSupportedException();
+            CancellationToken cancellationToken) => Task.FromResult(connection);
 
         public Task<GoogleCalendarConnectionView> UpsertAuthorizationAsync(
             Guid userId,
             string protectedRefreshToken,
             string grantedScopes,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<RequestInitialSyncResult> RequestInitialSyncAsync(
+            Guid userId,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<PendingCalendarSync>> ListPendingInitialSyncAsync(
+            int limit,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task AttachManagedCalendarAsync(
+            Guid userId,
+            string managedCalendarId,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task MarkInitialSyncCompletedAsync(
+            Guid userId,
             DateTimeOffset atUtc,
             CancellationToken cancellationToken) => throw new NotSupportedException();
     }

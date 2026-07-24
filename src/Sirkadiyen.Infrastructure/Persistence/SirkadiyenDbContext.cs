@@ -18,9 +18,9 @@ namespace Sirkadiyen.Infrastructure.Persistence;
 /// <remarks>
 /// Mapping lives in configuration classes rather than in the entities, so the
 /// domain project stays free of Entity Framework. The Calendar authorization a user
-/// grants is stored here; the synchronization tables it will feed — event mappings
-/// and sync job state — remain deliberately absent until their accepted designs are
-/// implemented.
+/// grants is stored here, along with the durable calendar-event mappings the initial
+/// sync writes (ADR-058); the incremental sync job state remains deliberately absent
+/// until its accepted design is implemented.
 /// </remarks>
 public sealed class SirkadiyenDbContext(DbContextOptions<SirkadiyenDbContext> options)
     : DbContext(options)
@@ -37,6 +37,9 @@ public sealed class SirkadiyenDbContext(DbContextOptions<SirkadiyenDbContext> op
 
     public DbSet<GoogleCalendarConnection> GoogleCalendarConnections =>
         Set<GoogleCalendarConnection>();
+
+    public DbSet<UserCalendarEventMapping> UserCalendarEventMappings =>
+        Set<UserCalendarEventMapping>();
 
     public DbSet<ScheduleSource> ScheduleSources => Set<ScheduleSource>();
 

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Operations;
 using Sirkadiyen.Application.ScheduleDiffing;
 using Sirkadiyen.Application.ScheduleIngestion;
@@ -46,6 +47,7 @@ internal sealed class Worker(
             await PollAllSourcesAsync(stoppingToken);
             await PublishValidatedRevisionsAsync(stoppingToken);
             await CalculatePendingDiffsAsync(stoppingToken);
+            await RunPendingInitialSyncsAsync(stoppingToken);
             await PruneExpiredSnapshotPayloadsAsync(stoppingToken);
 
             TimeSpan interval = intervalPolicy.GetInterval(timeProvider.GetUtcNow());
@@ -218,6 +220,88 @@ internal sealed class Worker(
         catch (Exception exception)
         {
             logger.LogError(exception, "Calculating pending schedule diffs failed.");
+        }
+    }
+
+    /// <summary>
+    /// Advances the one-time initial synchronization for users who asked to start it (ADR-058):
+    /// creates their dedicated calendar and writes the events that apply to them.
+    /// </summary>
+    /// <remarks>
+    /// Like publication and diffing, this is driven by connection state rather than by this
+    /// cycle's poll results, so a worker killed mid-sync resumes here from what is not yet
+    /// written. It is gated by the same operational freeze as every other calendar job.
+    /// </remarks>
+    private async Task RunPendingInitialSyncsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
+            InitialCalendarSyncService sync = scope.ServiceProvider
+                .GetRequiredService<InitialCalendarSyncService>();
+
+            InitialCalendarSyncRunResult result = await sync.RunPendingAsync(cancellationToken);
+
+            if (result.Frozen)
+            {
+                logger.LogInformation(
+                    "Initial calendar synchronization skipped because the global operational "
+                    + "freeze is active.");
+                return;
+            }
+
+            foreach (InitialCalendarSyncResult user in result.Users)
+            {
+                LogInitialSyncResult(user);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Running pending initial calendar syncs failed.");
+        }
+    }
+
+    private void LogInitialSyncResult(InitialCalendarSyncResult user)
+    {
+        switch (user.Outcome)
+        {
+            case InitialCalendarSyncOutcome.Completed:
+                logger.LogInformation(
+                    "Initial calendar sync completed for user {UserId}; wrote {EventsWritten} "
+                    + "events this cycle of {ApplicableRecordCount} applicable.",
+                    user.UserId,
+                    user.EventsWritten,
+                    user.ApplicableRecordCount);
+                break;
+
+            case InitialCalendarSyncOutcome.InProgress:
+                logger.LogInformation(
+                    "Initial calendar sync advanced for user {UserId}; wrote {EventsWritten} "
+                    + "events this cycle, more remain of {ApplicableRecordCount} applicable.",
+                    user.UserId,
+                    user.EventsWritten,
+                    user.ApplicableRecordCount);
+                break;
+
+            case InitialCalendarSyncOutcome.ProfileMissing:
+                logger.LogWarning(
+                    "Initial calendar sync could not run for user {UserId}: no student profile "
+                    + "was found, so nothing could be resolved.",
+                    user.UserId);
+                break;
+
+            case InitialCalendarSyncOutcome.Failed:
+            default:
+                logger.LogError(
+                    "Initial calendar sync failed for user {UserId} and will retry next cycle: "
+                    + "{FailureReason}",
+                    user.UserId,
+                    user.FailureReason);
+                break;
         }
     }
 

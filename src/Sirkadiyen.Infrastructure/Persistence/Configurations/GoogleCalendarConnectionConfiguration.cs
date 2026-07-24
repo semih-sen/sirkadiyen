@@ -29,6 +29,10 @@ internal sealed class GoogleCalendarConnectionConfiguration
             .HasConversion<string>()
             .HasMaxLength(30)
             .IsRequired();
+        builder.Property(connection => connection.InitialSyncState)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired();
         builder.Property(connection => connection.RowVersion).IsRowVersion();
 
         // One connection per account: onboarding and the synchronization path both read
@@ -42,5 +46,8 @@ internal sealed class GoogleCalendarConnectionConfiguration
         builder.ToTable(table => table.HasCheckConstraint(
             "ck_google_calendar_connections_status",
             "\"Status\" IN ('Authorized', 'NeedsReauthorization')"));
+        builder.ToTable(table => table.HasCheckConstraint(
+            "ck_google_calendar_connections_initial_sync_state",
+            "\"InitialSyncState\" IN ('Pending', 'InProgress', 'Completed')"));
     }
 }

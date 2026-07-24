@@ -52,6 +52,8 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<ILicenseStore, LicenseStore>();
         services.AddScoped<IStudentProfileStore, StudentProfileStore>();
         services.AddScoped<IGoogleCalendarConnectionStore, GoogleCalendarConnectionStore>();
+        services.AddScoped<IUserCalendarEventMappingStore, UserCalendarEventMappingStore>();
+        services.AddScoped<ICanonicalScheduleReadStore, CanonicalScheduleReadStore>();
 
         return services;
     }

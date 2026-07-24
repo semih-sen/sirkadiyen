@@ -1,6 +1,7 @@
 using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Licensing;
 using Sirkadiyen.Application.StudentProfiles;
+using Sirkadiyen.Domain.GoogleCalendar;
 
 namespace Sirkadiyen.Application.Onboarding;
 
@@ -39,9 +40,9 @@ public sealed class OnboardingStateService(
     }
 
     /// <summary>
-    /// An activated account still needs an academic profile, and then a Calendar
-    /// authorization, before anything can be synchronized. Each step is derived from
-    /// whether its record exists, so an interrupted onboarding resumes at the right
+    /// An activated account still needs an academic profile, then a Calendar authorization,
+    /// then its one-time initial synchronization, before it is fully active. Each step is
+    /// derived from an authoritative record, so an interrupted onboarding resumes at the right
     /// place rather than trusting the client to remember how far it got.
     /// </summary>
     private async Task<OnboardingSnapshot> ActivatedStateAsync(
@@ -57,22 +58,43 @@ public sealed class OnboardingStateService(
                 OnboardingNextAction.CompleteAcademicProfile);
         }
 
-        // A connection that needs re-authorization does not count as authorized, so a
-        // revoked grant sends the user back to consent instead of stalling in a state
-        // that cannot synchronize.
-        bool hasCalendarAuthorization = await connectionStore.IsAuthorizedForUserAsync(
+        GoogleCalendarConnectionView? connection = await connectionStore.GetByUserIdAsync(
             userId,
             cancellationToken);
 
-        return hasCalendarAuthorization
-            ? Snapshot(
-                OnboardingState.ReadyForInitialSync,
-                hasActiveLicense: true,
-                OnboardingNextAction.StartInitialSync)
-            : Snapshot(
+        // A missing connection, or one that needs re-authorization, does not count as
+        // authorized: a revoked grant sends the user back to consent instead of stalling in a
+        // state that cannot synchronize.
+        if (connection is null
+            || connection.Status != GoogleCalendarConnectionStatus.Authorized)
+        {
+            return Snapshot(
                 OnboardingState.CalendarAuthorizationRequired,
                 hasActiveLicense: true,
                 OnboardingNextAction.AuthorizeCalendar);
+        }
+
+        // Authorized: the remaining step is the initial synchronization, whose progress the
+        // connection records (ADR-058).
+        return connection.InitialSyncState switch
+        {
+            GoogleCalendarInitialSyncState.Pending => Snapshot(
+                OnboardingState.ReadyForInitialSync,
+                hasActiveLicense: true,
+                OnboardingNextAction.StartInitialSync),
+            GoogleCalendarInitialSyncState.InProgress => Snapshot(
+                OnboardingState.InitialSyncInProgress,
+                hasActiveLicense: true,
+                OnboardingNextAction.WaitForInitialSync),
+            GoogleCalendarInitialSyncState.Completed => Snapshot(
+                OnboardingState.Active,
+                hasActiveLicense: true,
+                OnboardingNextAction.None),
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(userId),
+                connection.InitialSyncState,
+                "Unknown initial synchronization state."),
+        };
     }
 
     private static OnboardingSnapshot Snapshot(

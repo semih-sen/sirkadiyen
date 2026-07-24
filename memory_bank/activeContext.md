@@ -13,9 +13,11 @@ format and cross-validated so its faculty and program-language digits match the
 selected program (ADR-056). Calendar authorization is implemented (ADR-057): a
 separate, minimally scoped offline consent exchanged server-side for a refresh token
 that is encrypted at rest, advancing an authorized account to `ReadyForInitialSync`.
-Initial sync — creating the dedicated calendar (ADR-024), the Google Calendar client
-and affected-user resolution — is the next module. Semantic diff remains complete through persistence; nothing dispatches it
-yet.
+Per-user initial sync is now implemented (ADR-058): the user starts it, the worker creates
+their dedicated calendar (ADR-024), writes every currently-published event that applies to
+their profile with idempotent, resumable Calendar writes, and onboarding reaches `Active`.
+Diff-driven incremental sync is the next module; semantic diff remains complete through
+persistence and nothing dispatches a diff to a calendar yet.
 
 The Google Sheets path now runs end to end from catalog seeding to a stored
 diff: adaptive polling, immutable snapshot storage, strict parser HTTP calls,
@@ -53,6 +55,56 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- **Implemented per-user initial calendar sync (ADR-058).** A student at
+  `ReadyForInitialSync` starts synchronization; the worker creates their dedicated
+  Sirkadiyen calendar (ADR-024) and writes every currently-published event that applies to
+  their profile, then onboarding reaches `Active`. The scope is authorization-to-populated
+  only; diff-driven incremental sync (patch/delete, reconciliation) is a later slice, but the
+  mapping and idempotency are built for it.
+- **Worker-driven and state-machine-resumable, not request-scoped.** The API only records
+  intent: `POST /api/calendar/sync` moves the connection's `InitialSyncState`
+  `Pending → InProgress`, and the worker does the slow, quota-bound work across cycles,
+  mirroring the existing publication/diff stages. A killed worker resumes from what is not yet
+  mapped. `InitialSyncState` lives on the connection (orthogonal to authorization `Status`);
+  re-authorizing preserves both the calendar and the sync progress.
+- **Idempotent by a deterministic event id plus a durable ledger.** Each event is inserted
+  with a client-chosen id `base32hex(sha256(userId ‖ stableIdentity))` — always a valid
+  Calendar id — so a re-insert returns 409, treated as success. A `UserCalendarEventMapping`
+  row, unique on `(UserId, StableIdentity)`, records what was written; the worker inserts only
+  records with no mapping yet. Together they survive a crash between the Google write and the
+  local commit without duplicating.
+- **Affected-events resolution is a pure function.** A published record applies when
+  academic year, class year and program language match and either it is program-wide or a
+  cohort-scoped record whose `{Dimension,Value}` selectors intersect the profile's selectors;
+  a cancelled record never applies. Volume per class year is bounded, so filtering is in
+  memory over a "current published records for this program" query (records of each source's
+  `Published` revision).
+- **Gated by the operational freeze**, like every other calendar-touching job, and the
+  refresh token is decrypted only in memory for the duration of a sync call.
+- **The worker now shares the API's Data Protection key ring.** Both hosts call
+  `AddSirkadiyenDataProtection`, which pins one application name (`Sirkadiyen`) and a
+  file-system key location, because Data Protection otherwise isolates key rings by content
+  root and a generic host has none configured. Without this the worker could not decrypt the
+  token the API encrypted.
+- Added `Google.Apis.Calendar.v3` 1.75.0.4206 (audit-clean). The real Calendar client is
+  abstracted behind `IUserCalendarClient`; **it is not covered by tests** (no live Google), so
+  only the fake is exercised.
+- Migration `AddInitialCalendarSync` adds the `InitialSyncState` column (defaulting to
+  `Pending`, not EF's empty string, so the check constraint holds) and the
+  `user_calendar_event_mappings` table with the unique `(UserId, StableIdentity)` index.
+- 388 .NET tests pass, up from 337, nothing skipped: domain transitions, mapping invariants,
+  the audience resolver, the event factory (all-day exclusive end, deterministic id), the sync
+  service against fakes (calendar creation, unmapped-only writes, idempotent 409, freeze
+  no-op, budget deferral and resume, missing profile, isolated failure), the new onboarding
+  cases, and PostgreSQL mapping-store, canonical-read-store and connection sync-state tests.
+  Release build has no warnings, `dotnet format --verify-no-changes` is clean, EF reports no
+  pending model changes. No Python changed.
+- Removed `IGoogleCalendarConnectionStore.IsAuthorizedForUserAsync`: onboarding now reads the
+  connection view and reasons over `Status` plus `InitialSyncState`, so the boolean query was
+  redundant surface.
+
+## Previous Calendar authorization session
 
 - **Implemented Calendar authorization (ADR-057).** ADR-052 had deliberately left
   sign-in free of any Calendar scope, so this is the second, separate consent. A
@@ -940,15 +992,28 @@ dimension can be added with evidence.
   integration that needs uniqueness or an entry-year rule would add it with evidence
 
 - the stored Google refresh tokens are only decryptable by the Data Protection key ring
-  that encrypted them (ADR-057). A containerized or multi-instance deployment without a
-  shared, persistent key ring loses every stored token on restart and silently forces
-  all users to authorize again; the Worker needs the same ring once sync consumes them
-- the real Google authorization-code exchange has no automated coverage. It requires a
-  registered Web OAuth client and a live consent, so only the fake client is tested; the
-  first live grant is the first real exercise of that path
+  that encrypted them (ADR-057). The API and the worker now share one ring via
+  `AddSirkadiyenDataProtection` (fixed application name plus a configurable file-system key
+  path), which is correct for a single host; a containerized or multi-instance deployment
+  still needs genuinely shared, backed-up key storage or every stored token is lost on
+  restart, silently forcing all users to authorize again
+- the real Google authorization-code exchange and the real Calendar client (calendar
+  creation and event writes) have no automated coverage. They require a registered Web OAuth
+  client and a live consent, so only the fakes are tested; the first live grant and the first
+  live sync are the first real exercise of those paths
 - a Calendar grant is never re-verified against Google after it is stored. Access
   revoked from the Google account side is only discovered when synchronization tries to
   use the token, which is what `NeedsReauthorization` exists for; nothing sets it yet
+- calendar creation is the one initial-sync step Google cannot make idempotent: a crash
+  between creating the calendar and persisting `ManagedCalendarId` would orphan the calendar
+  and create a second one on resume. The id is persisted immediately to shrink that window;
+  full protection (a marker-tagged calendar lookup) is deferred with reconciliation
+- a user's initial sync that keeps failing — a bad or revoked token, a persistent Calendar
+  error — is logged and retried every worker cycle indefinitely. Nothing yet marks it failed
+  permanently, backs off, or sets `NeedsReauthorization`; that belongs with incremental sync
+- initial sync writes at most a configured number of events per user per cycle to respect
+  Calendar quota, so a very large first load completes over several cycles rather than at once;
+  onboarding stays `InitialSyncInProgress` until the last applicable event is written
 
 ## Working assumptions
 

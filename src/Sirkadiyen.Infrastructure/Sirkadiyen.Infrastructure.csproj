@@ -2,6 +2,8 @@
   <ItemGroup>
     <PackageReference Include="DocumentFormat.OpenXml" Version="3.5.1" />
     <PackageReference Include="Google.Apis.Auth" Version="1.75.0" />
+    <!-- Writes each user's dedicated calendar during synchronization (ADR-024, ADR-058). -->
+    <PackageReference Include="Google.Apis.Calendar.v3" Version="1.75.0.4206" />
     <PackageReference Include="Google.Apis.Sheets.v4" Version="1.75.0.4178" />
     <!--
       Encrypts the stored Google refresh token at rest (ADR-057). The standalone

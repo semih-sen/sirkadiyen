@@ -39,7 +39,7 @@
 - [x] Add the canonical academic department list with an explicit marker rule (ADR-049)
 - [x] Define schedule revision model
 - [x] Define semantic diff model
-- [ ] Define user calendar event mapping
+- [x] Define user calendar event mapping
 - [ ] Define sync job state machine
 - [ ] Define audit event model
 
@@ -62,10 +62,10 @@
 - [x] Implement dynamic profile schema
 - [ ] Implement supported option administration (schema is server-owned code, no admin CRUD yet — ADR-055)
 - [x] Implement profile validation
-- [~] Implement resumable onboarding (license-required, profile-required, calendar-authorization-required, ready-for-initial-sync and suspended states complete)
+- [~] Implement resumable onboarding (license-required, profile-required, calendar-authorization-required, ready-for-initial-sync, initial-sync-in-progress, active and suspended states complete)
 - [x] Implement Calendar permission state
-- [ ] Implement initial sync request
-- [ ] Implement user-visible progress state
+- [x] Implement initial sync request
+- [~] Implement user-visible progress state (backend `GET /api/calendar/sync` returns state and mapped-event count; no frontend yet)
 
 ## Phase 4: Source inventory and ingestion
 
@@ -162,21 +162,21 @@
 ## Phase 9: Calendar synchronization
 
 - [x] Decide managed-calendar strategy
-- [ ] Implement Google Calendar client
-- [ ] Implement calendar creation or selection
-- [ ] Implement event insert
+- [x] Implement Google Calendar client
+- [x] Implement calendar creation or selection
+- [x] Implement event insert
 - [ ] Implement event patch
 - [ ] Implement confirmed event delete
-- [ ] Implement private extended properties
-- [ ] Implement durable event mapping
-- [ ] Implement idempotency keys
-- [ ] Implement retries and failure classification
-- [ ] Implement affected-user resolution
-- [ ] Implement initial sync
+- [x] Implement private extended properties
+- [x] Implement durable event mapping
+- [x] Implement idempotency keys
+- [~] Implement retries and failure classification (per-user failures are isolated, logged and retried each cycle; no permanent-failure/backoff taxonomy yet)
+- [~] Implement affected-user resolution (per-user side, over current published records; diff-driven resolution over Ready/Released diffs pending)
+- [x] Implement initial sync
 - [ ] Implement incremental sync
 - [ ] Implement reconciliation
-- [ ] Add mocked adapter tests
-- [ ] Add quota-aware batching
+- [x] Add mocked adapter tests
+- [~] Add quota-aware batching (per-user, per-cycle event budget spreads a large first load; full quota-aware batching pending)
 
 ## Phase 10: Administration and operations
 
@@ -280,14 +280,18 @@ Istanbul Medical Faculty and the program-language digits to the selected program
 scoped offline consent whose one-time code is exchanged server-side for a refresh
 token, encrypted at rest with Data Protection and held in a `UserId`-unique
 `GoogleCalendarConnection`. The grant is refused unless Google actually returned the
-required scope, and it requires an active license and a profile first. Onboarding now
-walks an activated account from `ProfileRequired` through
-`CalendarAuthorizationRequired` to `ReadyForInitialSync`. Creating the dedicated
-calendar stays part of initial sync (ADR-024); the connection reserves
-`ManagedCalendarId` for it. Initial sync — calendar creation, the Google Calendar
-client, and affected-user resolution over `Ready` and `Released` diffs — is the next
-slice. `grade2_yearly_v1` remains the next parser profile and needs no new canonical
-field.
+required scope, and it requires an active license and a profile first. Per-user initial sync is
+implemented too (ADR-058): a student at `ReadyForInitialSync` starts synchronization, and
+the worker creates their dedicated calendar (ADR-024), then writes every currently-published
+event that applies to their profile — resolved by academic year, class year, program language
+and cohort selectors — with idempotent, resumable Calendar writes marked by private extended
+properties and recorded in a `UserCalendarEventMapping` ledger. Onboarding now walks an
+activated account from `ProfileRequired` through `CalendarAuthorizationRequired`,
+`ReadyForInitialSync` and `InitialSyncInProgress` to `Active`. The remaining synchronization
+work — diff-driven incremental sync (event patch and delete over `Ready` and `Released`
+diffs), reconciliation, quota-aware batching, and a failure taxonomy — is the next slice; the
+event mapping and idempotency are built for it. `grade2_yearly_v1` remains the next parser
+profile and needs no new canonical field.
 
 There is deliberately no rollback (ADR-033). A bad publication is corrected at
 the authoritative source and reaches calendars as a newer forward-fix revision.

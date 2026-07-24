@@ -53,6 +53,11 @@ string calendarRedirectUri =
         ? configured
         : GoogleCalendarAuthorizationOptions.PostMessageRedirectUri;
 
+// The worker decrypts the refresh token this host encrypts, so both must share a Data
+// Protection key ring (ADR-058). Optional: a default shared path is used when unset.
+string? dataProtectionKeyRingPath =
+    builder.Configuration["SIRKADIYEN_DATAPROTECTION:KEY_RING_PATH"];
+
 string licenseHashKey = Required(
     builder.Configuration,
     "SIRKADIYEN_LICENSING:HASH_KEY");
@@ -84,6 +89,7 @@ builder.Services.AddSingleton(new GoogleCalendarAuthorizationOptions
 builder.Services.AddSingleton<
     IGoogleCalendarAuthorizationClient,
     GoogleCalendarAuthorizationClient>();
+builder.Services.AddSirkadiyenDataProtection(dataProtectionKeyRingPath);
 builder.Services.AddSingleton<ICalendarTokenProtector, DataProtectionCalendarTokenProtector>();
 builder.Services.AddScoped<CalendarAuthorizationService>();
 builder.Services.AddScoped<OnboardingStateService>();
@@ -149,6 +155,7 @@ app.MapAuthenticationEndpoints();
 app.MapLicenseEndpoints();
 app.MapStudentProfileEndpoints();
 app.MapCalendarAuthorizationEndpoints();
+app.MapCalendarSyncEndpoints();
 app.MapOnboardingEndpoints();
 app.MapRevisionEndpoints();
 app.MapDiffEndpoints();

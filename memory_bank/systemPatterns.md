@@ -697,3 +697,40 @@ resources already provisioned under the old grant.
 
 Encrypting at rest binds the data to a key ring: any deployment that does not share a
 persistent one loses every stored credential on restart.
+
+## 26. Resumable per-user job with a deterministic idempotency ledger
+
+Long, quota-bound, per-user work against an external service (initial calendar sync,
+ADR-058) is driven by **persisted state**, not an in-memory queue. A request records
+intent by moving an entity through a small lifecycle (`Pending → InProgress →
+Completed`); a background worker acts on everything in the acting state each cycle, so a
+crash resumes from the entity's state rather than losing the job. This is the same
+state-driven, recovery-by-replay shape as the publication and diff stages ([[24. Global
+operational freeze pattern]] gates all of them).
+
+Make each unit of external work **idempotent two ways at once**, because a crash between
+the external write and the local commit is always possible. First, derive a
+**deterministic key** for the external object from stable inputs (here a base32hex hash
+of the user and the lesson's stable identity, chosen so its alphabet is a valid provider
+id); re-submitting the same key makes the provider reject the duplicate, which the client
+reports as success rather than an error. Second, keep a **durable local ledger** of what
+has been written (a row unique on the natural key); the worker computes the remaining set
+as "applies to this user" minus "already in the ledger", and writes only the difference.
+Either mechanism alone leaves a gap; together they converge without duplicates.
+
+Bound the work per cycle (a per-entity, per-cycle budget) so a large first load spreads
+across cycles and stays within external quota; completion is declared only when the
+remaining set is empty, which also self-heals a ledger written after a crash. Isolate one
+entity's failure from the batch: catch it, leave the entity in its acting state to retry,
+and report it so the worker can log it — but note that without a permanent-failure or
+backoff state, a persistently failing entity retries every cycle.
+
+Resolution of "what applies to this user" belongs in a **pure function** over the user's
+profile and the currently-live records (matching program dimensions, then cohort
+selectors; an inactive record never applies), so the rule is unit-tested without a
+database and is the single authority the query only optimizes for.
+
+The one step the provider cannot make idempotent — creating the container object itself
+(the calendar) — is the residual risk: persist its id immediately after creation to
+shrink the crash window, and defer full protection (a marker-tagged lookup) to
+reconciliation.

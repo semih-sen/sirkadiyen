@@ -80,6 +80,85 @@ public sealed class GoogleCalendarConnectionTests
             () => Create(protectedRefreshToken: tooLong));
     }
 
+    [Fact]
+    public void CreateStartsWithInitialSyncPending() =>
+        Assert.Equal(GoogleCalendarInitialSyncState.Pending, Create().InitialSyncState);
+
+    [Fact]
+    public void RequestingInitialSyncMovesAPendingConnectionToInProgress()
+    {
+        GoogleCalendarConnection connection = Create();
+
+        connection.RequestInitialSync(Now.AddMinutes(1));
+
+        Assert.Equal(GoogleCalendarInitialSyncState.InProgress, connection.InitialSyncState);
+        Assert.Equal(Now.AddMinutes(1), connection.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public void RequestingInitialSyncTwiceIsRejected()
+    {
+        GoogleCalendarConnection connection = Create();
+        connection.RequestInitialSync(Now);
+
+        Assert.Throws<InvalidOperationException>(() => connection.RequestInitialSync(Now));
+    }
+
+    [Fact]
+    public void AManagedCalendarIsAttachedExactlyOnce()
+    {
+        GoogleCalendarConnection connection = Create();
+
+        connection.AttachManagedCalendar("calendar-id", Now.AddMinutes(1));
+        Assert.Equal("calendar-id", connection.ManagedCalendarId);
+
+        // The calendar the user's events already live in must not be silently replaced.
+        Assert.Throws<InvalidOperationException>(
+            () => connection.AttachManagedCalendar("another-id", Now.AddMinutes(2)));
+    }
+
+    [Fact]
+    public void InitialSyncCannotCompleteBeforeItStarts() =>
+        Assert.Throws<InvalidOperationException>(() => Create().CompleteInitialSync(Now));
+
+    [Fact]
+    public void InitialSyncCannotCompleteWithoutACalendar()
+    {
+        GoogleCalendarConnection connection = Create();
+        connection.RequestInitialSync(Now);
+
+        Assert.Throws<InvalidOperationException>(() => connection.CompleteInitialSync(Now));
+    }
+
+    [Fact]
+    public void InitialSyncCompletesOnceStartedAndGivenACalendar()
+    {
+        GoogleCalendarConnection connection = Create();
+        connection.RequestInitialSync(Now.AddMinutes(1));
+        connection.AttachManagedCalendar("calendar-id", Now.AddMinutes(2));
+
+        connection.CompleteInitialSync(Now.AddMinutes(3));
+
+        Assert.Equal(GoogleCalendarInitialSyncState.Completed, connection.InitialSyncState);
+        Assert.Equal(Now.AddMinutes(3), connection.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public void ReauthorizingPreservesTheCalendarAndInitialSyncProgress()
+    {
+        GoogleCalendarConnection connection = Create();
+        connection.RequestInitialSync(Now.AddMinutes(1));
+        connection.AttachManagedCalendar("calendar-id", Now.AddMinutes(2));
+        connection.CompleteInitialSync(Now.AddMinutes(3));
+
+        connection.Reauthorize("fresh-token", Scope, Now.AddDays(30));
+
+        // A user who re-grants access keeps their calendar and does not re-run initial sync.
+        Assert.Equal("calendar-id", connection.ManagedCalendarId);
+        Assert.Equal(GoogleCalendarInitialSyncState.Completed, connection.InitialSyncState);
+        Assert.Equal(GoogleCalendarConnectionStatus.Authorized, connection.Status);
+    }
+
     private static GoogleCalendarConnection Create(
         Guid? userId = null,
         string protectedRefreshToken = "protected-token",

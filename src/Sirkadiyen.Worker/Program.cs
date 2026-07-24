@@ -2,6 +2,7 @@ using Google.Apis.Sheets.v4;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.ScheduleDiffing;
 using Sirkadiyen.Application.ScheduleIngestion;
 using Sirkadiyen.Application.ScheduleParsing;
@@ -13,6 +14,7 @@ using Sirkadiyen.Infrastructure.Persistence;
 using Sirkadiyen.Infrastructure.ScheduleIngestion;
 using Sirkadiyen.Infrastructure.ScheduleParsing;
 using Sirkadiyen.Infrastructure.ScheduleSources;
+using Sirkadiyen.Infrastructure.Security;
 using Sirkadiyen.Worker;
 
 // Before the builder, because the environment-variable provider reads the
@@ -38,6 +40,42 @@ GoogleSourceAccessOptions googleOptions = new()
     ServiceAccountCredentialPath =
         builder.Configuration["SIRKADIYEN_GOOGLE:SERVICE_ACCOUNT_CREDENTIAL_PATH"],
 };
+
+// Calendar synchronization refreshes each user's stored token with the confidential Calendar
+// OAuth client (ADR-058). Required, like in the API: the worker cannot synchronize without it.
+GoogleCalendarAuthorizationOptions calendarOptions = new()
+{
+    ClientId = Required(builder.Configuration, "SIRKADIYEN_GOOGLE:CALENDAR_CLIENT_ID"),
+    ClientSecret = Required(builder.Configuration, "SIRKADIYEN_GOOGLE:CALENDAR_CLIENT_SECRET"),
+    RedirectUri =
+        builder.Configuration["SIRKADIYEN_GOOGLE:CALENDAR_REDIRECT_URI"] is { Length: > 0 } redirect
+            ? redirect
+            : GoogleCalendarAuthorizationOptions.PostMessageRedirectUri,
+};
+
+InitialSyncOptions initialSyncOptions = new()
+{
+    ConnectionBatchSize = ParseInteger(
+        builder.Configuration["SIRKADIYEN_SYNC:CONNECTION_BATCH_SIZE"],
+        5),
+    EventsPerConnectionPerCycle = ParseInteger(
+        builder.Configuration["SIRKADIYEN_SYNC:EVENTS_PER_CONNECTION"],
+        100),
+    CalendarSummary =
+        builder.Configuration["SIRKADIYEN_SYNC:CALENDAR_SUMMARY"] is { Length: > 0 } summary
+            ? summary
+            : "Sirkadiyen",
+    CalendarTimeZoneId =
+        builder.Configuration["SIRKADIYEN_SYNC:CALENDAR_TIME_ZONE_ID"] is { Length: > 0 } zone
+            ? zone
+            : "Europe/Istanbul",
+};
+initialSyncOptions.Validate();
+
+// The worker decrypts the refresh token the API encrypted, so it shares the same Data
+// Protection key ring (ADR-058).
+string? dataProtectionKeyRingPath =
+    builder.Configuration["SIRKADIYEN_DATAPROTECTION:KEY_RING_PATH"];
 AdaptivePollingOptions pollingOptions = new()
 {
     TimeZoneId = builder.Configuration["SIRKADIYEN_POLLING:TIME_ZONE_ID"]
@@ -146,6 +184,12 @@ builder.Services.AddSingleton<AdaptivePollingIntervalPolicy>();
 builder.Services.AddSingleton(new WorkerOptions { SourceCatalogPath = catalogPath });
 builder.Services.AddSingleton<ScheduleSourceCatalogLoader>();
 builder.Services.AddSingleton(googleOptions);
+builder.Services.AddSingleton(calendarOptions);
+builder.Services.AddSingleton(initialSyncOptions);
+builder.Services.AddSirkadiyenDataProtection(dataProtectionKeyRingPath);
+builder.Services.AddSingleton<ICalendarTokenProtector, DataProtectionCalendarTokenProtector>();
+builder.Services.AddSingleton<IUserCalendarClient, GoogleCalendarClient>();
+builder.Services.AddScoped<InitialCalendarSyncService>();
 builder.Services.AddSingleton<GoogleSheetsServiceFactory>();
 builder.Services.AddSingleton<SheetsService>(services =>
     services.GetRequiredService<GoogleSheetsServiceFactory>().Create(googleOptions));

@@ -44,12 +44,19 @@ public sealed class GoogleCalendarConnection
 
     /// <summary>
     /// The dedicated Sirkadiyen calendar this connection writes to (ADR-024). It stays
-    /// null until initial sync creates the calendar, which is a later phase; a
-    /// connection is authorized long before it has a calendar.
+    /// null until initial sync creates the calendar; a connection is authorized long
+    /// before it has a calendar.
     /// </summary>
     public string? ManagedCalendarId { get; private set; }
 
     public GoogleCalendarConnectionStatus Status { get; private set; }
+
+    /// <summary>
+    /// How far the one-time initial synchronization has progressed (ADR-058). It is
+    /// orthogonal to <see cref="Status"/>: authorization says whether the credential
+    /// works, this says whether the user's calendar has been populated yet.
+    /// </summary>
+    public GoogleCalendarInitialSyncState InitialSyncState { get; private set; }
 
     public DateTimeOffset CreatedAtUtc { get; private init; }
 
@@ -93,8 +100,9 @@ public sealed class GoogleCalendarConnection
     /// credential and restoring the authorized status.
     /// </summary>
     /// <remarks>
-    /// The managed calendar is deliberately preserved: re-granting access must not orphan
-    /// the calendar the user's events already live in (ADR-024).
+    /// The managed calendar and the initial-sync progress are deliberately preserved:
+    /// re-granting access must not orphan the calendar the user's events already live in
+    /// (ADR-024), nor make an already-synchronized user repeat their initial sync.
     /// </remarks>
     public void Reauthorize(
         string protectedRefreshToken,
@@ -110,6 +118,77 @@ public sealed class GoogleCalendarConnection
             MaximumGrantedScopesLength,
             nameof(grantedScopes));
         Status = GoogleCalendarConnectionStatus.Authorized;
+        UpdatedAtUtc = atUtc;
+    }
+
+    /// <summary>
+    /// Records that the user asked to begin their initial synchronization, moving the
+    /// connection from <see cref="GoogleCalendarInitialSyncState.Pending"/> to
+    /// <see cref="GoogleCalendarInitialSyncState.InProgress"/> so the worker will act on it.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// The credential is not authorized, or synchronization is already under way or done.
+    /// </exception>
+    public void RequestInitialSync(DateTimeOffset atUtc)
+    {
+        if (Status is not GoogleCalendarConnectionStatus.Authorized)
+        {
+            throw new InvalidOperationException(
+                "Initial synchronization cannot start while the connection needs re-authorization.");
+        }
+
+        if (InitialSyncState is not GoogleCalendarInitialSyncState.Pending)
+        {
+            throw new InvalidOperationException(
+                $"Initial synchronization has already reached {InitialSyncState}.");
+        }
+
+        InitialSyncState = GoogleCalendarInitialSyncState.InProgress;
+        UpdatedAtUtc = atUtc;
+    }
+
+    /// <summary>
+    /// Attaches the dedicated calendar created during initial sync (ADR-024). It is set
+    /// exactly once; the calendar the user's events live in is never silently replaced.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">A calendar is already attached.</exception>
+    public void AttachManagedCalendar(string managedCalendarId, DateTimeOffset atUtc)
+    {
+        if (ManagedCalendarId is not null)
+        {
+            throw new InvalidOperationException(
+                "A managed calendar is already attached to this connection.");
+        }
+
+        ManagedCalendarId = RequiredBounded(
+            managedCalendarId,
+            MaximumManagedCalendarIdLength,
+            nameof(managedCalendarId));
+        UpdatedAtUtc = atUtc;
+    }
+
+    /// <summary>
+    /// Marks the initial synchronization finished, moving the connection to
+    /// <see cref="GoogleCalendarInitialSyncState.Completed"/>.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// Synchronization is not in progress, or no calendar was ever attached.
+    /// </exception>
+    public void CompleteInitialSync(DateTimeOffset atUtc)
+    {
+        if (InitialSyncState is not GoogleCalendarInitialSyncState.InProgress)
+        {
+            throw new InvalidOperationException(
+                $"Initial synchronization cannot complete from {InitialSyncState}.");
+        }
+
+        if (ManagedCalendarId is null)
+        {
+            throw new InvalidOperationException(
+                "Initial synchronization cannot complete before a calendar is attached.");
+        }
+
+        InitialSyncState = GoogleCalendarInitialSyncState.Completed;
         UpdatedAtUtc = atUtc;
     }
 
@@ -135,4 +214,19 @@ public enum GoogleCalendarConnectionStatus
     /// grants access again. Only synchronization sets this, so nothing produces it yet.
     /// </summary>
     NeedsReauthorization,
+}
+
+/// <summary>
+/// How far the one-time initial synchronization has progressed for a connection (ADR-058).
+/// </summary>
+public enum GoogleCalendarInitialSyncState
+{
+    /// <summary>Authorized, but the user has not asked to populate their calendar yet.</summary>
+    Pending,
+
+    /// <summary>The user asked to start; the worker is creating the calendar and writing events.</summary>
+    InProgress,
+
+    /// <summary>Every currently-published event that applies to the user has been written.</summary>
+    Completed,
 }

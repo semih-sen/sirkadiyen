@@ -21,14 +21,6 @@ public sealed class GoogleCalendarConnectionStore(SirkadiyenDbContext dbContext)
         return connection is null ? null : View(connection);
     }
 
-    public Task<bool> IsAuthorizedForUserAsync(Guid userId, CancellationToken cancellationToken) =>
-        dbContext.GoogleCalendarConnections
-            .AsNoTracking()
-            .AnyAsync(
-                candidate => candidate.UserId == userId
-                    && candidate.Status == GoogleCalendarConnectionStatus.Authorized,
-                cancellationToken);
-
     public async Task<GoogleCalendarConnectionView> UpsertAuthorizationAsync(
         Guid userId,
         string protectedRefreshToken,
@@ -42,6 +34,97 @@ public sealed class GoogleCalendarConnectionStore(SirkadiyenDbContext dbContext)
             atUtc,
             retryAfterConcurrentInsert: true,
             cancellationToken);
+
+    public async Task<RequestInitialSyncResult> RequestInitialSyncAsync(
+        Guid userId,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken)
+    {
+        GoogleCalendarConnection? connection = await dbContext.GoogleCalendarConnections
+            .SingleOrDefaultAsync(candidate => candidate.UserId == userId, cancellationToken);
+
+        if (connection is null)
+        {
+            return new RequestInitialSyncResult { Outcome = RequestInitialSyncOutcome.NotFound };
+        }
+
+        if (connection.Status is not GoogleCalendarConnectionStatus.Authorized)
+        {
+            return new RequestInitialSyncResult { Outcome = RequestInitialSyncOutcome.NotAuthorized };
+        }
+
+        switch (connection.InitialSyncState)
+        {
+            case GoogleCalendarInitialSyncState.InProgress:
+                return new RequestInitialSyncResult
+                {
+                    Outcome = RequestInitialSyncOutcome.AlreadyInProgress,
+                    Connection = View(connection),
+                };
+            case GoogleCalendarInitialSyncState.Completed:
+                return new RequestInitialSyncResult
+                {
+                    Outcome = RequestInitialSyncOutcome.AlreadyCompleted,
+                    Connection = View(connection),
+                };
+        }
+
+        connection.RequestInitialSync(atUtc);
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return new RequestInitialSyncResult
+        {
+            Outcome = RequestInitialSyncOutcome.Requested,
+            Connection = View(connection),
+        };
+    }
+
+    public async Task<IReadOnlyList<PendingCalendarSync>> ListPendingInitialSyncAsync(
+        int limit,
+        CancellationToken cancellationToken) =>
+        await dbContext.GoogleCalendarConnections
+            .AsNoTracking()
+            .Where(connection =>
+                connection.Status == GoogleCalendarConnectionStatus.Authorized
+                && connection.InitialSyncState == GoogleCalendarInitialSyncState.InProgress)
+            .OrderBy(connection => connection.UpdatedAtUtc)
+            .Take(limit)
+            .Select(connection => new PendingCalendarSync
+            {
+                UserId = connection.UserId,
+                ProtectedRefreshToken = connection.ProtectedRefreshToken,
+                ManagedCalendarId = connection.ManagedCalendarId,
+            })
+            .ToListAsync(cancellationToken);
+
+    public async Task AttachManagedCalendarAsync(
+        Guid userId,
+        string managedCalendarId,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken)
+    {
+        GoogleCalendarConnection connection = await SingleForUpdateAsync(userId, cancellationToken);
+        connection.AttachManagedCalendar(managedCalendarId, atUtc);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task MarkInitialSyncCompletedAsync(
+        Guid userId,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken)
+    {
+        GoogleCalendarConnection connection = await SingleForUpdateAsync(userId, cancellationToken);
+        connection.CompleteInitialSync(atUtc);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<GoogleCalendarConnection> SingleForUpdateAsync(
+        Guid userId,
+        CancellationToken cancellationToken) =>
+        await dbContext.GoogleCalendarConnections
+            .SingleOrDefaultAsync(candidate => candidate.UserId == userId, cancellationToken)
+        ?? throw new InvalidOperationException(
+            $"No Calendar connection exists for user '{userId}'.");
 
     private async Task<GoogleCalendarConnectionView> UpsertAuthorizationAsync(
         Guid userId,
@@ -75,7 +158,7 @@ public sealed class GoogleCalendarConnectionStore(SirkadiyenDbContext dbContext)
                 else
                 {
                     // Re-granting keeps the row, and with it the dedicated calendar the
-                    // user's events already live in (ADR-024).
+                    // user's events already live in and their initial-sync progress (ADR-024).
                     connection.Reauthorize(protectedRefreshToken, grantedScopes, atUtc);
                 }
 
@@ -106,6 +189,7 @@ public sealed class GoogleCalendarConnectionStore(SirkadiyenDbContext dbContext)
         UserId = connection.UserId,
         GrantedScopes = connection.GrantedScopes,
         Status = connection.Status,
+        InitialSyncState = connection.InitialSyncState,
         ManagedCalendarId = connection.ManagedCalendarId,
         UpdatedAtUtc = connection.UpdatedAtUtc,
     };
