@@ -49,6 +49,15 @@ public sealed class GoogleCalendarConnection
     /// </summary>
     public string? ManagedCalendarId { get; private set; }
 
+    /// <summary>
+    /// When reconciliation proved the attached calendar was deleted or inaccessible. A value
+    /// blocks normal writes and surfaces ActionRequired; recreation is never automatic.
+    /// </summary>
+    public DateTimeOffset? ManagedCalendarUnavailableAtUtc { get; private set; }
+
+    /// <summary>The last successful Calendar/ledger inventory reconciliation.</summary>
+    public DateTimeOffset? LastCalendarInventoryAtUtc { get; private set; }
+
     public GoogleCalendarConnectionStatus Status { get; private set; }
 
     /// <summary>
@@ -263,6 +272,47 @@ public sealed class GoogleCalendarConnection
             managedCalendarId,
             MaximumManagedCalendarIdLength,
             nameof(managedCalendarId));
+        ManagedCalendarUnavailableAtUtc = null;
+        UpdatedAtUtc = atUtc;
+    }
+
+    /// <summary>
+    /// Records that the attached calendar can no longer be read. Existing mappings and the
+    /// calendar id remain as evidence; an explicit repair flow must decide what happens next.
+    /// </summary>
+    public void MarkManagedCalendarUnavailable(DateTimeOffset atUtc)
+    {
+        if (InitialSyncState is not GoogleCalendarInitialSyncState.Completed
+            || ManagedCalendarId is null)
+        {
+            throw new InvalidOperationException(
+                "Only a completed connection with an attached calendar can require repair.");
+        }
+
+        ManagedCalendarUnavailableAtUtc ??= atUtc;
+        UpdatedAtUtc = atUtc;
+    }
+
+    /// <summary>Records a complete, non-destructive Calendar/ledger inventory pass.</summary>
+    public void CompleteCalendarInventory(DateTimeOffset atUtc)
+    {
+        if (Status is not GoogleCalendarConnectionStatus.Authorized
+            || InitialSyncState is not GoogleCalendarInitialSyncState.Completed
+            || ManagedCalendarId is null
+            || ManagedCalendarUnavailableAtUtc is not null
+            || ReconciliationRequiredSinceUtc is not null)
+        {
+            throw new InvalidOperationException(
+                "Calendar inventory can complete only for a healthy, caught-up connection.");
+        }
+
+        if (LastCalendarInventoryAtUtc is not null && atUtc < LastCalendarInventoryAtUtc)
+        {
+            throw new InvalidOperationException(
+                "Calendar inventory completion cannot move backwards.");
+        }
+
+        LastCalendarInventoryAtUtc = atUtc;
         UpdatedAtUtc = atUtc;
     }
 

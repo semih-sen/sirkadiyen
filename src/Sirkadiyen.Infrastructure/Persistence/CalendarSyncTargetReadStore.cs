@@ -46,6 +46,34 @@ public sealed class CalendarSyncTargetReadStore(SirkadiyenDbContext dbContext)
         return Project(rows);
     }
 
+    public async Task<IReadOnlyList<CalendarInventoryTarget>> ListInventoryTargetsAsync(
+        DateTimeOffset dueBeforeUtc,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
+
+        List<Row> rows = await ReadyTargets()
+            .Where(row =>
+                row.Connection.ManagedCalendarUnavailableAtUtc == null
+                && row.Connection.ReconciliationRequiredSinceUtc == null
+                && (row.Connection.LastCalendarInventoryAtUtc == null
+                    || row.Connection.LastCalendarInventoryAtUtc <= dueBeforeUtc))
+            .OrderBy(row => row.Connection.LastCalendarInventoryAtUtc)
+            .ThenBy(row => row.Connection.UserId)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+
+        return [.. rows.Select(row => new CalendarInventoryTarget
+        {
+            UserId = row.Connection.UserId,
+            ProtectedRefreshToken = row.Connection.ProtectedRefreshToken,
+            ManagedCalendarId = row.Connection.ManagedCalendarId!,
+            Profile = ProfileView(row.Profile),
+            LastInventoryAtUtc = row.Connection.LastCalendarInventoryAtUtc,
+        })];
+    }
+
     /// <summary>
     /// The join of connections that can be written to — authorized, initial sync completed, with a
     /// calendar attached — to their student profile. Both halves are needed: the connection for the
@@ -58,6 +86,7 @@ public sealed class CalendarSyncTargetReadStore(SirkadiyenDbContext dbContext)
         where connection.Status == GoogleCalendarConnectionStatus.Authorized
             && connection.InitialSyncState == GoogleCalendarInitialSyncState.Completed
             && connection.ManagedCalendarId != null
+            && connection.ManagedCalendarUnavailableAtUtc == null
         select new Row { Connection = connection, Profile = profile };
 
     private static IReadOnlyList<CalendarSyncTarget> Project(IEnumerable<Row> rows) =>
@@ -66,18 +95,20 @@ public sealed class CalendarSyncTargetReadStore(SirkadiyenDbContext dbContext)
             UserId = row.Connection.UserId,
             ProtectedRefreshToken = row.Connection.ProtectedRefreshToken,
             ManagedCalendarId = row.Connection.ManagedCalendarId!,
-            Profile = new StudentProfileView
-            {
-                UserId = row.Profile.UserId,
-                AcademicYear = row.Profile.AcademicYear,
-                ClassYear = row.Profile.ClassYear,
-                ProgramLanguage = row.Profile.ProgramLanguage,
-                StudentNumber = row.Profile.StudentNumber,
-                SelectorSchemaVersion = row.Profile.SelectorSchemaVersion,
-                Selectors = new Dictionary<string, string>(row.Profile.Selectors, StringComparer.Ordinal),
-                UpdatedAtUtc = row.Profile.UpdatedAtUtc,
-            },
+            Profile = ProfileView(row.Profile),
         })];
+
+    private static StudentProfileView ProfileView(StudentProfile profile) => new()
+    {
+        UserId = profile.UserId,
+        AcademicYear = profile.AcademicYear,
+        ClassYear = profile.ClassYear,
+        ProgramLanguage = profile.ProgramLanguage,
+        StudentNumber = profile.StudentNumber,
+        SelectorSchemaVersion = profile.SelectorSchemaVersion,
+        Selectors = new Dictionary<string, string>(profile.Selectors, StringComparer.Ordinal),
+        UpdatedAtUtc = profile.UpdatedAtUtc,
+    };
 
     private sealed class Row
     {

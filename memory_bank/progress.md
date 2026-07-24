@@ -174,7 +174,8 @@
 - [x] Implement affected-user resolution (per-user initial side + diff-driven fan-out over Ready/Released diffs, ADR-059)
 - [x] Implement initial sync
 - [x] Implement incremental sync (diff-driven insert/patch/delete dispatcher, ADR-059)
-- [~] Implement reconciliation (durable re-auth admission/cursor and semantic-diff replay complete in ADR-060; calendar/ledger inventory drift pending)
+- [x] Implement reconciliation (semantic replay, non-destructive Calendar/ledger inventory,
+  orphan-calendar recovery, and multi-worker fence; ADR-060 through ADR-064)
 - [x] Add mocked adapter tests
 - [~] Add quota-aware batching (per-cycle event budget + diffs-per-cycle bound; intra-diff quota-aware batching pending)
 
@@ -301,11 +302,14 @@ an empty scan completes the request. Deletion remains authorized by a replayed s
 never by current-state absence. Secondary-matched time moves preserve the Google event ID while
 atomically moving the ledger identity (ADR-061).
 
-The next reconciliation slice is actual Calendar/ledger inventory drift: enumerate managed
-Google events and private markers, detect missing/duplicate/stale mappings without converting
-absence into deletion authority, and add marker-based orphan-calendar recovery. Intra-diff
-quota-aware batching follows it.
-`grade2_yearly_v1` remains the next parser profile and needs no new canonical field.
+Calendar reconciliation is complete (ADR-062 through ADR-064). The periodic inventory
+enumerates marked Google events and compares them with expected current records and the ledger;
+it recreates or patches expected state but never turns absence, an unexpected event, or a
+duplicate into deletion authority. Initial sync recovers exactly one marker-matched orphan
+calendar, and PostgreSQL advisory locking fences dispatch, replay and inventory across workers.
+
+The next Calendar hardening slice is intra-diff quota-aware batching. The next schedule-source
+slice remains `grade2_yearly_v1`, which needs no new canonical field.
 
 There is deliberately no rollback (ADR-033). A bad publication is corrected at
 the authoritative source and reaches calendars as a newer forward-fix revision.

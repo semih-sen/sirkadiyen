@@ -101,6 +101,17 @@ CalendarReconciliationOptions reconciliationOptions = new()
 };
 reconciliationOptions.Validate();
 
+CalendarInventoryReconciliationOptions inventoryOptions = new()
+{
+    ConnectionBatchSize = ParseInteger(
+        builder.Configuration["SIRKADIYEN_SYNC:INVENTORY_CONNECTION_BATCH_SIZE"],
+        5),
+    Interval = ParseDuration(
+        builder.Configuration["SIRKADIYEN_SYNC:INVENTORY_INTERVAL"],
+        TimeSpan.FromHours(24)),
+};
+inventoryOptions.Validate();
+
 // The worker decrypts the refresh token the API encrypted, so it shares the same Data
 // Protection key ring (ADR-058).
 string? dataProtectionKeyRingPath =
@@ -217,12 +228,14 @@ builder.Services.AddSingleton(calendarOptions);
 builder.Services.AddSingleton(initialSyncOptions);
 builder.Services.AddSingleton(incrementalSyncOptions);
 builder.Services.AddSingleton(reconciliationOptions);
+builder.Services.AddSingleton(inventoryOptions);
 builder.Services.AddSirkadiyenDataProtection(dataProtectionKeyRingPath);
 builder.Services.AddSingleton<ICalendarTokenProtector, DataProtectionCalendarTokenProtector>();
 builder.Services.AddSingleton<IUserCalendarClient, GoogleCalendarClient>();
 builder.Services.AddScoped<InitialCalendarSyncService>();
 builder.Services.AddScoped<IncrementalCalendarSyncService>();
 builder.Services.AddScoped<CalendarReconciliationService>();
+builder.Services.AddScoped<CalendarInventoryReconciliationService>();
 builder.Services.AddSingleton<GoogleSheetsServiceFactory>();
 builder.Services.AddSingleton<SheetsService>(services =>
     services.GetRequiredService<GoogleSheetsServiceFactory>().Create(googleOptions));

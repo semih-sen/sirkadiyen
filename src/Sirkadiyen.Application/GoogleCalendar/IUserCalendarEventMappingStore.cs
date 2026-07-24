@@ -18,6 +18,11 @@ public interface IUserCalendarEventMappingStore
     /// <summary>How many events have been mapped for the user, for a progress read.</summary>
     Task<int> CountForUserAsync(Guid userId, CancellationToken cancellationToken);
 
+    /// <summary>Every ledger row for one user, used by the periodic inventory sweep.</summary>
+    Task<IReadOnlyList<CalendarEventMappingView>> ListForUserAsync(
+        Guid userId,
+        CancellationToken cancellationToken);
+
     /// <summary>
     /// Every user who currently has an event for one logical lesson (ADR-059). This is the reverse of
     /// the initial-sync lookup: given a lesson that changed, it names who must be updated or have the

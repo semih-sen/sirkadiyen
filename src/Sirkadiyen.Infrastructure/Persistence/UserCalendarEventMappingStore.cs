@@ -28,6 +28,24 @@ public sealed class UserCalendarEventMappingStore(SirkadiyenDbContext dbContext)
             .AsNoTracking()
             .CountAsync(mapping => mapping.UserId == userId, cancellationToken);
 
+    public async Task<IReadOnlyList<CalendarEventMappingView>> ListForUserAsync(
+        Guid userId,
+        CancellationToken cancellationToken) =>
+        await dbContext.UserCalendarEventMappings
+            .AsNoTracking()
+            .Where(mapping => mapping.UserId == userId)
+            .OrderBy(mapping => mapping.StableIdentity)
+            .Select(mapping => new CalendarEventMappingView
+            {
+                UserId = mapping.UserId,
+                StableIdentity = mapping.StableIdentity,
+                GoogleCalendarId = mapping.GoogleCalendarId,
+                GoogleEventId = mapping.GoogleEventId,
+                ContentHash = mapping.ContentHash,
+                CanonicalRecordId = mapping.CanonicalRecordId,
+            })
+            .ToListAsync(cancellationToken);
+
     public async Task<IReadOnlyList<CalendarEventMappingView>> ListForStableIdentityAsync(
         SourceId sourceId,
         string stableIdentity,

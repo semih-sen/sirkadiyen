@@ -140,6 +140,7 @@ public sealed class GoogleCalendarConnectionStore(SirkadiyenDbContext dbContext)
                 connection.Status == GoogleCalendarConnectionStatus.Authorized
                 && connection.InitialSyncState == GoogleCalendarInitialSyncState.Completed
                 && connection.ManagedCalendarId != null
+                && connection.ManagedCalendarUnavailableAtUtc == null
                 && connection.ReconciliationRequiredSinceUtc != null
                 && connection.ReconciliationCursorDispatchedAtUtc != null
                 && connection.ReconciliationCursorDiffId != null)
@@ -184,6 +185,26 @@ public sealed class GoogleCalendarConnectionStore(SirkadiyenDbContext dbContext)
     {
         GoogleCalendarConnection connection = await SingleForUpdateAsync(userId, cancellationToken);
         connection.CompleteReconciliation(expectedRequiredSinceUtc, atUtc);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task MarkCalendarInventoryCompletedAsync(
+        Guid userId,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken)
+    {
+        GoogleCalendarConnection connection = await SingleForUpdateAsync(userId, cancellationToken);
+        connection.CompleteCalendarInventory(atUtc);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task MarkManagedCalendarUnavailableAsync(
+        Guid userId,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken)
+    {
+        GoogleCalendarConnection connection = await SingleForUpdateAsync(userId, cancellationToken);
+        connection.MarkManagedCalendarUnavailable(atUtc);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
@@ -260,6 +281,8 @@ public sealed class GoogleCalendarConnectionStore(SirkadiyenDbContext dbContext)
         Status = connection.Status,
         InitialSyncState = connection.InitialSyncState,
         ManagedCalendarId = connection.ManagedCalendarId,
+        ManagedCalendarUnavailableAtUtc = connection.ManagedCalendarUnavailableAtUtc,
+        LastCalendarInventoryAtUtc = connection.LastCalendarInventoryAtUtc,
         ReconciliationRequiredSinceUtc = connection.ReconciliationRequiredSinceUtc,
         UpdatedAtUtc = connection.UpdatedAtUtc,
     };

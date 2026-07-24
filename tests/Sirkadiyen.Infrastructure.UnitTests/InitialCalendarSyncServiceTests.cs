@@ -161,6 +161,81 @@ public sealed class InitialCalendarSyncServiceTests
     }
 
     [Fact]
+    public async Task AnOrphanedMarkedCalendarIsRecoveredBeforeCreatingAnother()
+    {
+        FakeConnectionStore connections = new(Pending(calendar: null));
+        FakeCalendarClient client = new();
+        client.ExistingCalendars.Add("orphaned-calendar-id");
+
+        InitialCalendarSyncResult result = Single(await Build(
+            connections,
+            new FakeScheduleReadStore(CalendarTestData.Record()),
+            new FakeMappingStore(),
+            client).RunPendingAsync(CancellationToken.None));
+
+        Assert.Equal(InitialCalendarSyncOutcome.Completed, result.Outcome);
+        Assert.Equal("orphaned-calendar-id", connections.AttachedCalendarId);
+        Assert.Equal(0, client.CalendarsCreated);
+        Assert.Equal(
+            ManagedCalendarIdentity.DescriptionMarker(UserId),
+            Assert.Single(client.MarkersSearched));
+    }
+
+    [Fact]
+    public async Task SeveralMarkedCalendarsAreNotGuessedIntoAnAttachment()
+    {
+        FakeConnectionStore connections = new(Pending(calendar: null));
+        FakeCalendarClient client = new();
+        client.ExistingCalendars.AddRange(["first", "second"]);
+
+        InitialCalendarSyncResult result = Single(await Build(
+            connections,
+            new FakeScheduleReadStore(CalendarTestData.Record()),
+            new FakeMappingStore(),
+            client).RunPendingAsync(CancellationToken.None));
+
+        Assert.Equal(InitialCalendarSyncOutcome.Failed, result.Outcome);
+        Assert.Null(connections.AttachedCalendarId);
+        Assert.Equal(0, client.CalendarsCreated);
+    }
+
+    [Fact]
+    public async Task CalendarCreationCarriesThePerUserRecoveryMarker()
+    {
+        FakeCalendarClient client = new();
+
+        await Build(
+            new FakeConnectionStore(Pending(calendar: null)),
+            new FakeScheduleReadStore(CalendarTestData.Record()),
+            new FakeMappingStore(),
+            client).RunPendingAsync(CancellationToken.None);
+
+        Assert.Equal(
+            ManagedCalendarIdentity.DescriptionMarker(UserId),
+            Assert.Single(client.MarkersCreated));
+    }
+
+    [Fact]
+    public async Task ARejectedCredentialIsFlaggedAndStopsInitialSync()
+    {
+        FakeConnectionStore connections = new(Pending(calendar: null));
+        FakeCalendarClient client = new()
+        {
+            FindFailure = new GoogleCalendarCredentialException("missing scope"),
+        };
+
+        InitialCalendarSyncResult result = Single(await Build(
+            connections,
+            new FakeScheduleReadStore(CalendarTestData.Record()),
+            new FakeMappingStore(),
+            client).RunPendingAsync(CancellationToken.None));
+
+        Assert.Equal(InitialCalendarSyncOutcome.AuthorizationRequired, result.Outcome);
+        Assert.True(connections.FlaggedForReauthorization);
+        Assert.False(connections.Completed);
+    }
+
+    [Fact]
     public async Task RecordsForAnotherProgramAreNotWritten()
     {
         FakeCalendarClient client = new();
@@ -259,6 +334,8 @@ public sealed class InitialCalendarSyncServiceTests
 
         public bool Completed { get; private set; }
 
+        public bool FlaggedForReauthorization { get; private set; }
+
         public Task<IReadOnlyList<PendingCalendarSync>> ListPendingInitialSyncAsync(
             int limit,
             CancellationToken cancellationToken) =>
@@ -312,7 +389,11 @@ public sealed class InitialCalendarSyncServiceTests
         public Task MarkNeedsReauthorizationAsync(
             Guid userId,
             DateTimeOffset atUtc,
-            CancellationToken cancellationToken) => throw new NotSupportedException();
+            CancellationToken cancellationToken)
+        {
+            FlaggedForReauthorization = true;
+            return Task.CompletedTask;
+        }
 
         public Task<IReadOnlyList<PendingCalendarReconciliation>> ListPendingReconciliationAsync(
             int limit,
@@ -331,6 +412,16 @@ public sealed class InitialCalendarSyncServiceTests
             DateTimeOffset expectedRequiredSinceUtc,
             DateTimeOffset atUtc,
             CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task MarkCalendarInventoryCompletedAsync(
+            Guid userId,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task MarkManagedCalendarUnavailableAsync(
+            Guid userId,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class FakeCalendarClient(
@@ -343,16 +434,43 @@ public sealed class InitialCalendarSyncServiceTests
 
         public List<string> RefreshTokensSeen { get; } = [];
 
+        public List<string> ExistingCalendars { get; } = [];
+
+        public List<string> MarkersSearched { get; } = [];
+
+        public List<string> MarkersCreated { get; } = [];
+
+        public Exception? FindFailure { get; init; }
+
         public Task<string> CreateManagedCalendarAsync(
             CalendarAccess access,
             string calendarSummary,
             string timeZoneId,
+            string descriptionMarker,
             CancellationToken cancellationToken)
         {
             RefreshTokensSeen.Add(access.RefreshToken);
+            MarkersCreated.Add(descriptionMarker);
             CalendarsCreated++;
             return Task.FromResult("created-calendar-id");
         }
+
+        public Task<IReadOnlyList<string>> FindManagedCalendarIdsAsync(
+            CalendarAccess access,
+            string descriptionMarker,
+            CancellationToken cancellationToken)
+        {
+            RefreshTokensSeen.Add(access.RefreshToken);
+            MarkersSearched.Add(descriptionMarker);
+            return FindFailure is null
+                ? Task.FromResult<IReadOnlyList<string>>([.. ExistingCalendars])
+                : throw FindFailure;
+        }
+
+        public Task<IReadOnlyList<ManagedCalendarEventSnapshot>> ListManagedEventsAsync(
+            CalendarAccess access,
+            string calendarId,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
 
         public Task<CalendarEventInsertOutcome> InsertEventAsync(
             CalendarAccess access,
@@ -396,6 +514,10 @@ public sealed class InitialCalendarSyncServiceTests
 
         public Task<int> CountForUserAsync(Guid userId, CancellationToken cancellationToken) =>
             Task.FromResult(identities.Count);
+
+        public Task<IReadOnlyList<CalendarEventMappingView>> ListForUserAsync(
+            Guid userId,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
 
         public Task<CalendarEventMappingAddOutcome> AddAsync(
             UserCalendarEventMapping mapping,

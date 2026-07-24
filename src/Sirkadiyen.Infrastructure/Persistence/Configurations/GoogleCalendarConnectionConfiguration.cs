@@ -25,6 +25,8 @@ internal sealed class GoogleCalendarConnectionConfiguration
             .IsRequired();
         builder.Property(connection => connection.ManagedCalendarId)
             .HasMaxLength(GoogleCalendarConnection.MaximumManagedCalendarIdLength);
+        builder.Property(connection => connection.ManagedCalendarUnavailableAtUtc);
+        builder.Property(connection => connection.LastCalendarInventoryAtUtc);
         builder.Property(connection => connection.Status)
             .HasConversion<string>()
             .HasMaxLength(30)
@@ -47,6 +49,13 @@ internal sealed class GoogleCalendarConnectionConfiguration
             connection.InitialSyncState,
             connection.ReconciliationRequiredSinceUtc,
         }).HasDatabaseName("ix_google_calendar_connections_reconciliation_pending");
+        builder.HasIndex(connection => new
+        {
+            connection.Status,
+            connection.InitialSyncState,
+            connection.ManagedCalendarUnavailableAtUtc,
+            connection.LastCalendarInventoryAtUtc,
+        }).HasDatabaseName("ix_google_calendar_connections_inventory_due");
         builder.HasOne<User>()
             .WithMany()
             .HasForeignKey(connection => connection.UserId)
@@ -70,5 +79,10 @@ internal sealed class GoogleCalendarConnectionConfiguration
             + " AND \"ManagedCalendarId\" IS NOT NULL"
             + " AND \"ReconciliationCursorDispatchedAtUtc\""
             + " >= \"ReconciliationRequiredSinceUtc\")"));
+        builder.ToTable(table => table.HasCheckConstraint(
+            "ck_google_calendar_connections_unavailable_calendar",
+            "\"ManagedCalendarUnavailableAtUtc\" IS NULL"
+            + " OR (\"ManagedCalendarId\" IS NOT NULL"
+            + " AND \"InitialSyncState\" = 'Completed')"));
     }
 }

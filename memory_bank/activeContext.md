@@ -22,8 +22,12 @@ via the same deterministic-id + ledger machinery, so a diff finally reaches a ca
 Re-authorization catch-up is now implemented (ADR-060): a completed-sync user whose
 credential dies retains the earliest missed-diff boundary through re-authorization, and
 the freeze-gated worker replays only globally `Dispatched` `Ready`/`Released` semantic
-diffs after that cursor. Calendar/ledger inventory drift, orphan-calendar recovery, and
-intra-diff quota-aware batching remain next.
+diffs after that cursor. Calendar reconciliation is now complete (ADR-062 through
+ADR-064): a periodic three-way inventory repairs missing/stale managed events and ledger
+rows without inferring deletions, marker-based initial-sync recovery reattaches a single
+orphaned app-created calendar, and a PostgreSQL advisory fence serializes global dispatch,
+semantic replay and inventory across worker instances. Intra-diff quota-aware batching
+remains next.
 
 The Google Sheets path now runs end to end from catalog seeding to a stored
 diff: adaptive polling, immutable snapshot storage, strict parser HTTP calls,
@@ -45,8 +49,7 @@ hold is never releasable and is corrected at the source (ADR-042).
 The incremental dispatcher now consumes every dispatchable diff and resolves the
 affected completed-sync users before applying idempotent Calendar operations.
 Drive and HTTP acquisition, DOCX conversion, the remaining parser profiles, the
-calendar/ledger inventory reconciliation sweep, intra-diff quota-aware batching, and
-the frontend still do not exist.
+intra-diff quota-aware batching, and the frontend still do not exist.
 
 The source credential is resolved: a Google service account is configured and the
 worker can reach the real Sheets API.
@@ -63,6 +66,36 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- **Completed safe Calendar reconciliation (ADR-062).** A freeze-gated periodic inventory
+  compares current published/applicable records, the durable event ledger, and actual marked
+  Google events. It recreates missing expected events, adopts unledgered exact matches, patches
+  visible/private-property drift, and refreshes stale ledger state.
+- **Inventory is deliberately non-destructive.** Duplicate or unexpected Google events,
+  source-identity conflicts, and ledger rows with no expected current record are reported and
+  preserved. Only replay or dispatch of a valid `Ready`/`Released` semantic diff may authorize a
+  Calendar delete.
+- **Closed the calendar-creation crash window (ADR-063).** Created calendars carry an exact,
+  per-user description marker. Before creating a calendar, initial sync lists marker candidates:
+  one is reattached, none causes creation, and multiple candidates fail safely without guessing.
+  OAuth now requests `calendar.app.created` plus the read-only CalendarList scope required for
+  that lookup; an older incomplete grant is moved to re-authorization when the lookup is needed.
+- **Added a multi-worker dispatch/reconciliation fence (ADR-064).** A non-blocking PostgreSQL
+  session advisory lock is held continuously across global diff dispatch, per-user semantic
+  replay including its empty-scan completion, and periodic inventory. A second worker yields the
+  maintenance section instead of racing the proof that catch-up is complete.
+- A missing/inaccessible managed calendar is recorded on the connection and surfaces as
+  onboarding `ActionRequired`; ordinary Calendar writers and inventory stop targeting it.
+  Explicit calendar recreation is intentionally not automatic.
+- Migration `AddCalendarInventoryReconciliation` adds the unavailable/inventory timestamps,
+  their invariant and the due-work index. Inventory cadence and batch size are configurable
+  through `SIRKADIYEN_SYNC__INVENTORY_INTERVAL` and
+  `SIRKADIYEN_SYNC__INVENTORY_CONNECTION_BATCH_SIZE`.
+- 458 .NET tests pass, nothing skipped. Release build has no warnings, EF reports no pending
+  model changes, the migration was verified Down -> Up on PostgreSQL, and the advisory-lock
+  exclusion is covered by a PostgreSQL integration test.
+
+## Previous semantic-diff replay session
 
 - **Implemented the freeze-gated semantic-diff replay worker (ADR-060).** For each admitted
   re-authorized connection it reads only `Ready`/`Released` diffs whose global
@@ -1117,10 +1150,10 @@ dimension can be added with evidence.
   the Google account side is discovered only when synchronization tries to use the token;
   incremental dispatch now flags the connection `NeedsReauthorization` when that happens (ADR-059),
   but initial sync does not yet, and no proactive re-verification exists
-- calendar creation is the one initial-sync step Google cannot make idempotent: a crash
-  between creating the calendar and persisting `ManagedCalendarId` would orphan the calendar
-  and create a second one on resume. The id is persisted immediately to shrink that window;
-  full protection (a marker-tagged calendar lookup) is deferred with reconciliation
+- calendar creation is recovered by an exact per-user description marker before initial sync
+  creates another calendar (ADR-063). Existing grants issued before the CalendarList read-only
+  scope was added can still use an already-attached calendar, but require a new consent if
+  marker lookup is needed
 - a user's **initial** sync that keeps failing — a bad or revoked token, a persistent Calendar
   error — is logged and retried every worker cycle indefinitely. The incremental dispatcher now
   has the failure taxonomy (transient back-off then `Failed`, dead credential → `NeedsReauthorization`),
@@ -1128,16 +1161,18 @@ dimension can be added with evidence.
 - initial sync writes at most a configured number of events per user per cycle to respect
   Calendar quota, so a very large first load completes over several cycles rather than at once;
   onboarding stays `InitialSyncInProgress` until the last applicable event is written
-- semantic-diff replay now catches a re-authorized user up on diffs marked `Dispatched` while
-  their credential was dead (ADR-060). It intentionally does not inventory Google Calendar:
-  a patch that finds no event (404) re-inserts it, so a managed event a user manually deleted is
-  recreated only on that lesson's next change until the calendar/ledger drift sweep exists
-- reconciliation has no persisted retry/back-off state of its own. The Google client exhausts its
-  bounded in-call back-off, then a transient replay failure preserves the cursor and retries on the
-  next worker cycle; a persistently failing user can therefore be attempted every cycle
-- the worker runs global dispatch before reconciliation in one non-overlapping process. A future
-  multi-worker deployment needs a shared dispatch/reconciliation fence or lock before an empty
-  cursor scan can safely prove there is no in-flight diff that already skipped the user
+- periodic inventory now repairs expected event/ledger drift, including manually deleted or
+  visibly edited managed events. Duplicate/unexpected events and mappings are deliberately
+  reported but retained: automatic cleanup would manufacture deletion authority outside a
+  published dispatchable semantic diff
+- reconciliation has no persisted failure/back-off state of its own. The Google client exhausts
+  bounded in-call back-off, then a transient replay or inventory failure retries on the next
+  worker cycle; a persistently failing user can therefore be attempted every cycle
+- a deleted or inaccessible managed calendar is detected and surfaced as `ActionRequired`, but
+  no automatic recreate/migrate workflow exists. Recreating a whole calendar is an explicit,
+  operator-visible product action because it changes the user's external container
+- the real CalendarList marker lookup and managed-event inventory adapter have no live automated
+  coverage; fakes cover application behavior and PostgreSQL covers scheduling/fencing
 - an incremental diff's fan-out over a cohort runs to completion within one cycle; only the number
   of diffs per cycle is bounded. A Ready diff is small because a mass change is *held*, but a large
   operator-*released* diff over a big cohort runs long until intra-diff quota-aware batching lands. A

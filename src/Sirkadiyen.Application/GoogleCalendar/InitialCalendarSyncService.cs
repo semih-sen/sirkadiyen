@@ -141,6 +141,19 @@ public sealed class InitialCalendarSyncService(
         {
             throw;
         }
+        catch (GoogleCalendarCredentialException exception)
+        {
+            await connectionStore.MarkNeedsReauthorizationAsync(
+                connection.UserId,
+                now,
+                cancellationToken);
+            return new InitialCalendarSyncResult
+            {
+                UserId = connection.UserId,
+                Outcome = InitialCalendarSyncOutcome.AuthorizationRequired,
+                FailureReason = exception.Message,
+            };
+        }
         catch (Exception exception)
         {
             // One user's failure (a bad token, a Calendar error) must not stop the others. The
@@ -165,10 +178,34 @@ public sealed class InitialCalendarSyncService(
             return existing;
         }
 
+        string descriptionMarker = ManagedCalendarIdentity.DescriptionMarker(connection.UserId);
+        IReadOnlyList<string> existingCalendars = await calendarClient.FindManagedCalendarIdsAsync(
+            access,
+            descriptionMarker,
+            cancellationToken);
+        if (existingCalendars.Count > 1)
+        {
+            throw new GoogleCalendarSyncException(
+                $"Found {existingCalendars.Count} app-created calendars carrying the user's "
+                + "managed-calendar marker; automatic attachment is unsafe.");
+        }
+
+        if (existingCalendars.Count == 1)
+        {
+            string recovered = existingCalendars[0];
+            await connectionStore.AttachManagedCalendarAsync(
+                connection.UserId,
+                recovered,
+                now,
+                cancellationToken);
+            return recovered;
+        }
+
         string calendarId = await calendarClient.CreateManagedCalendarAsync(
             access,
             options.CalendarSummary,
             options.CalendarTimeZoneId,
+            descriptionMarker,
             cancellationToken);
 
         // Persisted immediately so a crash after this point resumes with the calendar attached
@@ -247,4 +284,7 @@ public enum InitialCalendarSyncOutcome
 
     /// <summary>A Calendar or credential error stopped this user; it retries next cycle.</summary>
     Failed,
+
+    /// <summary>The stored grant lacks a required scope or was revoked; consent must run again.</summary>
+    AuthorizationRequired,
 }

@@ -36,7 +36,7 @@ public sealed class CalendarAuthorizationService(
     IStudentProfileStore profileStore,
     TimeProvider timeProvider)
 {
-    public string RequiredScope => authorizationClient.RequiredScope;
+    public string RequiredScopes => string.Join(' ', authorizationClient.RequiredScopes);
 
     public string ClientId => authorizationClient.ClientId;
 
@@ -84,7 +84,7 @@ public sealed class CalendarAuthorizationService(
         // asked for: a user can clear the Calendar permission on the consent screen and
         // still complete the flow. Storing that grant would leave onboarding claiming an
         // authorization that cannot synchronize.
-        if (!GrantIncludesRequiredScope(tokens.GrantedScopes))
+        if (!GrantIncludesRequiredScopes(tokens.GrantedScopes))
         {
             return new CalendarAuthorizationResult
             {
@@ -122,8 +122,11 @@ public sealed class CalendarAuthorizationService(
         return await profileStore.ExistsForUserAsync(userId, cancellationToken);
     }
 
-    private bool GrantIncludesRequiredScope(string grantedScopes) =>
-        grantedScopes
+    private bool GrantIncludesRequiredScopes(string grantedScopes)
+    {
+        HashSet<string> granted = grantedScopes
             .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .Contains(authorizationClient.RequiredScope, StringComparer.Ordinal);
+            .ToHashSet(StringComparer.Ordinal);
+        return authorizationClient.RequiredScopes.All(granted.Contains);
+    }
 }

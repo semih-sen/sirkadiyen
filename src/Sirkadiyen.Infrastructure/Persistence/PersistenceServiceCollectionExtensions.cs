@@ -37,6 +37,8 @@ public static class PersistenceServiceCollectionExtensions
                 // that is otherwise safe to retry.
                 npgsql.EnableRetryOnFailure();
             }));
+        services.AddScoped<ICalendarDispatchReconciliationFence>(
+            _ => new PostgresCalendarDispatchReconciliationFence(connectionString));
 
         services.AddScoped<IScheduleSourceStore, ScheduleSourceStore>();
         services.AddScoped<ISourceSnapshotStore, SourceSnapshotStore>();

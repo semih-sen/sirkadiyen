@@ -270,6 +270,38 @@ public sealed class GoogleCalendarConnectionStoreTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task InventoryHealthAndUnavailableCalendarStateRoundTrip()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        UserSession user = await CreateUserAsync("calendar-inventory-health");
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        GoogleCalendarConnectionStore store = new(context);
+        await store.UpsertAuthorizationAsync(user.UserId, "protected", Scope, Now, Token);
+        await store.RequestInitialSyncAsync(user.UserId, Now.AddMinutes(1), Token);
+        await store.AttachManagedCalendarAsync(
+            user.UserId,
+            "inventory@group.calendar.google.com",
+            Now.AddMinutes(2),
+            Token);
+        await store.MarkInitialSyncCompletedAsync(user.UserId, Now.AddMinutes(3), Token);
+
+        await store.MarkCalendarInventoryCompletedAsync(user.UserId, Now.AddHours(1), Token);
+        GoogleCalendarConnectionView healthy =
+            (await store.GetByUserIdAsync(user.UserId, Token))!;
+        Assert.Equal(Now.AddHours(1), healthy.LastCalendarInventoryAtUtc);
+        Assert.Null(healthy.ManagedCalendarUnavailableAtUtc);
+
+        await store.MarkManagedCalendarUnavailableAsync(user.UserId, Now.AddHours(2), Token);
+        GoogleCalendarConnectionView unavailable =
+            (await store.GetByUserIdAsync(user.UserId, Token))!;
+        Assert.Equal(Now.AddHours(2), unavailable.ManagedCalendarUnavailableAtUtc);
+        Assert.Equal(
+            "inventory@group.calendar.google.com",
+            unavailable.ManagedCalendarId);
+    }
+
+    [Fact]
     public async Task NoConnectionReadsAsAbsent()
     {
         Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);

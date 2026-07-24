@@ -261,6 +261,43 @@ public sealed class GoogleCalendarConnectionTests
         Assert.Null(connection.ReconciliationCursorDiffId);
     }
 
+    [Fact]
+    public void AHealthyCaughtUpConnectionRecordsInventoryCompletionMonotonically()
+    {
+        GoogleCalendarConnection connection = CompletedConnection();
+
+        connection.CompleteCalendarInventory(Now.AddHours(1));
+        connection.CompleteCalendarInventory(Now.AddHours(2));
+
+        Assert.Equal(Now.AddHours(2), connection.LastCalendarInventoryAtUtc);
+        Assert.Throws<InvalidOperationException>(
+            () => connection.CompleteCalendarInventory(Now.AddMinutes(30)));
+    }
+
+    [Fact]
+    public void AnUnavailableCalendarStopsInventoryAndPreservesItsIdentity()
+    {
+        GoogleCalendarConnection connection = CompletedConnection();
+
+        connection.MarkManagedCalendarUnavailable(Now.AddHours(1));
+
+        Assert.Equal(Now.AddHours(1), connection.ManagedCalendarUnavailableAtUtc);
+        Assert.Equal("calendar-id", connection.ManagedCalendarId);
+        Assert.Throws<InvalidOperationException>(
+            () => connection.CompleteCalendarInventory(Now.AddHours(2)));
+    }
+
+    [Fact]
+    public void InventoryCannotCompleteWhileSemanticReplayIsPending()
+    {
+        GoogleCalendarConnection connection = CompletedConnection();
+        connection.MarkNeedsReauthorization(Now.AddHours(1));
+        connection.Reauthorize("fresh", Scope, Now.AddHours(2));
+
+        Assert.Throws<InvalidOperationException>(
+            () => connection.CompleteCalendarInventory(Now.AddHours(3)));
+    }
+
     private static GoogleCalendarConnection Create(
         Guid? userId = null,
         string protectedRefreshToken = "protected-token",

@@ -10,8 +10,11 @@ namespace Sirkadiyen.Application.GoogleCalendar;
 /// </remarks>
 public interface IGoogleCalendarAuthorizationClient
 {
-    /// <summary>The scope the product requires to manage its own calendar.</summary>
-    string RequiredScope { get; }
+    /// <summary>
+    /// The scopes the product requires to manage its own calendar and recover a calendar
+    /// whose creation succeeded before its id could be persisted.
+    /// </summary>
+    IReadOnlyList<string> RequiredScopes { get; }
 
     /// <summary>The browser OAuth client ID the frontend starts the consent with.</summary>
     string ClientId { get; }

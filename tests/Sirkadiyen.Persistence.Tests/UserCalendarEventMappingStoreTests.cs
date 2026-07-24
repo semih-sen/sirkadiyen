@@ -37,6 +37,26 @@ public sealed class UserCalendarEventMappingStoreTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task InventoryListsOnlyTheRequestedUsersCompleteLedger()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        UserSession owner = await CreateUserAsync("mapping-inventory-owner");
+        UserSession other = await CreateUserAsync("mapping-inventory-other");
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        UserCalendarEventMappingStore store = new(context);
+        await store.AddAsync(Mapping(owner.UserId, "z-last"), Token);
+        await store.AddAsync(Mapping(owner.UserId, "a-first"), Token);
+        await store.AddAsync(Mapping(other.UserId, "not-mine"), Token);
+
+        IReadOnlyList<CalendarEventMappingView> inventory =
+            await store.ListForUserAsync(owner.UserId, Token);
+
+        Assert.Equal(["a-first", "z-last"], inventory.Select(item => item.StableIdentity));
+        Assert.All(inventory, item => Assert.Equal(owner.UserId, item.UserId));
+    }
+
+    [Fact]
     public async Task WritingTheSameLessonTwiceIsReportedAsAlreadyPresent()
     {
         Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);

@@ -487,6 +487,17 @@ public sealed class IncrementalCalendarSyncServiceTests
             CalendarAccess access,
             string calendarSummary,
             string timeZoneId,
+            string descriptionMarker,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<string>> FindManagedCalendarIdsAsync(
+            CalendarAccess access,
+            string descriptionMarker,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<ManagedCalendarEventSnapshot>> ListManagedEventsAsync(
+            CalendarAccess access,
+            string calendarId,
             CancellationToken cancellationToken) => throw new NotSupportedException();
 
         private void GuardCredential(CalendarAccess access)
@@ -526,6 +537,16 @@ public sealed class IncrementalCalendarSyncServiceTests
         public Task CompleteReconciliationAsync(
             Guid userId,
             DateTimeOffset expectedRequiredSinceUtc,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task MarkCalendarInventoryCompletedAsync(
+            Guid userId,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task MarkManagedCalendarUnavailableAsync(
+            Guid userId,
             DateTimeOffset atUtc,
             CancellationToken cancellationToken) => throw new NotSupportedException();
 
@@ -675,6 +696,10 @@ public sealed class IncrementalCalendarSyncServiceTests
 
         public Task<int> CountForUserAsync(Guid userId, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+
+        public Task<IReadOnlyList<CalendarEventMappingView>> ListForUserAsync(
+            Guid userId,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class FakeTargetStore(
@@ -696,6 +721,11 @@ public sealed class IncrementalCalendarSyncServiceTests
             CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<CalendarSyncTarget>>(
                 [.. byUserId.Where(target => userIds.Contains(target.UserId))]);
+
+        public Task<IReadOnlyList<CalendarInventoryTarget>> ListInventoryTargetsAsync(
+            DateTimeOffset dueBeforeUtc,
+            int limit,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class FakeScheduleReadStore(IReadOnlyList<CanonicalScheduleRecord> records)

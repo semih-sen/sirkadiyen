@@ -74,6 +74,14 @@ public sealed class OnboardingStateService(
                 OnboardingNextAction.AuthorizeCalendar);
         }
 
+        if (connection.ManagedCalendarUnavailableAtUtc is not null)
+        {
+            return Snapshot(
+                OnboardingState.ActionRequired,
+                hasActiveLicense: true,
+                OnboardingNextAction.ResolveAction);
+        }
+
         // Authorized: the remaining step is the initial synchronization, whose progress the
         // connection records (ADR-058).
         return connection.InitialSyncState switch

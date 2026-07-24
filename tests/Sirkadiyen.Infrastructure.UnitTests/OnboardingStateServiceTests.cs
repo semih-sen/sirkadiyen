@@ -18,6 +18,7 @@ public sealed class OnboardingStateServiceTests
         AuthorizedPending,
         AuthorizedInProgress,
         AuthorizedCompleted,
+        AuthorizedCalendarUnavailable,
     }
 
     [Theory]
@@ -77,6 +78,13 @@ public sealed class OnboardingStateServiceTests
         OnboardingState.Active,
         OnboardingNextAction.None,
         true)]
+    [InlineData(
+        UserLicenseState.Active,
+        true,
+        ConnectionFixture.AuthorizedCalendarUnavailable,
+        OnboardingState.ActionRequired,
+        OnboardingNextAction.ResolveAction,
+        true)]
     public async Task StateIsDerivedFromAuthoritativeLicenseProfileAndCalendarState(
         UserLicenseState licenseState,
         bool hasProfile,
@@ -114,6 +122,12 @@ public sealed class OnboardingStateServiceTests
         ConnectionFixture.AuthorizedCompleted => View(
             GoogleCalendarConnectionStatus.Authorized,
             GoogleCalendarInitialSyncState.Completed),
+        ConnectionFixture.AuthorizedCalendarUnavailable => View(
+            GoogleCalendarConnectionStatus.Authorized,
+            GoogleCalendarInitialSyncState.Completed) with
+        {
+            ManagedCalendarUnavailableAtUtc = DateTimeOffset.UnixEpoch,
+        },
         _ => throw new ArgumentOutOfRangeException(nameof(fixture), fixture, null),
     };
 
@@ -182,6 +196,16 @@ public sealed class OnboardingStateServiceTests
         public Task CompleteReconciliationAsync(
             Guid userId,
             DateTimeOffset expectedRequiredSinceUtc,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task MarkCalendarInventoryCompletedAsync(
+            Guid userId,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task MarkManagedCalendarUnavailableAsync(
+            Guid userId,
             DateTimeOffset atUtc,
             CancellationToken cancellationToken) => throw new NotSupportedException();
     }

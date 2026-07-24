@@ -12,6 +12,9 @@ public sealed class CalendarAuthorizationServiceTests
 {
     private const string RequiredScope =
         "https://www.googleapis.com/auth/calendar.app.created";
+    private const string CalendarListScope =
+        "https://www.googleapis.com/auth/calendar.calendarlist.readonly";
+    private static readonly string RequiredScopes = $"{RequiredScope} {CalendarListScope}";
 
     private static readonly DateTimeOffset Now =
         new(2026, 7, 24, 11, 0, 0, TimeSpan.Zero);
@@ -32,7 +35,7 @@ public sealed class CalendarAuthorizationServiceTests
         Assert.Equal(CalendarAuthorizationOutcome.Authorized, result.Outcome);
         Assert.NotNull(result.Connection);
         Assert.Equal(UserId, store.UserId);
-        Assert.Equal(RequiredScope, store.GrantedScopes);
+        Assert.Equal(RequiredScopes, store.GrantedScopes);
         Assert.Equal(Now, store.AtUtc);
     }
 
@@ -60,7 +63,8 @@ public sealed class CalendarAuthorizationServiceTests
         CalendarAuthorizationService service = Build(
             store,
             client: new StubAuthorizationClient(
-                grantedScopes: $"openid {RequiredScope} https://www.googleapis.com/auth/userinfo.email"));
+                grantedScopes:
+                    $"openid {RequiredScopes} https://www.googleapis.com/auth/userinfo.email"));
 
         CalendarAuthorizationResult result = await service.AuthorizeAsync(
             UserId,
@@ -77,6 +81,23 @@ public sealed class CalendarAuthorizationServiceTests
         CalendarAuthorizationService service = Build(
             store,
             client: new StubAuthorizationClient(grantedScopes: "openid"));
+
+        CalendarAuthorizationResult result = await service.AuthorizeAsync(
+            UserId,
+            "auth-code",
+            CancellationToken.None);
+
+        Assert.Equal(CalendarAuthorizationOutcome.InsufficientScope, result.Outcome);
+        Assert.False(store.WasCalled);
+    }
+
+    [Fact]
+    public async Task AGrantWithoutTheCalendarListRecoveryScopeIsRefused()
+    {
+        RecordingConnectionStore store = new();
+        CalendarAuthorizationService service = Build(
+            store,
+            client: new StubAuthorizationClient(grantedScopes: RequiredScope));
 
         CalendarAuthorizationResult result = await service.AuthorizeAsync(
             UserId,
@@ -153,7 +174,8 @@ public sealed class CalendarAuthorizationServiceTests
 
         public bool WasCalled { get; private set; }
 
-        public string RequiredScope => CalendarAuthorizationServiceTests.RequiredScope;
+        public IReadOnlyList<string> RequiredScopes =>
+            [CalendarAuthorizationServiceTests.RequiredScope, CalendarListScope];
 
         public string ClientId => "calendar-client-id";
 
@@ -167,7 +189,7 @@ public sealed class CalendarAuthorizationServiceTests
                 : Task.FromResult(new CalendarAuthorizationTokens
                 {
                     RefreshToken = RefreshToken,
-                    GrantedScopes = grantedScopes ?? CalendarAuthorizationServiceTests.RequiredScope,
+                    GrantedScopes = grantedScopes ?? CalendarAuthorizationServiceTests.RequiredScopes,
                 });
         }
     }
@@ -258,6 +280,16 @@ public sealed class CalendarAuthorizationServiceTests
         public Task CompleteReconciliationAsync(
             Guid userId,
             DateTimeOffset expectedRequiredSinceUtc,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task MarkCalendarInventoryCompletedAsync(
+            Guid userId,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task MarkManagedCalendarUnavailableAsync(
+            Guid userId,
             DateTimeOffset atUtc,
             CancellationToken cancellationToken) => throw new NotSupportedException();
     }

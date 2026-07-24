@@ -517,16 +517,33 @@ stable identity changed, patch the Google event ID already stored in the ledger 
 atomically move the mapping to the new identity. Re-deriving an event ID from the new
 identity would create a second event and strand the old one (ADR-061).
 
-A separate reconciliation job periodically checks:
+A separate, freeze-gated reconciliation job periodically performs a three-way comparison:
 
 - expected managed events
 - stored mappings
 - actual Google events
-- missing or duplicated events
-- deleted calendars
-- stale content hashes
+- missing or visibly stale expected events
+- missing or stale ledger rows
+- duplicated, unexpected, or conflicting marked events
+- deleted or inaccessible managed calendars
 
-Reconciliation repairs drift. It must not replace the normal incremental sync flow.
+It repairs positive expected state: recreate a missing mapped event, adopt one unledgered exact
+match, insert an expected event that exists nowhere, patch visible/private-property drift, and
+refresh stale ledger metadata. It never deletes because an event or mapping is absent from current
+truth. Duplicate, unexpected, or conflicting objects are preserved and reported; deletion remains
+authorized only by a replayed or newly dispatched valid semantic diff.
+
+Calendar creation has its own recovery key because the provider offers no idempotency key for
+containers. Every created calendar receives an exact per-user description marker. Before creating,
+initial sync lists owned marker candidates using `calendar.calendarlist.readonly`, validates that
+they are accessible through the app-created grant, reattaches exactly one, creates on zero, and
+fails safely on multiple candidates.
+
+Global dispatch and reconciliation share a PostgreSQL session advisory fence. One worker holds the
+dedicated connection/lock continuously across dispatch, ordered semantic replay (including its
+empty-scan completion), and inventory; another worker uses non-blocking acquisition and yields.
+This makes "no later dispatched diff remains for this user" safe across processes without placing
+external Calendar calls inside a database transaction.
 
 ## 17. Error classification pattern
 
@@ -760,9 +777,9 @@ selectors; an inactive record never applies), so the rule is unit-tested without
 database and is the single authority the query only optimizes for.
 
 The one step the provider cannot make idempotent — creating the container object itself
-(the calendar) — is the residual risk: persist its id immediately after creation to
-shrink the crash window, and defer full protection (a marker-tagged lookup) to
-reconciliation.
+(the calendar) — uses marker-based recovery: persist its id immediately after creation,
+and, before any replacement creation, search for an exact per-user marker and safely
+reattach only when there is exactly one candidate (ADR-063).
 
 ## 27. Edge-triggered fan-out with coarse job state over a fine-grained ledger
 

@@ -81,6 +81,21 @@ public interface IGoogleCalendarConnectionStore
         DateTimeOffset expectedRequiredSinceUtc,
         DateTimeOffset atUtc,
         CancellationToken cancellationToken);
+
+    /// <summary>Records one successful non-destructive Calendar/ledger inventory pass.</summary>
+    Task MarkCalendarInventoryCompletedAsync(
+        Guid userId,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Marks the attached calendar unavailable so ordinary synchronization stops and the user
+    /// sees an explicit repair-required state.
+    /// </summary>
+    Task MarkManagedCalendarUnavailableAsync(
+        Guid userId,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -101,6 +116,10 @@ public sealed record GoogleCalendarConnectionView
 
     /// <summary>Null until initial sync creates the dedicated calendar (ADR-024).</summary>
     public string? ManagedCalendarId { get; init; }
+
+    public DateTimeOffset? ManagedCalendarUnavailableAtUtc { get; init; }
+
+    public DateTimeOffset? LastCalendarInventoryAtUtc { get; init; }
 
     /// <summary>Null when this connection has no missed-diff reconciliation to perform.</summary>
     public DateTimeOffset? ReconciliationRequiredSinceUtc { get; init; }

@@ -39,7 +39,7 @@ public static class CalendarAuthorizationEndpoints
         Results.Ok(new CalendarAuthorizationOptionsResponse
         {
             ClientId = authorization.ClientId,
-            Scope = authorization.RequiredScope,
+            Scope = authorization.RequiredScopes,
         });
 
     private static async Task<IResult> GetAsync(

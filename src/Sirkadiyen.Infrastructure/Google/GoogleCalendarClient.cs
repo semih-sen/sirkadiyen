@@ -8,6 +8,7 @@ using Google.Apis.Auth.OAuth2.Responses;
 using Google.Apis.Calendar.v3;
 using Google.Apis.Calendar.v3.Data;
 using Google.Apis.Services;
+using Google.Apis.Util;
 using Sirkadiyen.Application.GoogleCalendar;
 using GoogleCalendarData = Google.Apis.Calendar.v3.Data.Calendar;
 
@@ -60,12 +61,18 @@ public sealed class GoogleCalendarClient : IUserCalendarClient, IDisposable
         CalendarAccess access,
         string calendarSummary,
         string timeZoneId,
+        string descriptionMarker,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(access);
 
         CalendarService service = ServiceFor(access);
-        GoogleCalendarData calendar = new() { Summary = calendarSummary, TimeZone = timeZoneId };
+        GoogleCalendarData calendar = new()
+        {
+            Summary = calendarSummary,
+            TimeZone = timeZoneId,
+            Description = descriptionMarker,
+        };
 
         return await ExecuteAsync(
             async () =>
@@ -75,6 +82,88 @@ public sealed class GoogleCalendarClient : IUserCalendarClient, IDisposable
                 return created.Id;
             },
             "Creating the dedicated Google calendar",
+            cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<string>> FindManagedCalendarIdsAsync(
+        CalendarAccess access,
+        string descriptionMarker,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(access);
+        ArgumentException.ThrowIfNullOrWhiteSpace(descriptionMarker);
+
+        CalendarService service = ServiceFor(access);
+        return await ExecuteAsync(
+            async () =>
+            {
+                List<string> candidateIds = [];
+                string? pageToken = null;
+                do
+                {
+                    CalendarListResource.ListRequest request = service.CalendarList.List();
+                    request.MaxResults = 250;
+                    request.ShowHidden = true;
+                    request.PageToken = pageToken;
+                    CalendarList response = await request.ExecuteAsync(cancellationToken);
+                    foreach (CalendarListEntry entry in response.Items ?? [])
+                    {
+                        if (string.Equals(
+                                entry.Description,
+                                descriptionMarker,
+                                StringComparison.Ordinal)
+                            && string.Equals(entry.AccessRole, "owner", StringComparison.Ordinal)
+                            && await CanReadManagedEventsAsync(
+                                service,
+                                entry.Id,
+                                cancellationToken))
+                        {
+                            candidateIds.Add(entry.Id);
+                        }
+                    }
+
+                    pageToken = response.NextPageToken;
+                }
+                while (!string.IsNullOrWhiteSpace(pageToken));
+
+                return (IReadOnlyList<string>)[.. candidateIds.Order(StringComparer.Ordinal)];
+            },
+            "Finding an orphaned managed calendar",
+            cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<ManagedCalendarEventSnapshot>> ListManagedEventsAsync(
+        CalendarAccess access,
+        string calendarId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(access);
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarId);
+
+        CalendarService service = ServiceFor(access);
+        return await ExecuteAsync(
+            async () =>
+            {
+                List<ManagedCalendarEventSnapshot> snapshots = [];
+                string? pageToken = null;
+                do
+                {
+                    EventsResource.ListRequest request = service.Events.List(calendarId);
+                    request.PrivateExtendedProperty =
+                        new Repeatable<string>([$"{ManagedCalendarEventFactory.ManagedMarkerKey}=1"]);
+                    request.ShowDeleted = false;
+                    request.MaxResults = 2500;
+                    request.PageToken = pageToken;
+
+                    Events response = await request.ExecuteAsync(cancellationToken);
+                    snapshots.AddRange((response.Items ?? []).Select(ToSnapshot));
+                    pageToken = response.NextPageToken;
+                }
+                while (!string.IsNullOrWhiteSpace(pageToken));
+
+                return (IReadOnlyList<ManagedCalendarEventSnapshot>)snapshots;
+            },
+            "Listing managed calendar events",
             cancellationToken);
     }
 
@@ -213,6 +302,13 @@ public sealed class GoogleCalendarClient : IUserCalendarClient, IDisposable
                     $"{operation} was rejected: the credential needs re-authorization.",
                     exception);
             }
+            catch (GoogleApiException exception)
+                when (IsGone(exception.HttpStatusCode))
+            {
+                throw new GoogleManagedCalendarUnavailableException(
+                    $"{operation} failed because the managed calendar is unavailable.",
+                    exception);
+            }
             catch (Exception exception)
                 when (exception is GoogleApiException or HttpRequestException or TokenResponseException)
             {
@@ -276,6 +372,55 @@ public sealed class GoogleCalendarClient : IUserCalendarClient, IDisposable
         });
     }
 
+    private static async Task<bool> CanReadManagedEventsAsync(
+        CalendarService service,
+        string calendarId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            EventsResource.ListRequest request = service.Events.List(calendarId);
+            request.PrivateExtendedProperty =
+                new Repeatable<string>([$"{ManagedCalendarEventFactory.ManagedMarkerKey}=1"]);
+            request.MaxResults = 1;
+            await request.ExecuteAsync(cancellationToken);
+            return true;
+        }
+        catch (GoogleApiException exception)
+            when (exception.HttpStatusCode is HttpStatusCode.Forbidden
+                or HttpStatusCode.NotFound
+                or HttpStatusCode.Gone)
+        {
+            // CalendarList can see calendars this app did not create. The app-created scope
+            // cannot read their events, which makes this an authorization-independent proof
+            // that the description marker alone is not enough to attach them.
+            return false;
+        }
+    }
+
+    private static ManagedCalendarEventSnapshot ToSnapshot(Event googleEvent)
+    {
+        IReadOnlyDictionary<string, string> privateProperties =
+            googleEvent.ExtendedProperties?.Private__ is { } properties
+                ? new Dictionary<string, string>(properties, StringComparer.Ordinal)
+                : new Dictionary<string, string>(StringComparer.Ordinal);
+
+        bool isAllDay = !string.IsNullOrWhiteSpace(googleEvent.Start?.Date);
+        return new ManagedCalendarEventSnapshot
+        {
+            EventId = googleEvent.Id,
+            Summary = googleEvent.Summary,
+            Description = googleEvent.Description,
+            Location = googleEvent.Location,
+            IsAllDay = isAllDay,
+            StartDate = isAllDay ? ParseDate(googleEvent.Start?.Date) : null,
+            EndDateExclusive = isAllDay ? ParseDate(googleEvent.End?.Date) : null,
+            StartAt = isAllDay ? null : googleEvent.Start?.DateTimeDateTimeOffset,
+            EndAt = isAllDay ? null : googleEvent.End?.DateTimeDateTimeOffset,
+            PrivateProperties = privateProperties,
+        };
+    }
+
     private static Event ToGoogleEvent(ManagedCalendarEvent calendarEvent)
     {
         Event googleEvent = new()
@@ -319,4 +464,14 @@ public sealed class GoogleCalendarClient : IUserCalendarClient, IDisposable
 
     private static string FormatLocal(DateTime local) =>
         local.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture);
+
+    private static DateOnly? ParseDate(string? value) =>
+        DateOnly.TryParseExact(
+            value,
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out DateOnly parsed)
+            ? parsed
+            : null;
 }

@@ -401,6 +401,16 @@ public sealed class CalendarReconciliationServiceTests
             Guid userId,
             DateTimeOffset atUtc,
             CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task MarkCalendarInventoryCompletedAsync(
+            Guid userId,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task MarkManagedCalendarUnavailableAsync(
+            Guid userId,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class FakeMappingStore : IUserCalendarEventMappingStore
@@ -531,6 +541,12 @@ public sealed class CalendarReconciliationServiceTests
         public Task<int> CountForUserAsync(
             Guid userId,
             CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<CalendarEventMappingView>> ListForUserAsync(
+            Guid userId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<CalendarEventMappingView>>(
+                [.. Items.Where(mapping => mapping.UserId == userId)]);
     }
 
     private sealed class FakeCalendarClient : IUserCalendarClient
@@ -582,6 +598,17 @@ public sealed class CalendarReconciliationServiceTests
             CalendarAccess access,
             string calendarSummary,
             string timeZoneId,
+            string descriptionMarker,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<string>> FindManagedCalendarIdsAsync(
+            CalendarAccess access,
+            string descriptionMarker,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<ManagedCalendarEventSnapshot>> ListManagedEventsAsync(
+            CalendarAccess access,
+            string calendarId,
             CancellationToken cancellationToken) => throw new NotSupportedException();
 
         private void Guard()

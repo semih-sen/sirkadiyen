@@ -39,11 +39,12 @@ public sealed class GoogleCalendarAuthorizationClient
                 ClientId = options.ClientId,
                 ClientSecret = options.ClientSecret,
             },
-            Scopes = [GoogleCalendarAuthorizationOptions.CalendarScope],
+            Scopes = GoogleCalendarAuthorizationOptions.RequiredScopes,
         });
     }
 
-    public string RequiredScope => GoogleCalendarAuthorizationOptions.CalendarScope;
+    public IReadOnlyList<string> RequiredScopes =>
+        GoogleCalendarAuthorizationOptions.RequiredScopes;
 
     public string ClientId => options.ClientId;
 

@@ -2733,3 +2733,135 @@ created from its original identity.
   ledger rows for the same current lesson.
 - A pre-existing both-sides conflict is left untouched. Removing an extra Google event
   belongs to the later inventory reconciliation sweep and must not be inferred here.
+
+## ADR-062: Reconcile Calendar inventory as a non-destructive three-way repair
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-24
+**Implements:** `CalendarInventoryReconciliationService`, inventory target scheduling,
+managed-event enumeration/comparison, connection inventory health state,
+`AddCalendarInventoryReconciliation` migration, worker stage, and unit/PostgreSQL tests
+**Depends on:** ADR-033/042 (forward-fix and release authority), ADR-034/043 (global
+freeze), ADR-058/059 (managed event identity and ledger), ADR-060/061 (ordered replay
+and identity-preserving patch)
+
+### Context
+
+Semantic replay repairs changes missed while a credential was dead, but it cannot find
+out-of-band drift: a user may delete or edit a managed event, a process may write Google
+successfully and die before committing its ledger row, or local metadata may become stale.
+Conversely, treating every object absent from current published truth as removable would
+bypass the semantic-diff hold/release safety boundary.
+
+### Decision
+
+Run a periodic, freeze-gated three-way inventory over:
+
+1. current published records applicable to the user;
+2. all of the user's durable event mappings;
+3. actual Google events carrying Sirkadiyen private markers.
+
+Repair only positive expected state. Recreate a missing mapped event with its ledger event
+ID; adopt and patch one exact unledgered marked event; otherwise insert the deterministic
+event and create its ledger row. Patch visible or private-property drift even when the
+stored content hash is current, and update stale canonical IDs or hashes in the ledger.
+
+Do not delete from inventory. A mapping without a current expected record, a duplicate or
+unexpected marked event, and an identity/source conflict are counted and preserved for
+operator-visible handling. Only a `Deleted` entry or a no-longer-applicable `Updated` entry
+from a valid published dispatchable semantic diff authorizes deletion.
+
+Persist `LastCalendarInventoryAtUtc` for cadence and
+`ManagedCalendarUnavailableAtUtc` when the attached calendar returns unavailable. The latter
+removes the connection from writers and makes onboarding report `ActionRequired`.
+
+### Consequences
+
+- Manual deletion and visible edits to an expected managed event converge on the next
+  inventory without waiting for that lesson's next source change.
+- A crash between the Google write and ledger commit can be repaired without creating a
+  second event.
+- Ambiguous external state stays intact; cleanup requires an explicit audited design and
+  cannot silently inherit reconciliation authority.
+- Successful inventories, including those reporting conflicts, advance the cadence.
+  Transient failures retain the due state and currently retry on the next worker cycle.
+- Automatic recreation of a deleted whole calendar is not part of this decision.
+
+## ADR-063: Recover one marker-matched orphan calendar before creating another
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-24
+**Implements:** `ManagedCalendarIdentity`, Calendar description marker, CalendarList lookup,
+minimal additional OAuth scope, initial-sync recovery policy, and mocked tests
+**Depends on:** ADR-024 (one dedicated calendar), ADR-057 (separate least-privilege consent),
+ADR-058 (resumable initial sync)
+
+### Context
+
+Google Calendar creation has no client-supplied idempotency key. If a worker creates the
+dedicated calendar and dies before persisting `ManagedCalendarId`, retrying creation can
+orphan the first calendar and provision a duplicate.
+
+### Decision
+
+Write an exact, versioned, per-user marker to the created calendar's description. When an
+initial-sync connection has no stored calendar ID, list the user's owned CalendarList
+entries with that exact marker and validate candidates by reading Sirkadiyen-marked events
+through the app-created grant.
+
+- exactly one accessible candidate: attach and resume;
+- zero candidates: create a new marked calendar and persist its ID immediately;
+- multiple candidates: stop safely and do not guess.
+
+Retain `calendar.app.created` for all calendar/event mutations and add only
+`calendar.calendarlist.readonly` for the lookup. Authorization verifies both granted scopes.
+An older grant lacking the new scope can continue using an already-attached calendar; if
+orphan lookup is required, the credential is marked for re-authorization.
+
+### Consequences
+
+- The create/commit crash window converges to the original calendar instead of duplicating it.
+- Existing unrelated and primary calendars remain outside mutation scope.
+- Exact-marker ambiguity is visible rather than resolved destructively.
+- The real CalendarList behavior still needs a live-consent smoke test.
+
+## ADR-064: Fence dispatch and reconciliation across worker instances
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-24
+**Implements:** `ICalendarDispatchReconciliationFence`,
+`PostgresCalendarDispatchReconciliationFence`, worker orchestration, DI registration, and
+PostgreSQL exclusion test
+**Depends on:** ADR-059 (global dispatch), ADR-060 (empty scan completes catch-up), ADR-062
+(periodic inventory)
+
+### Context
+
+In one worker process, dispatch precedes replay. With multiple workers, one process could
+complete a user's replay after an empty scan while another process is concurrently
+dispatching a diff that already skipped that user. Inventory could also inspect an
+intermediate dispatch/replay state.
+
+### Decision
+
+Serialize the Calendar maintenance critical section with a PostgreSQL session advisory lock.
+Acquire it non-blockingly on a dedicated connection and keep that connection alive across:
+
+```text
+global Ready/Released diff dispatch
+-> per-user dispatched-diff replay, including empty-scan completion
+-> due Calendar/ledger inventory
+```
+
+A worker that cannot acquire the lock yields that section for the cycle. Disposal explicitly
+unlocks; connection loss also releases the session lock. Initial sync remains outside because
+it does not participate in the completed-user dispatch/replay ordering proof.
+
+### Consequences
+
+- The empty replay scan is a valid cross-process completion proof.
+- External Calendar calls are not wrapped in a long database transaction.
+- Only one worker performs Calendar maintenance at a time; throughput remains bounded until
+  the work is partitioned with a stronger per-partition protocol.
+- Any future entry point that invokes dispatch, replay, or inventory must go through the same
+  fenced coordinator.

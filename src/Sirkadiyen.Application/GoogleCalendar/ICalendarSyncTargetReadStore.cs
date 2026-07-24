@@ -35,6 +35,15 @@ public interface ICalendarSyncTargetReadStore
     Task<IReadOnlyList<CalendarSyncTarget>> ListTargetsByUserIdsAsync(
         IReadOnlyCollection<Guid> userIds,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Lists healthy, caught-up connections whose periodic Calendar/ledger inventory is due.
+    /// Re-authorization replay always finishes before a level-triggered inventory pass begins.
+    /// </summary>
+    Task<IReadOnlyList<CalendarInventoryTarget>> ListInventoryTargetsAsync(
+        DateTimeOffset dueBeforeUtc,
+        int limit,
+        CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -52,4 +61,17 @@ public sealed record CalendarSyncTarget
     public required string ManagedCalendarId { get; init; }
 
     public required StudentProfileView Profile { get; init; }
+}
+
+public sealed record CalendarInventoryTarget
+{
+    public required Guid UserId { get; init; }
+
+    public required string ProtectedRefreshToken { get; init; }
+
+    public required string ManagedCalendarId { get; init; }
+
+    public required StudentProfileView Profile { get; init; }
+
+    public DateTimeOffset? LastInventoryAtUtc { get; init; }
 }

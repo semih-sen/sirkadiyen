@@ -20,6 +20,26 @@ public interface IUserCalendarClient
         CalendarAccess access,
         string calendarSummary,
         string timeZoneId,
+        string descriptionMarker,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Finds app-created calendars carrying the exact per-user marker. A single result can be
+    /// safely reattached after a creation/persistence crash; zero means create, and more than
+    /// one is an operator-visible conflict.
+    /// </summary>
+    Task<IReadOnlyList<string>> FindManagedCalendarIdsAsync(
+        CalendarAccess access,
+        string descriptionMarker,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Enumerates only Sirkadiyen-managed events on the attached calendar, including their
+    /// private markers and visible content for inventory reconciliation.
+    /// </summary>
+    Task<IReadOnlyList<ManagedCalendarEventSnapshot>> ListManagedEventsAsync(
+        CalendarAccess access,
+        string calendarId,
         CancellationToken cancellationToken);
 
     /// <summary>
@@ -108,6 +128,30 @@ public sealed record ManagedCalendarEvent
     public required IReadOnlyDictionary<string, string> PrivateProperties { get; init; }
 }
 
+/// <summary>A read-only inventory projection of one Google Calendar event.</summary>
+public sealed record ManagedCalendarEventSnapshot
+{
+    public required string EventId { get; init; }
+
+    public string? Summary { get; init; }
+
+    public string? Description { get; init; }
+
+    public string? Location { get; init; }
+
+    public required bool IsAllDay { get; init; }
+
+    public DateOnly? StartDate { get; init; }
+
+    public DateOnly? EndDateExclusive { get; init; }
+
+    public DateTimeOffset? StartAt { get; init; }
+
+    public DateTimeOffset? EndAt { get; init; }
+
+    public required IReadOnlyDictionary<string, string> PrivateProperties { get; init; }
+}
+
 public enum CalendarEventInsertOutcome
 {
     /// <summary>The event was created.</summary>
@@ -188,6 +232,24 @@ public sealed class GoogleCalendarTransientException : GoogleCalendarSyncExcepti
     }
 
     public GoogleCalendarTransientException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+}
+
+/// <summary>
+/// Raised when the attached dedicated calendar itself no longer exists or is inaccessible.
+/// This is not a credential failure and must become an explicit repair-required state rather
+/// than causing automatic calendar recreation.
+/// </summary>
+public sealed class GoogleManagedCalendarUnavailableException : GoogleCalendarSyncException
+{
+    public GoogleManagedCalendarUnavailableException(string message)
+        : base(message)
+    {
+    }
+
+    public GoogleManagedCalendarUnavailableException(string message, Exception innerException)
         : base(message, innerException)
     {
     }

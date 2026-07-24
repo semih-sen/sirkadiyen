@@ -69,6 +69,74 @@ public sealed class CalendarSyncTargetReadStoreTests(PostgresFixture fixture)
         Assert.Equal(ready, only.UserId);
     }
 
+    [Fact]
+    public async Task InventoryTargetsAreDueHealthyAndAlreadyCaughtUp()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+
+        Guid neverChecked = await SetUpAsync(
+            "inventory-never",
+            1,
+            ProgramLanguage.Turkish,
+            Stage.Completed);
+        Guid overdue = await SetUpAsync(
+            "inventory-overdue",
+            1,
+            ProgramLanguage.Turkish,
+            Stage.Completed);
+        Guid recent = await SetUpAsync(
+            "inventory-recent",
+            1,
+            ProgramLanguage.Turkish,
+            Stage.Completed);
+        Guid unavailable = await SetUpAsync(
+            "inventory-unavailable",
+            1,
+            ProgramLanguage.Turkish,
+            Stage.Completed);
+        Guid replayPending = await SetUpAsync(
+            "inventory-replay",
+            1,
+            ProgramLanguage.Turkish,
+            Stage.Completed);
+
+        await using (SirkadiyenDbContext mutate = fixture.CreateProductionLikeContext())
+        {
+            GoogleCalendarConnectionStore connections = new(mutate);
+            await connections.MarkCalendarInventoryCompletedAsync(
+                overdue,
+                Now.AddDays(-2),
+                Token);
+            await connections.MarkCalendarInventoryCompletedAsync(recent, Now, Token);
+            await connections.MarkManagedCalendarUnavailableAsync(
+                unavailable,
+                Now,
+                Token);
+            await connections.MarkNeedsReauthorizationAsync(replayPending, Now, Token);
+            await connections.UpsertAuthorizationAsync(
+                replayPending,
+                "fresh",
+                Scope,
+                Now.AddMinutes(1),
+                Token);
+        }
+
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        IReadOnlyList<CalendarInventoryTarget> targets =
+            await new CalendarSyncTargetReadStore(context).ListInventoryTargetsAsync(
+                Now.AddDays(-1),
+                100,
+                Token);
+
+        Assert.Contains(targets, target => target.UserId == neverChecked);
+        CalendarInventoryTarget due =
+            Assert.Single(targets, target => target.UserId == overdue);
+        Assert.Equal(Now.AddDays(-2), due.LastInventoryAtUtc);
+        Assert.DoesNotContain(targets, target => target.UserId == recent);
+        Assert.DoesNotContain(targets, target => target.UserId == unavailable);
+        Assert.DoesNotContain(targets, target => target.UserId == replayPending);
+    }
+
     private async Task<Guid> SetUpAsync(
         string prefix,
         int classYear,

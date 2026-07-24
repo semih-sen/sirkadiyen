@@ -23,6 +23,16 @@ public sealed record GoogleCalendarAuthorizationOptions
     /// </summary>
     public const string CalendarScope = "https://www.googleapis.com/auth/calendar.app.created";
 
+    /// <summary>
+    /// Allows listing calendar metadata read-only so an app-created calendar can be found
+    /// after a crash between Google creation and local persistence. It grants no event access.
+    /// </summary>
+    public const string CalendarListReadOnlyScope =
+        "https://www.googleapis.com/auth/calendar.calendarlist.readonly";
+
+    public static IReadOnlyList<string> RequiredScopes { get; } =
+        [CalendarScope, CalendarListReadOnlyScope];
+
     public required string ClientId { get; init; }
 
     public required string ClientSecret { get; init; }
