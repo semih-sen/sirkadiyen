@@ -227,6 +227,104 @@ public sealed class ScheduleDiffTests
         Assert.Equal(ScheduleDiffState.Held, diff.State);
     }
 
+    [Fact]
+    public void AReadyDiffStartsPendingDispatchAndUntried()
+    {
+        ScheduleDiff diff = Create(Entries(ScheduleDiffChange.Created, 3));
+
+        Assert.Equal(CalendarDispatchState.Pending, diff.CalendarDispatchState);
+        Assert.True(diff.IsDispatchPending);
+        Assert.Equal(0, diff.DispatchAttempts);
+        Assert.Null(diff.NextAttemptAtUtc);
+        Assert.Null(diff.DispatchedAtUtc);
+    }
+
+    [Fact]
+    public void MarkingADiffDispatchedRecordsWhenAndStopsItBeingPending()
+    {
+        ScheduleDiff diff = Create(Entries(ScheduleDiffChange.Created, 3));
+
+        diff.MarkDispatched(Now.AddMinutes(5));
+
+        Assert.Equal(CalendarDispatchState.Dispatched, diff.CalendarDispatchState);
+        Assert.Equal(Now.AddMinutes(5), diff.DispatchedAtUtc);
+        Assert.False(diff.IsDispatchPending);
+    }
+
+    [Fact]
+    public void MarkingAnAlreadyDispatchedDiffAgainIsANoOp()
+    {
+        ScheduleDiff diff = Create(Entries(ScheduleDiffChange.Created, 3));
+        diff.MarkDispatched(Now.AddMinutes(5));
+
+        diff.MarkDispatched(Now.AddMinutes(9));
+
+        // The first dispatch time stands; a resumed pass must not rewrite it.
+        Assert.Equal(Now.AddMinutes(5), diff.DispatchedAtUtc);
+    }
+
+    [Fact]
+    public void AHeldDiffCannotBeDispatched()
+    {
+        ScheduleDiff diff = Create(
+            Entries(ScheduleDiffChange.Ambiguous, 1),
+            Entries(ScheduleDiffChange.Unchanged, 100));
+
+        Assert.False(diff.IsDispatchPending);
+        Assert.Throws<InvalidOperationException>(() => diff.MarkDispatched(Now));
+        Assert.Throws<InvalidOperationException>(
+            () => diff.RecordDispatchFailure("boom", TimeSpan.FromSeconds(30), 3, Now));
+    }
+
+    [Fact]
+    public void ATransientFailureDefersTheDiffWithABackOffThatGrows()
+    {
+        ScheduleDiff diff = Create(Entries(ScheduleDiffChange.Created, 3));
+
+        diff.RecordDispatchFailure("rate limited", TimeSpan.FromSeconds(30), maxAttempts: 3, Now);
+        Assert.Equal(CalendarDispatchState.Pending, diff.CalendarDispatchState);
+        Assert.Equal(1, diff.DispatchAttempts);
+        Assert.Equal(Now.AddSeconds(30), diff.NextAttemptAtUtc);
+        Assert.Contains("rate limited", diff.DispatchFailureReason!, StringComparison.Ordinal);
+
+        diff.RecordDispatchFailure("rate limited", TimeSpan.FromSeconds(30), maxAttempts: 3, Now);
+        Assert.Equal(2, diff.DispatchAttempts);
+        Assert.Equal(Now.AddSeconds(60), diff.NextAttemptAtUtc);
+        Assert.True(diff.IsDispatchPending);
+    }
+
+    [Fact]
+    public void TooManyTransientFailuresGiveUpAndNeedAnOperator()
+    {
+        ScheduleDiff diff = Create(Entries(ScheduleDiffChange.Created, 3));
+
+        diff.RecordDispatchFailure("boom", TimeSpan.FromSeconds(30), maxAttempts: 2, Now);
+        diff.RecordDispatchFailure("boom", TimeSpan.FromSeconds(30), maxAttempts: 2, Now);
+
+        Assert.Equal(CalendarDispatchState.Failed, diff.CalendarDispatchState);
+        Assert.Null(diff.NextAttemptAtUtc);
+        Assert.False(diff.IsDispatchPending);
+        Assert.Throws<InvalidOperationException>(() => diff.MarkDispatched(Now));
+    }
+
+    [Fact]
+    public void ReleasingAHeldDiffLeavesItPendingDispatchAndReadyToActOn()
+    {
+        // A held diff cannot be dispatched at all, so releasing it is what first makes it eligible.
+        ScheduleDiff diff = Create(
+            Entries(ScheduleDiffChange.Deleted, 12),
+            Entries(ScheduleDiffChange.Unchanged, 28));
+        Assert.False(diff.IsDispatchPending);
+
+        diff.Release("semih", "The 12 deletions are the ended anatomy block.", Now.AddHours(1));
+
+        // Release changes only the review state; the dispatch fields are untouched, so the freshly
+        // dispatchable diff is now pending with no attempts spent.
+        Assert.Equal(CalendarDispatchState.Pending, diff.CalendarDispatchState);
+        Assert.Equal(0, diff.DispatchAttempts);
+        Assert.True(diff.IsDispatchPending);
+    }
+
     private static ScheduleDiff Create(params IReadOnlyList<ScheduleDiffEntry>[] groups) =>
         ScheduleDiff.Create(
             SourceRowId,

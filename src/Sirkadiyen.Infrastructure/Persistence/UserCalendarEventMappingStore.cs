@@ -2,10 +2,11 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Domain.GoogleCalendar;
+using Sirkadiyen.Domain.ScheduleSources;
 
 namespace Sirkadiyen.Infrastructure.Persistence;
 
-/// <summary>PostgreSQL ledger of the calendar events written for each user (ADR-058).</summary>
+/// <summary>PostgreSQL ledger of the calendar events written for each user (ADR-058, ADR-059).</summary>
 public sealed class UserCalendarEventMappingStore(SirkadiyenDbContext dbContext)
     : IUserCalendarEventMappingStore
 {
@@ -27,6 +28,29 @@ public sealed class UserCalendarEventMappingStore(SirkadiyenDbContext dbContext)
             .AsNoTracking()
             .CountAsync(mapping => mapping.UserId == userId, cancellationToken);
 
+    public async Task<IReadOnlyList<CalendarEventMappingView>> ListForStableIdentityAsync(
+        SourceId sourceId,
+        string stableIdentity,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(stableIdentity);
+
+        return await dbContext.UserCalendarEventMappings
+            .AsNoTracking()
+            .Where(mapping =>
+                mapping.SourceId == sourceId && mapping.StableIdentity == stableIdentity)
+            .Select(mapping => new CalendarEventMappingView
+            {
+                UserId = mapping.UserId,
+                StableIdentity = mapping.StableIdentity,
+                GoogleCalendarId = mapping.GoogleCalendarId,
+                GoogleEventId = mapping.GoogleEventId,
+                ContentHash = mapping.ContentHash,
+                CanonicalRecordId = mapping.CanonicalRecordId,
+            })
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<CalendarEventMappingAddOutcome> AddAsync(
         UserCalendarEventMapping mapping,
         CancellationToken cancellationToken)
@@ -46,6 +70,53 @@ public sealed class UserCalendarEventMappingStore(SirkadiyenDbContext dbContext)
             dbContext.ChangeTracker.Clear();
             return CalendarEventMappingAddOutcome.AlreadyPresent;
         }
+    }
+
+    public async Task UpdateContentAsync(
+        Guid userId,
+        string stableIdentity,
+        Guid canonicalRecordId,
+        string contentHash,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(stableIdentity);
+
+        UserCalendarEventMapping? mapping = await dbContext.UserCalendarEventMappings
+            .SingleOrDefaultAsync(
+                candidate => candidate.UserId == userId
+                    && candidate.StableIdentity == stableIdentity,
+                cancellationToken);
+        if (mapping is null)
+        {
+            // The row was removed between the reverse lookup and here; the patched calendar stands.
+            return;
+        }
+
+        mapping.UpdateContent(canonicalRecordId, contentHash, atUtc);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<CalendarEventMappingRemoveOutcome> RemoveAsync(
+        Guid userId,
+        string stableIdentity,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(stableIdentity);
+
+        UserCalendarEventMapping? mapping = await dbContext.UserCalendarEventMappings
+            .SingleOrDefaultAsync(
+                candidate => candidate.UserId == userId
+                    && candidate.StableIdentity == stableIdentity,
+                cancellationToken);
+        if (mapping is null)
+        {
+            return CalendarEventMappingRemoveOutcome.NotFound;
+        }
+
+        dbContext.UserCalendarEventMappings.Remove(mapping);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return CalendarEventMappingRemoveOutcome.Removed;
     }
 
     private static bool IsUniqueViolation(DbUpdateException exception) =>

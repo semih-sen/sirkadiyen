@@ -34,4 +34,22 @@ public sealed class CanonicalScheduleReadStore(SirkadiyenDbContext dbContext)
 
         return await query.ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<CanonicalScheduleRecord>> ListRecordsByIdsAsync(
+        IReadOnlyCollection<Guid> recordIds,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(recordIds);
+        if (recordIds.Count == 0)
+        {
+            return [];
+        }
+
+        // Deletion entries reference records of a now-superseded revision, so this deliberately does
+        // not filter on revision state or record status: it loads exactly the records the diff named.
+        return await dbContext.CanonicalScheduleRecords
+            .AsNoTracking()
+            .Where(record => recordIds.Contains(record.Id))
+            .ToListAsync(cancellationToken);
+    }
 }

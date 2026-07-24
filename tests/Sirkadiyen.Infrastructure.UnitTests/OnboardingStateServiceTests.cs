@@ -161,6 +161,11 @@ public sealed class OnboardingStateServiceTests
             Guid userId,
             DateTimeOffset atUtc,
             CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task MarkNeedsReauthorizationAsync(
+            Guid userId,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class StubProfileStore(bool hasProfile) : IStudentProfileStore

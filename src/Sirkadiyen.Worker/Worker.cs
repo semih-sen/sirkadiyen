@@ -47,6 +47,7 @@ internal sealed class Worker(
             await PollAllSourcesAsync(stoppingToken);
             await PublishValidatedRevisionsAsync(stoppingToken);
             await CalculatePendingDiffsAsync(stoppingToken);
+            await DispatchPendingDiffsAsync(stoppingToken);
             await RunPendingInitialSyncsAsync(stoppingToken);
             await PruneExpiredSnapshotPayloadsAsync(stoppingToken);
 
@@ -220,6 +221,86 @@ internal sealed class Worker(
         catch (Exception exception)
         {
             logger.LogError(exception, "Calculating pending schedule diffs failed.");
+        }
+    }
+
+    /// <summary>
+    /// Fans every dispatchable schedule diff out onto the calendars it affects (ADR-059): inserting
+    /// newly applicable lessons, patching changed ones, and deleting those that no longer apply.
+    /// </summary>
+    /// <remarks>
+    /// This runs after diff calculation and, like it, is driven by diff state rather than this
+    /// cycle's poll results, so a worker killed mid-fan-out re-runs the whole diff idempotently. It
+    /// is gated by the same operational freeze as every other calendar job.
+    /// </remarks>
+    private async Task DispatchPendingDiffsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
+            IncrementalCalendarSyncService sync = scope.ServiceProvider
+                .GetRequiredService<IncrementalCalendarSyncService>();
+
+            IncrementalCalendarSyncRunResult result = await sync.RunPendingAsync(cancellationToken);
+
+            if (result.Frozen)
+            {
+                logger.LogInformation(
+                    "Incremental calendar dispatch skipped because the global operational "
+                    + "freeze is active.");
+                return;
+            }
+
+            foreach (IncrementalCalendarSyncDiffResult diff in result.Diffs)
+            {
+                LogIncrementalSyncResult(diff);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Dispatching pending schedule diffs to calendars failed.");
+        }
+    }
+
+    private void LogIncrementalSyncResult(IncrementalCalendarSyncDiffResult diff)
+    {
+        switch (diff.Outcome)
+        {
+            case IncrementalDispatchOutcome.Dispatched:
+                logger.LogInformation(
+                    "Diff {DiffId} dispatched to calendars: {Inserted} inserted, {Patched} patched, "
+                    + "{Deleted} deleted; {ReauthFlagged} users flagged for re-authorization.",
+                    diff.DiffId,
+                    diff.Inserted,
+                    diff.Patched,
+                    diff.Deleted,
+                    diff.ReauthFlagged);
+                break;
+
+            case IncrementalDispatchOutcome.Deferred:
+                logger.LogWarning(
+                    "Diff {DiffId} dispatch deferred after a transient failure and will retry: "
+                    + "{FailureReason}",
+                    diff.DiffId,
+                    diff.FailureReason);
+                break;
+
+            case IncrementalDispatchOutcome.NoLongerPending:
+                // Another pass handled it between the scan and the load; nothing to report.
+                break;
+
+            case IncrementalDispatchOutcome.Failed:
+            default:
+                logger.LogError(
+                    "Diff {DiffId} dispatch failed after too many attempts and needs an operator: "
+                    + "{FailureReason}",
+                    diff.DiffId,
+                    diff.FailureReason);
+                break;
         }
     }
 

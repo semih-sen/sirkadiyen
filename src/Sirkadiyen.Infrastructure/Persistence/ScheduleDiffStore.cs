@@ -118,6 +118,79 @@ public sealed class ScheduleDiffStore(SirkadiyenDbContext dbContext) : ISchedule
         };
     }
 
+    public async Task<IReadOnlyList<Guid>> ListPendingDispatchAsync(
+        int limit,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
+
+        return await dbContext.ScheduleDiffs
+            .AsNoTracking()
+            .Where(diff =>
+                (diff.State == ScheduleDiffState.Ready || diff.State == ScheduleDiffState.Released)
+                && diff.CalendarDispatchState == CalendarDispatchState.Pending
+                && (diff.NextAttemptAtUtc == null || diff.NextAttemptAtUtc <= now))
+            .OrderBy(diff => diff.CreatedAtUtc)
+            .ThenBy(diff => diff.Id)
+            .Select(diff => diff.Id)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<DispatchableDiff?> LoadForDispatchAsync(
+        Guid diffId,
+        CancellationToken cancellationToken)
+    {
+        ScheduleDiff? diff = await dbContext.ScheduleDiffs
+            .AsNoTracking()
+            .Include(candidate => candidate.Entries)
+            .SingleOrDefaultAsync(candidate => candidate.Id == diffId, cancellationToken);
+
+        if (diff is null || !diff.IsDispatchPending)
+        {
+            return null;
+        }
+
+        return new DispatchableDiff
+        {
+            DiffId = diff.Id,
+            SourceId = diff.SourceId,
+            Entries = [.. diff.Entries],
+        };
+    }
+
+    public async Task MarkDispatchedAsync(
+        Guid diffId,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken)
+    {
+        ScheduleDiff diff = await SingleForUpdateAsync(diffId, cancellationToken);
+        diff.MarkDispatched(atUtc);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<CalendarDispatchState> RecordDispatchFailureAsync(
+        Guid diffId,
+        string reason,
+        TimeSpan baseRetryDelay,
+        int maxAttempts,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        ScheduleDiff diff = await SingleForUpdateAsync(diffId, cancellationToken);
+        diff.RecordDispatchFailure(reason, baseRetryDelay, maxAttempts, now);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return diff.CalendarDispatchState;
+    }
+
+    private async Task<ScheduleDiff> SingleForUpdateAsync(
+        Guid diffId,
+        CancellationToken cancellationToken) =>
+        await dbContext.ScheduleDiffs
+            .SingleOrDefaultAsync(candidate => candidate.Id == diffId, cancellationToken)
+        ?? throw new InvalidOperationException($"No schedule diff exists with id '{diffId}'.");
+
     private async Task<IReadOnlyList<CanonicalScheduleRecord>> LoadRecordsAsync(
         Guid revisionId,
         CancellationToken cancellationToken) =>

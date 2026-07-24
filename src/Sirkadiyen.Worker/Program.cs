@@ -72,6 +72,22 @@ InitialSyncOptions initialSyncOptions = new()
 };
 initialSyncOptions.Validate();
 
+// How incremental sync fans diffs out onto calendars and backs off after a transient failure
+// (ADR-059). Shares the SIRKADIYEN_SYNC block with initial sync.
+IncrementalSyncOptions incrementalSyncOptions = new()
+{
+    DiffDispatchBatchSize = ParseInteger(
+        builder.Configuration["SIRKADIYEN_SYNC:DIFF_DISPATCH_BATCH_SIZE"],
+        10),
+    MaxDispatchAttempts = ParseInteger(
+        builder.Configuration["SIRKADIYEN_SYNC:MAX_DISPATCH_ATTEMPTS"],
+        5),
+    DispatchRetryBaseDelaySeconds = ParseInteger(
+        builder.Configuration["SIRKADIYEN_SYNC:DISPATCH_RETRY_BASE_DELAY_SECONDS"],
+        30),
+};
+incrementalSyncOptions.Validate();
+
 // The worker decrypts the refresh token the API encrypted, so it shares the same Data
 // Protection key ring (ADR-058).
 string? dataProtectionKeyRingPath =
@@ -186,10 +202,12 @@ builder.Services.AddSingleton<ScheduleSourceCatalogLoader>();
 builder.Services.AddSingleton(googleOptions);
 builder.Services.AddSingleton(calendarOptions);
 builder.Services.AddSingleton(initialSyncOptions);
+builder.Services.AddSingleton(incrementalSyncOptions);
 builder.Services.AddSirkadiyenDataProtection(dataProtectionKeyRingPath);
 builder.Services.AddSingleton<ICalendarTokenProtector, DataProtectionCalendarTokenProtector>();
 builder.Services.AddSingleton<IUserCalendarClient, GoogleCalendarClient>();
 builder.Services.AddScoped<InitialCalendarSyncService>();
+builder.Services.AddScoped<IncrementalCalendarSyncService>();
 builder.Services.AddSingleton<GoogleSheetsServiceFactory>();
 builder.Services.AddSingleton<SheetsService>(services =>
     services.GetRequiredService<GoogleSheetsServiceFactory>().Create(googleOptions));

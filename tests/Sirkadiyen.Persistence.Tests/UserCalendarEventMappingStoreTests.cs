@@ -72,11 +72,85 @@ public sealed class UserCalendarEventMappingStoreTests(PostgresFixture fixture)
         Assert.Equal(0, await store.CountForUserAsync(other.UserId, Token));
     }
 
-    private static UserCalendarEventMapping Mapping(Guid userId, string stableIdentity) =>
+    [Fact]
+    public async Task TheReverseLookupNamesEveryHolderOfALessonScopedToItsSource()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        UserSession first = await CreateUserAsync("reverse-first");
+        UserSession second = await CreateUserAsync("reverse-second");
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        UserCalendarEventMappingStore store = new(context);
+        await store.AddAsync(Mapping(first.UserId, "shared-lesson"), Token);
+        await store.AddAsync(Mapping(second.UserId, "shared-lesson"), Token);
+        // A same-named lesson from a different source must not be swept into the fan-out.
+        await store.AddAsync(
+            Mapping(first.UserId, "shared-lesson", SourceId.Parse("G2-EN-ANNUAL")),
+            Token);
+
+        IReadOnlyList<CalendarEventMappingView> holders =
+            await store.ListForStableIdentityAsync(Source, "shared-lesson", Token);
+
+        Assert.Equal(2, holders.Count);
+        Assert.Contains(holders, holder => holder.UserId == first.UserId);
+        Assert.Contains(holders, holder => holder.UserId == second.UserId);
+        Assert.All(holders, holder => Assert.Equal("sha256:shared-lesson", holder.ContentHash));
+    }
+
+    [Fact]
+    public async Task UpdatingContentReplacesTheStoredHashAndRecord()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        UserSession user = await CreateUserAsync("update-content");
+        Guid newRecordId = Guid.CreateVersion7();
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        UserCalendarEventMappingStore store = new(context);
+        await store.AddAsync(Mapping(user.UserId, "patched"), Token);
+
+        await store.UpdateContentAsync(
+            user.UserId,
+            "patched",
+            newRecordId,
+            "sha256:patched-v2",
+            Now.AddMinutes(5),
+            Token);
+
+        CalendarEventMappingView holder = Assert.Single(
+            await store.ListForStableIdentityAsync(Source, "patched", Token));
+        Assert.Equal("sha256:patched-v2", holder.ContentHash);
+        Assert.Equal(newRecordId, holder.CanonicalRecordId);
+    }
+
+    [Fact]
+    public async Task RemovingAMappingDeletesItAndAnAbsentOneIsReported()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        UserSession user = await CreateUserAsync("remove-mapping");
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        UserCalendarEventMappingStore store = new(context);
+        await store.AddAsync(Mapping(user.UserId, "to-remove"), Token);
+
+        Assert.Equal(
+            CalendarEventMappingRemoveOutcome.Removed,
+            await store.RemoveAsync(user.UserId, "to-remove", Token));
+        Assert.Equal(0, await store.CountForUserAsync(user.UserId, Token));
+
+        // A resumed dispatch that deletes a mapping already gone must converge, not fail.
+        Assert.Equal(
+            CalendarEventMappingRemoveOutcome.NotFound,
+            await store.RemoveAsync(user.UserId, "to-remove", Token));
+    }
+
+    private static UserCalendarEventMapping Mapping(
+        Guid userId,
+        string stableIdentity,
+        SourceId? sourceId = null) =>
         UserCalendarEventMapping.Create(
             userId,
             stableIdentity,
-            Source,
+            sourceId ?? Source,
             Guid.CreateVersion7(),
             "sirkadiyen@group.calendar.google.com",
             $"event-{stableIdentity}",

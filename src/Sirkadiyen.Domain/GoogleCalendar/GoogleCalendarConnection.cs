@@ -148,6 +148,27 @@ public sealed class GoogleCalendarConnection
     }
 
     /// <summary>
+    /// Records that Google rejected the stored credential, moving the connection to
+    /// <see cref="GoogleCalendarConnectionStatus.NeedsReauthorization"/> so synchronization stops
+    /// until the user grants access again (ADR-059).
+    /// </summary>
+    /// <remarks>
+    /// The managed calendar, its events, and the initial-sync progress are all left as they are: a
+    /// dead token means we cannot write, not that what was already written is wrong. Calling this on
+    /// a connection that already needs re-authorization is a no-op.
+    /// </remarks>
+    public void MarkNeedsReauthorization(DateTimeOffset atUtc)
+    {
+        if (Status is GoogleCalendarConnectionStatus.NeedsReauthorization)
+        {
+            return;
+        }
+
+        Status = GoogleCalendarConnectionStatus.NeedsReauthorization;
+        UpdatedAtUtc = atUtc;
+    }
+
+    /// <summary>
     /// Attaches the dedicated calendar created during initial sync (ADR-024). It is set
     /// exactly once; the calendar the user's events live in is never silently replaced.
     /// </summary>
@@ -211,7 +232,7 @@ public enum GoogleCalendarConnectionStatus
 
     /// <summary>
     /// Google rejected the stored credential; synchronization must stop until the user
-    /// grants access again. Only synchronization sets this, so nothing produces it yet.
+    /// grants access again. Incremental sync sets this when a dispatch hits a dead token (ADR-059).
     /// </summary>
     NeedsReauthorization,
 }

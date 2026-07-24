@@ -54,6 +54,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IGoogleCalendarConnectionStore, GoogleCalendarConnectionStore>();
         services.AddScoped<IUserCalendarEventMappingStore, UserCalendarEventMappingStore>();
         services.AddScoped<ICanonicalScheduleReadStore, CanonicalScheduleReadStore>();
+        services.AddScoped<ICalendarSyncTargetReadStore, CalendarSyncTargetReadStore>();
 
         return services;
     }

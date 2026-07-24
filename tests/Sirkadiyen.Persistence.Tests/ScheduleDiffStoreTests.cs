@@ -200,6 +200,114 @@ public sealed class ScheduleDiffStoreTests(PostgresFixture fixture)
         Assert.Equal(ScheduleDiffPersistenceOutcome.Stored, result.Outcome);
     }
 
+    [Fact]
+    public async Task AReadyDiffIsListedForDispatchAndLoadsItsEntries()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        Guid diffId = await CreateReadyDiffAsync(context, ["a", "b", "c"]);
+
+        ScheduleDiffStore store = new(context);
+        context.ChangeTracker.Clear();
+
+        IReadOnlyList<Guid> pending = await store.ListPendingDispatchAsync(50, Now.AddDays(1), Token);
+        Assert.Contains(diffId, pending);
+
+        DispatchableDiff? loaded = await store.LoadForDispatchAsync(diffId, Token);
+        Assert.NotNull(loaded);
+        Assert.Equal(3, loaded.Entries.Count);
+        Assert.All(loaded.Entries, entry => Assert.Equal(ScheduleDiffChange.Created, entry.Change));
+    }
+
+    [Fact]
+    public async Task AHeldDiffIsNeverListedOrLoadedForDispatch()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        ScheduleSource source = await ScheduleDiffScenario.AddSourceAsync(context);
+        string[] full = [.. Enumerable.Range(0, 40).Select(index => $"lesson-{index:D2}")];
+        await ScheduleDiffScenario.PublishAsync(context, source, Now, full);
+        ScheduleRevision second =
+            await ScheduleDiffScenario.PublishAsync(context, source, Now.AddHours(1), full[..20]);
+        await AssertCalculatedAsync(context, second.Id);
+
+        context.ChangeTracker.Clear();
+        ScheduleDiff held = await ReadDiffAsync(context, second.Id);
+        Assert.Equal(ScheduleDiffState.Held, held.State);
+
+        ScheduleDiffStore store = new(context);
+        Assert.DoesNotContain(held.Id, await store.ListPendingDispatchAsync(50, Now.AddDays(1), Token));
+        Assert.Null(await store.LoadForDispatchAsync(held.Id, Token));
+    }
+
+    [Fact]
+    public async Task MarkingADiffDispatchedRemovesItFromThePendingList()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        Guid diffId = await CreateReadyDiffAsync(context, ["a"]);
+
+        ScheduleDiffStore store = new(context);
+        context.ChangeTracker.Clear();
+        await store.MarkDispatchedAsync(diffId, Now.AddMinutes(5), Token);
+
+        context.ChangeTracker.Clear();
+        Assert.DoesNotContain(diffId, await store.ListPendingDispatchAsync(50, Now.AddDays(1), Token));
+        ScheduleDiff stored = await context.ScheduleDiffs.SingleAsync(diff => diff.Id == diffId, Token);
+        Assert.Equal(CalendarDispatchState.Dispatched, stored.CalendarDispatchState);
+        Assert.Equal(Now.AddMinutes(5), stored.DispatchedAtUtc);
+    }
+
+    [Fact]
+    public async Task ATransientFailureDefersWithABackOffThenGivesUp()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        Guid diffId = await CreateReadyDiffAsync(context, ["a"]);
+
+        ScheduleDiffStore store = new(context);
+        context.ChangeTracker.Clear();
+
+        CalendarDispatchState afterFirst = await store.RecordDispatchFailureAsync(
+            diffId,
+            "rate limited",
+            TimeSpan.FromSeconds(30),
+            maxAttempts: 2,
+            Now,
+            Token);
+        Assert.Equal(CalendarDispatchState.Pending, afterFirst);
+
+        // Deferred: not due at Now, due once the back-off has passed.
+        context.ChangeTracker.Clear();
+        Assert.DoesNotContain(diffId, await store.ListPendingDispatchAsync(50, Now, Token));
+        Assert.Contains(diffId, await store.ListPendingDispatchAsync(50, Now.AddMinutes(1), Token));
+
+        context.ChangeTracker.Clear();
+        CalendarDispatchState afterSecond = await store.RecordDispatchFailureAsync(
+            diffId,
+            "rate limited",
+            TimeSpan.FromSeconds(30),
+            maxAttempts: 2,
+            Now,
+            Token);
+        Assert.Equal(CalendarDispatchState.Failed, afterSecond);
+
+        context.ChangeTracker.Clear();
+        Assert.DoesNotContain(diffId, await store.ListPendingDispatchAsync(50, Now.AddDays(1), Token));
+    }
+
+    private async Task<Guid> CreateReadyDiffAsync(SirkadiyenDbContext context, string[] identities)
+    {
+        ScheduleSource source = await ScheduleDiffScenario.AddSourceAsync(context);
+        ScheduleRevision revision = await ScheduleDiffScenario.PublishAsync(context, source, Now, identities);
+        await AssertCalculatedAsync(context, revision.Id);
+
+        context.ChangeTracker.Clear();
+        ScheduleDiff stored = await ReadDiffAsync(context, revision.Id);
+        Assert.Equal(ScheduleDiffState.Ready, stored.State);
+        return stored.Id;
+    }
+
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     private static ScheduleDiffService Service(SirkadiyenDbContext context) => new(

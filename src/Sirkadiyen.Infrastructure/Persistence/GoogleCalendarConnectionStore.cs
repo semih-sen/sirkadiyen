@@ -118,6 +118,16 @@ public sealed class GoogleCalendarConnectionStore(SirkadiyenDbContext dbContext)
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task MarkNeedsReauthorizationAsync(
+        Guid userId,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken)
+    {
+        GoogleCalendarConnection connection = await SingleForUpdateAsync(userId, cancellationToken);
+        connection.MarkNeedsReauthorization(atUtc);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     private async Task<GoogleCalendarConnection> SingleForUpdateAsync(
         Guid userId,
         CancellationToken cancellationToken) =>

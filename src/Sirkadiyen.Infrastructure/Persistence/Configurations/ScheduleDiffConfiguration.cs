@@ -38,8 +38,18 @@ internal sealed class ScheduleDiffConfiguration : IEntityTypeConfiguration<Sched
         // operators acting at once must not silently overwrite each other.
         builder.Property(diff => diff.RowVersion).IsRowVersion();
 
+        // How far the diff has been fanned out onto calendars (ADR-059), stored as text for the
+        // same forward-compatibility reason as State.
+        builder.Property(diff => diff.CalendarDispatchState)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired();
+        builder.Property(diff => diff.DispatchFailureReason)
+            .HasMaxLength(ScheduleDiff.MaximumDispatchFailureReasonLength);
+
         builder.Ignore(diff => diff.IsDispatchable);
         builder.Ignore(diff => diff.IsReleasable);
+        builder.Ignore(diff => diff.IsDispatchPending);
 
         builder.HasOne<ScheduleSource>()
             .WithMany()
@@ -66,6 +76,13 @@ internal sealed class ScheduleDiffConfiguration : IEntityTypeConfiguration<Sched
         // The dispatcher scans for ready diffs and the review queue for held
         // ones, both oldest first.
         builder.HasIndex(diff => new { diff.State, diff.CreatedAtUtc });
+
+        // The incremental dispatcher scans for pending diffs whose back-off has passed (ADR-059).
+        builder.HasIndex(diff => new { diff.CalendarDispatchState, diff.NextAttemptAtUtc });
+
+        builder.ToTable(table => table.HasCheckConstraint(
+            "ck_schedule_diffs_calendar_dispatch_state",
+            "\"CalendarDispatchState\" IN ('Pending', 'Dispatched', 'Failed')"));
 
         builder.HasMany(diff => diff.Entries)
             .WithOne()

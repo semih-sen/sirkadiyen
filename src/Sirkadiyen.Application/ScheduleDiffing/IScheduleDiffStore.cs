@@ -32,6 +32,54 @@ public interface IScheduleDiffStore
     Task<ScheduleDiffPersistenceResult> SaveAsync(
         ScheduleDiff diff,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Lists diffs waiting to be fanned out onto student calendars (ADR-059): dispatchable, still
+    /// <see cref="CalendarDispatchState.Pending"/>, and past any back-off time, oldest first.
+    /// </summary>
+    /// <param name="now">The current time, so a deferred diff is only returned once its retry is due.</param>
+    Task<IReadOnlyList<Guid>> ListPendingDispatchAsync(
+        int limit,
+        DateTimeOffset now,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Loads one diff's entries for dispatch, as read-only data (ADR-059). Returns
+    /// <see langword="null"/> when the diff no longer exists or is no longer dispatch-pending, both of
+    /// which a resumed pass treats as "nothing to do".
+    /// </summary>
+    Task<DispatchableDiff?> LoadForDispatchAsync(Guid diffId, CancellationToken cancellationToken);
+
+    /// <summary>Marks a diff fully applied to calendars (ADR-059), under optimistic concurrency.</summary>
+    Task MarkDispatchedAsync(Guid diffId, DateTimeOffset atUtc, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Records that a dispatch attempt failed transiently, deferring the diff with a back-off or
+    /// moving it to <see cref="CalendarDispatchState.Failed"/> once attempts are exhausted (ADR-059).
+    /// </summary>
+    /// <returns>The resulting dispatch state, so the caller can report deferral versus giving up.</returns>
+    Task<CalendarDispatchState> RecordDispatchFailureAsync(
+        Guid diffId,
+        string reason,
+        TimeSpan baseRetryDelay,
+        int maxAttempts,
+        DateTimeOffset now,
+        CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// One diff's entries as read-only data for incremental dispatch. It is deliberately detached: the
+/// service does its Google I/O against this snapshot and records the outcome through a separate,
+/// freshly-loaded transition, so a change-tracker reset mid-fan-out cannot strand the aggregate.
+/// </summary>
+public sealed record DispatchableDiff
+{
+    public required Guid DiffId { get; init; }
+
+    /// <summary>The source that produced these records, for scoping the ledger reverse lookup.</summary>
+    public required Domain.ScheduleSources.SourceId SourceId { get; init; }
+
+    public required IReadOnlyList<ScheduleDiffEntry> Entries { get; init; }
 }
 
 public sealed record ScheduleDiffInput

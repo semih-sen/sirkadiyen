@@ -308,6 +308,11 @@ public sealed class InitialCalendarSyncServiceTests
             Guid userId,
             DateTimeOffset atUtc,
             CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task MarkNeedsReauthorizationAsync(
+            Guid userId,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class FakeCalendarClient(
@@ -346,6 +351,18 @@ public sealed class InitialCalendarSyncServiceTests
             Inserts.Add((calendarId, calendarEvent));
             return Task.FromResult(insertOutcome);
         }
+
+        public Task<CalendarEventPatchOutcome> PatchEventAsync(
+            CalendarAccess access,
+            string calendarId,
+            ManagedCalendarEvent calendarEvent,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<CalendarEventDeleteOutcome> DeleteEventAsync(
+            CalendarAccess access,
+            string calendarId,
+            string eventId,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class FakeMappingStore(params string[] existing) : IUserCalendarEventMappingStore
@@ -371,6 +388,24 @@ public sealed class InitialCalendarSyncServiceTests
             return Task.FromResult(
                 added ? CalendarEventMappingAddOutcome.Added : CalendarEventMappingAddOutcome.AlreadyPresent);
         }
+
+        public Task<IReadOnlyList<CalendarEventMappingView>> ListForStableIdentityAsync(
+            SourceId sourceId,
+            string stableIdentity,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task UpdateContentAsync(
+            Guid userId,
+            string stableIdentity,
+            Guid canonicalRecordId,
+            string contentHash,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<CalendarEventMappingRemoveOutcome> RemoveAsync(
+            Guid userId,
+            string stableIdentity,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class FakeScheduleReadStore(params CanonicalScheduleRecord[] records)
@@ -382,6 +417,10 @@ public sealed class InitialCalendarSyncServiceTests
             ProgramLanguage programLanguage,
             CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<CanonicalScheduleRecord>>([.. records]);
+
+        public Task<IReadOnlyList<CanonicalScheduleRecord>> ListRecordsByIdsAsync(
+            IReadOnlyCollection<Guid> recordIds,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class FakeProfileStore(StudentProfileView? profile) : IStudentProfileStore

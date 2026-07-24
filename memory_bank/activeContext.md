@@ -16,8 +16,11 @@ that is encrypted at rest, advancing an authorized account to `ReadyForInitialSy
 Per-user initial sync is now implemented (ADR-058): the user starts it, the worker creates
 their dedicated calendar (ADR-024), writes every currently-published event that applies to
 their profile with idempotent, resumable Calendar writes, and onboarding reaches `Active`.
-Diff-driven incremental sync is the next module; semantic diff remains complete through
-persistence and nothing dispatches a diff to a calendar yet.
+Diff-driven incremental sync is now implemented too (ADR-059): a worker stage dispatches every
+`Ready`/`Released` diff into per-user insert/patch/delete operations, resumable and idempotent
+via the same deterministic-id + ledger machinery, so a diff finally reaches a calendar. A
+reconciliation sweep (calendar/ledger drift, re-auth catch-up) and intra-diff quota-aware
+batching are the next module.
 
 The Google Sheets path now runs end to end from catalog seeding to a stored
 diff: adaptive polling, immutable snapshot storage, strict parser HTTP calls,
@@ -55,6 +58,52 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- **Implemented diff-driven incremental calendar sync (ADR-059).** A new worker stage,
+  `DispatchPendingDiffsAsync`, runs after diff calculation and fans every dispatchable
+  (`Ready`/`Released`) `ScheduleDiff` out onto the calendars it affects: inserting newly
+  applicable lessons, patching changed ones, and deleting those that no longer apply. This is
+  the first time a diff reaches a calendar. Scope is core + failure taxonomy; a reconciliation
+  sweep and intra-diff quota batching are deferred.
+- **The diff carries its own dispatch lifecycle; no separate sync-job aggregate.** The
+  `ScheduleDiff` gains `CalendarDispatchState` (`Pending → Dispatched`, terminal `Failed`) plus
+  `DispatchAttempts`/`NextAttemptAtUtc`/`DispatchedAtUtc`/`DispatchFailureReason`. A diff is
+  eligible when dispatchable, still pending, and past its back-off — mirroring how the
+  connection carries its initial-sync state (ADR-058).
+- **Coarse per-diff tracking, fine-grained ledger idempotency.** A worker killed mid-fan-out
+  re-runs the whole diff; each per-user op converges (insert 409, patch skipped when the ledger
+  hash matches, delete of an absent event a no-op), so the diff is marked `Dispatched` only
+  after a clean fan-out. No per-`(diff,user)` table is needed.
+- **The mapping ledger is the authority for who holds a lesson; audience decides only
+  insertions.** The pure `IncrementalSyncPlanner` decides per user: delete for a removed or
+  no-longer-applying record (audience narrowed, or `Cancelled`), patch when content moved,
+  insert for a cohort user the record now applies to. The initial/incremental boundary needs no
+  special handling — re-dispatching a diff that predates a user's completion is a no-op because
+  initial sync already recorded the current content hash.
+- **Failure taxonomy at two levels.** The real client retries transient failures (429/5xx/network)
+  with bounded exponential back-off, then raises a typed transient exception; the service defers
+  the diff with a growing back-off and gives up to `Failed` after `MaxDispatchAttempts`. A dead
+  credential (`invalid_grant`/401/403) flags the connection `NeedsReauthorization` (its first
+  producer), skips that user, and leaves their events — one dead user never blocks the diff.
+- **New surface:** `ICalendarSyncTargetReadStore` (completed-sync cohort/by-id targets joined to
+  their profile), mapping-store reverse-lookup/update/remove, `ListRecordsByIds`,
+  `IUserCalendarClient` patch/delete, and a distinct `GoogleCalendarCredentialException` (to avoid
+  clashing with ADR-057's authorization-code `GoogleCalendarAuthorizationException`). No new NuGet
+  package. Config: `SIRKADIYEN_SYNC__DIFF_DISPATCH_BATCH_SIZE/MAX_DISPATCH_ATTEMPTS/DISPATCH_RETRY_BASE_DELAY_SECONDS`.
+- Migration `AddCalendarDispatch` adds the dispatch columns, the
+  `ck_schedule_diffs_calendar_dispatch_state` constraint, and the dispatch index;
+  `CalendarDispatchState` defaults to `Pending` (not EF's empty string) so existing diffs become
+  dispatch-eligible, which is correct and idempotent since no completed-sync user exists yet.
+- 425 .NET tests pass, up from 388, nothing skipped: diff dispatch transitions, the
+  `MarkNeedsReauthorization` guard, the planner (insert/patch/delete/narrow/widen/cancelled), the
+  service against fakes (created fan-out, idempotent replay, updated patch+widen, narrow delete,
+  deleted removal, freeze no-op, transient defer-then-fail, dead-credential flag without blocking,
+  no-longer-pending skip), and PostgreSQL tests (mapping reverse/update/remove, `ListRecordsByIds`,
+  the cohort/by-id target store, and the diff-store dispatch queries). Release build has no
+  warnings, `dotnet format --verify-no-changes` is clean, EF reports no pending model changes, and
+  migration `AddCalendarDispatch` was verified Up → Down → Up on the real PostgreSQL. No Python changed.
+
+## Previous Calendar initial sync session
 
 - **Implemented per-user initial calendar sync (ADR-058).** A student at
   `ReadyForInitialSync` starts synchronization; the worker creates their dedicated
@@ -998,22 +1047,35 @@ dimension can be added with evidence.
   still needs genuinely shared, backed-up key storage or every stored token is lost on
   restart, silently forcing all users to authorize again
 - the real Google authorization-code exchange and the real Calendar client (calendar
-  creation and event writes) have no automated coverage. They require a registered Web OAuth
-  client and a live consent, so only the fakes are tested; the first live grant and the first
-  live sync are the first real exercise of those paths
-- a Calendar grant is never re-verified against Google after it is stored. Access
-  revoked from the Google account side is only discovered when synchronization tries to
-  use the token, which is what `NeedsReauthorization` exists for; nothing sets it yet
+  creation, event insert/patch/delete, and the transient/credential exception classification and
+  back-off) have no automated coverage. They require a registered Web OAuth client and a live
+  consent, so only the fakes are tested; the first live grant and the first live sync are the
+  first real exercise of those paths
+- a Calendar grant is never re-verified against Google after it is stored. Access revoked from
+  the Google account side is discovered only when synchronization tries to use the token;
+  incremental dispatch now flags the connection `NeedsReauthorization` when that happens (ADR-059),
+  but initial sync does not yet, and no proactive re-verification exists
 - calendar creation is the one initial-sync step Google cannot make idempotent: a crash
   between creating the calendar and persisting `ManagedCalendarId` would orphan the calendar
   and create a second one on resume. The id is persisted immediately to shrink that window;
   full protection (a marker-tagged calendar lookup) is deferred with reconciliation
-- a user's initial sync that keeps failing — a bad or revoked token, a persistent Calendar
-  error — is logged and retried every worker cycle indefinitely. Nothing yet marks it failed
-  permanently, backs off, or sets `NeedsReauthorization`; that belongs with incremental sync
+- a user's **initial** sync that keeps failing — a bad or revoked token, a persistent Calendar
+  error — is logged and retried every worker cycle indefinitely. The incremental dispatcher now
+  has the failure taxonomy (transient back-off then `Failed`, dead credential → `NeedsReauthorization`),
+  but initial sync does not yet share it
 - initial sync writes at most a configured number of events per user per cycle to respect
   Calendar quota, so a very large first load completes over several cycles rather than at once;
   onboarding stays `InitialSyncInProgress` until the last applicable event is written
+- incremental dispatch (ADR-059) leaves two gaps for the deferred reconciliation slice: a user
+  flagged `NeedsReauthorization` during a dispatch and later re-authorized does **not** catch up on
+  diffs marked `Dispatched` while they were dead (their events are left as they were, never wrongly
+  deleted); and a patch that finds no event (404) re-inserts it, so a managed event a user manually
+  deleted is recreated on the lesson's next change
+- an incremental diff's fan-out over a cohort runs to completion within one cycle; only the number
+  of diffs per cycle is bounded. A Ready diff is small because a mass change is *held*, but a large
+  operator-*released* diff over a big cohort runs long until intra-diff quota-aware batching lands. A
+  persistently transient-failing diff backs off and, after `MaxDispatchAttempts`, moves to `Failed`
+  for an operator rather than retrying forever
 
 ## Working assumptions
 

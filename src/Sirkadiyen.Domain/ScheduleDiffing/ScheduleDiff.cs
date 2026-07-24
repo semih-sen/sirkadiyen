@@ -29,6 +29,8 @@ public sealed class ScheduleDiff
 
     public const int MaximumReleaseReasonLength = 2000;
 
+    public const int MaximumDispatchFailureReasonLength = 2000;
+
     private readonly List<ScheduleDiffEntry> entries = [];
 
     private ScheduleDiff()
@@ -90,6 +92,7 @@ public sealed class ScheduleDiff
         string? holdReason = diff.DescribeHold(thresholds);
         diff.State = holdReason is null ? ScheduleDiffState.Ready : ScheduleDiffState.Held;
         diff.HoldReason = holdReason;
+        diff.CalendarDispatchState = CalendarDispatchState.Pending;
         return diff;
     }
 
@@ -133,6 +136,28 @@ public sealed class ScheduleDiff
 
     public DateTimeOffset? ReleasedAtUtc { get; private set; }
 
+    /// <summary>
+    /// How far the fan-out of this diff onto student calendars has progressed (ADR-059). It is
+    /// orthogonal to <see cref="State"/>: <see cref="State"/> says whether the diff <em>may</em>
+    /// be acted on, this says whether it has been.
+    /// </summary>
+    public CalendarDispatchState CalendarDispatchState { get; private set; }
+
+    /// <summary>How many times dispatch has been attempted and left the diff not fully applied.</summary>
+    public int DispatchAttempts { get; private set; }
+
+    /// <summary>
+    /// The earliest time a deferred dispatch may be retried, set after a transient failure so the
+    /// dispatcher backs off rather than re-running every cycle. Null when no retry is pending.
+    /// </summary>
+    public DateTimeOffset? NextAttemptAtUtc { get; private set; }
+
+    /// <summary>When every applicable calendar was updated from this diff.</summary>
+    public DateTimeOffset? DispatchedAtUtc { get; private set; }
+
+    /// <summary>Why the last dispatch attempt failed, kept for the operator who reads a failed diff.</summary>
+    public string? DispatchFailureReason { get; private set; }
+
     public uint RowVersion { get; private set; }
 
     public IReadOnlyList<ScheduleDiffEntry> Entries => entries;
@@ -141,6 +166,13 @@ public sealed class ScheduleDiff
     /// Whether a consumer may turn this diff into calendar operations.
     /// </summary>
     public bool IsDispatchable => State is ScheduleDiffState.Ready or ScheduleDiffState.Released;
+
+    /// <summary>
+    /// Whether this diff is waiting to be fanned out onto calendars: dispatchable, not yet
+    /// dispatched, and not in a terminal failure.
+    /// </summary>
+    public bool IsDispatchPending =>
+        IsDispatchable && CalendarDispatchState is CalendarDispatchState.Pending;
 
     /// <summary>
     /// Whether an operator may take responsibility for this diff.
@@ -190,6 +222,93 @@ public sealed class ScheduleDiff
         ReleasedBy = releasedBy;
         ReleaseReason = releaseReason;
         ReleasedAtUtc = atUtc;
+    }
+
+    /// <summary>
+    /// Records that every applicable student calendar has been updated from this diff (ADR-059).
+    /// </summary>
+    /// <remarks>
+    /// Dispatch is idempotent — the caller re-runs the whole diff after a crash and each per-user
+    /// operation converges — so this is the terminal success state once a fan-out completes with no
+    /// transient failure. A user skipped because their credential is dead does not block it: their
+    /// catch-up is a reconciliation concern, not a reason to re-run this diff forever.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">The diff is not in a dispatchable, pending state.</exception>
+    public void MarkDispatched(DateTimeOffset atUtc)
+    {
+        if (!IsDispatchable)
+        {
+            throw new InvalidOperationException(
+                $"A diff in {State} cannot be dispatched to calendars.");
+        }
+
+        if (CalendarDispatchState is CalendarDispatchState.Dispatched)
+        {
+            return;
+        }
+
+        if (CalendarDispatchState is CalendarDispatchState.Failed)
+        {
+            throw new InvalidOperationException(
+                "A diff whose dispatch has failed terminally cannot be marked dispatched.");
+        }
+
+        CalendarDispatchState = CalendarDispatchState.Dispatched;
+        DispatchedAtUtc = atUtc;
+        NextAttemptAtUtc = null;
+        DispatchFailureReason = null;
+    }
+
+    /// <summary>
+    /// Records that a dispatch attempt failed transiently and could not fully apply the diff.
+    /// </summary>
+    /// <remarks>
+    /// The diff stays <see cref="CalendarDispatchState.Pending"/> with a back-off time so the next
+    /// cycle retries it, until <paramref name="maxAttempts"/> attempts have failed, at which point it
+    /// moves to <see cref="CalendarDispatchState.Failed"/> and stops churning (ADR-059). A dead
+    /// credential is not a transient failure and must not be reported here — it is handled per user
+    /// without counting against the diff.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">The diff is not in a dispatchable, pending state.</exception>
+    public void RecordDispatchFailure(
+        string reason,
+        TimeSpan baseRetryDelay,
+        int maxAttempts,
+        DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(baseRetryDelay.Ticks);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxAttempts);
+
+        if (!IsDispatchable)
+        {
+            throw new InvalidOperationException(
+                $"A diff in {State} cannot be dispatched to calendars.");
+        }
+
+        if (CalendarDispatchState is not CalendarDispatchState.Pending)
+        {
+            throw new InvalidOperationException(
+                $"A dispatch failure cannot be recorded from {CalendarDispatchState}.");
+        }
+
+        DispatchAttempts++;
+        DispatchFailureReason = reason.Length <= MaximumDispatchFailureReasonLength
+            ? reason
+            : reason[..MaximumDispatchFailureReasonLength];
+
+        if (DispatchAttempts >= maxAttempts)
+        {
+            CalendarDispatchState = CalendarDispatchState.Failed;
+            NextAttemptAtUtc = null;
+        }
+        else
+        {
+            // Exponential back-off from the base delay, capped so a long-lived deferral cannot
+            // overflow: twelve doublings of a modest base is already days, past any transient outage.
+            int exponent = Math.Min(DispatchAttempts - 1, 12);
+            NextAttemptAtUtc = now + (baseRetryDelay * Math.Pow(2, exponent));
+        }
     }
 
     private string? DescribeHold(ScheduleDiffSafetyThresholds thresholds)
@@ -255,4 +374,24 @@ public enum ScheduleDiffState
     /// be dispatched, and it still carries the reason it was held.
     /// </summary>
     Released,
+}
+
+/// <summary>
+/// How far a dispatchable diff has been fanned out onto student calendars (ADR-059).
+/// </summary>
+/// <remarks>
+/// This is orthogonal to <see cref="ScheduleDiffState"/>. A diff must be
+/// <see cref="ScheduleDiff.IsDispatchable"/> before dispatch begins; this then tracks whether the
+/// per-user calendar operations have been applied, deferred with a back-off, or given up on.
+/// </remarks>
+public enum CalendarDispatchState
+{
+    /// <summary>Waiting to be applied, or deferred after a transient failure until its back-off passes.</summary>
+    Pending,
+
+    /// <summary>Every applicable calendar has been updated from this diff.</summary>
+    Dispatched,
+
+    /// <summary>Dispatch failed on too many attempts; it needs an operator rather than another retry.</summary>
+    Failed,
 }

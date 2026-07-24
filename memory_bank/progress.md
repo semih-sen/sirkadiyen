@@ -165,18 +165,18 @@
 - [x] Implement Google Calendar client
 - [x] Implement calendar creation or selection
 - [x] Implement event insert
-- [ ] Implement event patch
-- [ ] Implement confirmed event delete
+- [x] Implement event patch (ADR-059)
+- [x] Implement confirmed event delete (diff-authorized, ADR-059)
 - [x] Implement private extended properties
 - [x] Implement durable event mapping
 - [x] Implement idempotency keys
-- [~] Implement retries and failure classification (per-user failures are isolated, logged and retried each cycle; no permanent-failure/backoff taxonomy yet)
-- [~] Implement affected-user resolution (per-user side, over current published records; diff-driven resolution over Ready/Released diffs pending)
+- [x] Implement retries and failure classification (transient back-off + `Failed`; dead credential → `NeedsReauthorization`, ADR-059)
+- [x] Implement affected-user resolution (per-user initial side + diff-driven fan-out over Ready/Released diffs, ADR-059)
 - [x] Implement initial sync
-- [ ] Implement incremental sync
-- [ ] Implement reconciliation
+- [x] Implement incremental sync (diff-driven insert/patch/delete dispatcher, ADR-059)
+- [ ] Implement reconciliation (calendar/ledger drift + re-auth catch-up; deferred)
 - [x] Add mocked adapter tests
-- [~] Add quota-aware batching (per-user, per-cycle event budget spreads a large first load; full quota-aware batching pending)
+- [~] Add quota-aware batching (per-cycle event budget + diffs-per-cycle bound; intra-diff quota-aware batching pending)
 
 ## Phase 10: Administration and operations
 
@@ -287,17 +287,22 @@ event that applies to their profile — resolved by academic year, class year, p
 and cohort selectors — with idempotent, resumable Calendar writes marked by private extended
 properties and recorded in a `UserCalendarEventMapping` ledger. Onboarding now walks an
 activated account from `ProfileRequired` through `CalendarAuthorizationRequired`,
-`ReadyForInitialSync` and `InitialSyncInProgress` to `Active`. The remaining synchronization
-work — diff-driven incremental sync (event patch and delete over `Ready` and `Released`
-diffs), reconciliation, quota-aware batching, and a failure taxonomy — is the next slice; the
-event mapping and idempotency are built for it. `grade2_yearly_v1` remains the next parser
-profile and needs no new canonical field.
+`ReadyForInitialSync` and `InitialSyncInProgress` to `Active`. Diff-driven incremental sync is
+now implemented too (ADR-059): a new worker stage dispatches every `Ready`/`Released` diff into
+per-user insert/patch/delete operations, driven by a `CalendarDispatchState` on the diff and made
+resumable by the same deterministic-id + ledger idempotency as initial sync. The mapping ledger is
+the authority for who holds a lesson; a pure `IncrementalSyncPlanner` decides the operation per
+user. Transient Google failures back off and retry, then give up to `Failed`; a dead credential
+flags the connection `NeedsReauthorization`, skips that user, and leaves their events. The
+remaining synchronization work — a reconciliation sweep (calendar/ledger drift and re-auth
+catch-up) and intra-diff quota-aware batching — is the next slice; the mapping and idempotency are
+built for it. `grade2_yearly_v1` remains the next parser profile and needs no new canonical field.
 
 There is deliberately no rollback (ADR-033). A bad publication is corrected at
 the authoritative source and reaches calendars as a newer forward-fix revision.
-The existing acquisition, parsing and publication boundaries are frozen now;
-diff dispatch and downstream jobs do not exist yet and must be gated as they are
-introduced.
+Diff dispatch is now live but stays diff-authorized: a held diff never reaches a calendar, and
+deletion requires a published revision and a dispatchable diff (AI_GUIDELINE §13). The
+acquisition, parsing, publication and dispatch boundaries are all freeze-gated.
 
 The initial operator model is implemented: one Google-verified SuperAdmin,
 `halil.semih.sen@gmail.com`, grants an explicit persisted `role` (ADR-045 as

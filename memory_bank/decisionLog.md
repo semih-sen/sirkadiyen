@@ -2531,3 +2531,88 @@ application name and a configurable file-system key location.
 - `IGoogleCalendarConnectionStore.IsAuthorizedForUserAsync` was removed: onboarding reasons
   over the connection view's `Status` and `InitialSyncState`, so the boolean query was
   redundant.
+
+## ADR-059: Fan each dispatchable diff out onto calendars with a resumable, idempotent dispatcher
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-24
+**Implements:** the `ScheduleDiff` dispatch lifecycle (`CalendarDispatchState`, `DispatchAttempts`,
+`NextAttemptAtUtc`, `DispatchedAtUtc`, `DispatchFailureReason`, `MarkDispatched`,
+`RecordDispatchFailure`), `GoogleCalendarConnection.MarkNeedsReauthorization`, the pure
+`IncrementalSyncPlanner`, the `IncrementalCalendarSyncService` and its resumable worker stage, the
+reverse-lookup / update / remove mapping-store methods, `ICanonicalScheduleReadStore.ListRecordsByIds`,
+the new `ICalendarSyncTargetReadStore`, `IUserCalendarClient` patch/delete plus the transient/credential
+exception taxonomy and the real client's bounded back-off, migration `AddCalendarDispatch`, and
+unit/PostgreSQL tests
+**Depends on:** ADR-018 (identity vs content), ADR-033/042 (forward-fix, diff hold/release), ADR-034/043
+(operational freeze), ADR-058 (initial sync, the mapping ledger and idempotency this reuses)
+
+### Context
+
+After initial sync marks a connection `Completed`, nothing kept that student's calendar in step with
+the schedule. The worker already calculated a `ScheduleDiff` (`Ready`/`Released`) per republication, but
+the diff was only stored and logged — it never reached a calendar. A lesson that moved, was cancelled, or
+was added silently never updated for a synchronized student. AI_GUIDELINE §13 makes the diff the sole
+authority for deletion ("a published revision and a valid semantic diff"), so the fix must be
+diff-driven, not a level-triggered reconcile against current truth.
+
+### Decision
+
+Implement **diff-driven incremental sync**: a worker stage that dispatches each dispatchable diff into
+per-user insert/patch/delete operations. Scope is the core plus a failure/backoff taxonomy; a
+reconciliation sweep and global quota-aware batching are deferred.
+
+**The diff carries its own dispatch lifecycle; no separate sync-job aggregate.** Mirroring ADR-058, the
+`ScheduleDiff` gains `CalendarDispatchState` (`Pending → Dispatched`, terminal `Failed`) plus retry
+fields. A diff is eligible when it is `IsDispatchable` (Ready/Released), still `Pending`, and past any
+back-off time. This is "creating sync jobs from a diff" (AI_GUIDELINE §14) modelled on the existing
+authoritative row rather than a construct incremental and reconcile would both have to own.
+
+**Coarse per-diff tracking is safe because fine-grained idempotency lives in the ledger.** A diff's
+fan-out over many users is not atomic. Rather than a per-`(diff,user)` table, a worker killed mid-fan-out
+re-runs the whole diff; each per-user operation converges — insert → deterministic id → 409
+`AlreadyExists` + ledger `AlreadyPresent`; patch → skipped when the ledger hash already equals the target
+(Google patch is idempotent regardless); delete → event already gone (404/410) + mapping already removed.
+The diff is marked `Dispatched` only after the fan-out completes with no transient failure.
+
+**The mapping ledger is authoritative for who holds a lesson; audience decides only insertions.** Per
+entry, using the referenced canonical record(s): a **Deleted** record → delete for every ledger holder; a
+**Created**/**Updated** record → for existing holders, patch when content moved, delete when it no longer
+applies (audience narrowed or the record is `Cancelled`, both of which `CalendarAudienceResolver.Applies`
+already rejects), and for cohort users with no mapping, insert when it applies (audience widened). The
+per-`(user, entry)` decision is the pure `IncrementalSyncPlanner`; the fan-out (which users) is store
+queries.
+
+**The initial/incremental boundary needs no special handling.** Initial sync captures current published
+state and records each content hash, so re-dispatching a diff whose revision predates a user's completion
+is a no-op for them. Only `Completed` users are dispatched to; users still `InProgress` reach the same
+final state through initial sync.
+
+**Failure taxonomy at two levels.** The real client classifies Google failures and retries transient ones
+(429/5xx/network) with bounded exponential back-off inside the call, then raises a typed transient
+exception. The service defers the diff with a growing back-off (`RecordDispatchFailure`), giving up to
+`Failed` after `MaxDispatchAttempts`. A dead credential (`invalid_grant`/401/403) instead flags the
+connection `NeedsReauthorization`, skips that user, and leaves their events — it does not count against
+the diff or block other users.
+
+### Consequences
+
+- A held diff is never auto-dispatched (it is not dispatchable), so the diff safety gate (ADR-033/042)
+  also bounds dispatched fan-out size: a mass deletion is held and only a named operator's release turns
+  it into deletions.
+- A user set `NeedsReauthorization` during a dispatch and later re-authorized does not automatically
+  catch up on diffs marked `Dispatched` while they were dead — that repair is the deferred reconciliation
+  sweep. Nothing here silently deletes their events.
+- Fan-out over a cohort runs to completion within a cycle; only the number of diffs per cycle is bounded.
+  In practice Ready diffs are small, so this holds; a large *Released* diff over a big cohort runs long
+  until intra-diff quota batching lands.
+- A patch that finds no event (404) re-inserts it: the ledger says the event should exist, so the calendar
+  is made to match rather than left divergent (idempotent via the deterministic id).
+- The real client's patch/delete, token refresh, and back-off classification remain untested without live
+  Google; only the fake `IUserCalendarClient` is exercised.
+- Migration `AddCalendarDispatch` defaults `CalendarDispatchState` to `Pending` rather than EF's empty
+  string (which would violate the state check constraint); existing Ready/Released diffs become
+  dispatch-eligible, which is correct and idempotent since no completed-sync user exists yet.
+- `GoogleCalendarConnectionStatus.NeedsReauthorization` now has a producer for the first time; a
+  distinct `GoogleCalendarCredentialException` was added to avoid clashing with the ADR-057
+  authorization-code-exchange `GoogleCalendarAuthorizationException`.

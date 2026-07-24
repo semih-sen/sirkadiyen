@@ -32,6 +32,29 @@ public interface IUserCalendarClient
         string calendarId,
         ManagedCalendarEvent calendarEvent,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Updates one existing managed event to match a newer canonical record (ADR-059). Keyed by the
+    /// deterministic event id the event was written with, so a patch is idempotent. An event that no
+    /// longer exists is reported as <see cref="CalendarEventPatchOutcome.NotFound"/> rather than
+    /// failing, which lets a resumed dispatch tolerate a delete that already happened.
+    /// </summary>
+    Task<CalendarEventPatchOutcome> PatchEventAsync(
+        CalendarAccess access,
+        string calendarId,
+        ManagedCalendarEvent calendarEvent,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Removes one managed event by its deterministic id (ADR-059). Deleting an event that is already
+    /// gone is reported as <see cref="CalendarEventDeleteOutcome.NotFound"/> rather than failing, so a
+    /// resumed dispatch converges.
+    /// </summary>
+    Task<CalendarEventDeleteOutcome> DeleteEventAsync(
+        CalendarAccess access,
+        string calendarId,
+        string eventId,
+        CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -94,8 +117,32 @@ public enum CalendarEventInsertOutcome
     AlreadyExists,
 }
 
+public enum CalendarEventPatchOutcome
+{
+    /// <summary>The event was updated.</summary>
+    Patched,
+
+    /// <summary>No event with this id existed to update; the patch was a safe no-op.</summary>
+    NotFound,
+}
+
+public enum CalendarEventDeleteOutcome
+{
+    /// <summary>The event was removed.</summary>
+    Deleted,
+
+    /// <summary>No event with this id existed; the delete was a safe no-op.</summary>
+    NotFound,
+}
+
 /// <summary>Raised when a Calendar API call fails in a way synchronization cannot recover from.</summary>
-public sealed class GoogleCalendarSyncException : Exception
+/// <remarks>
+/// This is the base of a small taxonomy the synchronization services branch on (ADR-059): a plain
+/// instance is an unclassified terminal failure, <see cref="GoogleCalendarTransientException"/> is
+/// worth a later retry, and <see cref="GoogleCalendarAuthorizationException"/> means the credential
+/// itself is dead.
+/// </remarks>
+public class GoogleCalendarSyncException : Exception
 {
     public GoogleCalendarSyncException(string message)
         : base(message)
@@ -103,6 +150,44 @@ public sealed class GoogleCalendarSyncException : Exception
     }
 
     public GoogleCalendarSyncException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+}
+
+/// <summary>
+/// Raised when Google rejected the stored credential during a synchronization write (a revoked grant
+/// or expired refresh token): the connection must be flagged for re-authorization, and this user
+/// skipped, without touching what was already written or blocking other users (ADR-059). Distinct
+/// from <see cref="GoogleCalendarAuthorizationException"/>, which is the authorization-code exchange
+/// failing at grant time (ADR-057).
+/// </summary>
+public sealed class GoogleCalendarCredentialException : GoogleCalendarSyncException
+{
+    public GoogleCalendarCredentialException(string message)
+        : base(message)
+    {
+    }
+
+    public GoogleCalendarCredentialException(string message, Exception innerException)
+        : base(message, innerException)
+    {
+    }
+}
+
+/// <summary>
+/// Raised when a Calendar call failed transiently (rate limiting, a 5xx, or a network error) and did
+/// not succeed within the client's bounded retry. The work is left for a later cycle to retry rather
+/// than being treated as a permanent failure (ADR-059).
+/// </summary>
+public sealed class GoogleCalendarTransientException : GoogleCalendarSyncException
+{
+    public GoogleCalendarTransientException(string message)
+        : base(message)
+    {
+    }
+
+    public GoogleCalendarTransientException(string message, Exception innerException)
         : base(message, innerException)
     {
     }

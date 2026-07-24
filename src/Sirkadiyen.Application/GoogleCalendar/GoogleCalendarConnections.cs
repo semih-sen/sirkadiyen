@@ -48,6 +48,15 @@ public interface IGoogleCalendarConnectionStore
         Guid userId,
         DateTimeOffset atUtc,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Records that Google rejected a user's credential during synchronization, moving the connection
+    /// to <see cref="GoogleCalendarConnectionStatus.NeedsReauthorization"/> (ADR-059). Idempotent.
+    /// </summary>
+    Task MarkNeedsReauthorizationAsync(
+        Guid userId,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken);
 }
 
 /// <summary>

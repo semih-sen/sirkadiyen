@@ -159,6 +159,46 @@ public sealed class GoogleCalendarConnectionTests
         Assert.Equal(GoogleCalendarConnectionStatus.Authorized, connection.Status);
     }
 
+    [Fact]
+    public void MarkingNeedsReauthorizationStopsSyncButKeepsTheCalendarAndProgress()
+    {
+        GoogleCalendarConnection connection = Create();
+        connection.RequestInitialSync(Now.AddMinutes(1));
+        connection.AttachManagedCalendar("calendar-id", Now.AddMinutes(2));
+        connection.CompleteInitialSync(Now.AddMinutes(3));
+
+        connection.MarkNeedsReauthorization(Now.AddDays(1));
+
+        // A dead token means we cannot write, not that what was written is wrong (ADR-059).
+        Assert.Equal(GoogleCalendarConnectionStatus.NeedsReauthorization, connection.Status);
+        Assert.Equal("calendar-id", connection.ManagedCalendarId);
+        Assert.Equal(GoogleCalendarInitialSyncState.Completed, connection.InitialSyncState);
+        Assert.Equal(Now.AddDays(1), connection.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public void MarkingNeedsReauthorizationTwiceIsANoOp()
+    {
+        GoogleCalendarConnection connection = Create();
+        connection.MarkNeedsReauthorization(Now.AddDays(1));
+
+        connection.MarkNeedsReauthorization(Now.AddDays(2));
+
+        // The second call must not advance the timestamp: nothing changed.
+        Assert.Equal(Now.AddDays(1), connection.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public void ReauthorizingRestoresAConnectionThatNeededReauthorization()
+    {
+        GoogleCalendarConnection connection = Create();
+        connection.MarkNeedsReauthorization(Now.AddDays(1));
+
+        connection.Reauthorize("fresh-token", Scope, Now.AddDays(2));
+
+        Assert.Equal(GoogleCalendarConnectionStatus.Authorized, connection.Status);
+    }
+
     private static GoogleCalendarConnection Create(
         Guid? userId = null,
         string protectedRefreshToken = "protected-token",

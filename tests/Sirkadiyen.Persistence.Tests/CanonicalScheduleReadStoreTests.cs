@@ -89,6 +89,40 @@ public sealed class CanonicalScheduleReadStoreTests(PostgresFixture fixture)
             await ReadIdentitiesAsync(context, 2, DomainLanguage.Turkish));
     }
 
+    [Fact]
+    public async Task RecordsAreLoadedByIdRegardlessOfStatusForDiffDispatch()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        string scheduledId = $"scheduled-{Guid.NewGuid():N}";
+        string cancelledId = $"cancelled-{Guid.NewGuid():N}";
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        ScheduleSource source = await ScheduleDiffScenario.AddSourceAsync(context);
+        ScheduleRevision revision = await ScheduleDiffScenario.PublishAsync(context, source, Now, [scheduledId]);
+
+        // A deletion entry references a record whose revision is superseded and whose status may be
+        // cancelled; the by-id load must return it anyway so the dispatcher can find its holders.
+        context.CanonicalScheduleRecords.Add(Cancelled(revision.Id, source.SourceId, cancelledId));
+        await context.SaveChangesAsync(Token);
+
+        List<Guid> ids =
+        [
+            .. context.CanonicalScheduleRecords
+                .Where(record => record.ScheduleRevisionId == revision.Id)
+                .Select(record => record.Id)
+        ];
+
+        CanonicalScheduleReadStore store = new(context);
+        IReadOnlyList<CanonicalScheduleRecord> loaded = await store.ListRecordsByIdsAsync(
+            [.. ids, Guid.CreateVersion7()],
+            Token);
+
+        Assert.Equal(ids.Count, loaded.Count);
+        Assert.Contains(loaded, record => record.StableIdentity == scheduledId);
+        Assert.Contains(loaded, record => record.StableIdentity == cancelledId);
+        Assert.Empty(await store.ListRecordsByIdsAsync([], Token));
+    }
+
     private static async Task<IReadOnlyList<string>> ReadIdentitiesAsync(
         SirkadiyenDbContext context,
         int classYear,

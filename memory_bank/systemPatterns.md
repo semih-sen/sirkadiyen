@@ -734,3 +734,38 @@ The one step the provider cannot make idempotent — creating the container obje
 (the calendar) — is the residual risk: persist its id immediately after creation to
 shrink the crash window, and defer full protection (a marker-tagged lookup) to
 reconciliation.
+
+## 27. Edge-triggered fan-out with coarse job state over a fine-grained ledger
+
+Propagating a decided change to many recipients (a schedule diff onto every affected
+student calendar, ADR-059) is **edge-triggered**: the authoritative change record — the
+diff — is the job, not a periodic reconcile against current truth. This is required when
+a safety rule gates the action (deletion needs a published revision and a dispatchable
+diff, AI_GUIDELINE §13): a level-triggered reconcile would bypass the hold that protects
+against a mass change. The change record therefore carries its **own dispatch lifecycle**
+(`Pending → Dispatched`, terminal `Failed`) rather than a separate job aggregate, reusing
+[[26. Resumable per-user job with a deterministic idempotency ledger]] and the same freeze
+gate.
+
+The key move: keep dispatch tracking **coarse (per-job)** because idempotency lives in the
+**fine-grained ledger** (§26). A worker killed mid-fan-out re-runs the whole job; each
+recipient operation converges — a create is a deterministic-id conflict treated as success,
+an update is skipped when the ledger's last-applied hash already matches, a delete of an
+absent object is a no-op — so the job is marked done only after a clean pass. No
+per-`(job, recipient)` progress table is needed, which is what makes the fan-out affordable.
+
+The **ledger is the authority for who currently holds an item**; audience/recipient
+resolution decides only additions. A pure planner maps each recipient to one operation:
+delete when the item was removed or no longer applies to them, update when its content
+moved, add when it now applies and they lack it. Because §26 records the last-applied hash
+at creation time, re-dispatching a change that predates a recipient's own catch-up is a
+no-op — the two triggers compose without double-applying.
+
+Give failure a **two-level taxonomy**. Transient provider failures (rate limits, 5xx) retry
+with bounded exponential back-off inside the call, then defer the whole job with a growing
+back-off (`NextAttemptAtUtc`) and give up to `Failed` for an operator after a capped number
+of attempts — so a stuck job stops churning every cycle. A dead **credential** is not a job
+failure: flag that recipient's connection for re-authorization, skip them, leave what they
+have, and let the job complete for everyone else. The residual gap — a recipient who was
+skipped and later recovers must catch up on jobs finished while they were down — is the
+deferred **reconciliation** concern, never a reason to block the job or delete their data.

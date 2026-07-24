@@ -42,7 +42,8 @@ internal static class CalendarTestData
         string displayTitle = "Lesson",
         string? instructor = null,
         string? location = null,
-        SourceId? sourceId = null)
+        SourceId? sourceId = null,
+        string contentHash = "sha256:content")
     {
         string audienceJson = JsonSerializer.Serialize(
             (selectors ?? []).Select(selector => new
@@ -73,7 +74,7 @@ internal static class CalendarTestData
             allDay,
             "Europe/Istanbul",
             stableIdentity ?? $"identity-{Guid.NewGuid():N}",
-            "sha256:content",
+            contentHash,
             0.99m,
             "[]",
             instructor,

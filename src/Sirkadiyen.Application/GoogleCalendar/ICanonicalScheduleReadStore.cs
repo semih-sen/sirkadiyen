@@ -20,4 +20,13 @@ public interface ICanonicalScheduleReadStore
         int classYear,
         ProgramLanguage programLanguage,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Loads the canonical records a diff's entries reference by id (ADR-059). Incremental sync uses
+    /// this to read the previous record of a deletion and the current record of a creation or update
+    /// without re-loading whole revisions.
+    /// </summary>
+    Task<IReadOnlyList<CanonicalScheduleRecord>> ListRecordsByIdsAsync(
+        IReadOnlyCollection<Guid> recordIds,
+        CancellationToken cancellationToken);
 }
