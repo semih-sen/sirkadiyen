@@ -50,8 +50,12 @@ hold is never releasable and is corrected at the source (ADR-042).
 
 The incremental dispatcher now consumes every dispatchable diff and resolves the
 affected completed-sync users before applying idempotent Calendar operations.
-Drive and HTTP acquisition, DOCX conversion, the remaining parser profiles, the
-frontend, and the remaining operational surfaces still do not exist.
+Drive and HTTP acquisition, DOCX conversion, the remaining parser profiles, and
+the remaining operational surfaces still do not exist. The **consumer frontend now
+has a runnable foundation** (`web/`, ADR-066): Google sign-in, license redemption,
+academic profile, Calendar authorization, and initial-sync progress are wired to
+the existing APIs and gated by authoritative backend onboarding state. Admin
+surfaces and richer UI are still absent.
 
 The source credential is resolved: a Google service account is configured and the
 worker can reach the real Sheets API.
@@ -68,6 +72,32 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- **Scaffolded the consumer frontend foundation (ADR-066).** New `web/` Next.js App Router +
+  TypeScript project. It consumes the same-site cookie session and treats backend onboarding
+  state as authoritative, mapping each `OnboardingState` to a route rather than deciding
+  activation client-side.
+- **Local dev is same-origin behind an HTTPS proxy edge, so no backend CORS/SameSite/cookie
+  change was needed.** `next.config.mjs` proxies `/api/*` to Kestrel server-side; the browser
+  talks only to `https://localhost:3000`. The HTTPS edge satisfies the `Secure`/`__Host-`
+  cookies (Kestrel can stay on plain HTTP, `BACKEND_ORIGIN=http://localhost:5080`), exactly the
+  production TLS-termination topology. This is the faithful alternative to weakening cookies that
+  ADR-052 warned against.
+- **Both Google flows are popup/`postMessage`.** Sign-in uses GIS returning an ID token to
+  `POST /api/auth/google`; Calendar uses `initCodeClient` returning a one-time code to
+  `POST /api/calendar/authorization` (client id + scope read from
+  `GET /api/calendar/authorization/options`). Only `https://localhost:3000` needs adding to the
+  OAuth client's Authorized JavaScript origins; no localhost redirect URI.
+- A CSRF-aware typed API client fetches `/api/auth/csrf`, sends the token in `X-CSRF-TOKEN` on
+  mutating verbs, and retries once on a stale-token 400. Enums are typed as their string names
+  because the API uses `JsonStringEnumConverter`.
+- **Not yet built:** admin/operator UI, real component system, richer dashboard, automated
+  frontend tests. The worker still performs the actual calendar writes.
+- Pinned Next.js to the patched `15.5.21` (CVE-2025-66478). `npm run build` and `tsc --noEmit`
+  are clean (11 routes). A residual transitive `sharp`/`postcss` advisory has no non-breaking fix
+  and affects only Next's unused image-optimization path. No .NET or Python code changed.
+
+## Previous intra-diff batching session
 
 - **Implemented ledger-resumable intra-diff batching (ADR-065).** Incremental dispatch attempts
   at most `SIRKADIYEN_SYNC__CALENDAR_OPERATIONS_PER_DIFF_BATCH` per-user semantic mutations for

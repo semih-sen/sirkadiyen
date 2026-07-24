@@ -1,0 +1,25 @@
+{
+  "name": "sirkadiyen-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sirkadiyen student-facing frontend (Next.js, App Router). Consumes the same-site backend cookie session (ADR-023, ADR-036, ADR-052).",
+  "scripts": {
+    "dev": "next dev --experimental-https --port 3000",
+    "dev:http": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "^15.5.21",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.7",
+    "@types/react": "19.0.7",
+    "@types/react-dom": "19.0.3",
+    "typescript": "5.7.3"
+  }
+}

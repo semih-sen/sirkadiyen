@@ -198,6 +198,22 @@
 - [ ] Structured logs
 - [ ] Alerts
 
+## Phase 11: Consumer frontend
+
+- [x] Scaffold the Next.js App Router project (`web/`, ADR-066)
+- [x] Same-origin HTTPS proxy dev topology (no backend CORS/SameSite change)
+- [x] CSRF-aware typed API client and session provider
+- [x] Google sign-in (GIS ID token)
+- [x] License redemption UI
+- [x] Academic profile UI (dynamic cohort dimensions from `/api/profile/options`)
+- [x] Calendar authorization UI (popup code flow)
+- [x] Initial-sync start and progress polling UI
+- [x] Onboarding route gating by authoritative backend state
+- [ ] Component system / design system
+- [ ] Automated frontend tests
+- [ ] Admin/operator interfaces
+- [ ] Production deployment topology and reverse-proxy config
+
 ## Current next action
 
 The schedule pipeline now runs from polling to a stored semantic diff. The
@@ -312,6 +328,17 @@ calendar, and PostgreSQL advisory locking fences dispatch, replay and inventory 
 Calendar synchronization and reconciliation hardening is complete through ADR-065, including
 intra-diff quota-aware fan-out. The next schedule-source slice remains
 `grade2_yearly_v1`, which needs no new canonical field.
+
+The consumer frontend now has a runnable foundation in `web/` (ADR-066). It is a Next.js App
+Router + TypeScript project that walks a student through the whole onboarding path — Google
+sign-in, license redemption, academic profile, Calendar authorization, and initial-sync
+progress — against the existing backend APIs, with the backend staying authoritative for
+onboarding state. Local development is same-origin behind an HTTPS proxy edge
+(`next.config.mjs` proxies `/api/*` to Kestrel), so the hardened `Secure`/`__Host-`/`SameSite`
+cookies are exercised unchanged and no backend CORS or cookie relaxation was introduced. The
+only external step for local OAuth testing is adding `https://localhost:3000` to the OAuth
+client's Authorized JavaScript origins. Still open on the frontend: a component/design system,
+automated tests, the admin/operator interfaces, and the production reverse-proxy topology.
 
 There is deliberately no rollback (ADR-033). A bad publication is corrected at
 the authoritative source and reaches calendars as a newer forward-fix revision.

@@ -2916,3 +2916,65 @@ mutation is the diff marked `Dispatched`.
   not-found may issue one recovery insert in the same unit.
 - Each partial pass replans and may enumerate a whole cohort for the current entry; write volume
   is bounded, read/planning pagination is a possible later optimization.
+
+---
+
+## ADR-066: Develop the frontend same-origin behind an HTTPS proxy edge
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-24
+**Implements:** the `web/` Next.js scaffold (App Router, TypeScript), its
+`next.config.mjs` `/api/*` rewrite proxy, a CSRF-aware typed API client, Google
+Identity Services sign-in and the Calendar popup code flow, and the onboarding
+route gating
+**Depends on:** ADR-023 (secure-cookie session), ADR-036 (Next.js), ADR-052
+(sign-in boundary), ADR-057 (Calendar authorization)
+
+### Context
+
+The backend session and antiforgery cookies are `__Host-` prefixed, `Secure`, and
+`SameSite=Lax`/`Strict` by deliberate design. ADR-052 recorded the constraint that
+a cross-site frontend "must explicitly revisit CORS, credentialed requests and
+SameSite policy rather than weakening cookies implicitly." Local development must
+therefore exercise those cookies faithfully, not disable them.
+
+Running the frontend cross-origin against Kestrel (`http://localhost:3000` →
+`http://localhost:5080`) would force a Development-only CORS policy *and* dropping
+`Secure`/`__Host-` over plain HTTP, so dev would test a weaker configuration than
+production ships.
+
+### Decision
+
+In development the Next.js dev server is the only origin the browser talks to. It
+runs over HTTPS (`next dev --experimental-https`) and proxies `/api/:path*` to the
+backend server-side (`BACKEND_ORIGIN`, default the HTTP Kestrel URL
+`http://localhost:5080`). The browser therefore makes only same-origin requests.
+
+Consequences of the topology, and why the backend needs no change:
+
+- Same-origin means **no CORS** and **no SameSite relaxation**; the cookies work
+  unchanged.
+- The HTTPS edge means the backend's `Secure` + `__Host-` cookies are accepted and
+  stored exactly as in production. Kestrel stays on plain HTTP locally; only the
+  edge terminates TLS, mirroring the production reverse proxy in front of Kestrel
+  (`CookieSecurePolicy.Always` still emits `Secure` regardless of the Kestrel-side
+  scheme).
+- Both Google flows are popup/`postMessage`, so only the dev frontend origin
+  (`https://localhost:3000`) is added to the OAuth client's Authorized JavaScript
+  origins; no localhost redirect URI is registered.
+
+### Consequences
+
+- Dev is faithful to the hardened production cookie configuration; the class of
+  bug ADR-052 warned about cannot hide behind a weakened dev config.
+- A future genuinely cross-site production topology (separate apex domains) would
+  still have to revisit CORS/SameSite explicitly; this ADR only removes the need
+  for the *development* environment by keeping it same-origin.
+- The frontend consumes string-serialized enums (the API uses
+  `JsonStringEnumConverter`) and treats backend onboarding state as authoritative,
+  mapping each state to a route rather than deciding activation client-side.
+- Production deployment still ships a separate frontend (ADR-036); the same-origin
+  guarantee there is provided by the reverse proxy, not by this dev proxy.
+
+---
+
