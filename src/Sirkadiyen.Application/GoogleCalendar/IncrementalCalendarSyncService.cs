@@ -13,10 +13,12 @@ namespace Sirkadiyen.Application.GoogleCalendar;
 /// </summary>
 /// <remarks>
 /// It is driven by diff state, not an in-memory queue, so a worker killed mid-fan-out re-runs the
-/// whole diff and every per-user operation converges (a re-insert is a safe 409, an unchanged patch
-/// is skipped, a delete of an absent event is a no-op). The mapping ledger is the authority for who
-/// currently holds a lesson; audience resolution decides only insertions. Per the pipeline
-/// convention it returns rich per-diff results and leaves logging to the worker.
+/// diff until its per-pass mutation budget is exhausted. Every completed per-user operation
+/// converges into the durable ledger (a re-insert is a safe 409, an unchanged patch is skipped, a
+/// delete of an absent event is a no-op), so a later pass naturally plans only what remains. The
+/// mapping ledger is the authority for who currently holds a lesson; audience resolution decides
+/// only insertions. Per the pipeline convention it returns rich per-diff results and leaves logging
+/// to the worker.
 /// </remarks>
 public sealed class IncrementalCalendarSyncService(
     IScheduleDiffStore diffStore,
@@ -73,7 +75,9 @@ public sealed class IncrementalCalendarSyncService(
             };
         }
 
-        DispatchAccumulator accumulator = new(now);
+        DispatchAccumulator accumulator = new(
+            now,
+            options.CalendarOperationsPerDiffBatch);
 
         try
         {
@@ -84,6 +88,15 @@ public sealed class IncrementalCalendarSyncService(
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 await DispatchEntryAsync(entry, records, accumulator, cancellationToken);
+                if (accumulator.HasMoreWork)
+                {
+                    // This is ordinary quota yielding, not a failure. The diff remains pending
+                    // without incrementing attempts or scheduling back-off. Every completed
+                    // mutation changed the durable ledger, so the next plan naturally excludes it.
+                    return accumulator.ToResult(
+                        diffId,
+                        IncrementalDispatchOutcome.PartiallyDispatched);
+                }
             }
 
             await diffStore.MarkDispatchedAsync(diffId, now, cancellationToken);
@@ -225,6 +238,10 @@ public sealed class IncrementalCalendarSyncService(
                 target.Profile,
                 holder.ContentHash);
             await ApplyHolderOperationAsync(operation, target, holder, record, accumulator, cancellationToken);
+            if (accumulator.HasMoreWork)
+            {
+                return;
+            }
         }
 
         IReadOnlyList<CalendarSyncTarget> cohort =
@@ -240,6 +257,11 @@ public sealed class IncrementalCalendarSyncService(
             if (IncrementalSyncPlanner.PlanForCohortCandidate(record, target.Profile)
                 is IncrementalCalendarOperation.Insert)
             {
+                if (!accumulator.TryReserveCalendarOperation())
+                {
+                    return;
+                }
+
                 await ApplyInsertAsync(target, record, accumulator, cancellationToken);
             }
         }
@@ -271,6 +293,11 @@ public sealed class IncrementalCalendarSyncService(
                 || !targets.TryGetValue(holder.UserId, out CalendarSyncTarget? target))
             {
                 continue;
+            }
+
+            if (!accumulator.TryReserveCalendarOperation())
+            {
+                return;
             }
 
             await ApplyDeleteAsync(target, holder, accumulator, cancellationToken);
@@ -336,6 +363,11 @@ public sealed class IncrementalCalendarSyncService(
             switch (operation)
             {
                 case IncrementalCalendarOperation.Patch:
+                    if (!accumulator.TryReserveCalendarOperation())
+                    {
+                        return;
+                    }
+
                     await ApplyPatchAsync(
                         target,
                         holder,
@@ -346,12 +378,22 @@ public sealed class IncrementalCalendarSyncService(
                     break;
 
                 case IncrementalCalendarOperation.Delete:
+                    if (!accumulator.TryReserveCalendarOperation())
+                    {
+                        return;
+                    }
+
                     await ApplyDeleteAsync(target, holder, accumulator, cancellationToken);
                     break;
 
                 case IncrementalCalendarOperation.None when isPreviousHolder:
                     // A stable-identity move must still patch the event's time/private marker even
                     // if an old producer happened to emit the same content hash on both sides.
+                    if (!accumulator.TryReserveCalendarOperation())
+                    {
+                        return;
+                    }
+
                     await ApplyPatchAsync(
                         target,
                         holder,
@@ -384,6 +426,11 @@ public sealed class IncrementalCalendarSyncService(
             if (IncrementalSyncPlanner.PlanForCohortCandidate(current, target.Profile)
                 is IncrementalCalendarOperation.Insert)
             {
+                if (!accumulator.TryReserveCalendarOperation())
+                {
+                    return;
+                }
+
                 await ApplyInsertAsync(target, current, accumulator, cancellationToken);
             }
         }
@@ -400,6 +447,11 @@ public sealed class IncrementalCalendarSyncService(
         switch (operation)
         {
             case IncrementalCalendarOperation.Patch:
+                if (!accumulator.TryReserveCalendarOperation())
+                {
+                    return;
+                }
+
                 await ApplyPatchAsync(
                     target,
                     holder,
@@ -409,6 +461,11 @@ public sealed class IncrementalCalendarSyncService(
                     cancellationToken);
                 break;
             case IncrementalCalendarOperation.Delete:
+                if (!accumulator.TryReserveCalendarOperation())
+                {
+                    return;
+                }
+
                 await ApplyDeleteAsync(target, holder, accumulator, cancellationToken);
                 break;
             case IncrementalCalendarOperation.Insert:
@@ -648,7 +705,9 @@ public sealed class IncrementalCalendarSyncService(
         return records.ToDictionary(record => record.Id);
     }
 
-    private sealed class DispatchAccumulator(DateTimeOffset now)
+    private sealed class DispatchAccumulator(
+        DateTimeOffset now,
+        int calendarOperationsPerDiffBatch)
     {
         private readonly HashSet<Guid> reauthFlagged = [];
 
@@ -660,6 +719,15 @@ public sealed class IncrementalCalendarSyncService(
 
         public int Deleted { get; set; }
 
+        public int CalendarOperationsAttempted { get; private set; }
+
+        /// <summary>
+        /// True only after the planner found one more required mutation than this pass may attempt.
+        /// Merely reaching the numeric limit is not enough: if no further mutation exists, the diff
+        /// is complete and may be marked dispatched in this pass.
+        /// </summary>
+        public bool HasMoreWork { get; private set; }
+
         public Dictionary<string, IReadOnlyList<CalendarSyncTarget>> CohortCache { get; } =
             new(StringComparer.Ordinal);
 
@@ -667,6 +735,18 @@ public sealed class IncrementalCalendarSyncService(
 
         /// <summary>Records a user as flagged; returns true the first time so the store is hit once.</summary>
         public bool FlagForReauth(Guid userId) => reauthFlagged.Add(userId);
+
+        public bool TryReserveCalendarOperation()
+        {
+            if (CalendarOperationsAttempted >= calendarOperationsPerDiffBatch)
+            {
+                HasMoreWork = true;
+                return false;
+            }
+
+            CalendarOperationsAttempted++;
+            return true;
+        }
 
         public IncrementalCalendarSyncDiffResult ToResult(
             Guid diffId,
@@ -678,6 +758,7 @@ public sealed class IncrementalCalendarSyncService(
                 Inserted = Inserted,
                 Patched = Patched,
                 Deleted = Deleted,
+                CalendarOperationsAttempted = CalendarOperationsAttempted,
                 ReauthFlagged = reauthFlagged.Count,
                 FailureReason = failureReason,
             };
@@ -704,6 +785,12 @@ public sealed record IncrementalCalendarSyncDiffResult
 
     public int Deleted { get; init; }
 
+    /// <summary>
+    /// Per-user Calendar mutations attempted in this pass, including an attempt that discovered a
+    /// dead credential. A patch that finds a missing event may issue one recovery insert too.
+    /// </summary>
+    public int CalendarOperationsAttempted { get; init; }
+
     /// <summary>How many users were flagged for re-authorization because their credential was dead.</summary>
     public int ReauthFlagged { get; init; }
 
@@ -715,6 +802,12 @@ public enum IncrementalDispatchOutcome
 {
     /// <summary>Every applicable calendar was updated; the diff is marked dispatched.</summary>
     Dispatched,
+
+    /// <summary>
+    /// This pass reached its per-diff mutation budget. The diff remains pending and resumes from
+    /// the converged ledger on the next worker cycle without counting as a failure.
+    /// </summary>
+    PartiallyDispatched,
 
     /// <summary>A transient failure deferred the diff with a back-off; it will retry.</summary>
     Deferred,

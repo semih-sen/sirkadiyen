@@ -815,3 +815,12 @@ failure: flag that recipient's connection for re-authorization, skip them, leave
 have, and let the job complete for everyone else. The residual gap — a recipient who was
 skipped and later recovers must catch up on jobs finished while they were down — is the
 deferred **reconciliation** concern, never a reason to block the job or delete their data.
+
+Bound a large fan-out **inside one diff** by per-user Calendar mutation units (ADR-065).
+When a pass discovers one more required mutation than its configured budget, it returns a
+normal partial outcome and leaves the diff `Pending`; it does not increment failure attempts
+or schedule back-off. Do not add a mutable recipient cursor: the fine-grained mapping ledger
+is already the durable progress record. Successful inserts create mappings, patches update
+their content/identity, deletes remove them, and dead credentials leave the target set, so
+replanning the immutable diff naturally yields only unfinished mutations. Mark the diff
+`Dispatched` only after a complete scan finds no work beyond the budget.

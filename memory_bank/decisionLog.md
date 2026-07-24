@@ -2865,3 +2865,54 @@ it does not participate in the completed-user dispatch/replay ordering proof.
   the work is partitioned with a stronger per-partition protocol.
 - Any future entry point that invokes dispatch, replay, or inventory must go through the same
   fenced coordinator.
+
+## ADR-065: Bound one diff's fan-out with the existing idempotency ledger
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-24
+**Implements:** per-diff Calendar mutation budget, `PartiallyDispatched` outcome, worker
+configuration/logging, and insert/delete resume regression tests
+**Depends on:** ADR-058 (durable event mapping), ADR-059 (coarse diff state over fine-grained
+idempotency), ADR-064 (single fenced dispatch coordinator)
+
+### Context
+
+`DiffDispatchBatchSize` limits how many diffs a cycle admits, but ADR-059 still fanned every
+user affected by one diff to completion. A normal `Ready` diff is small because safety
+thresholds hold mass changes, while an operator may legitimately release a large held diff.
+That released diff could perform a long, quota-heavy Calendar fan-out in one worker cycle.
+
+A persisted `(diff, entry, user)` cursor appears attractive, but the affected-user set is
+derived from live profiles, connection health and mappings. Paginating that mutable set by a
+cursor can skip a user who becomes eligible behind the cursor, and a work-item table would
+duplicate the fine-grained progress already represented by the mapping ledger.
+
+### Decision
+
+Set `CalendarOperationsPerDiffBatch` (environment key
+`SIRKADIYEN_SYNC__CALENDAR_OPERATIONS_PER_DIFF_BATCH`, default 100). Count one per-user
+semantic Calendar mutation: insert, patch, delete, or identity-moving patch. When the planner
+finds a required mutation after the budget is exhausted:
+
+1. return `PartiallyDispatched`;
+2. leave `CalendarDispatchState` as `Pending`;
+3. do not increment `DispatchAttempts`, set back-off, or record a failure;
+4. replan the immutable diff in a later worker cycle.
+
+Use the existing mapping ledger as the durable checkpoint. A successful insert adds a mapping,
+a patch updates its content or stable identity, a delete removes it, and a credential rejection
+makes that user ineligible while creating the reconciliation boundary. Those completed units
+therefore disappear from the next plan. Only after a full scan finds no additional required
+mutation is the diff marked `Dispatched`.
+
+### Consequences
+
+- A large released diff is spread over worker cycles without weakening its publication,
+  hold/release or deletion authority.
+- Quota yield is observably different from transient failure and never consumes the failure
+  retry budget.
+- No schema change, dispatch work table or mutable cursor is required.
+- The limit bounds semantic mutation units, not exact provider requests. A patch that receives
+  not-found may issue one recovery insert in the same unit.
+- Each partial pass replans and may enumerate a whole cohort for the current entry; write volume
+  is bounded, read/planning pagination is a possible later optimization.

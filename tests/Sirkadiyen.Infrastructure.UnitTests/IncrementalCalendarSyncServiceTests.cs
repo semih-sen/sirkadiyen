@@ -231,6 +231,90 @@ public sealed class IncrementalCalendarSyncServiceTests
     }
 
     [Fact]
+    public async Task AGlobalDiffYieldsAtThePerDiffMutationBudgetAndResumesFromTheLedger()
+    {
+        CanonicalScheduleRecord record = CalendarTestData.Record(stableIdentity: "lesson-1");
+        Guid firstUser = Guid.CreateVersion7();
+        Guid secondUser = Guid.CreateVersion7();
+        Harness harness = new()
+        {
+            Options = new IncrementalSyncOptions
+            {
+                CalendarOperationsPerDiffBatch = 1,
+            },
+        };
+        harness.Records.Add(record);
+        harness.Cohort.Add(Target(firstUser, "first"));
+        harness.Cohort.Add(Target(secondUser, "second"));
+        harness.Diffs.Add(Diff(Created(record.Id)));
+        IncrementalCalendarSyncService service = harness.Build();
+
+        IncrementalCalendarSyncDiffResult first =
+            Assert.Single((await service.RunPendingAsync(CancellationToken.None)).Diffs);
+
+        Assert.Equal(IncrementalDispatchOutcome.PartiallyDispatched, first.Outcome);
+        Assert.Equal(1, first.CalendarOperationsAttempted);
+        Assert.Single(harness.Client.Inserts);
+        Assert.False(harness.Diffs.WasDispatched);
+        Assert.Equal(0, harness.Diffs.FailureRecorded);
+
+        IncrementalCalendarSyncDiffResult second =
+            Assert.Single((await service.RunPendingAsync(CancellationToken.None)).Diffs);
+
+        Assert.Equal(IncrementalDispatchOutcome.Dispatched, second.Outcome);
+        Assert.Equal(1, second.CalendarOperationsAttempted);
+        Assert.Equal(2, harness.Client.Inserts.Count);
+        Assert.Equal(2, harness.Mappings.Added.Count);
+        Assert.True(harness.Diffs.WasDispatched);
+        Assert.Equal(0, harness.Diffs.FailureRecorded);
+    }
+
+    [Fact]
+    public async Task AReleasedDeletionFanOutIsAlsoBoundedAndRemainsDiffAuthorized()
+    {
+        CanonicalScheduleRecord removedRecord =
+            CalendarTestData.Record(stableIdentity: "lesson-1");
+        Guid firstUser = Guid.CreateVersion7();
+        Guid secondUser = Guid.CreateVersion7();
+        Harness harness = new()
+        {
+            Options = new IncrementalSyncOptions
+            {
+                CalendarOperationsPerDiffBatch = 1,
+            },
+        };
+        harness.Records.Add(removedRecord);
+        harness.Holders.Add(Holder(firstUser, removedRecord.StableIdentity, "sha256:old"));
+        harness.Holders.Add(Holder(secondUser, removedRecord.StableIdentity, "sha256:old"));
+        harness.ByUserId.Add(Target(firstUser, "first"));
+        harness.ByUserId.Add(Target(secondUser, "second"));
+        harness.Diffs.Add(Diff(Deleted(removedRecord.Id)));
+        IncrementalCalendarSyncService service = harness.Build();
+
+        IncrementalCalendarSyncDiffResult first =
+            Assert.Single((await service.RunPendingAsync(CancellationToken.None)).Diffs);
+        int deletesAfterFirstPass = harness.Client.Deletes.Count;
+        IncrementalCalendarSyncDiffResult second =
+            Assert.Single((await service.RunPendingAsync(CancellationToken.None)).Diffs);
+
+        Assert.Equal(IncrementalDispatchOutcome.PartiallyDispatched, first.Outcome);
+        Assert.Equal(IncrementalDispatchOutcome.Dispatched, second.Outcome);
+        Assert.Equal(1, deletesAfterFirstPass);
+        Assert.Equal(2, harness.Client.Deletes.Count);
+        Assert.Equal(2, harness.Mappings.Removed.Count);
+        Assert.True(harness.Diffs.WasDispatched);
+        Assert.Equal(0, harness.Diffs.FailureRecorded);
+    }
+
+    [Fact]
+    public void IncrementalDispatchRejectsANonPositivePerDiffMutationBudget()
+    {
+        IncrementalSyncOptions options = new() { CalendarOperationsPerDiffBatch = 0 };
+
+        Assert.Throws<ArgumentOutOfRangeException>(options.Validate);
+    }
+
+    [Fact]
     public async Task ADeadCredentialIsFlaggedAndDoesNotBlockOtherUsersOrTheDiff()
     {
         CanonicalScheduleRecord record = CalendarTestData.Record(stableIdentity: "lesson-1");

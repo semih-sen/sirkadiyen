@@ -2,12 +2,19 @@ namespace Sirkadiyen.Application.GoogleCalendar;
 
 /// <summary>
 /// Bounds how much incremental-dispatch work one worker cycle does and how it backs off after a
-/// transient failure (ADR-059).
+/// transient failure (ADR-059/065).
 /// </summary>
 public sealed class IncrementalSyncOptions
 {
     /// <summary>How many dispatchable diffs one cycle fans out onto calendars.</summary>
     public int DiffDispatchBatchSize { get; init; } = 10;
+
+    /// <summary>
+    /// Maximum per-user Calendar mutations attempted for one diff in one worker cycle. A partial
+    /// pass leaves the diff pending; completed work falls out of the next plan through the durable
+    /// mapping ledger.
+    /// </summary>
+    public int CalendarOperationsPerDiffBatch { get; init; } = 100;
 
     /// <summary>
     /// How many transient failures a diff tolerates before it is marked failed and left for an
@@ -27,6 +34,7 @@ public sealed class IncrementalSyncOptions
     public void Validate()
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(DiffDispatchBatchSize, 1);
+        ArgumentOutOfRangeException.ThrowIfLessThan(CalendarOperationsPerDiffBatch, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(MaxDispatchAttempts, 1);
         ArgumentOutOfRangeException.ThrowIfLessThan(DispatchRetryBaseDelaySeconds, 1);
     }

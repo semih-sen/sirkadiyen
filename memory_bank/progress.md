@@ -177,7 +177,8 @@
 - [x] Implement reconciliation (semantic replay, non-destructive Calendar/ledger inventory,
   orphan-calendar recovery, and multi-worker fence; ADR-060 through ADR-064)
 - [x] Add mocked adapter tests
-- [~] Add quota-aware batching (per-cycle event budget + diffs-per-cycle bound; intra-diff quota-aware batching pending)
+- [x] Add quota-aware batching (initial-sync event budget, diffs-per-cycle admission,
+  and ledger-resumable per-diff Calendar mutation budget; ADR-065)
 
 ## Phase 10: Administration and operations
 
@@ -308,8 +309,9 @@ it recreates or patches expected state but never turns absence, an unexpected ev
 duplicate into deletion authority. Initial sync recovers exactly one marker-matched orphan
 calendar, and PostgreSQL advisory locking fences dispatch, replay and inventory across workers.
 
-The next Calendar hardening slice is intra-diff quota-aware batching. The next schedule-source
-slice remains `grade2_yearly_v1`, which needs no new canonical field.
+Calendar synchronization and reconciliation hardening is complete through ADR-065, including
+intra-diff quota-aware fan-out. The next schedule-source slice remains
+`grade2_yearly_v1`, which needs no new canonical field.
 
 There is deliberately no rollback (ADR-033). A bad publication is corrected at
 the authoritative source and reaches calendars as a newer forward-fix revision.

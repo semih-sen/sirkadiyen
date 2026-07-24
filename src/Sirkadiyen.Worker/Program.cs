@@ -79,6 +79,9 @@ IncrementalSyncOptions incrementalSyncOptions = new()
     DiffDispatchBatchSize = ParseInteger(
         builder.Configuration["SIRKADIYEN_SYNC:DIFF_DISPATCH_BATCH_SIZE"],
         10),
+    CalendarOperationsPerDiffBatch = ParseInteger(
+        builder.Configuration["SIRKADIYEN_SYNC:CALENDAR_OPERATIONS_PER_DIFF_BATCH"],
+        100),
     MaxDispatchAttempts = ParseInteger(
         builder.Configuration["SIRKADIYEN_SYNC:MAX_DISPATCH_ATTEMPTS"],
         5),

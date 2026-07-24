@@ -26,8 +26,10 @@ diffs after that cursor. Calendar reconciliation is now complete (ADR-062 throug
 ADR-064): a periodic three-way inventory repairs missing/stale managed events and ledger
 rows without inferring deletions, marker-based initial-sync recovery reattaches a single
 orphaned app-created calendar, and a PostgreSQL advisory fence serializes global dispatch,
-semantic replay and inventory across worker instances. Intra-diff quota-aware batching
-remains next.
+semantic replay and inventory across worker instances. Intra-diff quota-aware batching is
+implemented too (ADR-065): a large dispatchable diff yields after a configured number of
+per-user mutations and resumes from the converged ledger without treating quota yield as a
+failure.
 
 The Google Sheets path now runs end to end from catalog seeding to a stored
 diff: adaptive polling, immutable snapshot storage, strict parser HTTP calls,
@@ -49,7 +51,7 @@ hold is never releasable and is corrected at the source (ADR-042).
 The incremental dispatcher now consumes every dispatchable diff and resolves the
 affected completed-sync users before applying idempotent Calendar operations.
 Drive and HTTP acquisition, DOCX conversion, the remaining parser profiles, the
-intra-diff quota-aware batching, and the frontend still do not exist.
+frontend, and the remaining operational surfaces still do not exist.
 
 The source credential is resolved: a Google service account is configured and the
 worker can reach the real Sheets API.
@@ -66,6 +68,23 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- **Implemented ledger-resumable intra-diff batching (ADR-065).** Incremental dispatch attempts
+  at most `SIRKADIYEN_SYNC__CALENDAR_OPERATIONS_PER_DIFF_BATCH` per-user semantic mutations for
+  each admitted diff in one worker cycle.
+- A pass that discovers more work returns `PartiallyDispatched`; the diff remains `Pending`,
+  `DispatchAttempts` and `NextAttemptAtUtc` are untouched, and the next cycle replans the same
+  immutable diff. Completed insert/patch/delete operations have already converged the durable
+  mapping ledger, so they fall out of that plan without a new cursor table or migration.
+- The budget covers inserts, patches, audience-narrowing deletes, semantic `Deleted` fan-out and
+  secondary-identity moves. A dead credential consumes one attempted mutation and is moved into
+  the existing re-authorization/replay workflow.
+- Structured worker logs now distinguish quota yield from transient deferral and report mutation
+  attempts plus insert/patch/delete/reauthorization counts.
+- 461 .NET tests pass, up from 458, nothing skipped. Release build has no warnings, formatting and
+  EF model checks are clean, and no migration was required.
+
+## Previous Calendar inventory/recovery/fence session
 
 - **Completed safe Calendar reconciliation (ADR-062).** A freeze-gated periodic inventory
   compares current published/applicable records, the durable event ledger, and actual marked
@@ -1173,11 +1192,14 @@ dimension can be added with evidence.
   operator-visible product action because it changes the user's external container
 - the real CalendarList marker lookup and managed-event inventory adapter have no live automated
   coverage; fakes cover application behavior and PostgreSQL covers scheduling/fencing
-- an incremental diff's fan-out over a cohort runs to completion within one cycle; only the number
-  of diffs per cycle is bounded. A Ready diff is small because a mass change is *held*, but a large
-  operator-*released* diff over a big cohort runs long until intra-diff quota-aware batching lands. A
-  persistently transient-failing diff backs off and, after `MaxDispatchAttempts`, moves to `Failed`
-  for an operator rather than retrying forever
+- incremental dispatch now bounds each admitted diff by per-user semantic mutation units
+  (ADR-065). This is not an exact Google HTTP-request ceiling: a patch that discovers a missing
+  event issues a recovery insert as part of the same mutation unit, so a heavily drifted batch may
+  use up to two write calls per patch. Persistently transient-failing diffs still back off and,
+  after `MaxDispatchAttempts`, move to `Failed` for an operator
+- partial passes re-enumerate the diff and affected users on the next cycle; Calendar writes are
+  bounded and completed work falls out through the ledger, but cohort read/planning volume is not
+  paged inside one entry
 
 ## Working assumptions
 

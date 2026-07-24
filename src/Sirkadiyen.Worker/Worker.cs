@@ -311,9 +311,24 @@ internal sealed class Worker(
         {
             case IncrementalDispatchOutcome.Dispatched:
                 logger.LogInformation(
-                    "Diff {DiffId} dispatched to calendars: {Inserted} inserted, {Patched} patched, "
+                    "Diff {DiffId} dispatched to calendars in {CalendarOperationsAttempted} "
+                    + "mutation attempts: {Inserted} inserted, {Patched} patched, "
                     + "{Deleted} deleted; {ReauthFlagged} users flagged for re-authorization.",
                     diff.DiffId,
+                    diff.CalendarOperationsAttempted,
+                    diff.Inserted,
+                    diff.Patched,
+                    diff.Deleted,
+                    diff.ReauthFlagged);
+                break;
+
+            case IncrementalDispatchOutcome.PartiallyDispatched:
+                logger.LogInformation(
+                    "Diff {DiffId} yielded after {CalendarOperationsAttempted} Calendar mutation "
+                    + "attempts: {Inserted} inserted, {Patched} patched, {Deleted} deleted; "
+                    + "{ReauthFlagged} users flagged for re-authorization. It remains pending.",
+                    diff.DiffId,
+                    diff.CalendarOperationsAttempted,
                     diff.Inserted,
                     diff.Patched,
                     diff.Deleted,
