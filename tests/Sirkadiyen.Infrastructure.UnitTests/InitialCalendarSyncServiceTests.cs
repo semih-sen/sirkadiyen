@@ -420,6 +420,16 @@ public sealed class InitialCalendarSyncServiceTests
             DateTimeOffset atUtc,
             CancellationToken cancellationToken) => throw new NotSupportedException();
 
+        public Task<CalendarEventMappingReidentifyOutcome> ReidentifyAsync(
+            Guid userId,
+            SourceId sourceId,
+            string previousStableIdentity,
+            string currentStableIdentity,
+            Guid canonicalRecordId,
+            string contentHash,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
         public Task<CalendarEventMappingRemoveOutcome> RemoveAsync(
             Guid userId,
             string stableIdentity,

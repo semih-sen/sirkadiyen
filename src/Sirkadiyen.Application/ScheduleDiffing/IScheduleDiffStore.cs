@@ -65,6 +65,17 @@ public interface IScheduleDiffStore
         int maxAttempts,
         DateTimeOffset now,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Lists dispatchable semantic diffs already applied globally after one user's ordered
+    /// reconciliation cursor (ADR-060). These immutable diffs are the only authority for replay
+    /// deletions; current-state absence is never queried as a substitute.
+    /// </summary>
+    Task<IReadOnlyList<DispatchedDiff>> ListDispatchedForReplayAsync(
+        DateTimeOffset afterDispatchedAtUtc,
+        Guid afterDiffId,
+        int limit,
+        CancellationToken cancellationToken);
 }
 
 /// <summary>
@@ -78,6 +89,21 @@ public sealed record DispatchableDiff
 
     /// <summary>The source that produced these records, for scoping the ledger reverse lookup.</summary>
     public required Domain.ScheduleSources.SourceId SourceId { get; init; }
+
+    public required IReadOnlyList<ScheduleDiffEntry> Entries { get; init; }
+}
+
+/// <summary>
+/// One globally completed diff admitted for a single user's reconciliation replay.
+/// </summary>
+public sealed record DispatchedDiff
+{
+    public required Guid DiffId { get; init; }
+
+    public required Domain.ScheduleSources.SourceId SourceId { get; init; }
+
+    /// <summary>The first half of the durable replay ordering key.</summary>
+    public required DateTimeOffset DispatchedAtUtc { get; init; }
 
     public required IReadOnlyList<ScheduleDiffEntry> Entries { get; init; }
 }

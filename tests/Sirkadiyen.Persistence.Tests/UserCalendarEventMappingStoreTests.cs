@@ -123,6 +123,48 @@ public sealed class UserCalendarEventMappingStoreTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task ReidentifyingAMappingPreservesTheGoogleEventAndIsIdempotent()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        UserSession user = await CreateUserAsync("reidentify-mapping");
+        Guid newRecordId = Guid.CreateVersion7();
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        UserCalendarEventMappingStore store = new(context);
+        await store.AddAsync(Mapping(user.UserId, "lesson-at-0900"), Token);
+
+        CalendarEventMappingReidentifyOutcome moved = await store.ReidentifyAsync(
+            user.UserId,
+            Source,
+            "lesson-at-0900",
+            "lesson-at-1000",
+            newRecordId,
+            "sha256:moved",
+            Now.AddMinutes(5),
+            Token);
+
+        Assert.Equal(CalendarEventMappingReidentifyOutcome.Reidentified, moved);
+        Assert.Empty(await store.ListForStableIdentityAsync(Source, "lesson-at-0900", Token));
+        CalendarEventMappingView current = Assert.Single(
+            await store.ListForStableIdentityAsync(Source, "lesson-at-1000", Token));
+        Assert.Equal("event-lesson-at-0900", current.GoogleEventId);
+        Assert.Equal("sha256:moved", current.ContentHash);
+        Assert.Equal(newRecordId, current.CanonicalRecordId);
+
+        CalendarEventMappingReidentifyOutcome replay = await store.ReidentifyAsync(
+            user.UserId,
+            Source,
+            "lesson-at-0900",
+            "lesson-at-1000",
+            newRecordId,
+            "sha256:moved",
+            Now.AddMinutes(6),
+            Token);
+        Assert.Equal(CalendarEventMappingReidentifyOutcome.AlreadyReidentified, replay);
+        Assert.Equal(1, await store.CountForUserAsync(user.UserId, Token));
+    }
+
+    [Fact]
     public async Task RemovingAMappingDeletesItAndAnAbsentOneIsReported()
     {
         Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);

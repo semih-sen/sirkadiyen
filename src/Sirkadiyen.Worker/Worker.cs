@@ -49,6 +49,7 @@ internal sealed class Worker(
             await CalculatePendingDiffsAsync(stoppingToken);
             await DispatchPendingDiffsAsync(stoppingToken);
             await RunPendingInitialSyncsAsync(stoppingToken);
+            await RunPendingCalendarReconciliationsAsync(stoppingToken);
             await PruneExpiredSnapshotPayloadsAsync(stoppingToken);
 
             TimeSpan interval = intervalPolicy.GetInterval(timeProvider.GetUtcNow());
@@ -379,6 +380,93 @@ internal sealed class Worker(
             default:
                 logger.LogError(
                     "Initial calendar sync failed for user {UserId} and will retry next cycle: "
+                    + "{FailureReason}",
+                    user.UserId,
+                    user.FailureReason);
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Replays semantic diffs missed while a completed user's Calendar credential was unavailable
+    /// (ADR-060). It runs after global dispatch, follows each user's ordered cursor, and never derives
+    /// deletion from current-state absence.
+    /// </summary>
+    private async Task RunPendingCalendarReconciliationsAsync(
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
+            CalendarReconciliationService reconciliation = scope.ServiceProvider
+                .GetRequiredService<CalendarReconciliationService>();
+
+            CalendarReconciliationRunResult result =
+                await reconciliation.RunPendingAsync(cancellationToken);
+            if (result.Frozen)
+            {
+                logger.LogInformation(
+                    "Calendar reconciliation skipped because the global operational freeze "
+                    + "is active.");
+                return;
+            }
+
+            foreach (CalendarReconciliationUserResult user in result.Users)
+            {
+                LogCalendarReconciliationResult(user);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Running pending Calendar reconciliations failed.");
+        }
+    }
+
+    private void LogCalendarReconciliationResult(CalendarReconciliationUserResult user)
+    {
+        switch (user.Outcome)
+        {
+            case CalendarReconciliationOutcome.Completed:
+                logger.LogInformation(
+                    "Calendar reconciliation completed for user {UserId}; no dispatched diff "
+                    + "remains after the durable cursor.",
+                    user.UserId);
+                break;
+
+            case CalendarReconciliationOutcome.InProgress:
+                logger.LogInformation(
+                    "Calendar reconciliation advanced for user {UserId}: {DiffsReplayed} diffs, "
+                    + "{Inserted} inserted, {Patched} patched, {Deleted} deleted.",
+                    user.UserId,
+                    user.DiffsReplayed,
+                    user.Inserted,
+                    user.Patched,
+                    user.Deleted);
+                break;
+
+            case CalendarReconciliationOutcome.Deferred:
+                logger.LogWarning(
+                    "Calendar reconciliation deferred for user {UserId}; the cursor was preserved: "
+                    + "{FailureReason}",
+                    user.UserId,
+                    user.FailureReason);
+                break;
+
+            case CalendarReconciliationOutcome.AuthorizationRequired:
+                logger.LogWarning(
+                    "Calendar reconciliation stopped for user {UserId} because the refreshed "
+                    + "credential was rejected again; the cursor was preserved.",
+                    user.UserId);
+                break;
+
+            case CalendarReconciliationOutcome.Failed:
+            default:
+                logger.LogError(
+                    "Calendar reconciliation failed for user {UserId}; the cursor was preserved: "
                     + "{FailureReason}",
                     user.UserId,
                     user.FailureReason);

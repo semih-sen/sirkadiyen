@@ -149,10 +149,31 @@ public sealed class IncrementalCalendarSyncService(
     {
         switch (entry.Change)
         {
-            case ScheduleDiffChange.Created or ScheduleDiffChange.Updated
+            case ScheduleDiffChange.Created
                 when entry.CurrentRecordId is { } currentId
                     && records.TryGetValue(currentId, out CanonicalScheduleRecord? current):
                 await ReconcileRecordAsync(current, accumulator, cancellationToken);
+                break;
+
+            case ScheduleDiffChange.Updated
+                when entry.Match == ScheduleDiffMatch.ExactStableIdentity
+                    && entry.CurrentRecordId is { } exactCurrentId
+                    && records.TryGetValue(
+                        exactCurrentId,
+                        out CanonicalScheduleRecord? exactCurrent):
+                await ReconcileRecordAsync(exactCurrent, accumulator, cancellationToken);
+                break;
+
+            case ScheduleDiffChange.Updated
+                when entry.PreviousRecordId is { } previousId
+                    && records.TryGetValue(previousId, out CanonicalScheduleRecord? previous)
+                    && entry.CurrentRecordId is { } updatedId
+                    && records.TryGetValue(updatedId, out CanonicalScheduleRecord? updated):
+                await ReconcileMovedRecordAsync(
+                    previous,
+                    updated,
+                    accumulator,
+                    cancellationToken);
                 break;
 
             case ScheduleDiffChange.Deleted
@@ -256,6 +277,118 @@ public sealed class IncrementalCalendarSyncService(
         }
     }
 
+    /// <summary>
+    /// Applies a secondary-matched update whose start-time identity changed. Existing holders keep
+    /// their Google event id; only the ledger identity and private marker move to the current record.
+    /// </summary>
+    private async Task ReconcileMovedRecordAsync(
+        CanonicalScheduleRecord previous,
+        CanonicalScheduleRecord current,
+        DispatchAccumulator accumulator,
+        CancellationToken cancellationToken)
+    {
+        IReadOnlyList<CalendarEventMappingView> previousHolders =
+            await mappingStore.ListForStableIdentityAsync(
+                previous.SourceId,
+                previous.StableIdentity,
+                cancellationToken);
+        IReadOnlyList<CalendarEventMappingView> currentHolders =
+            await mappingStore.ListForStableIdentityAsync(
+                current.SourceId,
+                current.StableIdentity,
+                cancellationToken);
+
+        HashSet<Guid> duplicateUsers =
+        [
+            .. previousHolders.Select(holder => holder.UserId)
+                .Intersect(currentHolders.Select(holder => holder.UserId)),
+        ];
+        if (duplicateUsers.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"A secondary-matched update found both previous and current mappings for "
+                + $"{duplicateUsers.Count} user(s). Automatic event merging is unsafe.");
+        }
+
+        CalendarEventMappingView[] holders = [.. previousHolders, .. currentHolders];
+        HashSet<Guid> holderIds = [.. holders.Select(holder => holder.UserId)];
+        IReadOnlyDictionary<Guid, CalendarSyncTarget> targets =
+            await TargetsByUserIdsAsync(holderIds, cancellationToken);
+
+        foreach (CalendarEventMappingView holder in holders)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (accumulator.IsFlaggedForReauth(holder.UserId)
+                || !targets.TryGetValue(holder.UserId, out CalendarSyncTarget? target))
+            {
+                continue;
+            }
+
+            IncrementalCalendarOperation operation = IncrementalSyncPlanner.PlanForExistingHolder(
+                current,
+                target.Profile,
+                holder.ContentHash);
+            bool isPreviousHolder = string.Equals(
+                holder.StableIdentity,
+                previous.StableIdentity,
+                StringComparison.Ordinal);
+
+            switch (operation)
+            {
+                case IncrementalCalendarOperation.Patch:
+                    await ApplyPatchAsync(
+                        target,
+                        holder,
+                        current,
+                        isPreviousHolder ? previous.StableIdentity : null,
+                        accumulator,
+                        cancellationToken);
+                    break;
+
+                case IncrementalCalendarOperation.Delete:
+                    await ApplyDeleteAsync(target, holder, accumulator, cancellationToken);
+                    break;
+
+                case IncrementalCalendarOperation.None when isPreviousHolder:
+                    // A stable-identity move must still patch the event's time/private marker even
+                    // if an old producer happened to emit the same content hash on both sides.
+                    await ApplyPatchAsync(
+                        target,
+                        holder,
+                        current,
+                        previous.StableIdentity,
+                        accumulator,
+                        cancellationToken);
+                    break;
+
+                case IncrementalCalendarOperation.None:
+                    break;
+
+                case IncrementalCalendarOperation.Insert:
+                default:
+                    throw new InvalidOperationException(
+                        $"Unexpected operation '{operation}' for an existing Calendar mapping.");
+            }
+        }
+
+        IReadOnlyList<CalendarSyncTarget> cohort =
+            await CohortTargetsAsync(current, accumulator, cancellationToken);
+        foreach (CalendarSyncTarget target in cohort)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (holderIds.Contains(target.UserId) || accumulator.IsFlaggedForReauth(target.UserId))
+            {
+                continue;
+            }
+
+            if (IncrementalSyncPlanner.PlanForCohortCandidate(current, target.Profile)
+                is IncrementalCalendarOperation.Insert)
+            {
+                await ApplyInsertAsync(target, current, accumulator, cancellationToken);
+            }
+        }
+    }
+
     private async Task ApplyHolderOperationAsync(
         IncrementalCalendarOperation operation,
         CalendarSyncTarget target,
@@ -267,7 +400,13 @@ public sealed class IncrementalCalendarSyncService(
         switch (operation)
         {
             case IncrementalCalendarOperation.Patch:
-                await ApplyPatchAsync(target, record, accumulator, cancellationToken);
+                await ApplyPatchAsync(
+                    target,
+                    holder,
+                    record,
+                    previousStableIdentity: null,
+                    accumulator,
+                    cancellationToken);
                 break;
             case IncrementalCalendarOperation.Delete:
                 await ApplyDeleteAsync(target, holder, accumulator, cancellationToken);
@@ -318,20 +457,27 @@ public sealed class IncrementalCalendarSyncService(
 
     private async Task ApplyPatchAsync(
         CalendarSyncTarget target,
+        CalendarEventMappingView holder,
         CanonicalScheduleRecord record,
+        string? previousStableIdentity,
         DispatchAccumulator accumulator,
         CancellationToken cancellationToken)
     {
-        ManagedCalendarEvent calendarEvent = ManagedCalendarEventFactory.ToManagedEvent(
-            target.UserId,
-            record);
+        // A mapping reidentified after a secondary match deliberately keeps the Google event id
+        // created from its original stable identity. The ledger, not a re-derived id, is therefore
+        // the authoritative patch target.
+        ManagedCalendarEvent calendarEvent =
+            ManagedCalendarEventFactory.ToManagedEvent(target.UserId, record) with
+            {
+                EventId = holder.GoogleEventId,
+            };
 
         try
         {
             CalendarAccess access = AccessFor(target);
             CalendarEventPatchOutcome outcome = await calendarClient.PatchEventAsync(
                 access,
-                target.ManagedCalendarId,
+                holder.GoogleCalendarId,
                 calendarEvent,
                 cancellationToken);
 
@@ -341,23 +487,61 @@ public sealed class IncrementalCalendarSyncService(
                 // left divergent; the deterministic id keeps this idempotent (ADR-024, ADR-059).
                 await calendarClient.InsertEventAsync(
                     access,
-                    target.ManagedCalendarId,
+                    holder.GoogleCalendarId,
                     calendarEvent,
                     cancellationToken);
             }
 
-            await mappingStore.UpdateContentAsync(
-                target.UserId,
-                record.StableIdentity,
-                record.Id,
-                record.ContentHash,
-                accumulator.Now,
-                cancellationToken);
+            if (previousStableIdentity is null)
+            {
+                await mappingStore.UpdateContentAsync(
+                    target.UserId,
+                    holder.StableIdentity,
+                    record.Id,
+                    record.ContentHash,
+                    accumulator.Now,
+                    cancellationToken);
+            }
+            else
+            {
+                await ReidentifyMappingAsync(
+                    target.UserId,
+                    previousStableIdentity,
+                    record,
+                    accumulator.Now,
+                    cancellationToken);
+            }
+
             accumulator.Patched++;
         }
         catch (GoogleCalendarCredentialException)
         {
             await FlagForReauthAsync(target.UserId, accumulator, cancellationToken);
+        }
+    }
+
+    private async Task ReidentifyMappingAsync(
+        Guid userId,
+        string previousStableIdentity,
+        CanonicalScheduleRecord current,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        CalendarEventMappingReidentifyOutcome outcome = await mappingStore.ReidentifyAsync(
+            userId,
+            current.SourceId,
+            previousStableIdentity,
+            current.StableIdentity,
+            current.Id,
+            current.ContentHash,
+            now,
+            cancellationToken);
+        if (outcome is CalendarEventMappingReidentifyOutcome.NotFound
+            or CalendarEventMappingReidentifyOutcome.Conflict)
+        {
+            throw new InvalidOperationException(
+                $"Could not move user '{userId}' Calendar mapping from "
+                + $"'{previousStableIdentity}' to '{current.StableIdentity}': {outcome}.");
         }
     }
 
@@ -443,15 +627,14 @@ public sealed class IncrementalCalendarSyncService(
         HashSet<Guid> ids = [];
         foreach (ScheduleDiffEntry entry in entries)
         {
-            Guid? id = entry.Change switch
+            if (entry.PreviousRecordId is { } previousId)
             {
-                ScheduleDiffChange.Created or ScheduleDiffChange.Updated => entry.CurrentRecordId,
-                ScheduleDiffChange.Deleted => entry.PreviousRecordId,
-                _ => null,
-            };
-            if (id is { } value)
+                ids.Add(previousId);
+            }
+
+            if (entry.CurrentRecordId is { } currentId)
             {
-                ids.Add(value);
+                ids.Add(currentId);
             }
         }
 

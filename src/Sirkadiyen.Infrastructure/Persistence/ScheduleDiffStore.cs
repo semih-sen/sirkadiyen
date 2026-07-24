@@ -184,6 +184,38 @@ public sealed class ScheduleDiffStore(SirkadiyenDbContext dbContext) : ISchedule
         return diff.CalendarDispatchState;
     }
 
+    public async Task<IReadOnlyList<DispatchedDiff>> ListDispatchedForReplayAsync(
+        DateTimeOffset afterDispatchedAtUtc,
+        Guid afterDiffId,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
+
+        List<ScheduleDiff> diffs = await dbContext.ScheduleDiffs
+            .AsNoTracking()
+            .Include(diff => diff.Entries)
+            .Where(diff =>
+                (diff.State == ScheduleDiffState.Ready || diff.State == ScheduleDiffState.Released)
+                && diff.CalendarDispatchState == CalendarDispatchState.Dispatched
+                && diff.DispatchedAtUtc != null
+                && (diff.DispatchedAtUtc > afterDispatchedAtUtc
+                    || (diff.DispatchedAtUtc == afterDispatchedAtUtc
+                        && diff.Id.CompareTo(afterDiffId) > 0)))
+            .OrderBy(diff => diff.DispatchedAtUtc)
+            .ThenBy(diff => diff.Id)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+
+        return [.. diffs.Select(diff => new DispatchedDiff
+        {
+            DiffId = diff.Id,
+            SourceId = diff.SourceId,
+            DispatchedAtUtc = diff.DispatchedAtUtc!.Value,
+            Entries = [.. diff.Entries.OrderBy(entry => entry.Id)],
+        })];
+    }
+
     private async Task<ScheduleDiff> SingleForUpdateAsync(
         Guid diffId,
         CancellationToken cancellationToken) =>

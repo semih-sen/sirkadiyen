@@ -506,6 +506,17 @@ Re-auth catch-up replays only dispatchable semantic diffs already marked `Dispat
 ordered by `(DispatchedAtUtc, DiffId)`. This preserves the deletion boundary: absence
 from current truth is never enough to remove an event.
 
+The freeze-gated worker bounds connections and diffs per connection. It advances the
+cursor only after every entry in one diff converges; a crash or external failure leaves
+that diff eligible for idempotent replay. Completion requires a later empty scan and the
+original required-since workflow token. A `Deleted` entry authorizes removal; an empty
+scan never does.
+
+When an `Updated` entry was matched by secondary attributes because its start-time-based
+stable identity changed, patch the Google event ID already stored in the ledger and
+atomically move the mapping to the new identity. Re-deriving an event ID from the new
+identity would create a second event and strand the old one (ADR-061).
+
 A separate reconciliation job periodically checks:
 
 - expected managed events

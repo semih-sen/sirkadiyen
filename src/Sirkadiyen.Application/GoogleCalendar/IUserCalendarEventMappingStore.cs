@@ -51,6 +51,20 @@ public interface IUserCalendarEventMappingStore
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Atomically moves a mapping from the previous to the current stable identity after a
+    /// secondary semantic match, preserving its Google event id (ADR-035, ADR-060).
+    /// </summary>
+    Task<CalendarEventMappingReidentifyOutcome> ReidentifyAsync(
+        Guid userId,
+        SourceId sourceId,
+        string previousStableIdentity,
+        string currentStableIdentity,
+        Guid canonicalRecordId,
+        string contentHash,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Removes one user's ledger row for a lesson after its event has been deleted (ADR-059). A row
     /// that is already gone is reported as <see cref="CalendarEventMappingRemoveOutcome.NotFound"/>.
     /// </summary>
@@ -91,4 +105,18 @@ public enum CalendarEventMappingRemoveOutcome
 
     /// <summary>No mapping for this user and lesson existed to remove.</summary>
     NotFound,
+}
+
+public enum CalendarEventMappingReidentifyOutcome
+{
+    Reidentified,
+
+    /// <summary>A retried pass found the mapping already at the current identity.</summary>
+    AlreadyReidentified,
+
+    /// <summary>Neither the previous nor current identity has a mapping for this user.</summary>
+    NotFound,
+
+    /// <summary>Both identities exist, or one belongs to another source; automatic merge is unsafe.</summary>
+    Conflict,
 }

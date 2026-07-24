@@ -19,10 +19,11 @@ their profile with idempotent, resumable Calendar writes, and onboarding reaches
 Diff-driven incremental sync is now implemented too (ADR-059): a worker stage dispatches every
 `Ready`/`Released` diff into per-user insert/patch/delete operations, resumable and idempotent
 via the same deterministic-id + ledger machinery, so a diff finally reaches a calendar.
-Reconciliation has now started with its durable admission/cursor foundation (ADR-060):
-a completed-sync user whose credential dies retains the earliest missed-diff boundary
-through re-authorization. The worker-side semantic-diff replay, calendar/ledger drift
-sweep, and intra-diff quota-aware batching remain next.
+Re-authorization catch-up is now implemented (ADR-060): a completed-sync user whose
+credential dies retains the earliest missed-diff boundary through re-authorization, and
+the freeze-gated worker replays only globally `Dispatched` `Ready`/`Released` semantic
+diffs after that cursor. Calendar/ledger inventory drift, orphan-calendar recovery, and
+intra-diff quota-aware batching remain next.
 
 The Google Sheets path now runs end to end from catalog seeding to a stored
 diff: adaptive polling, immutable snapshot storage, strict parser HTTP calls,
@@ -44,8 +45,8 @@ hold is never releasable and is corrected at the source (ADR-042).
 The incremental dispatcher now consumes every dispatchable diff and resolves the
 affected completed-sync users before applying idempotent Calendar operations.
 Drive and HTTP acquisition, DOCX conversion, the remaining parser profiles, the
-reconciliation replay/sweep, intra-diff quota-aware batching, and the frontend
-still do not exist.
+calendar/ledger inventory reconciliation sweep, intra-diff quota-aware batching, and
+the frontend still do not exist.
 
 The source credential is resolved: a Google service account is configured and the
 worker can reach the real Sheets API.
@@ -62,6 +63,33 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- **Implemented the freeze-gated semantic-diff replay worker (ADR-060).** For each admitted
+  re-authorized connection it reads only `Ready`/`Released` diffs whose global
+  `CalendarDispatchState` is `Dispatched`, strictly after the durable
+  `(DispatchedAtUtc, DiffId)` cursor, and applies them to that one user in order.
+- **Cursor advancement is per complete diff.** A crash, transient Calendar failure, dead
+  credential, missing immutable reference, or ledger conflict leaves the current diff before
+  the cursor, so the next pass repeats it through the deterministic event ID and durable ledger.
+  An empty scan clears the request through the original required-since workflow token.
+- **Deletion remains edge-triggered.** The replay service calls Calendar delete only from a
+  replayed `Deleted` entry or an `Updated` entry that ceased to apply. A mapping that merely has
+  no counterpart in current published state is untouched; a regression test completes an empty
+  replay while deliberately leaving such a stale mapping in place.
+- **Secondary-matched time moves now preserve the existing Google event.** The dispatcher and
+  replay path patch the ledger's stored `GoogleEventId`, then atomically move the mapping from
+  the previous stable identity to the current one (ADR-061). The old implementation re-derived
+  the event ID from the new start-time identity and could leave the old event behind.
+- The worker bounds both connections and diffs per connection through
+  `SIRKADIYEN_SYNC__RECONCILIATION_CONNECTION_BATCH_SIZE` and
+  `SIRKADIYEN_SYNC__RECONCILIATION_DIFFS_PER_CONNECTION`; it runs after global dispatch and
+  initial sync in the ordinary cycle.
+- 438 .NET tests pass, up from 429, nothing skipped. Release build has no warnings,
+  `dotnet format --verify-no-changes` is clean, EF reports no pending model changes, and the new
+  ordered replay/mapping transitions pass against real PostgreSQL. No migration or Python code
+  changed.
+
+## Previous reconciliation cursor foundation session
 
 - **Started safe Calendar reconciliation with a durable missed-diff cursor (ADR-060).**
   The first credential failure of an initial-sync-completed connection now records
@@ -1100,11 +1128,16 @@ dimension can be added with evidence.
 - initial sync writes at most a configured number of events per user per cycle to respect
   Calendar quota, so a very large first load completes over several cycles rather than at once;
   onboarding stays `InitialSyncInProgress` until the last applicable event is written
-- incremental dispatch (ADR-059) leaves two gaps for the deferred reconciliation slice: a user
-  flagged `NeedsReauthorization` during a dispatch and later re-authorized does **not** catch up on
-  diffs marked `Dispatched` while they were dead (their events are left as they were, never wrongly
-  deleted); and a patch that finds no event (404) re-inserts it, so a managed event a user manually
-  deleted is recreated on the lesson's next change
+- semantic-diff replay now catches a re-authorized user up on diffs marked `Dispatched` while
+  their credential was dead (ADR-060). It intentionally does not inventory Google Calendar:
+  a patch that finds no event (404) re-inserts it, so a managed event a user manually deleted is
+  recreated only on that lesson's next change until the calendar/ledger drift sweep exists
+- reconciliation has no persisted retry/back-off state of its own. The Google client exhausts its
+  bounded in-call back-off, then a transient replay failure preserves the cursor and retries on the
+  next worker cycle; a persistently failing user can therefore be attempted every cycle
+- the worker runs global dispatch before reconciliation in one non-overlapping process. A future
+  multi-worker deployment needs a shared dispatch/reconciliation fence or lock before an empty
+  cursor scan can safely prove there is no in-flight diff that already skipped the user
 - an incremental diff's fan-out over a cohort runs to completion within one cycle; only the number
   of diffs per cycle is bounded. A Ready diff is small because a mass change is *held*, but a large
   operator-*released* diff over a big cohort runs long until intra-diff quota-aware batching lands. A

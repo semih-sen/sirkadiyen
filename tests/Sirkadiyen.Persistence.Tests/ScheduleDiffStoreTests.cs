@@ -296,6 +296,48 @@ public sealed class ScheduleDiffStoreTests(PostgresFixture fixture)
         Assert.DoesNotContain(diffId, await store.ListPendingDispatchAsync(50, Now.AddDays(1), Token));
     }
 
+    [Fact]
+    public async Task ReconciliationListsOnlyDispatchedDiffsAfterTheOrderedCursor()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        Guid first = await CreateReadyDiffAsync(context, ["first"]);
+        Guid sameTimeA = await CreateReadyDiffAsync(context, ["second"]);
+        Guid sameTimeB = await CreateReadyDiffAsync(context, ["third"]);
+        _ = await CreateReadyDiffAsync(context, ["still-pending"]);
+
+        DateTimeOffset firstAt = Now.AddMinutes(1);
+        DateTimeOffset sameAt = Now.AddMinutes(2);
+        ScheduleDiffStore store = new(context);
+        context.ChangeTracker.Clear();
+        await store.MarkDispatchedAsync(first, firstAt, Token);
+        context.ChangeTracker.Clear();
+        await store.MarkDispatchedAsync(sameTimeA, sameAt, Token);
+        context.ChangeTracker.Clear();
+        await store.MarkDispatchedAsync(sameTimeB, sameAt, Token);
+        context.ChangeTracker.Clear();
+
+        IReadOnlyList<DispatchedDiff> replay = await store.ListDispatchedForReplayAsync(
+            firstAt,
+            first,
+            50,
+            Token);
+
+        Guid[] expectedSameTime = [sameTimeA, sameTimeB];
+        Array.Sort(expectedSameTime);
+        Assert.Equal(expectedSameTime, replay.Select(diff => diff.DiffId));
+        Assert.All(replay, diff => Assert.Equal(sameAt, diff.DispatchedAtUtc));
+        Assert.All(replay, diff => Assert.NotEmpty(diff.Entries));
+
+        IReadOnlyList<DispatchedDiff> afterFirstAtSameTimestamp =
+            await store.ListDispatchedForReplayAsync(
+                sameAt,
+                expectedSameTime[0],
+                50,
+                Token);
+        Assert.Equal(expectedSameTime[1], Assert.Single(afterFirstAtSameTimestamp).DiffId);
+    }
+
     private async Task<Guid> CreateReadyDiffAsync(SirkadiyenDbContext context, string[] identities)
     {
         ScheduleSource source = await ScheduleDiffScenario.AddSourceAsync(context);

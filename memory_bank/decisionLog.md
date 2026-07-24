@@ -2619,11 +2619,13 @@ the diff or block other users.
 
 ## ADR-060: Preserve a durable semantic-diff replay cursor across Calendar re-authorization
 
-**Status:** Accepted; admission/cursor foundation implemented, replay worker pending
+**Status:** Accepted and implemented
 **Date:** 2026-07-24
 **Implements:** `GoogleCalendarConnection` reconciliation boundary/cursor state,
 `PendingCalendarReconciliation`, connection-store list/advance/complete operations,
-migration `AddCalendarReconciliationCursor`, and domain/PostgreSQL tests
+migration `AddCalendarReconciliationCursor`, the freeze-gated
+`CalendarReconciliationService`, ordered dispatched-diff replay query, Worker stage, and
+mocked Calendar/PostgreSQL tests
 **Depends on:** ADR-033/042 (forward-fix and diff release), ADR-034/043 (global freeze),
 ADR-058 (completed initial sync and managed calendar), ADR-059 (credential failure and
 diff dispatch lifecycle)
@@ -2676,8 +2678,58 @@ semantic diff; current-state absence alone never authorizes deletion.
   ordered timestamp.
 - The ciphertext credential appears only in the backend-only pending-work projection,
   like initial and incremental synchronization.
-- This decision does not yet enumerate or apply missed diffs. The next slice adds the
-  freeze-gated replay worker and its ordered diff-store query, then mocked Calendar and
-  PostgreSQL tests.
+- Missed diffs are now enumerated and applied by the freeze-gated replay worker. The
+  cursor advances after each complete diff and an empty scan completes the request; a
+  Calendar/store failure preserves the current cursor for idempotent retry.
 - Actual Google inventory comparison, duplicate/missing-event repair, and marker-based
   orphan-calendar recovery remain later reconciliation work.
+
+## ADR-061: Preserve the Google event ID when a secondary match changes stable identity
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-24
+**Implements:** atomic `UserCalendarEventMapping.Reidentify`, mapping-store transition,
+ledger-targeted patching in incremental dispatch and reconciliation, and unit/PostgreSQL
+regression tests
+**Depends on:** ADR-018 (start time is part of stable identity), ADR-035 (secondary
+matching recognizes a moved lesson), ADR-058/059 (deterministic event IDs and ledger),
+ADR-060 (ordered replay)
+
+### Context
+
+A lesson moved to another start time changes its stable identity (ADR-018), while the
+semantic diff correctly classifies it as one `Updated` entry through secondary matching
+(ADR-035). Calendar patching nevertheless re-derived the deterministic Google event ID
+from the **new** identity, and the mapping lookup considered only that new identity. A
+healthy user holding the previous mapping could therefore receive a new event while the
+old event and ledger row remained, contradicting the decision to update in place. Replay
+would have inherited the same defect.
+
+### Decision
+
+For a secondary-matched update, treat the durable mapping as the patch target:
+
+1. load the user's mapping under the previous stable identity;
+2. patch its stored `GoogleEventId` with the current canonical content and private
+   properties;
+3. after the external write succeeds, atomically change the mapping's stable identity,
+   canonical record ID and content hash while preserving its Google calendar/event IDs.
+
+The transition is idempotent: finding only the current identity is
+`AlreadyReidentified`. Finding neither identity, finding both identities, or finding an
+identity owned by another source is not guessed into a merge; the diff/reconciliation
+cursor remains unadvanced for operator-visible retry or repair.
+
+Every later patch also targets the ledger's stored Google event ID rather than deriving
+one again. This matters because a reidentified mapping deliberately retains the ID
+created from its original identity.
+
+### Consequences
+
+- A time move patches one existing Google event instead of creating a duplicate.
+- A crash before the mapping commit repeats the same patch against the same Google event;
+  a crash after it sees the idempotent current identity.
+- The mapping's unique `(UserId, StableIdentity)` constraint continues to prevent two
+  ledger rows for the same current lesson.
+- A pre-existing both-sides conflict is left untouched. Removing an extra Google event
+  belongs to the later inventory reconciliation sweep and must not be inferred here.

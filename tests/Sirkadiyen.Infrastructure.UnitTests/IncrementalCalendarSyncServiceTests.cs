@@ -95,6 +95,43 @@ public sealed class IncrementalCalendarSyncServiceTests
     }
 
     [Fact]
+    public async Task ASecondaryMatchedMovePatchesTheExistingEventAndMovesTheLedgerIdentity()
+    {
+        CanonicalScheduleRecord previous = CalendarTestData.Record(
+            stableIdentity: "lesson-at-0900",
+            contentHash: "sha256:old");
+        CanonicalScheduleRecord moved = CalendarTestData.Record(
+            stableIdentity: "lesson-at-1000",
+            // Identity movement itself requires a patch even if a legacy producer emitted the
+            // same content hash on both sides.
+            contentHash: "sha256:old");
+        Guid userId = Guid.CreateVersion7();
+
+        Harness harness = new();
+        harness.Records.AddRange([previous, moved]);
+        harness.Holders.Add(Holder(userId, previous.StableIdentity, previous.ContentHash));
+        harness.Cohort.Add(Target(userId, "t1"));
+        harness.Diffs.Add(Diff(Updated(
+            previous.Id,
+            moved.Id,
+            ScheduleDiffMatch.SecondaryAttributes)));
+
+        IncrementalCalendarSyncDiffResult result = await harness.RunSingleAsync();
+
+        Assert.Equal(IncrementalDispatchOutcome.Dispatched, result.Outcome);
+        Assert.Equal(1, result.Patched);
+        Assert.Empty(harness.Client.Inserts);
+        Assert.Equal(
+            $"evt-{userId:N}",
+            Assert.Single(harness.Client.Patches).Event.EventId);
+        Assert.Contains(
+            harness.Mappings.Reidentified,
+            move => move.UserId == userId
+                && move.PreviousStableIdentity == previous.StableIdentity
+                && move.CurrentStableIdentity == moved.StableIdentity);
+    }
+
+    [Fact]
     public async Task AnUpdatedLessonThatNoLongerAppliesRemovesItFromAHolder()
     {
         // The lesson narrowed to a group the holder is not in, so it is deleted from their calendar.
@@ -259,13 +296,16 @@ public sealed class IncrementalCalendarSyncServiceTests
         CurrentRecordId = currentId,
     };
 
-    private static ScheduleDiffEntry Updated(Guid previousId, Guid currentId) => new()
-    {
-        Change = ScheduleDiffChange.Updated,
-        Match = ScheduleDiffMatch.ExactStableIdentity,
-        PreviousRecordId = previousId,
-        CurrentRecordId = currentId,
-    };
+    private static ScheduleDiffEntry Updated(
+        Guid previousId,
+        Guid currentId,
+        ScheduleDiffMatch match = ScheduleDiffMatch.ExactStableIdentity) => new()
+        {
+            Change = ScheduleDiffChange.Updated,
+            Match = match,
+            PreviousRecordId = previousId,
+            CurrentRecordId = currentId,
+        };
 
     private static ScheduleDiffEntry Deleted(Guid previousId) => new()
     {
@@ -375,6 +415,12 @@ public sealed class IncrementalCalendarSyncServiceTests
                 ? CalendarDispatchState.Failed
                 : CalendarDispatchState.Pending);
         }
+
+        public Task<IReadOnlyList<DispatchedDiff>> ListDispatchedForReplayAsync(
+            DateTimeOffset afterDispatchedAtUtc,
+            Guid afterDiffId,
+            int limit,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
 
         public Task<ScheduleDiffInput?> LoadAsync(Guid revisionId, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
@@ -525,6 +571,12 @@ public sealed class IncrementalCalendarSyncServiceTests
 
         public List<(Guid UserId, string StableIdentity)> Removed { get; } = [];
 
+        public List<(
+            Guid UserId,
+            string PreviousStableIdentity,
+            string CurrentStableIdentity)> Reidentified
+        { get; } = [];
+
         public void Seed(IEnumerable<CalendarEventMappingView> views) => holders.AddRange(views);
 
         public Task<IReadOnlyList<CalendarEventMappingView>> ListForStableIdentityAsync(
@@ -562,6 +614,48 @@ public sealed class IncrementalCalendarSyncServiceTests
         {
             Updated.Add((userId, stableIdentity, contentHash));
             return Task.CompletedTask;
+        }
+
+        public Task<CalendarEventMappingReidentifyOutcome> ReidentifyAsync(
+            Guid userId,
+            SourceId sourceId,
+            string previousStableIdentity,
+            string currentStableIdentity,
+            Guid canonicalRecordId,
+            string contentHash,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken)
+        {
+            int previousIndex = holders.FindIndex(holder => holder.UserId == userId
+                && string.Equals(
+                    holder.StableIdentity,
+                    previousStableIdentity,
+                    StringComparison.Ordinal));
+            int currentIndex = holders.FindIndex(holder => holder.UserId == userId
+                && string.Equals(
+                    holder.StableIdentity,
+                    currentStableIdentity,
+                    StringComparison.Ordinal));
+            if (previousIndex < 0)
+            {
+                return Task.FromResult(currentIndex < 0
+                    ? CalendarEventMappingReidentifyOutcome.NotFound
+                    : CalendarEventMappingReidentifyOutcome.AlreadyReidentified);
+            }
+
+            if (currentIndex >= 0 && currentIndex != previousIndex)
+            {
+                return Task.FromResult(CalendarEventMappingReidentifyOutcome.Conflict);
+            }
+
+            holders[previousIndex] = holders[previousIndex] with
+            {
+                StableIdentity = currentStableIdentity,
+                CanonicalRecordId = canonicalRecordId,
+                ContentHash = contentHash,
+            };
+            Reidentified.Add((userId, previousStableIdentity, currentStableIdentity));
+            return Task.FromResult(CalendarEventMappingReidentifyOutcome.Reidentified);
         }
 
         public Task<CalendarEventMappingRemoveOutcome> RemoveAsync(

@@ -97,6 +97,86 @@ public sealed class UserCalendarEventMappingStore(SirkadiyenDbContext dbContext)
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<CalendarEventMappingReidentifyOutcome> ReidentifyAsync(
+        Guid userId,
+        SourceId sourceId,
+        string previousStableIdentity,
+        string currentStableIdentity,
+        Guid canonicalRecordId,
+        string contentHash,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(previousStableIdentity);
+        ArgumentException.ThrowIfNullOrWhiteSpace(currentStableIdentity);
+
+        string[] identities = string.Equals(
+            previousStableIdentity,
+            currentStableIdentity,
+            StringComparison.Ordinal)
+            ? [previousStableIdentity]
+            : [previousStableIdentity, currentStableIdentity];
+
+        List<UserCalendarEventMapping> mappings = await dbContext.UserCalendarEventMappings
+            .Where(mapping =>
+                mapping.UserId == userId && identities.Contains(mapping.StableIdentity))
+            .ToListAsync(cancellationToken);
+
+        UserCalendarEventMapping? previous = mappings.SingleOrDefault(mapping =>
+            string.Equals(
+                mapping.StableIdentity,
+                previousStableIdentity,
+                StringComparison.Ordinal));
+        UserCalendarEventMapping? current = mappings.SingleOrDefault(mapping =>
+            string.Equals(
+                mapping.StableIdentity,
+                currentStableIdentity,
+                StringComparison.Ordinal));
+
+        if (string.Equals(previousStableIdentity, currentStableIdentity, StringComparison.Ordinal))
+        {
+            if (previous is null)
+            {
+                return CalendarEventMappingReidentifyOutcome.NotFound;
+            }
+
+            if (previous.SourceId != sourceId)
+            {
+                return CalendarEventMappingReidentifyOutcome.Conflict;
+            }
+
+            previous.UpdateContent(canonicalRecordId, contentHash, atUtc);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return CalendarEventMappingReidentifyOutcome.AlreadyReidentified;
+        }
+
+        if (previous is null)
+        {
+            if (current is null)
+            {
+                return CalendarEventMappingReidentifyOutcome.NotFound;
+            }
+
+            if (current.SourceId != sourceId)
+            {
+                return CalendarEventMappingReidentifyOutcome.Conflict;
+            }
+
+            current.UpdateContent(canonicalRecordId, contentHash, atUtc);
+            await dbContext.SaveChangesAsync(cancellationToken);
+            return CalendarEventMappingReidentifyOutcome.AlreadyReidentified;
+        }
+
+        if (previous.SourceId != sourceId || current is not null)
+        {
+            return CalendarEventMappingReidentifyOutcome.Conflict;
+        }
+
+        previous.Reidentify(currentStableIdentity, canonicalRecordId, contentHash, atUtc);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return CalendarEventMappingReidentifyOutcome.Reidentified;
+    }
+
     public async Task<CalendarEventMappingRemoveOutcome> RemoveAsync(
         Guid userId,
         string stableIdentity,

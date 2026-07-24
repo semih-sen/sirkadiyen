@@ -174,7 +174,7 @@
 - [x] Implement affected-user resolution (per-user initial side + diff-driven fan-out over Ready/Released diffs, ADR-059)
 - [x] Implement initial sync
 - [x] Implement incremental sync (diff-driven insert/patch/delete dispatcher, ADR-059)
-- [~] Implement reconciliation (durable re-auth admission/cursor complete in ADR-060; semantic-diff replay and calendar/ledger drift pending)
+- [~] Implement reconciliation (durable re-auth admission/cursor and semantic-diff replay complete in ADR-060; calendar/ledger inventory drift pending)
 - [x] Add mocked adapter tests
 - [~] Add quota-aware batching (per-cycle event budget + diffs-per-cycle bound; intra-diff quota-aware batching pending)
 
@@ -294,11 +294,17 @@ resumable by the same deterministic-id + ledger idempotency as initial sync. The
 the authority for who holds a lesson; a pure `IncrementalSyncPlanner` decides the operation per
 user. Transient Google failures back off and retry, then give up to `Failed`; a dead credential
 flags the connection `NeedsReauthorization`, skips that user, and leaves their events.
-Reconciliation has started with its durable re-auth admission/cursor foundation (ADR-060).
-The next synchronization slice is a worker service that reads `Ready`/`Released` diffs already
-marked `Dispatched` after each user's cursor and replays them in order. That replay, not a
-level-triggered comparison with current truth, must authorize every deletion. Calendar/ledger
-inventory drift, orphan-calendar lookup, and intra-diff quota-aware batching follow it.
+Re-authorization catch-up is implemented (ADR-060). The freeze-gated worker reads only
+`Ready`/`Released` diffs already marked `Dispatched` after each user's ordered cursor and
+replays them one user at a time. Cursor advancement happens only after a whole diff converges;
+an empty scan completes the request. Deletion remains authorized by a replayed semantic diff,
+never by current-state absence. Secondary-matched time moves preserve the Google event ID while
+atomically moving the ledger identity (ADR-061).
+
+The next reconciliation slice is actual Calendar/ledger inventory drift: enumerate managed
+Google events and private markers, detect missing/duplicate/stale mappings without converting
+absence into deletion authority, and add marker-based orphan-calendar recovery. Intra-diff
+quota-aware batching follows it.
 `grade2_yearly_v1` remains the next parser profile and needs no new canonical field.
 
 There is deliberately no rollback (ADR-033). A bad publication is corrected at

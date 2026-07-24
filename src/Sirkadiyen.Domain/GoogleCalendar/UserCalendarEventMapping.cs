@@ -39,7 +39,7 @@ public sealed class UserCalendarEventMapping
     public Guid UserId { get; private init; }
 
     /// <summary>The logical lesson identity this event represents; unique per user.</summary>
-    public string StableIdentity { get; private init; }
+    public string StableIdentity { get; private set; }
 
     /// <summary>The source the lesson came from, kept for scoping and later cleanup.</summary>
     public SourceId SourceId { get; private init; }
@@ -131,6 +131,24 @@ public sealed class UserCalendarEventMapping
             MaximumContentHashLength,
             nameof(contentHash));
         UpdatedAtUtc = atUtc;
+    }
+
+    /// <summary>
+    /// Moves the ledger identity after a semantic secondary match recognized a retimed lesson as
+    /// the same logical event. The Google event id deliberately stays unchanged, so Calendar sees
+    /// an in-place patch rather than a delete-and-create.
+    /// </summary>
+    public void Reidentify(
+        string stableIdentity,
+        Guid canonicalRecordId,
+        string contentHash,
+        DateTimeOffset atUtc)
+    {
+        StableIdentity = RequiredBounded(
+            stableIdentity,
+            MaximumStableIdentityLength,
+            nameof(stableIdentity));
+        UpdateContent(canonicalRecordId, contentHash, atUtc);
     }
 
     private static string RequiredBounded(string value, int maximumLength, string parameterName)
