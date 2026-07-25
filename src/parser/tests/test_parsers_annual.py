@@ -42,7 +42,7 @@ from sirkadiyen_parser.profiles import ParserProfileDefinition, get_profile
 
 PROFILE = ParserProfileDefinition(
     "grade1_yearly_v1",
-    "1.1.0",
+    "1.2.0",
     "annual",
     NumericDateOrder.UNDECLARED,
 )
@@ -50,7 +50,7 @@ PROFILE = ParserProfileDefinition(
 #: The same profile as if a real workbook had shown it writes ``01/10/2025``.
 DAY_FIRST_PROFILE = ParserProfileDefinition(
     "grade1_yearly_v1",
-    "1.1.0",
+    "1.2.0",
     "annual",
     NumericDateOrder.DAY_FIRST,
 )
@@ -196,11 +196,11 @@ def metrics(response: ParseSnapshotResponse) -> dict[str, float]:
 
 
 def test_the_registered_profile_is_the_annual_implementation() -> None:
-    profile = get_profile("grade1_yearly_v1", "1.1.0")
+    profile = get_profile("grade1_yearly_v1", "1.2.0")
 
     assert profile is not None
     assert get_parser(profile.name, profile.version) is parse_annual_snapshot
-    assert ("grade1_yearly_v1", "1.1.0") in implemented_profiles()
+    assert ("grade1_yearly_v1", "1.2.0") in implemented_profiles()
 
 
 def test_a_lesson_row_becomes_a_candidate() -> None:
@@ -616,9 +616,9 @@ def test_evidence_cites_every_column_the_candidate_used() -> None:
 @pytest.mark.parametrize(
     ("title", "block", "expected"),
     (
-        ("SERBEST ÇALIŞMA (Dönem 2 Sınav)", None, ScheduleEventType.OTHER),
+        ("SERBEST ÇALIŞMA (Dönem 2 Sınav)", None, ScheduleEventType.FREE_STUDY),
         ("ÖĞLE ARASI", None, ScheduleEventType.OTHER),
-        ("FREE TIME", None, ScheduleEventType.OTHER),
+        ("FREE TIME", None, ScheduleEventType.FREE_STUDY),
         ("ANATOMİ UYGULAMA SINAVI", "HAREKET-1 DİLİMİ", ScheduleEventType.EXAM),
         ("EXAMINATION", "MOVEMENT", ScheduleEventType.EXAM),
         ("Diseksiyon", "HAREKET-1 DİLİMİ / ANATOMİ AD.", ScheduleEventType.ANATOMY_PRACTICE),

@@ -22,6 +22,7 @@ class ProgramLanguage(StrEnum):
 class ScheduleEventType(StrEnum):
     THEORY = "theory"
     PRACTICE = "practice"
+    FREE_STUDY = "freeStudy"
     ANATOMY_PRACTICE = "anatomyPractice"
     BEDSIDE_PRACTICE = "bedsidePractice"
     FACULTY_PRACTICE = "facultyPractice"

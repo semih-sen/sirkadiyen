@@ -219,6 +219,7 @@ public enum ScheduleEventType
 {
     Theory,
     Practice,
+    FreeStudy,
     AnatomyPractice,
     BedsidePractice,
     FacultyPractice,

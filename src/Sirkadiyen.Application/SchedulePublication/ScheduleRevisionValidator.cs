@@ -285,8 +285,8 @@ public sealed class ScheduleRevisionValidator(RevisionValidationOptions options)
         // Only timed records can overlap. An all-day closure states no times, and
         // reading it as booking the whole day would report every lesson published
         // on a half-day holiday as a double booking.
-        // Two kinds of same-audience time overlap are distinguished, because they
-        // mean opposite things (ADR-068). Two records of the SAME course
+        // Three kinds of same-audience time overlap are distinguished. Two
+        // records of the SAME course
         // are a genuine duplication — almost always a parsing fault that would put
         // the same lesson on a calendar twice — and quarantine the revision. Two
         // records of DIFFERENT courses are a legitimate parallel offering the source
@@ -294,8 +294,12 @@ public sealed class ScheduleRevisionValidator(RevisionValidationOptions options)
         // activity, a make-up or retake exam beside the regular one. Those are
         // reported for visibility but never block publication, because treating them
         // as errors would hold every annual revision this faculty publishes.
+        // Free-study records are availability rather than teaching. Source-authored
+        // intersections between them remain visible but cannot double-book a student
+        // into the same lesson, so they do not quarantine (ADR-069).
         List<string> duplicateOverlaps = [];
         List<string> parallelOverlaps = [];
+        List<string> freeStudyOverlaps = [];
         IEnumerable<IGrouping<(string Audience, DateOnly Date), CanonicalScheduleRecord>> groups =
             input.Records
                 .Where(record => !record.IsAllDay)
@@ -322,11 +326,21 @@ public sealed class ScheduleRevisionValidator(RevisionValidationOptions options)
                 string entry =
                     $"{Invariant(group.Key.Date)} {group.Key.Audience} "
                     + $"'{previous.DisplayTitle}' / '{current.DisplayTitle}'";
-                (IsSameCourse(previous, current) ? duplicateOverlaps : parallelOverlaps).Add(entry);
+                if (IsFreeStudy(previous) && IsFreeStudy(current))
+                {
+                    freeStudyOverlaps.Add(entry);
+                }
+                else
+                {
+                    (IsSameCourse(previous, current) ? duplicateOverlaps : parallelOverlaps)
+                        .Add(entry);
+                }
             }
         }
 
-        if (duplicateOverlaps.Count == 0 && parallelOverlaps.Count == 0)
+        if (duplicateOverlaps.Count == 0
+            && parallelOverlaps.Count == 0
+            && freeStudyOverlaps.Count == 0)
         {
             return;
         }
@@ -347,19 +361,29 @@ public sealed class ScheduleRevisionValidator(RevisionValidationOptions options)
             return;
         }
 
-        int total = duplicateOverlaps.Count + parallelOverlaps.Count;
+        int total = duplicateOverlaps.Count
+            + parallelOverlaps.Count
+            + freeStudyOverlaps.Count;
         findings.Add(Finding(
             input,
             RevisionValidationRule.AudienceOverlap,
             ValidationSeverity.Warning,
             $"{total} same-audience time overlap(s): {parallelOverlaps.Count} parallel "
             + "offering(s) of different courses (expected — for example electives or a "
-            + $"make-up exam) and {duplicateOverlaps.Count} same-course overlap(s). Parallel "
+            + $"make-up exam), {freeStudyOverlaps.Count} free-study availability overlap(s), "
+            + $"and {duplicateOverlaps.Count} same-course overlap(s). Parallel/free-study "
             + "offerings do not block publication.",
             atUtc,
-            detail: Detail(duplicateOverlaps.Concat(parallelOverlaps).Take(20)),
+            detail: Detail(
+                duplicateOverlaps
+                    .Concat(parallelOverlaps)
+                    .Concat(freeStudyOverlaps)
+                    .Take(20)),
             affectedRecordCount: total));
     }
+
+    private static bool IsFreeStudy(CanonicalScheduleRecord record) =>
+        record.EventType is Sirkadiyen.Domain.SchedulePublication.ScheduleEventType.FreeStudy;
 
     // Same course when the normalized identity matches; the display title is the
     // fallback when a record has no resolved identity, so an unresolved duplicate is

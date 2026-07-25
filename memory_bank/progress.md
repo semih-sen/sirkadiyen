@@ -37,6 +37,7 @@
 - [x] Add all-day canonical schedule items for holidays and semester breaks (ADR-046)
 - [x] Add canonical curriculum block with explicit source provenance (ADR-047)
 - [x] Add the canonical academic department list with an explicit marker rule (ADR-049)
+- [x] Distinguish free-study availability from generic other events (ADR-069)
 - [x] Define schedule revision model
 - [x] Define semantic diff model
 - [x] Define user calendar event mapping
@@ -136,6 +137,7 @@
 - [x] Implement revision validation
 - [x] Implement anomaly thresholds
 - [x] Refine AudienceOverlap: quarantine same-course duplicates, tolerate parallel offerings (ADR-068)
+- [x] Treat source-authored free-study overlaps as non-blocking availability (ADR-069)
 - [x] Implement review-required state
 - [x] Implement admin revision review
 - [x] Implement transactional publication

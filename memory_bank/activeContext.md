@@ -73,6 +73,26 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
 
+- **Fixed annual revisions being quarantined by source-authored free-study overlaps
+  (ADR-069).** The parser had faithfully retained separate `SERBEST ÇALIŞMA` /
+  `FREE TIME` rows, but classified them as generic `Other`; the overlap validator
+  then mistook repeated availability blocks for duplicated teaching. The real
+  Turkish fixture contains two such intersections (2025-10-23 and 2026-05-18).
+- Added `FreeStudy` to the parser contract and canonical event type. Annual title
+  classification emits it before exam/practice keyword checks, so parenthetical
+  text such as another cohort's exam cannot reclassify free study.
+- `AudienceOverlap` now reports `FreeStudy`/`FreeStudy` intersections as a
+  non-blocking warning. Repeated overlaps of a real same-course lesson still
+  quarantine, and different-course parallel offerings retain their existing
+  warning behavior.
+- Bumped `grade1_yearly_v1` 1.1.0 → 1.2.0 in the parser registry and both catalog
+  sources. Restarting parser + worker re-seeds the catalog and re-parses the
+  existing snapshot; the resulting annual revision validates and publishes
+  without manually approving the obsolete held revision.
+- 295 Python tests pass; Ruff, Ruff format, and Mypy are clean. 323 Infrastructure,
+  6 Contracts, and 2 API unit tests pass; the Release solution build has zero
+  warnings/errors.
+
 - **Fixed the empty-theoretical-calendar cause: the held `G1-TR-ANNUAL` revision (ADR-068).** It
   was quarantined by `AudienceOverlap` (33 whole-class collisions). The fixture showed the annual
   parser assigned every row `ALL_STUDENTS_IN_PROGRAM`, so a group's long PDÖ block ran parallel to

@@ -222,6 +222,41 @@ public sealed class ScheduleRevisionValidatorTests
     }
 
     [Fact]
+    public void MultipleFreeStudyOverlapsAreWarningsAndDoNotHoldTheRevision()
+    {
+        RevisionValidationResult result = Validate(
+            [
+                Record(
+                    "r1",
+                    hour: 13,
+                    durationMinutes: 110,
+                    courseIdentity: "serbest-calisma",
+                    eventType: DomainEventType.FreeStudy,
+                    displayTitle: "SERBEST ÇALIŞMA"),
+                Record(
+                    "r2",
+                    hour: 14,
+                    durationMinutes: 110,
+                    courseIdentity: "serbest-calisma",
+                    eventType: DomainEventType.FreeStudy,
+                    displayTitle: "SERBEST ÇALIŞMA"),
+                Record(
+                    "r3",
+                    hour: 15,
+                    durationMinutes: 110,
+                    courseIdentity: "serbest-calisma",
+                    eventType: DomainEventType.FreeStudy,
+                    displayTitle: "SERBEST ÇALIŞMA"),
+            ]);
+
+        Assert.Equal(RevisionState.Validated, result.Outcome);
+        RevisionValidationFinding finding = Assert.Single(result.Findings);
+        Assert.Equal(RevisionValidationRule.AudienceOverlap, finding.Rule);
+        Assert.Equal(ValidationSeverity.Warning, finding.Severity);
+        Assert.Contains("free-study availability", finding.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ParallelOfferingsOfDifferentCoursesDoNotHoldTheRevision()
     {
         // Different courses at the same time for the whole audience are a legitimate
@@ -424,7 +459,9 @@ public sealed class ScheduleRevisionValidatorTests
         string? courseIdentity = null,
         decimal confidence = 1.0m,
         IReadOnlyList<(string Dimension, string Value)>? selectors = null,
-        bool allDay = false)
+        bool allDay = false,
+        DomainEventType? eventType = null,
+        string? displayTitle = null)
     {
         IReadOnlyList<AudienceSelector> audience = (selectors ?? [("practiceGroup", "A")])
             .Select(selector => new AudienceSelector
@@ -444,10 +481,10 @@ public sealed class ScheduleRevisionValidatorTests
             "2025-2026",
             1,
             DomainLanguage.Turkish,
-            allDay ? DomainEventType.Other : DomainEventType.Practice,
+            eventType ?? (allDay ? DomainEventType.Other : DomainEventType.Practice),
             DomainAudienceScope.SelectedGroups,
             JsonSerializer.Serialize(audience, ContractJson.CreateOptions()),
-            $"Lesson {candidateId}",
+            displayTitle ?? $"Lesson {candidateId}",
             courseIdentity,
             date ?? new DateOnly(2025, 10, 3),
             allDay ? null : start,

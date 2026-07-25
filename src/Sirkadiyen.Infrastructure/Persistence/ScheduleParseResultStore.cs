@@ -291,6 +291,7 @@ public sealed class ScheduleParseResultStore(SirkadiyenDbContext dbContext)
     {
         ContractEventType.Theory => DomainEventType.Theory,
         ContractEventType.Practice => DomainEventType.Practice,
+        ContractEventType.FreeStudy => DomainEventType.FreeStudy,
         ContractEventType.AnatomyPractice => DomainEventType.AnatomyPractice,
         ContractEventType.BedsidePractice => DomainEventType.BedsidePractice,
         ContractEventType.FacultyPractice => DomainEventType.FacultyPractice,

@@ -252,6 +252,13 @@ is the calendar adapter's conversion. Holidays and semester breaks never receive
 invented times, and a dated row with no times that names no closure is not
 published at all.
 
+`FreeStudy` is an explicit timed event type rather than generic `Other`
+(ADR-069). It preserves source-authored `SERBEST ÇALIŞMA` / `FREE TIME` blocks
+on student calendars while making their meaning available to validation.
+Overlapping free-study blocks are availability, not duplicate teaching, so they
+produce a warning without quarantining the revision. Same-course teaching
+overlaps keep the stricter duplication rule.
+
 `CurriculumBlock` is nullable and populated only when the source states a
 block; it is content, not stable identity or audience (ADR-047).
 

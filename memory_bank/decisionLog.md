@@ -3139,3 +3139,63 @@ title when identity is unresolved so an unresolved duplicate is still caught.
   resolves each profile's version from the registry rather than a shared constant.
 
 ---
+
+## ADR-069: Model free study explicitly and do not quarantine its overlaps
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-25
+**Implements:** canonical/parser `FreeStudy` event type, non-blocking
+`AudienceOverlap` classification, `grade1_yearly_v1` 1.2.0 re-parse trigger,
+real-fixture golden updates, and validator/contract regressions
+**Amends:** ADR-068
+
+### Context
+
+After ADR-068, the real `G1-TR-ANNUAL` revision was still held. Its only error
+was two same-title overlaps:
+
+- `2025-10-23`: `SERBEST ÇALIŞMA` 15:30–16:30 and 16:00–16:40
+- `2026-05-18`: `SERBEST ÇALIŞMA` 13:30–15:20 and 15:00–16:50
+
+The parser had not duplicated either row: each record cited a different source
+row with the exact time the sheet stated. The false quarantine came later.
+Free study was represented as generic `Other`, so ADR-068's same-course rule saw
+the shared normalized identity and classified the intersections as duplicated
+teaching.
+
+Approving the revision manually would treat a deterministic modeling defect as
+an exceptional source anomaly. Merging the time ranges would invent one
+canonical row not stated by the source and collapse its row-level evidence.
+Dropping free study would reverse the product decision to keep it visible.
+
+### Decision
+
+Add `FreeStudy` to the parser contract and domain `ScheduleEventType`. The annual
+classifier emits it for titles whose first normalized token is `serbest` or
+`free`, before examining exam or practice keywords in parenthetical text.
+
+Classify a timed intersection between two `FreeStudy` records as a non-blocking
+`AudienceOverlap` warning. It remains visible to operators, but does not count
+toward the tolerated same-course-duplication threshold. A same-course overlap
+for every other event type still follows ADR-068 and can quarantine; a
+different-course parallel offering remains a warning.
+
+Bump `grade1_yearly_v1` from 1.1.0 to 1.2.0 in the implementation registry and
+both Grade 1 annual catalog entries. The worker therefore re-parses the retained
+snapshots after restart rather than reusing the held 1.1.0 runs.
+
+### Consequences
+
+- The source-authored free-study rows and their exact evidence remain intact.
+- The two known intersections no longer withhold 862 otherwise healthy Turkish
+  annual records from student calendars.
+- Real duplicated teaching remains fail-safe; the exception is semantic and
+  explicit rather than a title-prefix check inside the validator.
+- `FreeStudy` changes serialized parser output and content hashes but not stable
+  identities. No database migration is needed because event types are stored as
+  strings.
+- The obsolete 1.1.0 `ReviewRequired` revision remains historical evidence. The
+  1.2.0 forward-fix creates and publishes a new revision; it is not manually
+  approved or rewritten.
+
+---

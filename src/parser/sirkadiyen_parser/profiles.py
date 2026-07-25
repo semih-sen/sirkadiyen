@@ -29,9 +29,11 @@ _UNDECLARED = NumericDateOrder.UNDECLARED
 
 _PROFILES = (
     # 1.1.0: the annual parser now excludes PDÖ/PBL and lunch breaks (ADR-068). The
-    # bump forces the worker to re-parse the stored annual snapshots, since a parse
-    # run is keyed by (snapshot, profile, version).
-    ParserProfileDefinition("grade1_yearly_v1", "1.1.0", "annual", _UNDECLARED),
+    # 1.2.0 gives free-study availability blocks an explicit event type so their
+    # source-authored overlaps do not quarantine an otherwise healthy revision.
+    # The bump forces the worker to re-parse the stored annual snapshots, since a
+    # parse run is keyed by (snapshot, profile, version).
+    ParserProfileDefinition("grade1_yearly_v1", "1.2.0", "annual", _UNDECLARED),
     ParserProfileDefinition(
         "grade1_practice_v1",
         _PROFILE_VERSION,

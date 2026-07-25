@@ -9,6 +9,16 @@ namespace Sirkadiyen.Contracts.UnitTests;
 public sealed class ContractJsonTests
 {
     [Fact]
+    public void FreeStudyEventTypeUsesTheParserWireValue()
+    {
+        string json = JsonSerializer.Serialize(
+            ScheduleEventType.FreeStudy,
+            ContractJson.CreateOptions());
+
+        Assert.Equal("\"freeStudy\"", json);
+    }
+
+    [Fact]
     public void SnapshotRoundTripPreservesTypedAndFormattedCellValues()
     {
         NormalizedSpreadsheetSnapshot snapshot = CreateSnapshot();

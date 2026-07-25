@@ -175,6 +175,11 @@ NON_TEACHING_FIRST_TOKENS = frozenset(
     {"serbest", "free", "tatil", "bayram", "holiday", "ogle", "lunch", "ara", "arasi", "break"}
 )
 
+#: Availability blocks that are useful on a student's calendar but do not book
+#: the student into teaching. Source-authored overlaps between these blocks are
+#: therefore informational rather than duplicate lessons.
+FREE_STUDY_FIRST_TOKENS = frozenset({"serbest", "free"})
+
 #: Subjects owned by another program's schedule (ADR-030). PDÖ/PBL problem-based
 #: learning is group-specific and published by the practice source, so an annual
 #: row naming it is excluded rather than shown to the whole class, where it would
@@ -1044,6 +1049,9 @@ def classify_event_type(*, title: str, block: str | None) -> ScheduleEventType:
     title_words = _words(title)
     block_words = _words(block or "")
     all_words = title_words + block_words
+
+    if title_words and title_words[0] in FREE_STUDY_FIRST_TOKENS:
+        return ScheduleEventType.FREE_STUDY
 
     if title_words and title_words[0] in NON_TEACHING_FIRST_TOKENS:
         return ScheduleEventType.OTHER
