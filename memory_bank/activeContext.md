@@ -1350,3 +1350,18 @@ dimension can be added with evidence.
 - Verification: 301 Python tests, Ruff lint/format, Mypy, 325 Infrastructure tests,
   full Release build, .NET format, and diff checks passed. The live parser reload
   advertises 1.3.0.
+
+## Latest implementation session (2026-07-25, Calendar presentation)
+
+- ADR-072 centralizes Google-visible event formatting in
+  `CalendarEventPresentationPolicy`, so the same rules automatically apply when later
+  class-year parsers populate the canonical department fields.
+- Calendar-scoped event labels avoid the legacy eleven-color limit. The requested
+  core department/exam/free-study colors are fixed; every other department receives a
+  deterministic custom RGB color and UUID label.
+- Calendar summaries preserve source-authored lecture sequence numbers. Descriptions
+  label instructor, curriculum block, and department(s).
+- Annual profile 1.4.0 counts but omits "consult the amphitheatre program" location
+  instructions. Calendar output also suppresses previously stored copies.
+- Inventory equivalence includes `EventLabelId`, so existing events are patched to the
+  new presentation during normal reconciliation.

@@ -344,6 +344,15 @@ Grade 1 annual/practice source ownership is corrected through ADR-071. Bare
 lessons remain. Profile 1.3.0 reparses retained snapshots and removes already-synced
 placeholders through the normal semantic deletion diff.
 
+Google Calendar event presentation is implemented through ADR-072. A shared policy
+gives every source-stated department a deterministic calendar-scoped label and custom
+RGB color, with fixed requested colors for the core departments, exams, and free
+study. Calendar summaries preserve source-authored lesson sequence numbers;
+descriptions label instructor, curriculum block, and department fields. Annual profile 1.4.0 omits
+amphitheatre-program lookup instructions from canonical locations, while the Calendar
+policy suppresses legacy copies defensively. Inventory compares event label IDs, so
+existing monochrome events are repairable without direct edits.
+
 The consumer frontend now has a runnable foundation in `web/` (ADR-066). It is a Next.js App
 Router + TypeScript project that walks a student through the whole onboarding path — Google
 sign-in, license redemption, academic profile, Calendar authorization, and initial-sync

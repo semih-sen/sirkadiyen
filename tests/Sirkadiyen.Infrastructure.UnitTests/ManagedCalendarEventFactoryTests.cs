@@ -33,6 +33,101 @@ public sealed class ManagedCalendarEventFactoryTests
     }
 
     [Fact]
+    public void TheoryPreservesItsSequenceNumberAndLabelsDescriptionFields()
+    {
+        CanonicalScheduleRecord record = CalendarTestData.Record(
+            displayTitle: "5-Biyofiziğe giriş-temel kavramlar",
+            instructor: "Prof. Dr. Muhammet BEKTAŞ",
+            curriculumBlock: "YAŞAMIN MOLEKÜLER TEMELLERİ",
+            departments: ["BİYOFİZİK AD."]);
+
+        ManagedCalendarEvent result = ManagedCalendarEventFactory.ToManagedEvent(UserId, record);
+
+        Assert.Equal("5-Biyofiziğe giriş-temel kavramlar", result.Summary);
+        Assert.Equal(
+            "Öğretim üyesi: Prof. Dr. Muhammet BEKTAŞ\n"
+            + "Dilim: YAŞAMIN MOLEKÜLER TEMELLERİ\n"
+            + "Anabilim dalı: BİYOFİZİK AD.",
+            result.Description);
+    }
+
+    [Fact]
+    public void AmphitheatreProgramInstructionIsNeverAnEventLocation()
+    {
+        CanonicalScheduleRecord record = CalendarTestData.Record(
+            location: "FAKÜLTEMİZ WEB SİTESİ ÖĞRENCİ AĞI AMFİ PROGRAMINA BAKINIZ");
+
+        ManagedCalendarEvent result = ManagedCalendarEventFactory.ToManagedEvent(UserId, record);
+
+        Assert.Null(result.Location);
+    }
+
+    [Theory]
+    [InlineData("ANATOMİ AD.", "#D50000")]
+    [InlineData("FİZYOLOJİ AD.", "#1A237E")]
+    [InlineData("TIBBİ BİYOKİMYA AD.", "#F4511E")]
+    [InlineData("TIBBİ BİYOLOJİ AD.", "#0B8043")]
+    [InlineData("HİSTOLOJİ VE EMBRİYOLOJİ AD.", "#8E24AA")]
+    public void RequestedDepartmentsUseTheirRequestedColors(
+        string department,
+        string color)
+    {
+        CanonicalScheduleRecord record = CalendarTestData.Record(departments: [department]);
+
+        ManagedCalendarEvent result = ManagedCalendarEventFactory.ToManagedEvent(UserId, record);
+
+        Assert.Equal(color, result.Label.BackgroundColor);
+        Assert.True(Guid.TryParse(result.Label.Id, out _));
+    }
+
+    [Fact]
+    public void OtherDepartmentsReceiveStableDistinctCustomColors()
+    {
+        ManagedCalendarEvent biophysics = ManagedCalendarEventFactory.ToManagedEvent(
+            UserId,
+            CalendarTestData.Record(departments: ["BİYOFİZİK AD."]));
+        ManagedCalendarEvent microbiology = ManagedCalendarEventFactory.ToManagedEvent(
+            UserId,
+            CalendarTestData.Record(departments: ["TIBBİ MİKROBİYOLOJİ AD."]));
+
+        Assert.NotEqual(biophysics.Label.Id, microbiology.Label.Id);
+        Assert.NotEqual(
+            biophysics.Label.BackgroundColor,
+            microbiology.Label.BackgroundColor);
+    }
+
+    [Fact]
+    public void APracticeTitleUsesTheSameLabelAsItsDepartment()
+    {
+        ManagedCalendarEvent annual = ManagedCalendarEventFactory.ToManagedEvent(
+            UserId,
+            CalendarTestData.Record(departments: ["BİYOFİZİK AD."]));
+        ManagedCalendarEvent practice = ManagedCalendarEventFactory.ToManagedEvent(
+            UserId,
+            CalendarTestData.Record(
+                displayTitle: "Temel Biyofizik",
+                eventType: ScheduleEventType.Practice));
+
+        Assert.Equal(annual.Label, practice.Label);
+    }
+
+    [Theory]
+    [InlineData(ScheduleEventType.Exam, "#616161")]
+    [InlineData(ScheduleEventType.FreeStudy, "#039BE5")]
+    public void SpecialEventTypesOverrideDepartmentColor(
+        ScheduleEventType eventType,
+        string color)
+    {
+        CanonicalScheduleRecord record = CalendarTestData.Record(
+            eventType: eventType,
+            departments: ["ANATOMİ AD."]);
+
+        ManagedCalendarEvent result = ManagedCalendarEventFactory.ToManagedEvent(UserId, record);
+
+        Assert.Equal(color, result.Label.BackgroundColor);
+    }
+
+    [Fact]
     public void AnAllDayRecordBecomesAnAllDayEventWithAnExclusiveEnd()
     {
         CanonicalScheduleRecord record = CalendarTestData.Record(

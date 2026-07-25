@@ -18,6 +18,7 @@ public static class ManagedCalendarEventComparer
             || !TextEquals(expected.Summary, actual.Summary)
             || !TextEquals(expected.Description, actual.Description)
             || !TextEquals(expected.Location, actual.Location)
+            || !string.Equals(expected.Label.Id, actual.EventLabelId, StringComparison.Ordinal)
             || expected.IsAllDay != actual.IsAllDay
             || expected.PrivateProperties.Any(property =>
                 !actual.PrivateProperties.TryGetValue(property.Key, out string? value)

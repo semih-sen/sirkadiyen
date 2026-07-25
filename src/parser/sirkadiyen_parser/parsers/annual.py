@@ -204,8 +204,8 @@ PRACTICE_TOKENS = frozenset({"uygulama", "practice", "lab"})
 VERTICAL_CORRIDOR_TOKENS = frozenset({"dikey", "vertical"})
 
 #: Locations that point at another published program instead of naming a room.
-#: They are kept verbatim, but counted, because they quantify how much of the
-#: schedule still depends on amphitheatre and practice enrichment.
+#: They are counted for source-quality diagnostics but are never published as
+#: event locations: an instruction to consult another table is not a place.
 DEFERRED_LOCATION_TOKENS = frozenset({"bakiniz", "see"})
 
 _CLASS_YEAR_PATTERN = re.compile(r"(?<!\d)(\d{1,2})(?!\d)")
@@ -698,7 +698,9 @@ def _build_draft(
     instructor = ", ".join(split.instructors) if split.instructors else None
 
     block_text = row.text(ROLE_BLOCK) or None
-    location_text = row.text(ROLE_LOCATION) or None
+    raw_location = row.text(ROLE_LOCATION) or None
+    deferred_location = raw_location is not None and _is_deferred_location(raw_location)
+    location_text = None if deferred_location else raw_location
 
     # Classification still reads the whole cell. The block and the department
     # both carry keywords the event type depends on, and splitting the cell must
@@ -772,7 +774,7 @@ def _build_draft(
         row=row,
         resolved_date=resolved_date,
         title_confidence=course_title.confidence,
-        deferred_location=location_text is not None and _is_deferred_location(location_text),
+        deferred_location=deferred_location,
         block_departments=block_departments,
     )
 

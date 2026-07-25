@@ -30,10 +30,11 @@ _UNDECLARED = NumericDateOrder.UNDECLARED
 _PROFILES = (
     # 1.1.0 excludes PDÖ/PBL and lunch; 1.2.0 models free study explicitly.
     # 1.3.0 excludes one-token UYGULAMA/PRACTICE slot placeholders because the
-    # companion practice source publishes the authoritative group-specific lesson.
+    # companion practice source publishes the authoritative group-specific lesson;
+    # 1.4.0 omits "consult the amphitheatre program" instructions from locations.
     # The bump forces the worker to re-parse the stored annual snapshots, since a
     # parse run is keyed by (snapshot, profile, version).
-    ParserProfileDefinition("grade1_yearly_v1", "1.3.0", "annual", _UNDECLARED),
+    ParserProfileDefinition("grade1_yearly_v1", "1.4.0", "annual", _UNDECLARED),
     ParserProfileDefinition(
         "grade1_practice_v1",
         _PROFILE_VERSION,

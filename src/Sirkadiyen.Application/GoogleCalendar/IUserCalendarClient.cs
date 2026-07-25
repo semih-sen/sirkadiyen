@@ -101,6 +101,12 @@ public sealed record ManagedCalendarEvent
 
     public string? Location { get; init; }
 
+    /// <summary>
+    /// The calendar-scoped label that gives this event its department/category color.
+    /// The infrastructure adapter ensures the label exists before writing the event.
+    /// </summary>
+    public required ManagedCalendarEventLabel Label { get; init; }
+
     /// <summary>The IANA time zone the local times are expressed in.</summary>
     public required string TimeZoneId { get; init; }
 
@@ -128,6 +134,21 @@ public sealed record ManagedCalendarEvent
     public required IReadOnlyDictionary<string, string> PrivateProperties { get; init; }
 }
 
+/// <summary>
+/// One named, calendar-scoped Google event label. Unlike the legacy eleven-color
+/// event palette, labels support enough distinct RGB colors for every department.
+/// </summary>
+public sealed record ManagedCalendarEventLabel
+{
+    /// <summary>A deterministic UUID, stable across users and synchronization runs.</summary>
+    public required string Id { get; init; }
+
+    public required string Name { get; init; }
+
+    /// <summary>An RGB color in Google's required #RRGGBB form.</summary>
+    public required string BackgroundColor { get; init; }
+}
+
 /// <summary>A read-only inventory projection of one Google Calendar event.</summary>
 public sealed record ManagedCalendarEventSnapshot
 {
@@ -138,6 +159,8 @@ public sealed record ManagedCalendarEventSnapshot
     public string? Description { get; init; }
 
     public string? Location { get; init; }
+
+    public string? EventLabelId { get; init; }
 
     public required bool IsAllDay { get; init; }
 

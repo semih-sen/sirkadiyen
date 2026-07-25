@@ -41,6 +41,9 @@ public sealed class GoogleCalendarClient : IUserCalendarClient, IDisposable
     private readonly GoogleAuthorizationCodeFlow flow;
     private readonly ConcurrentDictionary<string, CalendarService> services =
         new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<
+        CalendarService,
+        ConcurrentDictionary<string, CalendarLabelRegistry>> labelRegistries = [];
 
     public GoogleCalendarClient(GoogleCalendarAuthorizationOptions options)
     {
@@ -177,14 +180,17 @@ public sealed class GoogleCalendarClient : IUserCalendarClient, IDisposable
         ArgumentNullException.ThrowIfNull(calendarEvent);
 
         CalendarService service = ServiceFor(access);
+        await EnsureEventLabelAsync(service, calendarId, calendarEvent.Label, cancellationToken);
 
         return await ExecuteAsync(
             async () =>
             {
                 try
                 {
-                    await service.Events.Insert(ToGoogleEvent(calendarEvent), calendarId)
-                        .ExecuteAsync(cancellationToken);
+                    EventsResource.InsertRequest request =
+                        service.Events.Insert(ToGoogleEvent(calendarEvent), calendarId);
+                    request.EventLabelVersion = 1;
+                    await request.ExecuteAsync(cancellationToken);
                     return CalendarEventInsertOutcome.Inserted;
                 }
                 catch (GoogleApiException exception)
@@ -209,15 +215,19 @@ public sealed class GoogleCalendarClient : IUserCalendarClient, IDisposable
         ArgumentNullException.ThrowIfNull(calendarEvent);
 
         CalendarService service = ServiceFor(access);
+        await EnsureEventLabelAsync(service, calendarId, calendarEvent.Label, cancellationToken);
 
         return await ExecuteAsync(
             async () =>
             {
                 try
                 {
-                    await service.Events
-                        .Patch(ToGoogleEvent(calendarEvent), calendarId, calendarEvent.EventId)
-                        .ExecuteAsync(cancellationToken);
+                    EventsResource.PatchRequest request = service.Events.Patch(
+                        ToGoogleEvent(calendarEvent),
+                        calendarId,
+                        calendarEvent.EventId);
+                    request.EventLabelVersion = 1;
+                    await request.ExecuteAsync(cancellationToken);
                     return CalendarEventPatchOutcome.Patched;
                 }
                 catch (GoogleApiException exception)
@@ -264,12 +274,94 @@ public sealed class GoogleCalendarClient : IUserCalendarClient, IDisposable
 
     public void Dispose()
     {
+        foreach (ConcurrentDictionary<string, CalendarLabelRegistry> calendars
+            in labelRegistries.Values)
+        {
+            foreach (CalendarLabelRegistry registry in calendars.Values)
+            {
+                registry.Gate.Dispose();
+            }
+        }
+
         foreach (CalendarService service in services.Values)
         {
             service.Dispose();
         }
 
         flow.Dispose();
+    }
+
+    private async Task EnsureEventLabelAsync(
+        CalendarService service,
+        string calendarId,
+        ManagedCalendarEventLabel desired,
+        CancellationToken cancellationToken)
+    {
+        ConcurrentDictionary<string, CalendarLabelRegistry> calendars =
+            labelRegistries.GetOrAdd(
+                service,
+                static _ => new ConcurrentDictionary<string, CalendarLabelRegistry>(
+                    StringComparer.Ordinal));
+        CalendarLabelRegistry registry = calendars.GetOrAdd(
+            calendarId,
+            static _ => new CalendarLabelRegistry());
+
+        await registry.Gate.WaitAsync(cancellationToken);
+        try
+        {
+            if (!registry.Initialized)
+            {
+                GoogleCalendarData calendar = await ExecuteAsync(
+                    () => service.Calendars.Get(calendarId).ExecuteAsync(cancellationToken),
+                    "Reading managed-calendar event labels",
+                    cancellationToken);
+                registry.Labels = (calendar.LabelProperties?.EventLabels ?? [])
+                    .Where(label => !string.IsNullOrWhiteSpace(label.Id))
+                    .ToDictionary(label => label.Id, StringComparer.Ordinal);
+                registry.Initialized = true;
+            }
+
+            if (registry.Labels.TryGetValue(desired.Id, out EventLabel? existing)
+                && string.Equals(existing.Name, desired.Name, StringComparison.Ordinal)
+                && string.Equals(
+                    existing.BackgroundColor,
+                    desired.BackgroundColor,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            Dictionary<string, EventLabel> merged =
+                new(registry.Labels, StringComparer.Ordinal)
+                {
+                    [desired.Id] = new EventLabel
+                    {
+                        Id = desired.Id,
+                        Name = desired.Name,
+                        BackgroundColor = desired.BackgroundColor,
+                    },
+                };
+
+            GoogleCalendarData patch = new()
+            {
+                LabelProperties = new LabelProperties
+                {
+                    EventLabels =
+                    [
+                        .. merged.Values.OrderBy(label => label.Id, StringComparer.Ordinal),
+                    ],
+                },
+            };
+            await ExecuteAsync(
+                () => service.Calendars.Patch(patch, calendarId).ExecuteAsync(cancellationToken),
+                "Defining a managed-calendar event label",
+                cancellationToken);
+            registry.Labels = merged;
+        }
+        finally
+        {
+            registry.Gate.Release();
+        }
     }
 
     private async Task<T> ExecuteAsync<T>(
@@ -412,6 +504,7 @@ public sealed class GoogleCalendarClient : IUserCalendarClient, IDisposable
             Summary = googleEvent.Summary,
             Description = googleEvent.Description,
             Location = googleEvent.Location,
+            EventLabelId = googleEvent.EventLabelId,
             IsAllDay = isAllDay,
             StartDate = isAllDay ? ParseDate(googleEvent.Start?.Date) : null,
             EndDateExclusive = isAllDay ? ParseDate(googleEvent.End?.Date) : null,
@@ -429,6 +522,7 @@ public sealed class GoogleCalendarClient : IUserCalendarClient, IDisposable
             Summary = calendarEvent.Summary,
             Description = calendarEvent.Description,
             Location = calendarEvent.Location,
+            EventLabelId = calendarEvent.Label.Id,
             ExtendedProperties = new Event.ExtendedPropertiesData
             {
                 Private__ = new Dictionary<string, string>(calendarEvent.PrivateProperties),
@@ -474,4 +568,14 @@ public sealed class GoogleCalendarClient : IUserCalendarClient, IDisposable
             out DateOnly parsed)
             ? parsed
             : null;
+
+    private sealed class CalendarLabelRegistry
+    {
+        public SemaphoreSlim Gate { get; } = new(1, 1);
+
+        public bool Initialized { get; set; }
+
+        public Dictionary<string, EventLabel> Labels { get; set; } =
+            new(StringComparer.Ordinal);
+    }
 }

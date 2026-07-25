@@ -25,7 +25,7 @@ def _registered_version(profile_name: str) -> str:
     """The single registered version for a profile, so cases need not repeat it.
 
     Profiles are versioned independently (a behaviour change bumps only its own
-    profile, e.g. grade1_yearly_v1 to 1.3.0), so the version is read
+    profile, e.g. grade1_yearly_v1 to 1.4.0), so the version is read
     from the registry rather than shared across every case.
     """
     versions = [version for (name, version) in implemented_profiles() if name == profile_name]

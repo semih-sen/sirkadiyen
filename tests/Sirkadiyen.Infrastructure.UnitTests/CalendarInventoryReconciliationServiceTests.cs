@@ -82,6 +82,27 @@ public sealed class CalendarInventoryReconciliationServiceTests
     }
 
     [Fact]
+    public async Task AStalePresentationLabelIsRepairedWithoutACanonicalContentChange()
+    {
+        Harness harness = new();
+        CanonicalScheduleRecord record = CalendarTestData.Record(
+            stableIdentity: "old-color",
+            departments: ["ANATOMİ AD."]);
+        harness.Records.Add(record);
+        ManagedCalendarEvent expected =
+            ManagedCalendarEventFactory.ToManagedEvent(harness.UserId, record);
+        harness.Mappings.Seed(Mapping(harness.UserId, record, expected.EventId));
+        harness.Client.Events.Add(Snapshot(expected) with { EventLabelId = null });
+
+        CalendarInventoryUserResult result = await harness.RunSingleAsync();
+
+        Assert.Equal(1, result.Patched);
+        ManagedCalendarEvent patch = Assert.Single(harness.Client.Patches);
+        Assert.Equal("#D50000", patch.Label.BackgroundColor);
+        Assert.Empty(harness.Client.Deletes);
+    }
+
+    [Fact]
     public async Task DuplicateAndUnexpectedStateIsReportedButNeverDeleted()
     {
         Harness harness = new();
@@ -172,6 +193,7 @@ public sealed class CalendarInventoryReconciliationServiceTests
             Summary = calendarEvent.Summary,
             Description = calendarEvent.Description,
             Location = calendarEvent.Location,
+            EventLabelId = calendarEvent.Label.Id,
             IsAllDay = calendarEvent.IsAllDay,
             StartDate = calendarEvent.StartDate,
             EndDateExclusive = calendarEvent.EndDateExclusive,

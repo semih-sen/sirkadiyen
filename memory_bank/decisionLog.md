@@ -3306,3 +3306,65 @@ mapping ledger rules.
   required. Worker restart is required to seed 1.3.0 and drive the forward fix.
 
 ---
+
+## ADR-072: Calendar presentation is shared, department-colored, and repairable
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-25
+**Implements:** shared Calendar presentation policy, deterministic custom event
+labels, labeled descriptions, source-faithful summaries, deferred-location omission,
+`grade1_yearly_v1` 1.4.0 re-parse trigger
+**Amends:** ADR-024, ADR-058, ADR-062
+
+### Context
+
+All managed events inherited the dedicated calendar's single color, so unrelated
+departments were difficult to distinguish. Their descriptions were unlabeled lines,
+the annual source's leading lecture number remained in theory titles, and the literal
+instruction `FAKÜLTEMİZ WEB SİTESİ ÖĞRENCİ AĞI AMFİ PROGRAMINA BAKINIZ` was written as
+though it were a physical location.
+
+Google's legacy per-event color palette has only eleven colors, which cannot keep every
+department distinct as later class-year parsers are added. Google Calendar now supports
+up to 200 calendar-scoped event labels with a UUID, name, and arbitrary RGB background.
+
+### Decision
+
+Derive every Google-visible field through one application-layer
+`CalendarEventPresentationPolicy`, shared by all current and future parser profiles.
+Use calendar-scoped event labels: Anatomi is red, Fizyoloji navy, Tıbbi Biyokimya
+orange, Tıbbi Biyoloji green, Histoloji ve Embriyoloji purple, exams gray, and free
+study blue. Every other source-stated department receives a deterministic UUID and
+RGB color derived from its normalized name, so it remains stable across users and
+runs without a database registry.
+
+Before an insert or patch, the Google adapter reads the current calendar labels once,
+merges the required definition without removing unrelated labels, and sends events
+with `eventLabelVersion=1`. Inventory snapshots retain `EventLabelId` and equivalence
+checks it, making older monochrome events patchable through the ordinary repair pass.
+
+Preserve the canonical display title as the Calendar summary, including a leading
+numeric lesson sequence marker. Build labeled description lines in instructor,
+curriculum-block, department order. Treat any amphitheatre-program lookup instruction
+as no location. Profile 1.4.0 publishes those annual location values as `null`; the
+presentation policy also hides legacy values until their forward-fix diff arrives.
+
+Continue sending timed events as local `yyyy-MM-ddTHH:mm:ss` values in
+`Europe/Istanbul`. Google may render 12- or 24-hour notation according to the user's
+Calendar/account locale; the event API has no per-event display-format override.
+
+### Consequences
+
+- Departments are visually distinct without creating one calendar per department or
+  being capped by the legacy eleven-color palette.
+- The same canonical department receives the same label ID and color in every managed
+  calendar. Later parsers opt in automatically by filling the existing canonical
+  department fields.
+- Existing events are repaired by inventory; records whose deferred location changes
+  in 1.4.0 also produce normal semantic updates. No direct Calendar mutation or
+  database migration is introduced.
+- The first event of a label category may require one calendar metadata patch. The
+  adapter caches the calendar's label registry for the process lifetime and preserves
+  provider failure classification.
+
+---

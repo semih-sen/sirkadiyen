@@ -83,7 +83,7 @@ def test_a_request_without_source_context_is_refused() -> None:
 
 def test_the_annual_profile_parses_a_snapshot_over_http() -> None:
     request = json.loads(CONTRACT_FIXTURE.read_text(encoding="utf-8"))
-    request["parserProfile"] = {"name": "grade1_yearly_v1", "version": "1.3.0"}
+    request["parserProfile"] = {"name": "grade1_yearly_v1", "version": "1.4.0"}
 
     response = client.post("/v1/parse", json=request)
 

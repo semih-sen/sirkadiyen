@@ -844,3 +844,26 @@ Exclude only an explicit, semantically empty annual placeholder (for example a
 one-token `UYGULAMA`), never every title containing a practice keyword. Account for
 each exclusion in parser diagnostics and remove previously published placeholders
 only through a new published revision and semantic diff (ADR-071).
+
+## 28. Provider presentation policy over canonical schedule truth
+
+Keep source-faithful schedule content in the canonical model and derive provider UI
+presentation in one shared application policy (ADR-072). Parser profiles for later
+class years must populate the same `Instructor`, `CurriculumBlock`, and `Departments`
+fields; they must not embed Google-specific colors or description prose.
+
+For Google Calendar, use calendar-scoped event labels rather than the legacy
+eleven-color palette. A label category has a deterministic UUID and RGB color.
+Explicit product colors win for the named core departments and special event types;
+other source-stated departments receive a stable color derived from their normalized
+name. The adapter reads and merges the calendar's label definitions before writing an
+event, preserving labels it does not own. Inventory equivalence includes the label ID,
+so a presentation-policy change repairs existing managed events without inventing
+deletion authority.
+
+Calendar summaries preserve the source-authored display title, including a leading
+lesson sequence marker such as `5-`. Description lines are labeled and ordered as
+instructor, curriculum block, then department(s). A source instruction to consult a
+separate amphitheatre program is source-quality evidence, not a physical location:
+the parser counts it but publishes `null`, and the Calendar presentation policy also
+suppresses legacy canonical values as a defence in depth.

@@ -42,6 +42,9 @@ internal static class CalendarTestData
         string displayTitle = "Lesson",
         string? instructor = null,
         string? location = null,
+        string? curriculumBlock = null,
+        IReadOnlyList<string>? departments = null,
+        ScheduleEventType eventType = ScheduleEventType.Theory,
         SourceId? sourceId = null,
         string contentHash = "sha256:content")
     {
@@ -63,7 +66,7 @@ internal static class CalendarTestData
             academicYear,
             classYear,
             programLanguage,
-            ScheduleEventType.Theory,
+            eventType,
             scope,
             audienceJson,
             displayTitle,
@@ -78,6 +81,8 @@ internal static class CalendarTestData
             0.99m,
             "[]",
             instructor,
-            location);
+            location,
+            curriculumBlock,
+            departments);
     }
 }

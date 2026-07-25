@@ -43,7 +43,7 @@ from sirkadiyen_parser.profiles import ParserProfileDefinition, get_profile
 
 PROFILE = ParserProfileDefinition(
     "grade1_yearly_v1",
-    "1.3.0",
+    "1.4.0",
     "annual",
     NumericDateOrder.UNDECLARED,
 )
@@ -51,7 +51,7 @@ PROFILE = ParserProfileDefinition(
 #: The same profile as if a real workbook had shown it writes ``01/10/2025``.
 DAY_FIRST_PROFILE = ParserProfileDefinition(
     "grade1_yearly_v1",
-    "1.3.0",
+    "1.4.0",
     "annual",
     NumericDateOrder.DAY_FIRST,
 )
@@ -197,11 +197,11 @@ def metrics(response: ParseSnapshotResponse) -> dict[str, float]:
 
 
 def test_the_registered_profile_is_the_annual_implementation() -> None:
-    profile = get_profile("grade1_yearly_v1", "1.3.0")
+    profile = get_profile("grade1_yearly_v1", "1.4.0")
 
     assert profile is not None
     assert get_parser(profile.name, profile.version) is parse_annual_snapshot
-    assert ("grade1_yearly_v1", "1.3.0") in implemented_profiles()
+    assert ("grade1_yearly_v1", "1.4.0") in implemented_profiles()
 
 
 def test_a_lesson_row_becomes_a_candidate() -> None:
@@ -592,12 +592,12 @@ def test_a_hidden_row_is_still_parsed_but_counted() -> None:
     assert metrics(response)[METRIC_ROWS_HIDDEN] == 1
 
 
-def test_a_location_that_points_at_another_program_is_kept_and_counted() -> None:
+def test_a_location_that_points_at_another_program_is_omitted_and_counted() -> None:
     deferred = "FAKÜLTEMİZ WEB SİTESİ ÖĞRENCİ AĞI AMFİ PROGRAMINA BAKINIZ"
 
     response = parse([worksheet(lesson_row(1, location=deferred))])
 
-    assert response.candidates[0].location == deferred
+    assert response.candidates[0].location is None
     assert metrics(response)[METRIC_LOCATION_DEFERRED] == 1
 
 

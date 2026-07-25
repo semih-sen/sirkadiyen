@@ -34,9 +34,10 @@ public static class ManagedCalendarEventFactory
         ManagedCalendarEvent managedEvent = new()
         {
             EventId = DeterministicEventId(userId, record.StableIdentity),
-            Summary = record.DisplayTitle,
-            Description = BuildDescription(record),
-            Location = record.Location,
+            Summary = CalendarEventPresentationPolicy.Summary(record),
+            Description = CalendarEventPresentationPolicy.Description(record),
+            Location = CalendarEventPresentationPolicy.Location(record),
+            Label = CalendarEventPresentationPolicy.EventLabel(record),
             TimeZoneId = record.TimeZoneId,
             IsAllDay = record.IsAllDay,
             PrivateProperties = privateProperties,
@@ -74,27 +75,6 @@ public static class ManagedCalendarEventFactory
         byte[] hash = SHA256.HashData(
             Encoding.UTF8.GetBytes($"{userId:N}\n{stableIdentity}"));
         return Base32HexEncode(hash);
-    }
-
-    private static string? BuildDescription(CanonicalScheduleRecord record)
-    {
-        List<string> lines = [];
-        if (!string.IsNullOrWhiteSpace(record.Instructor))
-        {
-            lines.Add(record.Instructor);
-        }
-
-        if (record.Departments.Count > 0)
-        {
-            lines.Add(string.Join(", ", record.Departments));
-        }
-
-        if (!string.IsNullOrWhiteSpace(record.CurriculumBlock))
-        {
-            lines.Add(record.CurriculumBlock);
-        }
-
-        return lines.Count == 0 ? null : string.Join("\n", lines);
     }
 
     private static string Base32HexEncode(ReadOnlySpan<byte> data)
