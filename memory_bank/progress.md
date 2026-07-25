@@ -334,6 +334,11 @@ Calendar synchronization and reconciliation hardening is complete through ADR-06
 intra-diff quota-aware fan-out. The next schedule-source slice remains
 `grade2_yearly_v1`, which needs no new canonical field.
 
+Calendar backlog scheduling is complete through ADR-070. Ordinary 100-operation
+quota yields no longer wait for the adaptive source polling interval: the worker
+continues initial sync, incremental dispatch, and reconciliation after a configurable
+five-second Calendar-only delay, without re-polling schedule sources.
+
 The consumer frontend now has a runnable foundation in `web/` (ADR-066). It is a Next.js App
 Router + TypeScript project that walks a student through the whole onboarding path — Google
 sign-in, license redemption, academic profile, Calendar authorization, and initial-sync

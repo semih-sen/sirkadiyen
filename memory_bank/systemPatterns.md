@@ -831,3 +831,9 @@ is already the durable progress record. Successful inserts create mappings, patc
 their content/identity, deletes remove them, and dead credentials leave the target set, so
 replanning the immutable diff naturally yields only unfinished mutations. Mark the diff
 `Dispatched` only after a complete scan finds no work beyond the budget.
+
+Do not couple a resumable external-write backlog to a slower acquisition polling
+schedule. A normal per-pass budget yield should trigger a short, bounded continuation
+that runs only the idempotent external-write stages; it must not repeatedly reacquire
+sources or rerun unrelated maintenance. Once the ledger reports no remaining work,
+return to the ordinary adaptive acquisition interval (ADR-070).

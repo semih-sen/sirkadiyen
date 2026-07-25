@@ -1315,3 +1315,19 @@ dimension can be added with evidence.
 - all managed events are traceable through extended properties
 - parser profiles are versioned
 - raw snapshots are immutable
+
+## Latest implementation session (2026-07-25, Calendar backlog catch-up)
+
+- The Grade 1 annual forward-fix produced a `Ready` diff with 862 creates. Incremental
+  dispatch correctly stopped after its configured 100 Calendar mutation units, leaving
+  the diff `Pending`; the user's ledger therefore held the original 51 practice events
+  plus 100 annual events.
+- The apparent stall was scheduler coupling, not revoked Google access: quota yielding
+  could resume only on the next source-poll cycle, which is one hour on weekends.
+- ADR-070 separates ordinary quota-yield catch-up timing from source polling. A partial
+  incremental dispatch, in-progress initial sync, or in-progress reconciliation now
+  schedules another Calendar-only pass after five seconds. Source polling, publication,
+  diff calculation, and snapshot retention are skipped during those catch-up passes.
+- The 100-mutation safety bound and durable-ledger replanning remain unchanged.
+- Verification: 325 Infrastructure unit tests passed; the full Release solution build,
+  `dotnet format --verify-no-changes`, and `git diff --check` passed.

@@ -19,6 +19,7 @@
     <ProjectReference Include="../../src/Sirkadiyen.Application/Sirkadiyen.Application.csproj" />
     <ProjectReference Include="../../src/Sirkadiyen.Contracts/Sirkadiyen.Contracts.csproj" />
     <ProjectReference Include="../../src/Sirkadiyen.Infrastructure/Sirkadiyen.Infrastructure.csproj" />
+    <ProjectReference Include="../../src/Sirkadiyen.Worker/Sirkadiyen.Worker.csproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="../../config/schedule-sources.json" Link="fixtures/schedule-sources.json">

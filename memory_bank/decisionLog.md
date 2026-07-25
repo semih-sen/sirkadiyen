@@ -3199,3 +3199,53 @@ snapshots after restart rather than reusing the held 1.1.0 runs.
   approved or rewritten.
 
 ---
+
+## ADR-070: Resume quota-yielded Calendar work independently of source polling
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-25
+**Implements:** Calendar-only catch-up cycles, configurable
+`SIRKADIYEN_SYNC:CALENDAR_CATCH_UP_INTERVAL`, worker scheduling regressions
+**Amends:** ADR-058, ADR-060, ADR-065
+
+### Context
+
+Publishing the repaired Grade 1 annual revision created a diff with 862 Calendar
+insertions for the test user. Incremental dispatch behaved as designed and yielded
+after 100 mutation units, leaving the diff pending and the user's calendar at 151
+events (51 existing practice events plus 100 annual events).
+
+The remaining work was safe and durable, but it could resume only when the worker's
+outer source-polling loop ran again. On a weekend that interval is one hour. Calendar
+quota protection had therefore become accidental user-visible latency, even though no
+Google credential had failed and the log reported zero re-authorization flags.
+
+Raising the mutation budget enough for this one annual diff would remove the intended
+bound and scale poorly across users. Re-polling every source every few seconds merely
+to resume Calendar work would waste network and parser resources.
+
+### Decision
+
+Keep the per-diff Calendar mutation budget unchanged. When incremental dispatch
+returns `PartiallyDispatched`, initial sync returns `InProgress`, or reconciliation
+returns `InProgress`, schedule the next worker pass after a configurable short delay
+(five seconds by default).
+
+That continuation runs only Calendar work. It skips source polling, revision
+publication, diff calculation, and snapshot retention. When no ordinary quota-yielded
+Calendar work remains, the worker returns to the existing adaptive source polling
+interval.
+
+### Consequences
+
+- Large initial loads and diffs drain in bounded 100-operation passes without waiting
+  15–60 minutes between passes.
+- Completed mutations remain durable in the mapping ledger, so every continuation is
+  still idempotent and naturally plans only unfinished work.
+- Source acquisition frequency and Google Calendar write pacing are now independent.
+- Transient provider failures still use their existing persisted exponential back-off;
+  they do not request immediate catch-up.
+- A worker restart is required to activate this orchestration change; no migration or
+  user re-authorization is required.
+
+---

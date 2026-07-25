@@ -224,7 +224,15 @@ builder.Services.AddScoped<SnapshotRetentionService>();
 builder.Services.AddScoped<ScheduleRevisionValidationService>();
 builder.Services.AddScoped<ScheduleRevisionPublicationService>();
 builder.Services.AddSingleton<AdaptivePollingIntervalPolicy>();
-builder.Services.AddSingleton(new WorkerOptions { SourceCatalogPath = catalogPath });
+WorkerOptions workerOptions = new()
+{
+    SourceCatalogPath = catalogPath,
+    CalendarCatchUpInterval = ParseDuration(
+        builder.Configuration["SIRKADIYEN_SYNC:CALENDAR_CATCH_UP_INTERVAL"],
+        TimeSpan.FromSeconds(5)),
+};
+workerOptions.Validate();
+builder.Services.AddSingleton(workerOptions);
 builder.Services.AddSingleton<ScheduleSourceCatalogLoader>();
 builder.Services.AddSingleton(googleOptions);
 builder.Services.AddSingleton(calendarOptions);

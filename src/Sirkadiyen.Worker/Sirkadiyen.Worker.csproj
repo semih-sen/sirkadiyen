@@ -10,4 +10,7 @@
     <ProjectReference Include="../Sirkadiyen.Contracts/Sirkadiyen.Contracts.csproj" />
     <ProjectReference Include="../Sirkadiyen.Infrastructure/Sirkadiyen.Infrastructure.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Sirkadiyen.Infrastructure.UnitTests" />
+  </ItemGroup>
 </Project>

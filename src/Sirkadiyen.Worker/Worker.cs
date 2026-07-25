@@ -42,20 +42,48 @@ internal sealed class Worker(
 
         await SeedSourceCatalogAsync(stoppingToken);
 
+        bool pollScheduleSources = true;
         while (!stoppingToken.IsCancellationRequested)
         {
-            await PollAllSourcesAsync(stoppingToken);
-            await PublishValidatedRevisionsAsync(stoppingToken);
-            await CalculatePendingDiffsAsync(stoppingToken);
-            await RunPendingInitialSyncsAsync(stoppingToken);
-            await RunFencedCalendarMaintenanceAsync(stoppingToken);
-            await PruneExpiredSnapshotPayloadsAsync(stoppingToken);
+            if (pollScheduleSources)
+            {
+                await PollAllSourcesAsync(stoppingToken);
+                await PublishValidatedRevisionsAsync(stoppingToken);
+                await CalculatePendingDiffsAsync(stoppingToken);
+            }
 
-            TimeSpan interval = intervalPolicy.GetInterval(timeProvider.GetUtcNow());
-            logger.LogInformation(
-                "Schedule polling cycle completed. Next cycle starts in {PollingInterval}.",
-                interval);
-            await Task.Delay(interval, timeProvider, stoppingToken);
+            bool calendarCatchUpRequired =
+                await RunPendingInitialSyncsAsync(stoppingToken);
+            calendarCatchUpRequired |=
+                await RunFencedCalendarMaintenanceAsync(stoppingToken);
+
+            if (pollScheduleSources)
+            {
+                await PruneExpiredSnapshotPayloadsAsync(stoppingToken);
+            }
+
+            WorkerCycleSchedule next = WorkerCycleScheduler.GetNext(
+                calendarCatchUpRequired,
+                options,
+                intervalPolicy,
+                timeProvider.GetUtcNow());
+            pollScheduleSources = next.PollScheduleSources;
+
+            if (!next.PollScheduleSources)
+            {
+                logger.LogInformation(
+                    "Calendar work remains after an ordinary mutation-budget yield. "
+                    + "Catch-up resumes in {CatchUpInterval} without polling schedule sources.",
+                    next.Delay);
+            }
+            else
+            {
+                logger.LogInformation(
+                    "Schedule polling cycle completed. Next cycle starts in {PollingInterval}.",
+                    next.Delay);
+            }
+
+            await Task.Delay(next.Delay, timeProvider, stoppingToken);
         }
     }
 
@@ -64,7 +92,7 @@ internal sealed class Worker(
     /// and inventory. An empty replay scan is therefore conclusive even with several workers:
     /// no other worker can still be dispatching a diff that skipped the same user.
     /// </summary>
-    private async Task RunFencedCalendarMaintenanceAsync(
+    private async Task<bool> RunFencedCalendarMaintenanceAsync(
         CancellationToken cancellationToken)
     {
         try
@@ -79,12 +107,13 @@ internal sealed class Worker(
                 logger.LogInformation(
                     "Calendar dispatch/reconciliation stage yielded because another worker "
                     + "holds the shared fence.");
-                return;
+                return false;
             }
 
-            await DispatchPendingDiffsAsync(cancellationToken);
-            await RunPendingCalendarReconciliationsAsync(cancellationToken);
+            bool catchUpRequired = await DispatchPendingDiffsAsync(cancellationToken);
+            catchUpRequired |= await RunPendingCalendarReconciliationsAsync(cancellationToken);
             await RunDueCalendarInventoriesAsync(cancellationToken);
+            return catchUpRequired;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -95,6 +124,7 @@ internal sealed class Worker(
             logger.LogError(
                 exception,
                 "The fenced Calendar dispatch/reconciliation stage failed.");
+            return false;
         }
     }
 
@@ -272,7 +302,7 @@ internal sealed class Worker(
     /// cycle's poll results, so a worker killed mid-fan-out re-runs the whole diff idempotently. It
     /// is gated by the same operational freeze as every other calendar job.
     /// </remarks>
-    private async Task DispatchPendingDiffsAsync(CancellationToken cancellationToken)
+    private async Task<bool> DispatchPendingDiffsAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -287,13 +317,16 @@ internal sealed class Worker(
                 logger.LogInformation(
                     "Incremental calendar dispatch skipped because the global operational "
                     + "freeze is active.");
-                return;
+                return false;
             }
 
             foreach (IncrementalCalendarSyncDiffResult diff in result.Diffs)
             {
                 LogIncrementalSyncResult(diff);
             }
+
+            return result.Diffs.Any(
+                static diff => diff.Outcome is IncrementalDispatchOutcome.PartiallyDispatched);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -302,6 +335,7 @@ internal sealed class Worker(
         catch (Exception exception)
         {
             logger.LogError(exception, "Dispatching pending schedule diffs to calendars failed.");
+            return false;
         }
     }
 
@@ -367,7 +401,7 @@ internal sealed class Worker(
     /// cycle's poll results, so a worker killed mid-sync resumes here from what is not yet
     /// written. It is gated by the same operational freeze as every other calendar job.
     /// </remarks>
-    private async Task RunPendingInitialSyncsAsync(CancellationToken cancellationToken)
+    private async Task<bool> RunPendingInitialSyncsAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -382,13 +416,16 @@ internal sealed class Worker(
                 logger.LogInformation(
                     "Initial calendar synchronization skipped because the global operational "
                     + "freeze is active.");
-                return;
+                return false;
             }
 
             foreach (InitialCalendarSyncResult user in result.Users)
             {
                 LogInitialSyncResult(user);
             }
+
+            return result.Users.Any(
+                static user => user.Outcome is InitialCalendarSyncOutcome.InProgress);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -397,6 +434,7 @@ internal sealed class Worker(
         catch (Exception exception)
         {
             logger.LogError(exception, "Running pending initial calendar syncs failed.");
+            return false;
         }
     }
 
@@ -540,7 +578,7 @@ internal sealed class Worker(
     /// (ADR-060). It runs after global dispatch, follows each user's ordered cursor, and never derives
     /// deletion from current-state absence.
     /// </summary>
-    private async Task RunPendingCalendarReconciliationsAsync(
+    private async Task<bool> RunPendingCalendarReconciliationsAsync(
         CancellationToken cancellationToken)
     {
         try
@@ -556,13 +594,16 @@ internal sealed class Worker(
                 logger.LogInformation(
                     "Calendar reconciliation skipped because the global operational freeze "
                     + "is active.");
-                return;
+                return false;
             }
 
             foreach (CalendarReconciliationUserResult user in result.Users)
             {
                 LogCalendarReconciliationResult(user);
             }
+
+            return result.Users.Any(
+                static user => user.Outcome is CalendarReconciliationOutcome.InProgress);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -571,6 +612,7 @@ internal sealed class Worker(
         catch (Exception exception)
         {
             logger.LogError(exception, "Running pending Calendar reconciliations failed.");
+            return false;
         }
     }
 
