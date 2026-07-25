@@ -174,6 +174,25 @@ observations about the documents rather than about the conversion.
 - Neither anatomy document states a URL anywhere, and the spring/autumn pair is
   handed out once per semester. The vertical-corridor documents are edited by
   Student Affairs during the year.
+- **The vertical-corridor grid is mostly unassigned.** Autumn states groups on 12 of
+  its 53 dated rows and spring on 30 of 52, because the faculty schedules them as the
+  year goes on. A dated row with no groups is the document's normal state, not a defect.
+- Its cells state: a cohort letter `A`-`H`; a subgroup `A1`-`H2` (only the `EKİP OLMA`
+  column); a two-letter run `AB`, `CD`, `EF`, `GH`; an examination naming its cohorts
+  with hyphens, `A-B-C-D SINAV`; the English programme's `İ1 grubu`, `i1+i2` — sometimes
+  with a time range of their own that differs from the row's; `EK-1` to `EK-3`, the
+  separately published lists the document's own note points at; and `UYGULAMA TELAFİ`,
+  `Telafi` or a stray `T` that state no audience.
+- Nine of its dated rows contradict the weekday typed beside them. Four name a year that
+  is a year out (`3 Şubat 2025`, `24 Aralık 2024`, `26`/`27 Şubat 2025`) — **the same four
+  the practice table gets wrong**, which is evidence the two documents are maintained
+  together. The rest are ordinary weekday typos (`08`/`15 Mayıs 2026`, `1 Haziran 2026`,
+  `11 Kasım 2025`, `23 Aralık 2025`).
+- One spring row writes its whole slot on a single line (`20 Nisan 2026 Pazartesi
+  8.30-10.20`), one writes the weekday and the time range on the same line
+  (`Çarşamba 14:20-16:20`), and one spring table leaves the place header empty.
+- Four of the seven spring tables write `OKSİJEN (Doç. Dr. Bengüsu MİRASOĞLU` without
+  closing the bracket; the first table closes it.
 
 ## Parser implications
 

@@ -111,13 +111,19 @@ _PROFILES = (
         ("anatomyGroup",),
         ("Diseksiyon",),
     ),
+    # The vertical-corridor calendar states the *same* lettered cohorts as the
+    # practice table — its `*` cells are the ones this document answers — so it
+    # selects students by the practice group they already have rather than by a
+    # third group they would have to declare (ADR-020, ADR-077). The dissection
+    # rotation is written into this grid too, and the anatomy sources own it.
     ParserProfileDefinition(
         "grade2_vertical_corridor_v1",
         _PROFILE_VERSION,
         "verticalCorridor",
         _UNDECLARED,
-        ("verticalCorridorGroup",),
+        ("practiceGroup", "practiceSubgroup"),
         ("Uygulama",),
+        group_rotation_subjects=("anatomi", "anatomy", "diseksiyon", "dissection"),
     ),
     ParserProfileDefinition(
         "grade3_yearly_v1",

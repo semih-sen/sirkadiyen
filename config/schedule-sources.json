@@ -126,7 +126,15 @@
       "classYear": 2,
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
-      "fixturePath": "sheets/donem-2-tr/Dönem 2 Beceri Uyg BAHAR Takvim 26.01.2025.docx"
+      "supportedAudienceSelectors": {
+        "practiceGroup": ["A", "B", "C", "D", "E", "F", "G", "H"],
+        "practiceSubgroup": [
+          "A1", "A2", "B1", "B2", "C1", "C2", "D1", "D2",
+          "E1", "E2", "F1", "F2", "G1", "G2", "H1", "H2"
+        ]
+      },
+      "fixturePath": "sheets/donem-2-tr/Dönem 2 Beceri Uyg BAHAR Takvim 26.01.2025.docx",
+      "notes": "Same lettered cohorts as G2-TR-PRACTICE, whose '*' cells this document answers (ADR-077). The spring document states every group and fourteen of the sixteen subgroups; the remaining two sit in rows refused for a wrong year. Student Affairs edits this document during the year, so it must be re-acquired rather than converted once. The English cohorts it also carries are counted and not published under a Turkish source."
     },
     {
       "sourceId": "G2-VERTICAL-AUTUMN",
@@ -141,7 +149,15 @@
       "classYear": 2,
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
-      "fixturePath": "sheets/donem-2-tr/Dönem 2 Beceri uygulama takvimi güz.docx"
+      "supportedAudienceSelectors": {
+        "practiceGroup": ["A", "B", "C", "D", "E", "F", "G", "H"],
+        "practiceSubgroup": [
+          "A1", "A2", "B1", "B2", "C1", "C2", "D1", "D2",
+          "E1", "E2", "F1", "F2", "G1", "G2", "H1", "H2"
+        ]
+      },
+      "fixturePath": "sheets/donem-2-tr/Dönem 2 Beceri uygulama takvimi güz.docx",
+      "notes": "As G2-VERTICAL-SPRING. The autumn document has not used a subgroup yet, but the cohort scheme belongs to the programme rather than to the file, and Student Affairs adds rows to it all year, so both dimensions are declared."
     },
     {
       "sourceId": "G2-EN-ANNUAL",

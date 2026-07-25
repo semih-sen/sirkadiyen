@@ -54,10 +54,11 @@ The Grade 2 annual program now parses too: one profile, `grade2_yearly_v1`, serv
 the Turkish and the English source, deferring the dissection group rotation to the
 anatomy sources (ADR-073). The Grade 2 Turkish practice table parses through its own
 slot-column reader, `grade2_practice_v1` (ADR-074). **A Word document now converts onto
-the same normalized snapshot contract as a workbook** (ADR-076), so the four Grade 2 DOCX
-sources exist as committed snapshots; acquiring one at runtime still does not, and no
-profile reads them yet. Drive, HTTP and administrative-upload acquisition, the
-remaining parser profiles, Grade 2 support in the student-profile schema, and the
+the same normalized snapshot contract as a workbook** (ADR-076), and the vertical-corridor
+skill-practice calendar is parsed from it by `grade2_vertical_corridor_v1` (ADR-077).
+**Acquiring** a Word document at runtime still does not exist, so those two revisions
+cannot be produced outside a fixture. Drive, HTTP and administrative-upload acquisition,
+the anatomy profiles, Grade 2 support in the student-profile schema, and the
 remaining operational surfaces still do not exist. The **consumer frontend now
 has a runnable foundation** (`web/`, ADR-066): Google sign-in, license redemption,
 academic profile, Calendar authorization, and initial-sync progress are wired to
@@ -79,6 +80,34 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- **Implemented the vertical-corridor profile (ADR-077), which unblocks the sessions the
+  other two Grade 2 profiles defer.** `grade2_vertical_corridor_v1` 1.0.0 publishes 42
+  sessions — 12 from the autumn document, 30 from the spring one — that previously
+  reached no calendar at all. Both revisions are predicted to validate with no findings.
+- It **selects students by the practice group they already have**. The profile used to
+  declare a `verticalCorridorGroup`; the document states the same `A`-`H` cohorts as the
+  practice table (its `*` cells are what this document answers) and halves them into
+  `A1`-`H2`, so a third grouping would make every student declare a group the faculty
+  never asks for.
+- `parsers/vertical_corridor.py` walks the practice table's axis transposed back — a row
+  is a dated slot, a column is one of five skill practices — but the slot is written as
+  lines of one cell, the way the practice table writes its column headers. The two Grade 2
+  rotation profiles now share their cell-level rules in `parsers/cohort_rotation.py`: the
+  eight-letter cohort alphabet and the weekday-contradiction refusal, one definition each.
+  The document proves why: `Telafi` expands to T, E, L, A, F, I and only the bound refuses
+  it.
+- **The document is filled in over the year**, so a dated row with no groups publishes
+  nothing and raises nothing, while a row whose groups cannot be dated is a warning naming
+  the cell. It also carries the English `İ1`-`İ3` and the separately published `EK-n`
+  lists, which are counted under their own reasons and never published under a Turkish
+  source.
+- **Nine dated rows contradict their own weekday**, four naming a year that is a year out
+  — the same four the practice table gets wrong, which is evidence the two are maintained
+  together. Three carry groups, so four cohort-sessions wait on a correction.
+- Known limit: this is not the whole programme. The practice table marks 95 slots and the
+  faculty has scheduled a fraction of them; re-acquisition, not a parser change, publishes
+  the rest.
 
 - **Declared the numeric date order of the Grade 2 practice source (ADR-075).**
   `grade2_practice_v1` 1.1.0 declares `dayFirst`, read off a second source rather than
@@ -110,7 +139,7 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
   fabricated URL. They are handed out once a semester and unchanged afterwards, so an
   administrative upload fits them; Student Affairs edits the vertical-corridor documents
   during the year, so those need re-acquisition. Both transports remain unbuilt.
-- 358 Python tests (up from 349) and 344 Infrastructure unit tests (up from 337) pass;
+- 387 Python tests (up from 349) and 344 Infrastructure unit tests (up from 337) pass;
   Ruff, Ruff format, Mypy and the Release build are clean.
 
 - **Implemented the Grade 2 Turkish practice profile (ADR-074).** `grade2_practice_v1`

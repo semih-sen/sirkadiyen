@@ -3700,3 +3700,89 @@ stays the authority for every source it can actually describe.
   that each snapshot validates against the inbound contract and states only text.
 
 ---
+
+## ADR-077: The vertical-corridor calendar selects students by their practice group
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-25
+**Implements:** `grade2_vertical_corridor_v1` 1.0.0 for `G2-VERTICAL-AUTUMN` and
+`G2-VERTICAL-SPRING`, the `parsers/vertical_corridor.py` reader, and
+`parsers/cohort_rotation.py`
+**Extends:** ADR-020, ADR-048, ADR-071, ADR-074, ADR-076
+
+### Context
+
+Two shipped profiles defer to this document. The Grade 2 annual program writes these
+sessions as a bare `UYGULAMA` placeholder (ADR-071) and the Grade 2 practice table marks
+them with a bare `*`, its own note saying the groups and rooms "ayrı bir tablo ile
+duyurulacaktır" (ADR-074). Until this is read, those sessions reach no calendar at all.
+
+The document is a Word file, so it arrives through the DOCX conversion (ADR-076). Its
+axis is the practice table's transposed back — a row is a dated slot, a column is one of
+five skill practices — but the whole slot is written as separate lines of one cell, the
+way the practice table writes its column *headers*.
+
+### Decision
+
+**Publish to the practice group a student already has.** The profile previously declared
+a `verticalCorridorGroup` dimension. The document states the same lettered cohorts
+`A`-`H` the practice table states — its `*` cells are the ones this document answers —
+and its `EKİP OLMA` column halves them into `A1`-`H2`. Inventing a third grouping would
+make every Grade 2 student declare a group the faculty never asks them for, so the
+profile declares `practiceGroup` and `practiceSubgroup` (ADR-020).
+
+**Share the cell-level rules with the practice profile, not the reader.** The two
+sources need different readers, one per axis (ADR-074), but the eight-letter cohort
+alphabet and the weekday-contradiction refusal are one definition in
+`parsers/cohort_rotation.py`. The alphabet is what makes reading a run such as `CD`
+safe; a drifting second copy of it would not be visible until an ordinary word reached
+real calendars. The document proves the point twice over: `Telafi` expands to T, E, L, A,
+F and I, three of which are real groups, and only the bound refuses it.
+
+Three properties of the document drive the rest:
+
+- **It is filled in over the year.** Student Affairs edits it, so most dated rows state
+  no groups yet. A dated row with no group cells publishes nothing and raises nothing;
+  a row whose groups cannot be dated is a warning naming the cell, because a session
+  with an audience is being lost.
+- **It carries a second programme.** `İ1`-`İ3` and the separately published `EK-1`-`EK-3`
+  lists sit in the same grid as `A`-`H`. Each is counted under its own reason and refused:
+  the English source is the one that may declare English cohorts (ADR-048).
+- **Its examinations name cohorts with hyphens** (`A-B-C-D SINAV`). The hyphen is read as
+  a separator only when every part is one of the eight declared letters, so `EK-1` and
+  any numeric range keep theirs and are refused. Adding `-` to the shared token separator
+  was rejected: it would silently turn the range `1-3` into `{1, 3}` for every caller.
+
+One thing is repaired rather than transcribed. Four of the seven spring tables write
+`OKSİJEN (Doç. Dr. Bengüsu MİRASOĞLU` and never close the bracket, while the first table
+closes it. An unclosed trailing parenthetical becomes the instructor only when it starts
+with an academic title; without that the same practice reaches calendars under two
+titles, one ending mid-bracket.
+
+### Consequences
+
+- **42 sessions now reach calendars that previously reached none**: 12 from the autumn
+  document and 30 from the spring one, for cohorts `A`-`H` and fourteen of their
+  subgroups, plus the two whole-cohort examinations on 28 and 29 March 2026. Both
+  revisions are predicted to validate with no findings: no overlap for any cohort, every
+  duration plausible, every selector inside the declared set.
+- **It is not the whole programme.** The practice table marks 95 skill-practice slots and
+  this document assigns groups to a fraction of them, because the faculty has not
+  scheduled the rest yet. Re-acquisition, not a parser change, is what publishes the
+  remainder — which is the operational difference ADR-076 recorded between these
+  documents and the anatomy ones.
+- **Nine dated rows contradict their own weekday and are refused**, four of them naming a
+  year that is a year out. Three of the nine carry groups, so four cohort-sessions are
+  lost until the faculty corrects them: `E` on 24 Aralık 2024, `A2` and `G` on 26 Şubat
+  2025, `C2` on 27 Şubat 2025. The same four wrong dates appear in the practice table,
+  which is evidence the two documents are maintained together.
+- A header row is recognized by its first column and by naming at least one practice.
+  Requiring the place header beside it dropped a whole spring table — eleven dated rows,
+  three of them published — into "no table in force".
+- The English programme still receives nothing from this document. Publishing it needs an
+  English source entry over the same file and a current Grade 2 English practice fixture
+  to declare its cohorts against.
+- No engine version change, no .NET change and no database migration. Both catalog
+  entries gain their supported selectors.
+
+---

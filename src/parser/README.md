@@ -91,6 +91,7 @@ the remaining profiles.
 | `grade1_practice_v1` | `G1-TR-PRACTICE` | `tests/fixtures/real/g1-tr-practice.snapshot.json` |
 | `grade2_yearly_v1` | `G2-TR-ANNUAL`, `G2-EN-ANNUAL` | `tests/fixtures/real/g2-{tr,en}-annual.snapshot.json` |
 | `grade2_practice_v1` | `G2-TR-PRACTICE` | `tests/fixtures/real/g2-tr-practice.snapshot.json` |
+| `grade2_vertical_corridor_v1` | `G2-VERTICAL-AUTUMN`, `G2-VERTICAL-SPRING` | `tests/fixtures/real/g2-vertical-{autumn,spring}.snapshot.json` |
 
 `parsers/annual.py` reads the row-oriented annual layout: one lesson per row,
 with columns selected by header alias rather than by position, so the Turkish
@@ -145,6 +146,43 @@ that decides *which* students receive an event:
 The declared `dayFirst` order applies only to a cell that states a year. A slot
 label such as `2/6` has the shape of a numeric date, and this profile supplies
 no year rule, so it is refused rather than completed into 2 June.
+
+### The source those refused `*` cells point at
+
+`parsers/vertical_corridor.py` reads the skill-practice calendar the other two
+Grade 2 profiles defer to (ADR-077). The annual program writes these sessions as
+a bare `UYGULAMA` placeholder and the practice table marks them `*`, saying their
+groups are announced in a separate table; this is that table, published as a Word
+document and reaching the parser through the DOCX conversion (ADR-076).
+
+Its axis is the practice table's, transposed back — a row is a dated slot, a
+column is one of the five skill practices — but the whole slot is written as
+lines of one cell, the way the practice table writes its column headers. The two
+Grade 2 rotation profiles therefore share their cell-level rules in
+`parsers/cohort_rotation.py`: the eight-letter cohort alphabet, and the refusal
+of a slot that contradicts its own weekday. One definition, because a drifting
+copy of the cohort bound would not be visible until a word reached real
+calendars.
+
+Three properties of the document shape the reading:
+
+- **It is filled in over the year.** Student Affairs edits it, so most dated rows
+  state no groups yet. A dated row with no group cells publishes nothing and
+  raises nothing; a row with group cells that cannot be dated is a warning,
+  because a session with an audience is being lost.
+- **It carries a second programme.** The English cohorts `İ1`-`İ3` and the
+  separately published `EK-1`-`EK-3` lists sit in the same grid as `A`-`H`. They
+  are counted under their own reasons and never published under a source whose
+  context states another programme (ADR-048).
+- **Its examinations name cohorts with hyphens** (`A-B-C-D SINAV`). The hyphens
+  are read as separators only when every part is one of the eight declared
+  letters, so `EK-1` and any numeric range keep theirs and are refused.
+
+It also repairs one thing rather than transcribing it: four of the seven spring
+tables write `OKSİJEN (Doç. Dr. Bengüsu MİRASOĞLU` and never close the bracket.
+An unclosed trailing parenthetical becomes the instructor **only** when it starts
+with an academic title, which is what keeps the same practice from reaching
+calendars under two titles, one ending mid-bracket.
 
 ### A holiday is an all-day item, not a lesson at midnight
 

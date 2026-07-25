@@ -111,6 +111,7 @@
 - [x] Add the slot-column rotation reader and a bounded multi-letter cohort run (ADR-074)
 - [x] Declare the numeric date order the Grade 2 practice source writes (ADR-075)
 - [x] Convert a Word document onto the normalized snapshot contract (ADR-076)
+- [x] Publish the vertical-corridor sessions the other Grade 2 profiles defer (ADR-077)
 
 ## Phase 6: Parser profiles
 
@@ -125,7 +126,7 @@
 - [ ] Second-year English practice
 - [ ] Second-year anatomy autumn
 - [ ] Second-year anatomy spring
-- [ ] Second-year vertical corridor
+- [x] Second-year vertical corridor (`grade2_vertical_corridor_v1`, ADR-077)
 - [ ] Third-year Turkish A annual
 - [ ] Third-year Turkish A bedside
 - [ ] Third-year Turkish A faculty practice
@@ -365,12 +366,20 @@ documents are handed out once a semester and unchanged afterwards, which suits a
 administrative upload, while Student Affairs edits the vertical-corridor documents during
 the year.
 
-The next schedule-source slices are the Grade 2 anatomy and vertical-corridor profiles,
-which own the dissection rotation and the 95 skill-practice sessions both Grade 2 profiles
-defer — their evidence is now converted and waiting — and the Grade 2 English practice
-source, whose committed fixture is still from 2024-2025. Before any Grade 2 student can
-receive these revisions, the supported-profile schema (ADR-055) must be extended past
-class year 1.
+The vertical-corridor slice is implemented (ADR-077). `grade2_vertical_corridor_v1` 1.0.0
+reads both Word documents and publishes 42 sessions that previously reached no calendar,
+selecting students by the `A`-`H` practice group they already have rather than by a third
+grouping. It is **not** the whole programme: the practice table marks 95 slots and the
+faculty has scheduled a fraction of them, so re-acquisition rather than a parser change
+publishes the rest. Nine dated rows contradict their own weekday and are refused; three of
+them carry groups, so four cohort-sessions wait on a source correction.
+
+The next schedule-source slices are the Grade 2 anatomy profiles, which own the dissection
+rotation both other Grade 2 profiles defer — their evidence is converted and waiting — and
+the Grade 2 English practice source, whose committed fixture is still from 2024-2025.
+Before any Grade 2 student can receive any of these revisions, the supported-profile
+schema (ADR-055) must be extended past class year 1, and a Word document must become
+acquirable rather than only convertible.
 
 Calendar backlog scheduling is complete through ADR-070. Ordinary 100-operation
 quota yields no longer wait for the adaptive source polling interval: the worker

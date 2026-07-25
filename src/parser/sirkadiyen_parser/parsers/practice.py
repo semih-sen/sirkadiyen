@@ -455,7 +455,7 @@ def _read_subjects(grid: WorksheetGrid, block: _Block) -> Iterator[_Subject]:
         # before the trailing note is separated. A note that does not name an
         # instructor stays in the title rather than being discarded.
         joined = " ".join(lines)
-        without_note, note = _split_trailing_note(joined)
+        without_note, note = split_trailing_note(joined)
         if note is not None and starts_with_academic_title(note):
             title_text, instructor = without_note, note
         else:
@@ -603,7 +603,7 @@ def _parse_cell(
         return
 
     # Only the first line states the groups; a second line names the room.
-    group_text, _ = _split_trailing_note(text_lines(cell_text)[0])
+    group_text, _ = split_trailing_note(text_lines(cell_text)[0])
     expression = parse_group_expression(
         group_text,
         dimension=DIMENSION_PRACTICE_GROUP,
@@ -657,8 +657,12 @@ def _parse_cell(
     )
 
 
-def _split_trailing_note(text: str) -> tuple[str, str | None]:
-    """Separate a trailing parenthetical note from the text before it."""
+def split_trailing_note(text: str) -> tuple[str, str | None]:
+    """Separate a trailing parenthetical note from the text before it.
+
+    Shared with the vertical-corridor profile, whose header cells name their
+    instructor the same way.
+    """
     normalized = normalize_text(text)
     match = _TRAILING_NOTE_PATTERN.search(normalized)
     if match is None:

@@ -12,6 +12,7 @@ from sirkadiyen_parser.contracts.parsing import ParseSnapshotRequest, ParseSnaps
 from sirkadiyen_parser.parsers.annual import parse_annual_snapshot
 from sirkadiyen_parser.parsers.practice import parse_practice_snapshot
 from sirkadiyen_parser.parsers.practice_slots import parse_practice_slot_snapshot
+from sirkadiyen_parser.parsers.vertical_corridor import parse_vertical_corridor_snapshot
 from sirkadiyen_parser.profiles import ParserProfileDefinition
 
 ParserImplementation = Callable[
@@ -31,6 +32,10 @@ _IMPLEMENTATIONS: dict[tuple[str, str], ParserImplementation] = {
     # Turkish source is registered: the committed English fixture is from the
     # previous academic year.
     ("grade2_practice_v1", "1.1.0"): parse_practice_slot_snapshot,
+    # The skill-practice calendar the annual and practice profiles both defer to.
+    # It is published as a Word document and reaches the parser on the same
+    # normalized snapshot contract as a workbook (ADR-076, ADR-077).
+    ("grade2_vertical_corridor_v1", "1.0.0"): parse_vertical_corridor_snapshot,
 }
 
 

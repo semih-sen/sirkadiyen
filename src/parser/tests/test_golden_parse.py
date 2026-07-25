@@ -78,6 +78,22 @@ CASES = (
         "turkish",
         "parse/g2-tr-practice.json",
     ),
+    # Both semesters, because the same programme is written as one 60-row table
+    # in autumn and as seven tables in spring, and only spring uses subgroups.
+    (
+        "grade2_vertical_corridor_v1",
+        "real/g2-vertical-autumn.snapshot.json",
+        2,
+        "turkish",
+        "parse/g2-vertical-autumn.json",
+    ),
+    (
+        "grade2_vertical_corridor_v1",
+        "real/g2-vertical-spring.snapshot.json",
+        2,
+        "turkish",
+        "parse/g2-vertical-spring.json",
+    ),
 )
 
 CASE_FIELDS = ("profile_name", "fixture", "class_year", "program_language", "golden")

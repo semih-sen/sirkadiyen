@@ -55,7 +55,7 @@ from sirkadiyen_parser.normalization.dates import (
     resolve_date_text,
 )
 from sirkadiyen_parser.normalization.grid import ResolvedCell, WorksheetGrid
-from sirkadiyen_parser.normalization.groups import GroupExpression, parse_group_expression
+from sirkadiyen_parser.normalization.groups import GroupExpression
 from sirkadiyen_parser.normalization.text import comparison_key, normalize_text, text_lines
 from sirkadiyen_parser.normalization.times import (
     TimeRangeResolution,
@@ -69,9 +69,12 @@ from sirkadiyen_parser.parsers.annual import (
     WARNING_IMPLAUSIBLE_DURATION,
     encode_all_day,
 )
+from sirkadiyen_parser.parsers.cohort_rotation import (
+    cohort_audience_selectors,
+    date_refusal,
+    read_cohort_groups,
+)
 from sirkadiyen_parser.parsers.practice import (
-    DIMENSION_PRACTICE_GROUP,
-    DIMENSION_PRACTICE_SUBGROUP,
     OUT_OF_SCOPE_SUBJECT_KEYS,
 )
 from sirkadiyen_parser.parsers.practice import classify_event_type as classify_practice_type
@@ -95,15 +98,6 @@ HEADING_MERGE_WIDTH = 3
 #: block would put a paragraph on every event of the table below it.
 MAX_HEADING_LENGTH = 60
 
-#: This source writes eight lettered cohorts and concatenates them (``ABCD``),
-#: so a run may be as long as the cohort list itself.
-MAX_LETTER_RUN = 8
-
-#: A trailing ``1/3`` in a group cell numbers the session within the subject's
-#: own series. It is not part of the audience, and leaving it in would make the
-#: whole cell unreadable rather than merely unlabelled.
-_SESSION_MARKER_PATTERN = re.compile(r"\s*\d+\s*/\s*\d+\s*$")
-
 #: The slot label that opens a header cell, on its own line.
 _SLOT_LABEL_PATTERN = re.compile(r"^\d+\s*/\s*\d+$")
 
@@ -122,9 +116,7 @@ EXAM_KEYS = frozenset({"sinav", "exam"})
 
 REASON_NOT_A_SUBJECT_ROW = "notAPracticeSubjectRow"
 REASON_SUBJECT_ROW_WITHOUT_SLOTS = "subjectRowOutsideAnySlotTable"
-REASON_UNRESOLVED_SLOT_DATE = "unresolvedSlotDate"
 REASON_UNRESOLVED_SLOT_TIME = "unresolvedSlotTimeRange"
-REASON_WEEKDAY_CONTRADICTS_DATE = "weekdayContradictsSlotDate"
 REASON_GROUPS_ANNOUNCED_ELSEWHERE = "groupsAnnouncedElsewhere"
 REASON_NO_SESSION = "noSessionInSlot"
 REASON_OUT_OF_SCOPE_SUBJECT = "outOfScopeSubject"
@@ -169,17 +161,6 @@ RULE_SUBJECT_CELL = "practiceSlots.subjectCell"
 RULE_PLACE_CELL = "practiceSlots.placeCell"
 RULE_GROUP_CELL = "practiceSlots.groupCell"
 RULE_ROW = "practiceSlots.row"
-
-#: A group value is either a whole practice group (``A``) or one subgroup of it
-#: (``A2``), exactly as in the Grade 1 rotation table (ADR-020).
-#:
-#: The letter is bounded by the eight cohorts this source states (ADR-048), and
-#: that bound is what makes reading a run such as ``ABCD`` safe: without it the
-#: same rule reads the word ``SINAV`` as five cohorts, one of which is a real
-#: group. A cell naming a letter outside the eight is refused with its address
-#: rather than published to whichever cohorts happen to exist.
-COHORT_LETTERS = "A-H"
-_GROUP_VALUE_PATTERN = re.compile(rf"^([{COHORT_LETTERS}])(\d?)$")
 
 _WORD_PATTERN = re.compile(r"[^\W_]+", re.UNICODE)
 
@@ -479,7 +460,7 @@ def _read_slot(
         return None
 
     resolved_date = resolve_date_text(" ".join(body[:-1]), numeric_order=numeric_date_order)
-    refusal = _date_refusal(resolved_date, " ".join(body[:-1]))
+    refusal = date_refusal(resolved_date, " ".join(body[:-1]))
     if refusal is not None:
         reason, message = refusal
         _refuse_slot(reason, message, evidence=evidence, diagnostics=diagnostics)
@@ -495,40 +476,6 @@ def _read_slot(
         confidence=min(resolved_date.confidence, time_range.confidence),
         date_rule=resolved_date.rule,
     )
-
-
-def _date_refusal(
-    resolved: DateResolution,
-    date_text: str,
-    *,
-    subject: str = "Slot header",
-) -> tuple[str, str] | None:
-    """Return why a slot date may not be published, or ``None`` when it may.
-
-    A stated weekday that contradicts its own date is refused rather than
-    published with a warning. The dates in these headers are typed by hand, the
-    weekday is the only thing in the cell that can corroborate them, and the
-    real workbook proves the point: four of them name a year that is a year out,
-    and every one of them disagrees with its own weekday. Publishing them would
-    put practices a year in the past on real calendars and quarantine the whole
-    revision for a date outside the academic year.
-    """
-    if not resolved.resolved or resolved.value is None:
-        return (
-            REASON_UNRESOLVED_SLOT_DATE,
-            f"{subject} date '{date_text}' could not be read as a date "
-            f"({resolved.reason}), so nothing was published from it.",
-        )
-
-    if resolved.weekday_matches is False:
-        return (
-            REASON_WEEKDAY_CONTRADICTS_DATE,
-            f"{subject} states '{date_text}', but {resolved.value.isoformat()} is not a "
-            f"'{resolved.weekday_text}'. The cell contradicts itself, so nothing was "
-            "published from it; correcting either part would be a guess.",
-        )
-
-    return None
 
 
 def _refuse_slot(
@@ -734,8 +681,8 @@ def _parse_cell(
         )
         return
 
-    expression = _read_groups(text)
-    selectors = _audience_selectors(expression)
+    expression = read_cohort_groups(text)
+    selectors = cohort_audience_selectors(expression)
     if not expression.resolved or selectors is None:
         diagnostics.record_ignored_cell(
             REASON_UNRESOLVED_GROUP if not expression.resolved else REASON_UNSUPPORTED_GROUP_VALUE,
@@ -808,7 +755,7 @@ def _read_self_dated_cell(
     if len(lines) < 3:
         return None
 
-    expression = _read_groups(lines[0])
+    expression = read_cohort_groups(lines[0])
     if not expression.resolved:
         return None
 
@@ -836,7 +783,7 @@ def _publish_self_dated(
     diagnostics: ParseDiagnostics,
     accumulator: _Accumulator,
 ) -> None:
-    refusal = _date_refusal(
+    refusal = date_refusal(
         self_dated.resolved_date,
         normalize_text(resolved.text),
         subject="Cell",
@@ -850,7 +797,7 @@ def _publish_self_dated(
         )
         return
 
-    selectors = _audience_selectors(self_dated.expression)
+    selectors = cohort_audience_selectors(self_dated.expression)
     if selectors is None:
         diagnostics.record_ignored_cell(
             REASON_UNSUPPORTED_GROUP_VALUE,
@@ -899,37 +846,6 @@ def _publish_self_dated(
         diagnostics=diagnostics,
         accumulator=accumulator,
     )
-
-
-def _read_groups(text: str) -> GroupExpression:
-    """Read the audience a cell states, ignoring its session number."""
-    return parse_group_expression(
-        _SESSION_MARKER_PATTERN.sub("", normalize_text(text)),
-        dimension=DIMENSION_PRACTICE_GROUP,
-        letter_groups=True,
-        max_letter_run=MAX_LETTER_RUN,
-    )
-
-
-def _audience_selectors(expression: GroupExpression) -> list[AudienceSelector] | None:
-    """Turn a resolved group expression into audience selectors.
-
-    ``A`` selects a whole practice group and ``A2`` one subgroup of it, so the
-    two are reported under different dimensions. A value of any other shape
-    names a cohort this profile does not model, and the caller refuses the cell
-    rather than assigning it to the nearest dimension.
-    """
-    if expression.covers_all:
-        return []
-
-    selectors: list[AudienceSelector] = []
-    for value in expression.values:
-        match = _GROUP_VALUE_PATTERN.match(value)
-        if match is None:
-            return None
-        dimension = DIMENSION_PRACTICE_SUBGROUP if match.group(2) else DIMENSION_PRACTICE_GROUP
-        selectors.append(AudienceSelector(dimension=dimension, value=value))
-    return selectors
 
 
 def _build_candidate(

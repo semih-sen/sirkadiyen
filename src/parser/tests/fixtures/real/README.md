@@ -39,8 +39,8 @@ resolves dates and times from text alone.
 | --- | --- | --- |
 | `g2-anatomy-autumn.snapshot.json` | `G2-ANATOMY-AUTUMN` | the dissection rotation `grade2_yearly_v1` defers to: `date / hour / anatomy group` over two tables split by a page break. The first 45 rows write the date in the middle row of each triple and leave the neighbours empty; from row 46 the same thing is a vertical merge |
 | `g2-anatomy-spring.snapshot.json` | `G2-ANATOMY-SPRING` | the same layout, 49 + 21 rows |
-| `g2-vertical-autumn.snapshot.json` | `G2-VERTICAL-AUTUMN` | one 60x7 table: a row is a dated slot whose first cell holds a label, a date and a time range on three lines, and a column is a skill practice. This is where the Grade 2 practice sheet's 95 `*` cells are answered |
-| `g2-vertical-spring.snapshot.json` | `G2-VERTICAL-SPRING` | the same table split across seven Word tables |
+| `g2-vertical-autumn.snapshot.json` | `G2-VERTICAL-AUTUMN` | one 60x7 table: a row is a dated slot whose first cell holds a label, a date and a time range on three lines, and a column is a skill practice. This is where the Grade 2 practice sheet's `*` cells are answered. Only twelve of its 53 dated rows name a group so far — the document is filled in over the year |
+| `g2-vertical-spring.snapshot.json` | `G2-VERTICAL-SPRING` | the same table split across seven Word tables, one of which leaves the place header empty. Carries subgroups (`B2`), two-cohort runs (`CD`), examinations (`A-B-C-D SINAV`), the English programme's cohorts and the separately published `EK-n` lists |
 
 Neither anatomy document is in `config/schedule-sources.json`, so their
 snapshots are produced by naming the file explicitly:

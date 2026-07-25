@@ -1,0 +1,431 @@
+{
+  "fixture": "real/g2-vertical-autumn.snapshot.json",
+  "parserEngineVersion": "0.2.0",
+  "payload": {
+    "candidateCount": 12,
+    "candidateDigests": [
+      "1!R13C3|2025-09-18|08:30-10:20|verticalCorridor|id:a62866f348cf1232|content:ac9326e30a75c217|AYDINLATILMIŞ ONAM",
+      "1!R15C3|2025-09-22|08:30-10:20|verticalCorridor|id:02b4e07921921943|content:fba7bb801f940a0d|AYDINLATILMIŞ ONAM",
+      "1!R16C3|2025-09-23|10:30-12:20|verticalCorridor|id:54999bae1c25eda9|content:6e72f1d8c1138de4|AYDINLATILMIŞ ONAM",
+      "1!R16C4|2025-09-23|10:30-12:20|verticalCorridor|id:fc36d64dfd475da1|content:a625c54985c04041|OKSİJEN (Doç. Dr. Bengüsu MİRASOĞLU) Sualtı Hekimliği",
+      "1!R17C3|2025-09-24|13:30-15:20|verticalCorridor|id:c7e5ebd68880235d|content:aae21067fcad8b46|AYDINLATILMIŞ ONAM",
+      "1!R18C3|2025-10-02|08:30-10:20|verticalCorridor|id:244bcbf7c3d5809b|content:05c108cdad78e327|AYDINLATILMIŞ ONAM",
+      "1!R19C3|2025-10-09|08:30-10:20|verticalCorridor|id:a8e70f569945cdd6|content:4b83799f8595b043|AYDINLATILMIŞ ONAM",
+      "1!R22C3|2025-10-13|10:30-12:20|verticalCorridor|id:5aafb2cfa7de0b16|content:7a5abd2157c36884|AYDINLATILMIŞ ONAM",
+      "1!R23C3|2025-10-15|08:30-10:20|verticalCorridor|id:90a4b006cdd8f98e|content:13c5e242b277d976|AYDINLATILMIŞ ONAM",
+      "1!R27C4|2025-10-24|08:30-10:20|verticalCorridor|id:45ad1ac0580346b6|content:af4754262d3d88f0|OKSİJEN (Doç. Dr. Bengüsu MİRASOĞLU) Sualtı Hekimliği",
+      "1!R41C4|2025-11-24|08:30-10:20|verticalCorridor|id:c6f17c662edc050b|content:869cc7efcc1c367b|OKSİJEN (Doç. Dr. Bengüsu MİRASOĞLU) Sualtı Hekimliği",
+      "1!R46C4|2025-12-01|08:30-10:20|verticalCorridor|id:5b75c44b03d5f86f|content:efd05e37068a0d03|OKSİJEN (Doç. Dr. Bengüsu MİRASOĞLU) Sualtı Hekimliği"
+    ],
+    "confidenceIndicators": [
+      {
+        "candidateId": "1!R13C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R15C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R16C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R16C4",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R17C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R18C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R19C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R22C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R23C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R27C4",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R41C4",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R46C4",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      }
+    ],
+    "firstCandidate": {
+      "academicYear": "2025-2026",
+      "audience": {
+        "scope": "selectedGroups",
+        "selectors": [
+          {
+            "dimension": "practiceGroup",
+            "value": "A"
+          }
+        ]
+      },
+      "candidateId": "1!R13C3",
+      "classYear": 2,
+      "confidence": 0.9,
+      "contentHash": "sha256:ac9326e30a75c217a3948c9feda062be8adfc1487d0df809de07037750e32110",
+      "curriculumBlock": null,
+      "departments": [],
+      "displayTitle": "AYDINLATILMIŞ ONAM",
+      "endLocalTime": "10:20:00",
+      "eventType": "verticalCorridor",
+      "evidence": [
+        {
+          "extractionRule": "verticalCorridor.subjectHeader",
+          "range": "C3",
+          "rawText": "AYDINLATILMIŞ ONAM",
+          "sheetId": "1",
+          "sheetTitle": "Table 1"
+        },
+        {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A13",
+          "rawText": "2/2\n18 Eylül 2025 Perşembe\n08:30-10:20",
+          "sheetId": "1",
+          "sheetTitle": "Table 1"
+        },
+        {
+          "extractionRule": "verticalCorridor.groupCell",
+          "range": "C13",
+          "rawText": "A",
+          "sheetId": "1",
+          "sheetTitle": "Table 1"
+        }
+      ],
+      "identityComponents": [
+        {
+          "name": "academicYear",
+          "value": "2025-2026"
+        },
+        {
+          "name": "classYear",
+          "value": "2"
+        },
+        {
+          "name": "programLanguage",
+          "value": "turkish"
+        },
+        {
+          "name": "localDate",
+          "value": "2025-09-18"
+        },
+        {
+          "name": "startLocalTime",
+          "value": "08:30:00"
+        },
+        {
+          "name": "courseIdentity",
+          "value": "aydinlatilmis-onam"
+        },
+        {
+          "name": "audience",
+          "value": "practiceGroup:A"
+        }
+      ],
+      "instructor": null,
+      "isAllDay": false,
+      "localDate": "2025-09-18",
+      "location": null,
+      "normalizedCourseIdentity": "aydinlatilmis-onam",
+      "programLanguage": "turkish",
+      "stableIdentity": "sha256:a62866f348cf123282dd6990a1142377392d8e49824417f6c38b84e5723e1d46",
+      "startLocalTime": "08:30:00",
+      "status": "scheduled",
+      "timeZoneId": "Europe/Istanbul"
+    },
+    "lastCandidate": {
+      "academicYear": "2025-2026",
+      "audience": {
+        "scope": "selectedGroups",
+        "selectors": [
+          {
+            "dimension": "practiceGroup",
+            "value": "D"
+          }
+        ]
+      },
+      "candidateId": "1!R46C4",
+      "classYear": 2,
+      "confidence": 0.9,
+      "contentHash": "sha256:efd05e37068a0d0386b63813778e29a3a91b9c789b51ac3524bf57d267eec668",
+      "curriculumBlock": null,
+      "departments": [],
+      "displayTitle": "OKSİJEN (Doç. Dr. Bengüsu MİRASOĞLU) Sualtı Hekimliği",
+      "endLocalTime": "10:20:00",
+      "eventType": "verticalCorridor",
+      "evidence": [
+        {
+          "extractionRule": "verticalCorridor.subjectHeader",
+          "range": "D3",
+          "rawText": "OKSİJEN\n (Doç. Dr. Bengüsu MİRASOĞLU) Sualtı Hekimliği\n",
+          "sheetId": "1",
+          "sheetTitle": "Table 1"
+        },
+        {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A46",
+          "rawText": "2/7\n1 Aralık 2025 \nPazartesi\n08:30-10:20",
+          "sheetId": "1",
+          "sheetTitle": "Table 1"
+        },
+        {
+          "extractionRule": "verticalCorridor.groupCell",
+          "range": "D46",
+          "rawText": "D",
+          "sheetId": "1",
+          "sheetTitle": "Table 1"
+        }
+      ],
+      "identityComponents": [
+        {
+          "name": "academicYear",
+          "value": "2025-2026"
+        },
+        {
+          "name": "classYear",
+          "value": "2"
+        },
+        {
+          "name": "programLanguage",
+          "value": "turkish"
+        },
+        {
+          "name": "localDate",
+          "value": "2025-12-01"
+        },
+        {
+          "name": "startLocalTime",
+          "value": "08:30:00"
+        },
+        {
+          "name": "courseIdentity",
+          "value": "oksijen-doc-dr-bengusu-mirasoglu-sualti-hekimligi"
+        },
+        {
+          "name": "audience",
+          "value": "practiceGroup:D"
+        }
+      ],
+      "instructor": null,
+      "isAllDay": false,
+      "localDate": "2025-12-01",
+      "location": null,
+      "normalizedCourseIdentity": "oksijen-doc-dr-bengusu-mirasoglu-sualti-hekimligi",
+      "programLanguage": "turkish",
+      "stableIdentity": "sha256:5b75c44b03d5f86fcef3bc031497d06f3028c91904088f26d98fdc209e2d3bd6",
+      "startLocalTime": "08:30:00",
+      "status": "scheduled",
+      "timeZoneId": "Europe/Istanbul"
+    },
+    "metrics": [
+      {
+        "name": "audience.dimension.practiceGroup",
+        "unit": null,
+        "value": 12.0
+      },
+      {
+        "name": "candidates.emitted",
+        "unit": null,
+        "value": 12.0
+      },
+      {
+        "name": "candidates.eventType.verticalCorridor",
+        "unit": null,
+        "value": 12.0
+      },
+      {
+        "name": "cells.scanned",
+        "unit": null,
+        "value": 12.0
+      },
+      {
+        "name": "dates.rule.monthNameDate",
+        "unit": null,
+        "value": 53.0
+      },
+      {
+        "name": "place.deferredToAnnouncement",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "rows.headerRow",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "rows.ignored",
+        "unit": null,
+        "value": 5.0
+      },
+      {
+        "name": "rows.ignored.notADatedSlotRow",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "rows.ignored.slotRowOutsideAnyTable",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "rows.ignored.weekdayContradictsSlotDate",
+        "unit": null,
+        "value": 3.0
+      },
+      {
+        "name": "rows.placeStatement",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "rows.scanned",
+        "unit": null,
+        "value": 60.0
+      },
+      {
+        "name": "rows.slot",
+        "unit": null,
+        "value": 53.0
+      },
+      {
+        "name": "slots.ignored.weekdayContradictsSlotDate",
+        "unit": null,
+        "value": 3.0
+      },
+      {
+        "name": "subjects.detected",
+        "unit": null,
+        "value": 5.0
+      },
+      {
+        "name": "worksheets.scanned",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "worksheets.selected",
+        "unit": null,
+        "value": 1.0
+      }
+    ],
+    "parserProfile": {
+      "name": "grade2_vertical_corridor_v1",
+      "version": "1.0.0"
+    },
+    "responseDigest": "sha256:6b90e3edd546b89c22914b393d316e81b86af42f45382964db490190d1923960",
+    "snapshotId": "fixture:sha256:e4f3131aee515c104520accd68e80794ce3ccf1f80bb9ea44ff0db0c95ebf1e3",
+    "sourceId": "G2-VERTICAL-AUTUMN",
+    "status": "completedWithWarnings",
+    "warnings": [
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "verticalCorridor.row",
+          "range": "A1:G1",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Table 1"
+        },
+        "message": "Row precedes the first header row, so no skill-practice column could be named for its cells.",
+        "severity": "information"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "verticalCorridor.row",
+          "range": "A2:G2",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Table 1"
+        },
+        "message": "Rows were ignored because of rule 'notADatedSlotRow'. See metric 'rows.ignored.notADatedSlotRow' for the total.",
+        "severity": "information"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A33",
+          "rawText": "1/1\n11 Kasım 2025 Perşembe\n08:30-10:20",
+          "sheetId": "1",
+          "sheetTitle": "Table 1"
+        },
+        "message": "Slot states '11 Kasım 2025 Perşembe', but 2025-11-11 is not a 'Perşembe'. The cell contradicts itself, so nothing was published from it; correcting either part would be a guess.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A59",
+          "rawText": "2/6\n23 Aralık 2025 Perşembe\n08:30-12:20",
+          "sheetId": "1",
+          "sheetTitle": "Table 1"
+        },
+        "message": "Slot states '23 Aralık 2025 Perşembe', but 2025-12-23 is not a 'Perşembe'. The cell contradicts itself, so nothing was published from it; correcting either part would be a guess.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A60",
+          "rawText": "2/7\n24 Aralık 2024 Çarşamba\n10:30-12:20",
+          "sheetId": "1",
+          "sheetTitle": "Table 1"
+        },
+        "message": "Slot states '24 Aralık 2024 Çarşamba', but 2024-12-24 is not a 'Çarşamba'. The cell contradicts itself, so nothing was published from it; correcting either part would be a guess.",
+        "severity": "warning"
+      }
+    ]
+  },
+  "subject": "parseResponse"
+}

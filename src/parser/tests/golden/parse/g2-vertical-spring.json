@@ -1,0 +1,773 @@
+{
+  "fixture": "real/g2-vertical-spring.snapshot.json",
+  "parserEngineVersion": "0.2.0",
+  "payload": {
+    "candidateCount": 30,
+    "candidateDigests": [
+      "1!R3C4|2026-01-30|08:30-10:20|verticalCorridor|id:63720677d1917de6|content:037ba6ddb54a3c42|OKSİJEN",
+      "1!R8C7|2026-02-06|08:30-10:20|verticalCorridor|id:afe7256925f361e7|content:a7d17c315ad80675|SH ÖYKÜ ALMA",
+      "1!R9C4|2026-02-09|08:30-10:20|verticalCorridor|id:6915cb208bd1f737|content:1b458b939b2b29f4|OKSİJEN",
+      "1!R9C7|2026-02-09|08:30-10:20|verticalCorridor|id:606633efb4f837d9|content:f4c0f9148e449064|SH ÖYKÜ ALMA",
+      "1!R10C7|2026-02-09|10:30-12:20|verticalCorridor|id:534880d4e2f17f1c|content:2bf45a40e21e56bd|SH ÖYKÜ ALMA",
+      "2!R2C7|2026-02-10|08:30-10:20|verticalCorridor|id:324a9f2ad06ce1ae|content:f9182ff0ba0e2a8b|SH ÖYKÜ ALMA",
+      "2!R5C6|2026-02-23|08:30-10:20|verticalCorridor|id:3327dea3a43547b9|content:b0e7221fd6114f4f|EKİP OLMA",
+      "2!R6C6|2026-02-24|08:30-10:20|verticalCorridor|id:8f0082ddb06335a3|content:89fe05ec4e6dfe61|EKİP OLMA",
+      "2!R7C6|2026-02-25|08:30-10:20|verticalCorridor|id:9f92d1c006ea56ba|content:bfb666c8f47f81fe|EKİP OLMA",
+      "2!R7C7|2026-02-25|08:30-10:20|verticalCorridor|id:68a9f86c344f1cdf|content:f4ca350857facc3f|SH ÖYKÜ ALMA",
+      "2!R10C6|2026-03-02|08:30-10:20|verticalCorridor|id:f0b2ff9148c7ae71|content:b740d401ca04dc1b|EKİP OLMA",
+      "2!R10C7|2026-03-02|08:30-10:20|verticalCorridor|id:a193aab0c9f8f8cf|content:1a8d734126c77ce4|SH ÖYKÜ ALMA",
+      "3!R2C6|2026-03-03|08:30-10:20|verticalCorridor|id:a17f833c6573827d|content:dd5ed810c53f84b4|EKİP OLMA",
+      "3!R2C7|2026-03-03|08:30-10:20|verticalCorridor|id:14b5fad0dd7592c3|content:169e6d770b16a65f|SH ÖYKÜ ALMA",
+      "3!R3C6|2026-03-04|08:30-10:20|verticalCorridor|id:1b2949443aec588e|content:fdb881320fce2d23|EKİP OLMA",
+      "3!R4C4|2026-03-13|08:30-10:20|verticalCorridor|id:d9b3f2e44efd8f54|content:39657df0a204380b|OKSİJEN",
+      "3!R4C6|2026-03-13|08:30-10:20|verticalCorridor|id:1f09989361dc9911|content:2ef5f74a90c45d5f|EKİP OLMA",
+      "3!R8C6|2026-03-24|08:30-10:20|verticalCorridor|id:5364d5c0d0ced440|content:1bc30fcf7c4beb78|EKİP OLMA",
+      "3!R9C7|2026-03-28|09:00-16:30|exam|id:99b0728a37d6986a|content:bcb6a52a6dcb6763|SH ÖYKÜ ALMA",
+      "3!R10C7|2026-03-29|09:00-16:30|exam|id:0028f0b3a3e9e18e|content:1a724bb987e55f55|SH ÖYKÜ ALMA",
+      "3!R11C6|2026-03-30|08:30-10:20|verticalCorridor|id:a2617e749e360bf9|content:0057952902c14fff|EKİP OLMA",
+      "4!R2C6|2026-03-31|08:30-10:20|verticalCorridor|id:ff164c2afcdc122c|content:e8d073366acf4524|EKİP OLMA",
+      "4!R3C6|2026-04-01|08:30-10:20|verticalCorridor|id:ad2dba5b8deb2de1|content:7902794372c3dc22|EKİP OLMA",
+      "4!R4C6|2026-04-02|08:30-10:20|verticalCorridor|id:71726ae789b09820|content:9a4d2332669c0719|EKİP OLMA",
+      "4!R6C6|2026-04-03|08:30-10:20|verticalCorridor|id:bc1ae46e4b3d7a2b|content:206c441ac498285e|EKİP OLMA",
+      "4!R8C6|2026-04-06|08:30-10:20|verticalCorridor|id:c64755094c851545|content:9fb6a8737613fbc0|EKİP OLMA",
+      "5!R5C5|2026-04-13|08:30-10:20|verticalCorridor|id:5e31b2e20c50b3df|content:7452978a8627270a|HAST ENF Önlenmesi",
+      "5!R6C5|2026-04-14|08:30-10:20|verticalCorridor|id:d9a61aab9ef9f6b8|content:8df4795d5228366a|HAST ENF Önlenmesi",
+      "5!R9C5|2026-04-17|08:30-10:20|verticalCorridor|id:efeec08259b76cb7|content:78d1d98b138be331|HAST ENF Önlenmesi",
+      "6!R2C5|2026-04-22|08:30-10:20|verticalCorridor|id:61e8443484ada269|content:e65f946662bfe4e7|HAST ENF Önlenmesi"
+    ],
+    "confidenceIndicators": [
+      {
+        "candidateId": "1!R3C4",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R8C7",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R9C4",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R9C7",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R10C7",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R2C7",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R5C6",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R6C6",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R7C6",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R7C7",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R10C6",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R10C7",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "3!R2C6",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "3!R2C7",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "3!R3C6",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "3!R4C4",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "3!R4C6",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "3!R8C6",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "3!R9C7",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "3!R10C7",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "3!R11C6",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "4!R2C6",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "4!R3C6",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "4!R4C6",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "4!R6C6",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "4!R8C6",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "5!R5C5",
+        "field": "audience",
+        "reason": "letterRunGroups",
+        "score": 0.9
+      },
+      {
+        "candidateId": "5!R5C5",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "5!R6C5",
+        "field": "audience",
+        "reason": "letterRunGroups",
+        "score": 0.9
+      },
+      {
+        "candidateId": "5!R6C5",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "5!R9C5",
+        "field": "audience",
+        "reason": "letterRunGroups",
+        "score": 0.9
+      },
+      {
+        "candidateId": "5!R9C5",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "6!R2C5",
+        "field": "audience",
+        "reason": "letterRunGroups",
+        "score": 0.9
+      },
+      {
+        "candidateId": "6!R2C5",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      }
+    ],
+    "firstCandidate": {
+      "academicYear": "2025-2026",
+      "audience": {
+        "scope": "selectedGroups",
+        "selectors": [
+          {
+            "dimension": "practiceGroup",
+            "value": "H"
+          }
+        ]
+      },
+      "candidateId": "1!R3C4",
+      "classYear": 2,
+      "confidence": 0.9,
+      "contentHash": "sha256:037ba6ddb54a3c42a66d5db28ac064414309a9d4c4ce202f94d8b9873396bfa8",
+      "curriculumBlock": null,
+      "departments": [],
+      "displayTitle": "OKSİJEN",
+      "endLocalTime": "10:20:00",
+      "eventType": "verticalCorridor",
+      "evidence": [
+        {
+          "extractionRule": "verticalCorridor.subjectHeader",
+          "range": "D2",
+          "rawText": "OKSİJEN\n\n(Doç. Dr. Bengüsu MİRASOĞLU)",
+          "sheetId": "1",
+          "sheetTitle": "Table 1"
+        },
+        {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A3",
+          "rawText": "1/1\n30 Ocak 2026 Cuma\n08:30-10:20",
+          "sheetId": "1",
+          "sheetTitle": "Table 1"
+        },
+        {
+          "extractionRule": "verticalCorridor.groupCell",
+          "range": "D3",
+          "rawText": "H",
+          "sheetId": "1",
+          "sheetTitle": "Table 1"
+        }
+      ],
+      "identityComponents": [
+        {
+          "name": "academicYear",
+          "value": "2025-2026"
+        },
+        {
+          "name": "classYear",
+          "value": "2"
+        },
+        {
+          "name": "programLanguage",
+          "value": "turkish"
+        },
+        {
+          "name": "localDate",
+          "value": "2026-01-30"
+        },
+        {
+          "name": "startLocalTime",
+          "value": "08:30:00"
+        },
+        {
+          "name": "courseIdentity",
+          "value": "oksijen"
+        },
+        {
+          "name": "audience",
+          "value": "practiceGroup:H"
+        }
+      ],
+      "instructor": "Doç. Dr. Bengüsu MİRASOĞLU",
+      "isAllDay": false,
+      "localDate": "2026-01-30",
+      "location": null,
+      "normalizedCourseIdentity": "oksijen",
+      "programLanguage": "turkish",
+      "stableIdentity": "sha256:63720677d1917de6120a84219b26c24f8f6f8b6ffaf0213a5a9812e45d1d360d",
+      "startLocalTime": "08:30:00",
+      "status": "scheduled",
+      "timeZoneId": "Europe/Istanbul"
+    },
+    "lastCandidate": {
+      "academicYear": "2025-2026",
+      "audience": {
+        "scope": "selectedGroups",
+        "selectors": [
+          {
+            "dimension": "practiceGroup",
+            "value": "A"
+          },
+          {
+            "dimension": "practiceGroup",
+            "value": "B"
+          }
+        ]
+      },
+      "candidateId": "6!R2C5",
+      "classYear": 2,
+      "confidence": 0.9,
+      "contentHash": "sha256:e65f946662bfe4e7e3eb64375c6c3273d2cdab18b3596eb5914b69e568d51f6a",
+      "curriculumBlock": null,
+      "departments": [],
+      "displayTitle": "HAST ENF Önlenmesi",
+      "endLocalTime": "10:20:00",
+      "eventType": "verticalCorridor",
+      "evidence": [
+        {
+          "extractionRule": "verticalCorridor.subjectHeader",
+          "range": "E1",
+          "rawText": "HAST ENF Önlenmesi (Doç. Dr. Gonca ERKÖSE GENÇ) ",
+          "sheetId": "6",
+          "sheetTitle": "Table 6"
+        },
+        {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A2",
+          "rawText": "3/5\n22 Nisan 2026\nÇarşamba\n08:30-10:20",
+          "sheetId": "6",
+          "sheetTitle": "Table 6"
+        },
+        {
+          "extractionRule": "verticalCorridor.groupCell",
+          "range": "E2",
+          "rawText": "AB\n\n",
+          "sheetId": "6",
+          "sheetTitle": "Table 6"
+        }
+      ],
+      "identityComponents": [
+        {
+          "name": "academicYear",
+          "value": "2025-2026"
+        },
+        {
+          "name": "classYear",
+          "value": "2"
+        },
+        {
+          "name": "programLanguage",
+          "value": "turkish"
+        },
+        {
+          "name": "localDate",
+          "value": "2026-04-22"
+        },
+        {
+          "name": "startLocalTime",
+          "value": "08:30:00"
+        },
+        {
+          "name": "courseIdentity",
+          "value": "hast-enf-onlenmesi"
+        },
+        {
+          "name": "audience",
+          "value": "practiceGroup:A+practiceGroup:B"
+        }
+      ],
+      "instructor": "Doç. Dr. Gonca ERKÖSE GENÇ",
+      "isAllDay": false,
+      "localDate": "2026-04-22",
+      "location": null,
+      "normalizedCourseIdentity": "hast-enf-onlenmesi",
+      "programLanguage": "turkish",
+      "stableIdentity": "sha256:61e8443484ada269b93b0bbc0e22c7c375fe3a210ea3e610eb1c02e1e9bd3e7a",
+      "startLocalTime": "08:30:00",
+      "status": "scheduled",
+      "timeZoneId": "Europe/Istanbul"
+    },
+    "metrics": [
+      {
+        "name": "audience.dimension.practiceGroup",
+        "unit": null,
+        "value": 26.0
+      },
+      {
+        "name": "audience.dimension.practiceSubgroup",
+        "unit": null,
+        "value": 14.0
+      },
+      {
+        "name": "candidates.emitted",
+        "unit": null,
+        "value": 30.0
+      },
+      {
+        "name": "candidates.eventType.exam",
+        "unit": null,
+        "value": 2.0
+      },
+      {
+        "name": "candidates.eventType.verticalCorridor",
+        "unit": null,
+        "value": 28.0
+      },
+      {
+        "name": "cells.ignored",
+        "unit": null,
+        "value": 10.0
+      },
+      {
+        "name": "cells.ignored.cohortOfAnotherProgram",
+        "unit": null,
+        "value": 3.0
+      },
+      {
+        "name": "cells.ignored.separatelyPublishedCohortList",
+        "unit": null,
+        "value": 3.0
+      },
+      {
+        "name": "cells.ignored.unresolvedGroupExpression",
+        "unit": null,
+        "value": 2.0
+      },
+      {
+        "name": "cells.ignored.unsupportedGroupValueShape",
+        "unit": null,
+        "value": 2.0
+      },
+      {
+        "name": "cells.scanned",
+        "unit": null,
+        "value": 40.0
+      },
+      {
+        "name": "dates.rule.monthNameDate",
+        "unit": null,
+        "value": 52.0
+      },
+      {
+        "name": "rows.headerRow",
+        "unit": null,
+        "value": 7.0
+      },
+      {
+        "name": "rows.ignored",
+        "unit": null,
+        "value": 10.0
+      },
+      {
+        "name": "rows.ignored.groupsStatedWithoutReadableSlot",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "rows.ignored.outOfScopeGroupRotation",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "rows.ignored.slotRowOutsideAnyTable",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "rows.ignored.unresolvedSlotTimeRange",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "rows.ignored.weekdayContradictsSlotDate",
+        "unit": null,
+        "value": 6.0
+      },
+      {
+        "name": "rows.scanned",
+        "unit": null,
+        "value": 69.0
+      },
+      {
+        "name": "rows.slot",
+        "unit": null,
+        "value": 52.0
+      },
+      {
+        "name": "slots.ignored.groupsStatedWithoutReadableSlot",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "slots.ignored.unresolvedSlotTimeRange",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "slots.ignored.weekdayContradictsSlotDate",
+        "unit": null,
+        "value": 6.0
+      },
+      {
+        "name": "subjects.detected",
+        "unit": null,
+        "value": 35.0
+      },
+      {
+        "name": "worksheets.scanned",
+        "unit": null,
+        "value": 7.0
+      },
+      {
+        "name": "worksheets.selected",
+        "unit": null,
+        "value": 7.0
+      }
+    ],
+    "parserProfile": {
+      "name": "grade2_vertical_corridor_v1",
+      "version": "1.0.0"
+    },
+    "responseDigest": "sha256:e9bf55f1f3d9fa213610030132eac7afcdd9439f596ce844a3f354603b6adec8",
+    "snapshotId": "fixture:sha256:94c0c308d1d6070ae185eba82d6e8037a290e3aaf4521ad7a654d58755d5c768",
+    "sourceId": "G2-VERTICAL-SPRING",
+    "status": "completedWithWarnings",
+    "warnings": [
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "verticalCorridor.row",
+          "range": "A1:G1",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Table 1"
+        },
+        "message": "Row precedes the first header row, so no skill-practice column could be named for its cells.",
+        "severity": "information"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A5",
+          "rawText": "1/3\n3 Şubat 2025\n Salı\n08:30-10:20",
+          "sheetId": "1",
+          "sheetTitle": "Table 1"
+        },
+        "message": "Slot states '3 Şubat 2025 Salı', but 2025-02-03 is not a 'Salı'. The cell contradicts itself, so nothing was published from it; correcting either part would be a guess.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "verticalCorridor.groupCell",
+          "range": "C6",
+          "rawText": "İ1 grubu\n13.30-15.20",
+          "sheetId": "1",
+          "sheetTitle": "Table 1"
+        },
+        "message": "Cells were ignored because of rule 'cohortOfAnotherProgram'. See metric 'cells.ignored.cohortOfAnotherProgram' for the total.",
+        "severity": "information"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A3",
+          "rawText": "*\n11 Şubat 2026\nÇarşamba 14:20-16:20",
+          "sheetId": "2",
+          "sheetTitle": "Table 2"
+        },
+        "message": "Slot time range 'Çarşamba 14:20-16:20' could not be read (unrecognizedTimeRangeFormat), so nothing was published from the row.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "verticalCorridor.groupCell",
+          "range": "G5",
+          "rawText": "EK-3\nLütfen Öğrenci Listesini Kontrol Edin\n",
+          "sheetId": "2",
+          "sheetTitle": "Table 2"
+        },
+        "message": "Cells were ignored because of rule 'separatelyPublishedCohortList'. See metric 'cells.ignored.separatelyPublishedCohortList' for the total.",
+        "severity": "information"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A8",
+          "rawText": "1/4\n26 Şubat 2025 Perşembe\n08:30-10:20",
+          "sheetId": "2",
+          "sheetTitle": "Table 2"
+        },
+        "message": "Slot states '26 Şubat 2025 Perşembe', but 2025-02-26 is not a 'Perşembe'. The cell contradicts itself, so nothing was published from it; correcting either part would be a guess.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A9",
+          "rawText": "1/5\n27 Şubat 2025 \nCuma\n08:30-10:20",
+          "sheetId": "2",
+          "sheetTitle": "Table 2"
+        },
+        "message": "Slot states '27 Şubat 2025 Cuma', but 2025-02-27 is not a 'Cuma'. The cell contradicts itself, so nothing was published from it; correcting either part would be a guess.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "verticalCorridor.groupCell",
+          "range": "G3",
+          "rawText": "UYGULAMA TELAFİ\n\n",
+          "sheetId": "3",
+          "sheetTitle": "Table 3"
+        },
+        "message": "Cell 'UYGULAMA TELAFİ' does not state which groups attend (unrecognizedGroupToken), so no lesson was published for it.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A5",
+          "rawText": "Anatomi (17)",
+          "sheetId": "4",
+          "sheetTitle": "Table 4"
+        },
+        "message": "Row states 'Anatomi (17)', a group rotation this profile defers to its own source (ADR-073), so nothing was published from it.",
+        "severity": "information"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "verticalCorridor.groupCell",
+          "range": "D3",
+          "rawText": "T",
+          "sheetId": "5",
+          "sheetTitle": "Table 5"
+        },
+        "message": "Cell 'T' does not state which groups attend (unsupportedGroupValueShape), so no lesson was published for it.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A10",
+          "rawText": "20 Nisan 2026 Pazartesi 8.30-10.20\n\n",
+          "sheetId": "5",
+          "sheetTitle": "Table 5"
+        },
+        "message": "Row states groups but its first cell '20 Nisan 2026 Pazartesi 8.30-10.20' does not state a date and a time range on separate lines, so nothing was published from it.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "verticalCorridor.groupCell",
+          "range": "E11",
+          "rawText": "UYGULAMA\nTELAFİ\n\n",
+          "sheetId": "5",
+          "sheetTitle": "Table 5"
+        },
+        "message": "Cell 'UYGULAMA TELAFİ' does not state which groups attend (unrecognizedGroupToken), so no lesson was published for it.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "verticalCorridor.groupCell",
+          "range": "E4",
+          "rawText": "\n\nTelafi\n\n\n",
+          "sheetId": "6",
+          "sheetTitle": "Table 6"
+        },
+        "message": "Cell 'Telafi' does not state which groups attend (unsupportedGroupValueShape), so no lesson was published for it.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A5",
+          "rawText": "08 Mayıs 2026 Perşembe\n10:30-12:20",
+          "sheetId": "6",
+          "sheetTitle": "Table 6"
+        },
+        "message": "Slot states '08 Mayıs 2026 Perşembe', but 2026-05-08 is not a 'Perşembe'. The cell contradicts itself, so nothing was published from it; correcting either part would be a guess.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A8",
+          "rawText": "15 Mayıs 2026 Pazartesi\n8:30-10:20",
+          "sheetId": "6",
+          "sheetTitle": "Table 6"
+        },
+        "message": "Slot states '15 Mayıs 2026 Pazartesi', but 2026-05-15 is not a 'Pazartesi'. The cell contradicts itself, so nothing was published from it; correcting either part would be a guess.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A5",
+          "rawText": "1 Haziran 2026\nCuma\n10:30-12:20",
+          "sheetId": "7",
+          "sheetTitle": "Table 7"
+        },
+        "message": "Slot states '1 Haziran 2026 Cuma', but 2026-06-01 is not a 'Cuma'. The cell contradicts itself, so nothing was published from it; correcting either part would be a guess.",
+        "severity": "warning"
+      }
+    ]
+  },
+  "subject": "parseResponse"
+}
