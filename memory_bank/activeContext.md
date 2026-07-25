@@ -52,7 +52,8 @@ The incremental dispatcher now consumes every dispatchable diff and resolves the
 affected completed-sync users before applying idempotent Calendar operations.
 The Grade 2 annual program now parses too: one profile, `grade2_yearly_v1`, serves
 the Turkish and the English source, deferring the dissection group rotation to the
-anatomy sources (ADR-073). Drive and HTTP acquisition, DOCX conversion, the
+anatomy sources (ADR-073). The Grade 2 Turkish practice table parses through its own
+slot-column reader, `grade2_practice_v1` (ADR-074). Drive and HTTP acquisition, DOCX conversion, the
 remaining parser profiles, Grade 2 support in the student-profile schema, and the
 remaining operational surfaces still do not exist. The **consumer frontend now
 has a runnable foundation** (`web/`, ADR-066): Google sign-in, license redemption,
@@ -75,6 +76,39 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- **Implemented the Grade 2 Turkish practice profile (ADR-074).** `grade2_practice_v1`
+  1.0.0 publishes 163 candidates for the eight `A`-`H` cohorts from `G2-TR-PRACTICE`.
+  The table is the **transpose** of the Grade 1 rotation matrix — a column is a dated
+  slot whose header holds a label, a date and a time range on separate lines, and a row
+  is a practice subject naming its room — so it has its own reader,
+  `parsers/practice_slots.py`, rather than a parameterized version of the Grade 1 one.
+- **Every row is classified exactly once** (block heading, slot header, subject, or
+  none), so `rows.scanned` equals the worksheet's row count and the topic lists between
+  the tables are counted rather than skipped by a precomputed range.
+- **A slot header whose weekday contradicts its own date is refused.** Unlike the annual
+  sources, these dates are typed by hand and the weekday is their only corroboration.
+  The workbook contains four whose year is a year out; publishing them would have put
+  practices in February 2025 on calendars and quarantined the revision.
+- Also handled from the source's own statements: a whole-cohort `TÜM GRUPLAR` session
+  written into the table with its own date and time (read from the cell, published once
+  at its merge anchor), concatenated cohort letters `ABCD 1/1` (the trailing `n/m` is a
+  session number), a bare `*` whose groups the source says are announced elsewhere, and
+  an `Anatomi (13)` row of dissection dates deferred to the anatomy sources (ADR-073).
+- **A bounded letter run.** `parse_group_expression` gained `max_letter_run` (default
+  two, so no existing caller changes), and the profile pairs it with the eight cohorts
+  the source states: without that bound the same rule reads `SINAV` as five cohorts, one
+  of which is real. The refusal is counted and named.
+- **ADR-051 fired on a real source for the first time.** `TÜM GRUPLAR 8.10.2025` means 8
+  October day-first and 10 August month-first, so that one whole-cohort session is
+  refused and its cell named. The Turkish annual program states the same session on 8
+  October, which is evidence for declaring `dayFirst` — left as a deliberate decision.
+- The revision is predicted to validate with **no findings at all**. 95 skill-practice
+  sessions still reach no calendar: the source states no audience for them, and
+  `grade2_vertical_corridor_v1` owns them.
+- 349 Python tests pass, up from 317; Ruff, Ruff format and Mypy are clean. No .NET,
+  catalog or database change was needed — `G2-TR-PRACTICE` already pointed at this
+  profile with `practiceGroup` `A`-`H`.
 
 - **Implemented the Grade 2 annual parser profile for both languages (ADR-073).**
   `grade2_yearly_v1` 1.0.0 is registered against the existing row-oriented annual

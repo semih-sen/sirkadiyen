@@ -3454,3 +3454,95 @@ on evidence (ADR-048) and the supported-profile schema carries Grade 2.
   extended. No database migration is required.
 
 ---
+
+## ADR-074: The Grade 2 practice table is a slot-column rotation with its own parser
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-25
+**Implements:** `grade2_practice_v1` 1.0.0 for `G2-TR-PRACTICE`, the
+`parsers/practice_slots.py` layout reader, a bounded multi-letter cohort run, and the
+Grade 2 practice fixture and golden
+**Extends:** ADR-020, ADR-030, ADR-048, ADR-051, ADR-073
+
+### Context
+
+The Grade 2 Turkish practice table (`Uygulama Tablosu`) is not a variant of the Grade 1
+rotation table: it is its transpose. In Grade 1 a row is a dated slot and a column is a
+practice subject. Here a **column** is a dated slot — its header holds a slot label, a
+date and a time range on separate lines — and a **row** is a practice subject, naming
+the subject in the first column and its room in the second. The cell where they meet
+holds the group or groups attending.
+
+The worksheet interleaves nine curriculum blocks, 15 slot-header rows and the topic
+lists that belong to each block, plus a room-and-telephone lookup table at the end.
+Reading it also has to survive several shapes the Grade 1 table never produced:
+
+- a whole-cohort session written into the body of the table as `TÜM GRUPLAR` with its
+  **own** date and time, merged across a run of columns, and stating a date that is not
+  the one its column header states
+- concatenated cohort letters (`ABCD 1/1`, `GH 1/3`), where the trailing `n/m` numbers
+  the session rather than naming a group
+- a bare `*`, which the source's own note explains: the skill-practice groups and rooms
+  "ayrı bir tablo ile duyurulacaktır"
+- an `Anatomi (13)` row whose cells hold dissection **dates** rather than groups
+- four slot dates whose year is a year out (`3 Şubat 2025`, `24 Aralık 2024`,
+  `26/27 Şubat 2025`), each contradicting the weekday typed beside it
+
+### Decision
+
+Add `parsers/practice_slots.py` rather than generalizing the Grade 1 reader. The two
+layouts share the primitives, the cohort model (ADR-020) and the "a candidate is a cell"
+rule, but a reader parameterized over both axes would be harder to reason about than two
+readers of one axis each.
+
+Classify every row of the worksheet exactly once — block heading, slot header, subject
+row, or none of them — so `rows.scanned` equals the worksheet's row count and the topic
+lists are counted rather than skipped by a range computed in advance.
+
+**Refuse a slot whose stated weekday contradicts its own date.** The annual profiles
+publish such a row with a warning, because their dates are spreadsheet serials and the
+weekday text is a formatting artifact. These headers are typed by hand and the weekday
+is the cell's only corroboration, so the contradiction is the source telling us it is
+wrong. Publishing the four affected columns would put practices a year in the past on
+real calendars and quarantine the whole revision for a date outside the academic year;
+correcting the year would be inference.
+
+**Read a cell that dates itself from the cell**, not from its column header, and publish
+it once at the anchor of its merged run. **Refuse any cell that states a session but no
+audience**, and read a letter run only within the eight cohorts this source states
+(ADR-048). The bound is what makes runs safe: without it the same rule reads `SINAV` as
+the five cohorts S, I, N, A and V, one of which is real.
+
+Declare `anatomi`/`diseksiyon` as this profile's `group_rotation_subjects` too (ADR-073),
+so the dissection row is deferred to the anatomy sources here exactly as in the annual
+profile.
+
+`parse_group_expression` gains `max_letter_run`, defaulting to two. Every existing
+caller's outcome is unchanged — a three-letter token was refused before and is refused
+now — so the parser engine version does not move.
+
+### Consequences
+
+- `G2-TR-PRACTICE` publishes 163 candidates from 352 scanned cells: 144 single-cohort
+  slots, 8 two-cohort and 6 four-or-two-cohort sessions, 2 whole-cohort sessions, and 7
+  practical examinations. Every unpublished cell is counted by reason: 95 skill-practice
+  cells whose groups are announced elsewhere, 53 dissection cells, 8 "no session"
+  markers, 7 cells under a refused slot, and 5 that state no readable audience.
+- The revision is predicted to validate with no findings at all: no overlaps, no
+  impossible durations, and every selector inside the `A`-`H` the catalog declares.
+- 95 vertical-corridor sessions reach no calendar until `grade2_vertical_corridor_v1`
+  publishes them with their real groups. The source states no audience for them, so this
+  is the only faithful reading.
+- **The first real numeric date any source has written is now refused** (ADR-051):
+  `TÜM GRUPLAR 8.10.2025` is 8 October read day-first and 10 August read month-first, so
+  one whole-cohort session is unpublished and its cell is named. The Turkish annual
+  program states the same session on 8 October, which is evidence for declaring
+  `dayFirst` — but that is a claim about this document and is left as a deliberate,
+  separate decision rather than taken silently.
+- No database migration, no .NET change, and no catalog change: `G2-TR-PRACTICE` already
+  pointed at `grade2_practice_v1` 1.0.0 with `practiceGroup` `A`-`H`.
+- The English Grade 2 practice source is deliberately not registered. Its committed
+  fixture is from 2024-2025, and ADR-048 requires current evidence before its cohorts
+  are declared.
+
+---

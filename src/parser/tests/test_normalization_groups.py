@@ -97,6 +97,35 @@ def test_a_letter_run_names_several_lettered_groups_with_reduced_confidence() ->
     assert expression.confidence == CONFIDENCE_LETTER_RUN
 
 
+@pytest.mark.parametrize("text", ["ABC", "ABCD", "SINAV"])
+def test_a_longer_run_needs_a_profile_that_has_read_its_source(text: str) -> None:
+    # Two letters by default: a caller that has not looked at its source cannot
+    # read an ordinary word as a list of cohorts.
+    assert not parse_group_expression(text, dimension=DIMENSION, letter_groups=True).resolved
+
+
+def test_a_profile_may_raise_the_run_length_its_source_writes() -> None:
+    expression = parse_group_expression(
+        "ABCD",
+        dimension=DIMENSION,
+        letter_groups=True,
+        max_letter_run=8,
+    )
+
+    assert expression.values == ("A", "B", "C", "D")
+    assert expression.rule == RULE_LETTER_RUN
+
+
+def test_a_label_carrying_digits_keeps_its_two_letter_cap() -> None:
+    # `ABC1` is not a longer cohort label whatever run length a profile allows.
+    assert not parse_group_expression(
+        "ABC1",
+        dimension=DIMENSION,
+        letter_groups=True,
+        max_letter_run=8,
+    ).resolved
+
+
 @pytest.mark.parametrize("text", ["TELAFİ", "TELAFİ-a2", "H-A-B-i3-i2", "SINAV TELAFİ"])
 def test_a_makeup_marker_never_becomes_an_audience(text: str) -> None:
     expression = parse_group_expression(text, dimension=DIMENSION, letter_groups=True)

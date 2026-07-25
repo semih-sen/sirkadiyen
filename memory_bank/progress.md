@@ -71,7 +71,7 @@
 ## Phase 4: Source inventory and ingestion
 
 - [ ] Add first-year source fixtures
-- [x] Add second-year annual source fixtures (`g2-{tr,en}-annual.snapshot.json`)
+- [x] Add second-year annual and Turkish practice source fixtures (`g2-{tr,en}-annual`, `g2-tr-practice`)
 - [ ] Add third-year source fixtures
 - [ ] Add weekly amphitheatre fixtures
 - [ ] Document every source
@@ -108,6 +108,7 @@
 - [x] Declare the numeric date order per parser profile (ADR-051)
 - [x] Refuse a numeric time cell that is not a day fraction (parser engine 0.2.0, ADR-073)
 - [x] Declare per-profile group-rotation subjects owned by a companion source (ADR-073)
+- [x] Add the slot-column rotation reader and a bounded multi-letter cohort run (ADR-074)
 
 ## Phase 6: Parser profiles
 
@@ -117,7 +118,7 @@
 - [ ] First-year English practice
 - [ ] First-year anatomy practice
 - [x] Second-year Turkish annual (`grade2_yearly_v1`, ADR-073)
-- [ ] Second-year Turkish practice
+- [x] Second-year Turkish practice (`grade2_practice_v1`, slot-column layout, ADR-074)
 - [x] Second-year English annual (same profile, ADR-073)
 - [ ] Second-year English practice
 - [ ] Second-year anatomy autumn
@@ -344,10 +345,16 @@ session as three consecutive daily slots and the anatomy group list assigns each
 of them — and a **numeric time cell that is not a day fraction** is refused instead of being
 reduced modulo one day, which used to publish an English free-study block from midnight.
 
-The next schedule-source slices are `grade2_practice_v1` (a block-and-slot matrix, structurally
-unlike the Grade 1 rotation table) and the Grade 2 anatomy/vertical-corridor DOCX sources,
-which own the rows the annual profile now defers. Before any Grade 2 student can receive these
-revisions, the supported-profile schema (ADR-055) must be extended past class year 1.
+The Grade 2 Turkish practice slice is implemented too (ADR-074). `grade2_practice_v1` 1.0.0
+reads the transpose of the Grade 1 rotation table through a new `parsers/practice_slots.py`:
+a column is a dated slot and a row is a practice subject. It publishes 163 candidates for the
+eight `A`-`H` cohorts and is predicted to validate with no findings.
+
+The next schedule-source slices are the Grade 2 anatomy and vertical-corridor DOCX sources,
+which own the dissection rotation and the 95 skill-practice sessions both Grade 2 profiles now
+defer, and the Grade 2 English practice source, whose committed fixture is still from
+2024-2025. Before any Grade 2 student can receive these revisions, the supported-profile
+schema (ADR-055) must be extended past class year 1.
 
 Calendar backlog scheduling is complete through ADR-070. Ordinary 100-operation
 quota yields no longer wait for the adaptive source polling interval: the worker

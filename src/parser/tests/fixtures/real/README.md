@@ -22,4 +22,5 @@ dotnet run --project tools/Sirkadiyen.SnapshotTool -- `
 | `g1-en-annual.snapshot.json` | `G1-EN-ANNUAL` | English headers, a second lookup worksheet, rows shifted by one column |
 | `g1-tr-practice.snapshot.json` | `G1-TR-PRACTICE` | rotation matrix, not yet parsed by any profile |
 | `g2-tr-annual.snapshot.json` | `G2-TR-ANNUAL` | one worksheet `DÖNEM 2`; 119 bare `UYGULAMA` placeholders that defer to the practice program, 159 dissection rotation rows, one backwards time range |
+| `g2-tr-practice.snapshot.json` | `G2-TR-PRACTICE` | slot-column rotation: nine curriculum blocks, 15 slot-header rows, topic lists between them, four slot dates whose year is a year out, a whole-cohort session written into a merged run of cells |
 | `g2-en-annual.snapshot.json` | `G2-EN-ANNUAL` | English headers, `lunch break` rows with an empty term and date cell, a bare `9` in an `hh:mm` start-time cell, practice groups written inside titles (`İ1`-`İ5`) |

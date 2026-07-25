@@ -101,6 +101,37 @@ Read from the committed `DÖNEM 2` and `CLASS 2` workbooks while implementing
   them as supported selectors.
 - English `lunch break` rows carry an empty term and an empty date cell.
 
+## Grade 2 Turkish practice reading rules (confirmed 2026-07-25)
+
+Read from the committed `Uygulama Tablosu` workbook while implementing
+`grade2_practice_v1` (ADR-074). It is **not** the Grade 1 practice layout.
+
+- The table is transposed relative to Grade 1: a **column** is a dated slot, whose
+  header holds a `1/3`-style slot label, a date and a time range on separate lines,
+  and a **row** is a practice subject with its room in the second column.
+- Nine curriculum blocks open with a wide merged heading (`KAN LENFOİD 1`,
+  `DOLAŞIM-1`, …). Each holds one to three slot-header rows (`Uygulama adı` /
+  `Uygulama yeri`, abbreviated to `Uygulama` in the `ENDOKRİN-1` block), and each is
+  followed by topic lists that are not schedule data.
+- Cell values are: a single cohort letter `A`-`H`; several (`F + B`, `D+H`);
+  concatenated with a session number (`ABCD 1/1`, `GH 1/3`); `*`, which the source's
+  own note says means the groups and rooms are announced in a separate table; `-`
+  for no session; a make-up or examination marker with no group (`UYGULAMA TELAFİ`,
+  `TELAFİ`, `SINAV`); and dissection date serials in the `Anatomi (n)` rows.
+- Three whole-cohort sessions are written into the body of the table as `TÜM GRUPLAR`
+  with their **own** date and time, merged across a run of columns. Two of them state
+  a date that differs from the one their column header states, so the cell is the
+  authority.
+- Four slot dates state a year that is a year out (`3 Şubat 2025`, `24 Aralık 2024`,
+  `26 Şubat 2025`, `27 Şubat 2025`); every one of them also contradicts the weekday
+  typed beside it. One more is an unreadable month (`24 Eylü 2025`).
+- One cell writes a numeric date, `TÜM GRUPLAR 8.10.2025`. It is the first numeric
+  date any committed fixture states, and no profile declares a component order
+  (ADR-051). The Turkish annual program schedules the same session on 8 October,
+  which is evidence for `dayFirst` if that declaration is ever made.
+- The room-and-telephone lookup tables at the end of the worksheet
+  (`Dikey Koridor II Laboratuarı`) are not schedule data.
+
 ## Parser implications
 
 - Preserve raw values, formulas, formatted values, merges, hidden dimensions,

@@ -51,7 +51,17 @@ _TOKEN_SEPARATOR_PATTERN = re.compile(r"\s*[,;+/]\s*|\s+ve\s+|\s+and\s+")
 # numbers. Neither may be mistaken for a group, because a wrong group selects
 # the wrong cohort's calendars.
 _RANGE_PATTERN = re.compile(r"^([A-Za-z]{0,2})(\d{1,2})\s*[-–—]\s*([A-Za-z]{0,2})(\d{1,2})$")
-_SIMPLE_PATTERN = re.compile(r"^([A-Za-z]{0,2})(\d{0,2})$")
+_SIMPLE_PATTERN = re.compile(r"^([A-Za-z]{0,8})(\d{0,2})$")
+
+#: How many letters a bare run may hold before it stops being a cohort list.
+#: Two by default, so a caller that has not looked at its source cannot read a
+#: word as a list of groups. A profile whose source writes `ABCD` for four
+#: cohorts raises it deliberately.
+DEFAULT_MAX_LETTER_RUN = 2
+
+#: A label carrying digits is one group (`B2`), never a run, so its letters stay
+#: capped whatever the caller allows for a bare run.
+MAX_LABEL_LETTERS = 2
 _PREFIX_PATTERN = re.compile(r"^(grup|gruplar|group|groups|g)\s*\.?\s*", re.IGNORECASE)
 _WORD_PREFIX_PATTERN = re.compile(r"^(gruplar|grup|groups|group)\s*\.?\s*", re.IGNORECASE)
 
@@ -82,6 +92,7 @@ def parse_group_expression(
     *,
     dimension: str,
     letter_groups: bool = False,
+    max_letter_run: int = DEFAULT_MAX_LETTER_RUN,
 ) -> GroupExpression:
     """Interpret a group label for one audience dimension.
 
@@ -95,6 +106,11 @@ def parse_group_expression(
     G, ``G2`` is subgroup two of group G, and a run such as ``AB`` names two
     groups. The source decides which model applies, so the parser profile
     states it rather than inferring it from the value.
+
+    ``max_letter_run`` is how long such a run may be. It stays at two unless a
+    profile has read its source and found longer ones, because every additional
+    letter also makes it likelier that an ordinary word is read as a list of
+    cohorts.
     """
     text = normalize_text(value)
     if not text:
@@ -116,7 +132,11 @@ def parse_group_expression(
         if not stripped:
             continue
 
-        expanded = _expand_token(stripped, letter_groups=letter_groups)
+        expanded = _expand_token(
+            stripped,
+            letter_groups=letter_groups,
+            max_letter_run=max_letter_run,
+        )
         if expanded is None:
             return _unresolved(dimension, text, "unrecognizedGroupToken")
         expanded_letter_run = expanded_letter_run or len(expanded) > 1 and stripped.isalpha()
@@ -146,7 +166,12 @@ def _strip_prefix(token: str, *, letter_groups: bool) -> str:
     return stripped
 
 
-def _expand_token(token: str, *, letter_groups: bool) -> tuple[str, ...] | None:
+def _expand_token(
+    token: str,
+    *,
+    letter_groups: bool,
+    max_letter_run: int,
+) -> tuple[str, ...] | None:
     range_match = _RANGE_PATTERN.match(token)
     if range_match is not None:
         return _expand_range(range_match)
@@ -160,7 +185,12 @@ def _expand_token(token: str, *, letter_groups: bool) -> tuple[str, ...] | None:
         return None
 
     if letter_groups and len(letters) > 1 and not digits:
-        return tuple(letter.upper() for letter in letters)
+        return (
+            tuple(letter.upper() for letter in letters) if len(letters) <= max_letter_run else None
+        )
+
+    if len(letters) > MAX_LABEL_LETTERS:
+        return None
 
     return (f"{letters.upper()}{digits.lstrip('0') or digits}",)
 

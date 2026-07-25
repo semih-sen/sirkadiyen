@@ -11,6 +11,7 @@ from collections.abc import Callable
 from sirkadiyen_parser.contracts.parsing import ParseSnapshotRequest, ParseSnapshotResponse
 from sirkadiyen_parser.parsers.annual import parse_annual_snapshot
 from sirkadiyen_parser.parsers.practice import parse_practice_snapshot
+from sirkadiyen_parser.parsers.practice_slots import parse_practice_slot_snapshot
 from sirkadiyen_parser.profiles import ParserProfileDefinition
 
 ParserImplementation = Callable[
@@ -25,6 +26,11 @@ _IMPLEMENTATIONS: dict[tuple[str, str], ParserImplementation] = {
     # both languages, so they share the implementation and differ only in what the
     # profile definition declares (ADR-073).
     ("grade2_yearly_v1", "1.0.0"): parse_annual_snapshot,
+    # The Grade 2 practice table is a different rotation layout, not a variant of
+    # the Grade 1 one, so it has its own implementation (ADR-074). Only the
+    # Turkish source is registered: the committed English fixture is from the
+    # previous academic year.
+    ("grade2_practice_v1", "1.0.0"): parse_practice_slot_snapshot,
 }
 
 

@@ -72,12 +72,17 @@ _PROFILES = (
         _UNDECLARED,
         group_rotation_subjects=("diseksiyon", "dissection"),
     ),
+    # The Grade 2 practice table is the transpose of the Grade 1 one: a column is
+    # a dated slot and a row is a practice subject. Anatomy appears in it as a
+    # row of dissection dates rather than of groups, which is the same rotation
+    # the anatomy sources own, so it is declared out of scope here too (ADR-074).
     ParserProfileDefinition(
         "grade2_practice_v1",
         _PROFILE_VERSION,
         "practice",
         _UNDECLARED,
         ("practiceGroup",),
+        group_rotation_subjects=("anatomi", "anatomy", "diseksiyon", "dissection"),
     ),
     ParserProfileDefinition(
         "grade2_anatomy_autumn_v1",

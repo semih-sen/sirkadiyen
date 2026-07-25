@@ -71,6 +71,13 @@ CASES = (
         "english",
         "parse/g2-en-annual.json",
     ),
+    (
+        "grade2_practice_v1",
+        "real/g2-tr-practice.snapshot.json",
+        2,
+        "turkish",
+        "parse/g2-tr-practice.json",
+    ),
 )
 
 CASE_FIELDS = ("profile_name", "fixture", "class_year", "program_language", "golden")

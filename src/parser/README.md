@@ -83,6 +83,7 @@ corrected from.
 | `grade1_yearly_v1` | `G1-TR-ANNUAL`, `G1-EN-ANNUAL` | `tests/fixtures/real/g1-{tr,en}-annual.snapshot.json` |
 | `grade1_practice_v1` | `G1-TR-PRACTICE` | `tests/fixtures/real/g1-tr-practice.snapshot.json` |
 | `grade2_yearly_v1` | `G2-TR-ANNUAL`, `G2-EN-ANNUAL` | `tests/fixtures/real/g2-{tr,en}-annual.snapshot.json` |
+| `grade2_practice_v1` | `G2-TR-PRACTICE` | `tests/fixtures/real/g2-tr-practice.snapshot.json` |
 
 `parsers/annual.py` reads the row-oriented annual layout: one lesson per row,
 with columns selected by header alias rather than by position, so the Turkish
@@ -112,6 +113,27 @@ and time from its row. It states the lettered cohort model explicitly (ADR-020),
 so `G` is group G and `A2` is a subgroup of group A, and it refuses any cell
 whose value it cannot fully read — a makeup marker naming no group publishes
 nothing rather than reaching every student.
+
+`parsers/practice_slots.py` reads the **transpose** of that matrix, which is how
+the Grade 2 practice table is written (ADR-074): a column is a dated slot whose
+header holds a slot label, a date and a time range on separate lines, and a row
+is a practice subject naming its room beside it. A candidate is still a cell.
+Every row of the worksheet is classified exactly once — block heading, slot
+header, subject, or counted as neither — so `rows.scanned` equals the worksheet's
+row count and the topic lists between the tables cannot swallow schedule data
+unexplained.
+
+It is stricter than the annual profiles in two places, because this is the source
+that decides *which* students receive an event:
+
+- a slot header whose stated weekday contradicts its own date is refused, which
+  is how the four hand-typed dates whose year is a year out are caught
+- a cell that states a session but no audience — a bare `*`, whose groups the
+  source says are announced in another table, or a make-up marker — publishes
+  nothing
+- a letter run such as `ABCD` names four cohorts, but only within the eight
+  letters this source states; without that bound the same rule would read the
+  word `SINAV` as five cohorts, one of which is a real group
 
 ### A holiday is an all-day item, not a lesson at midnight
 
