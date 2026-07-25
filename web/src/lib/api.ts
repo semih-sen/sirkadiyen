@@ -14,9 +14,13 @@ import type {
   CurrentUser,
   GoogleCalendarConnectionView,
   OnboardingSnapshot,
+  ApproveRevisionResponse,
   OperationalFreezeChangeResult,
   OperationalFreezeSnapshot,
   ProblemDetails,
+  RevisionState,
+  ScheduleRevisionDetail,
+  ScheduleRevisionSummary,
   RedeemLicenseResponse,
   SaveStudentProfileRequest,
   SaveStudentProfileResponse,
@@ -252,5 +256,28 @@ export function activateUser(userId: string, reason: string): Promise<unknown> {
   return request<unknown>(`/api/admin/users/${userId}/activate`, {
     method: 'POST',
     body: { reason },
+  });
+}
+
+export function listRevisions(
+  state: RevisionState = 'ReviewRequired',
+  limit = 50,
+): Promise<ScheduleRevisionSummary[]> {
+  return request<ScheduleRevisionSummary[]>(
+    `/api/revisions/?state=${encodeURIComponent(state)}&limit=${limit}`,
+  );
+}
+
+export function getRevision(revisionId: string): Promise<ScheduleRevisionDetail> {
+  return request<ScheduleRevisionDetail>(`/api/revisions/${revisionId}`);
+}
+
+export function approveRevision(
+  revisionId: string,
+  approvalReason: string,
+): Promise<ApproveRevisionResponse> {
+  return request<ApproveRevisionResponse>(`/api/revisions/${revisionId}/approve`, {
+    method: 'POST',
+    body: { approvalReason },
   });
 }

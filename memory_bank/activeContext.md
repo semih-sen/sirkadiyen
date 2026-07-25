@@ -86,6 +86,12 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
   (electives, a make-up exam → non-blocking `Warning`). Sameness is `NormalizedCourseIdentity`,
   falling back to display title. So the annual revision auto-publishes once its overlaps are all
   parallel offerings, and the theoretical program reaches calendars via incremental diff dispatch.
+- **Re-parse trigger shipped.** A parse run is keyed by `(snapshot, profile, ParserProfileVersion)`
+  (`FindRunAsync`), so `grade1_yearly_v1` was bumped 1.0.0 → 1.1.0 (profile definition, parser
+  registry, catalog for both annual sources, golden). Restarting the worker re-seeds the catalog
+  and re-parses the stored annual snapshots with the new code, producing a fresh revision that now
+  publishes. Profiles are versioned independently now; the golden test reads each profile's version
+  from the registry.
 - 295 Python tests pass (ruff/format/mypy clean); 322 Infrastructure + 2 API + 5 Contracts .NET
   unit tests pass; Release build clean. PostgreSQL integration tests were not run this session.
 

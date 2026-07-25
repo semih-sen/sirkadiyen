@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/SessionProvider';
 import { activateUser, getFreeze, logout, setFreeze, ApiError } from '@/lib/api';
 import { ROUTES, routeForOnboardingState } from '@/lib/onboarding';
+import { RevisionReview } from '@/components/RevisionReview';
 import type { OperationalFreezeSnapshot } from '@/lib/types';
 
 function AdminPanel() {
@@ -75,7 +76,6 @@ function AdminPanel() {
 
   const pending = [
     'Kaynak (source) durum paneli',
-    'Revizyon inceleme ve yayınlama',
     'Diff serbest bırakma kuyruğu',
     'Lisans yönetimi ve denetim kaydı',
     'Kullanıcı senkronizasyon durumu',
@@ -132,6 +132,8 @@ function AdminPanel() {
       ) : (
         <p className="muted">Yükleniyor…</p>
       )}
+
+      <RevisionReview />
 
       <h2 style={{ fontSize: 16, margin: '26px 0 8px' }}>Yakında</h2>
       <ul className="muted" style={{ margin: 0, paddingLeft: 18, fontSize: 14 }}>

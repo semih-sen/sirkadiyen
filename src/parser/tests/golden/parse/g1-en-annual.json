@@ -1305,9 +1305,9 @@
     ],
     "parserProfile": {
       "name": "grade1_yearly_v1",
-      "version": "1.0.0"
+      "version": "1.1.0"
     },
-    "responseDigest": "sha256:f775994669ad74be44c7c3bdb5eba91b725e784b7d8e3c9a98590851021da5d0",
+    "responseDigest": "sha256:b6307049c84b63fa743b9388bab2c3ba2a1b29cc649716dde6360438f518d558",
     "snapshotId": "fixture:sha256:c6bd6de674e28e7abef83247281d72e7a30953b38f6f1b729900071baf628d68",
     "sourceId": "G1-EN-ANNUAL",
     "status": "completedWithWarnings",

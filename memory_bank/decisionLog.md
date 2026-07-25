@@ -3071,7 +3071,9 @@ student flow with their own account to test synchronization.
 **Date:** 2026-07-25
 **Implements:** annual-parser PDÖ/PBL and lunch-break exclusion with regenerated
 golden files and regression tests; the `AudienceOverlap` validator refined to
-quarantine only same-course duplicates
+quarantine only same-course duplicates; the `grade1_yearly_v1` profile version
+bumped 1.0.0 → 1.1.0 (parser registry, profile definition, catalog, golden) to
+force the re-parse
 **Depends on:** ADR-030 (PDÖ exclusion), ADR-029 (validation severity), ADR-035
 (course identity), ADR-058 (audience resolution)
 
@@ -3129,5 +3131,11 @@ title when identity is unresolved so an unresolved duplicate is still caught.
 - Retake-only exams and electives are shown to the whole cohort (the product owner's
   choice); a future per-student elective/retake audience would narrow them, but that
   needs a profile concept that does not exist yet.
+- The fix reaches an already-parsed source through the version bump: a parse run is
+  keyed by `(snapshot, profile, ParserProfileVersion)`, so `grade1_yearly_v1` 1.1.0
+  makes the poller open a new run and re-parse the stored annual snapshots without
+  the source content changing. Profiles are now versioned independently (the shared
+  `_PROFILE_VERSION` no longer applies to the annual profile), and the golden test
+  resolves each profile's version from the registry rather than a shared constant.
 
 ---

@@ -19,7 +19,7 @@ ParserImplementation = Callable[
 ]
 
 _IMPLEMENTATIONS: dict[tuple[str, str], ParserImplementation] = {
-    ("grade1_yearly_v1", "1.0.0"): parse_annual_snapshot,
+    ("grade1_yearly_v1", "1.1.0"): parse_annual_snapshot,
     ("grade1_practice_v1", "1.0.0"): parse_practice_snapshot,
 }
 

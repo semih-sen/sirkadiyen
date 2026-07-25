@@ -158,6 +158,54 @@ export interface OperationalFreezeChangeResult {
   state: OperationalFreezeSnapshot;
 }
 
+// Revision review (SuperAdmin): GET /api/revisions/?state=…, GET /api/revisions/{id},
+// POST /api/revisions/{id}/approve
+export type RevisionState =
+  | 'Parsed'
+  | 'Validated'
+  | 'ReviewRequired'
+  | 'Rejected'
+  | 'Published'
+  | 'Superseded'
+  | string;
+
+export type ValidationSeverity = 'Error' | 'Warning' | 'Information' | string;
+
+export interface ScheduleRevisionSummary {
+  revisionId: string;
+  sourceId: string;
+  state: RevisionState;
+  createdAtUtc: string;
+  recordCount: number;
+  stateReason?: string | null;
+}
+
+export interface RevisionFindingView {
+  rule: string;
+  severity: ValidationSeverity;
+  message: string;
+  affectedRecordCount: number;
+  createdAtUtc: string;
+  /** JSON evidence string the rule recorded (may be empty). */
+  detail: string;
+}
+
+export interface ScheduleRevisionDetail {
+  summary: ScheduleRevisionSummary;
+  findings: RevisionFindingView[];
+  approvedBy?: string | null;
+  approvalReason?: string | null;
+  approvedAtUtc?: string | null;
+  publishedAtUtc?: string | null;
+}
+
+export interface ApproveRevisionResponse {
+  revisionId: string;
+  approved: boolean;
+  publicationOutcome: string;
+  supersededRevisionId?: string | null;
+}
+
 /** RFC 7807 problem details, as returned by AddProblemDetails / Results.Problem. */
 export interface ProblemDetails {
   type?: string;

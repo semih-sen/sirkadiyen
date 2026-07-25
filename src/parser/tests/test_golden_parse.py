@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 
 from sirkadiyen_parser.contracts.parsing import ParseSnapshotResponse
-from sirkadiyen_parser.parsers import get_parser
+from sirkadiyen_parser.parsers import get_parser, implemented_profiles
 from sirkadiyen_parser.profiles import get_profile
 from tests.support.golden import (
     assert_deterministic,
@@ -20,7 +20,18 @@ from tests.support.golden import (
 )
 from tests.support.parse_requests import build_parse_request, build_response_projection
 
-PROFILE_VERSION = "1.0.0"
+
+def _registered_version(profile_name: str) -> str:
+    """The single registered version for a profile, so cases need not repeat it.
+
+    Profiles are versioned independently (a behaviour change bumps only its own
+    profile, e.g. grade1_yearly_v1 to 1.1.0 for ADR-068), so the version is read
+    from the registry rather than shared across every case.
+    """
+    versions = [version for (name, version) in implemented_profiles() if name == profile_name]
+    assert len(versions) == 1, f"Expected exactly one registered version for '{profile_name}'."
+    return versions[0]
+
 
 CASES = (
     (
@@ -46,15 +57,16 @@ CASES = (
 
 def run_profile(profile_name: str, fixture: str, program_language: str) -> ParseSnapshotResponse:
     """Parse a fixture through the registered profile implementation."""
-    profile = get_profile(profile_name, PROFILE_VERSION)
-    parser = get_parser(profile_name, PROFILE_VERSION)
+    version = _registered_version(profile_name)
+    profile = get_profile(profile_name, version)
+    parser = get_parser(profile_name, version)
     assert profile is not None
     assert parser is not None, f"Profile '{profile_name}' has no registered implementation."
 
     request = build_parse_request(
         fixture=fixture,
         profile_name=profile_name,
-        profile_version=PROFILE_VERSION,
+        profile_version=version,
         academic_year="2025-2026",
         class_year=1,
         program_language=program_language,
