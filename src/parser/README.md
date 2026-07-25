@@ -69,12 +69,19 @@ nothing in the cell says which. Each profile therefore declares its
 | `dayFirst` / `monthFirst` | read as declared; a cell only the other order can explain is refused as `numericDateImpossibleUnderDeclaredOrder` |
 | `undeclared` | published only when both orders agree, refused as `numericDateOrderNotDeclaredByProfile` otherwise |
 
-Every profile currently declares `undeclared`, because no committed fixture
-writes a date that way: the annual and practice sources use spreadsheet serials
-and month names, which the `dates.rule.<rule>` metric reports per parse. The
-first source that does write one refuses those rows and names the cells, and that
-evidence — not the Turkish writing convention — is what a declaration is
-corrected from.
+`grade2_practice_v1` declares `dayFirst`; every other profile declares
+`undeclared`, because their committed fixtures write dates only as spreadsheet
+serials and month names, which the `dates.rule.<rule>` metric reports per parse.
+
+The one declaration is what the mechanism is for. The Grade 2 practice workbook
+writes exactly one numeric date, `TÜM GRUPLAR 8.10.2025 08:30-10:20`, and version
+1.0.0 refused it and named the cell. The Grade 2 annual workbook schedules that
+same session as an unambiguous serial — 2025-10-08, 08:30-10:20, `FİZYOLOJİ 1.
+UYGULAMASI (TÜM GRUPLAR Amfide yapılacak)` — while the other reading, 10 August
+2025, falls outside both the academic year and the block's own 3-16 October
+range. The declaration was read off that second source (ADR-075). The Turkish
+writing convention was never the argument, and it is not evidence for declaring
+the remaining profiles.
 
 ## Implemented parser profiles
 
@@ -134,6 +141,10 @@ that decides *which* students receive an event:
 - a letter run such as `ABCD` names four cohorts, but only within the eight
   letters this source states; without that bound the same rule would read the
   word `SINAV` as five cohorts, one of which is a real group
+
+The declared `dayFirst` order applies only to a cell that states a year. A slot
+label such as `2/6` has the shape of a numeric date, and this profile supplies
+no year rule, so it is refused rather than completed into 2 June.
 
 ### A holiday is an all-day item, not a lesson at midnight
 

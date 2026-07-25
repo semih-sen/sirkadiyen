@@ -3546,3 +3546,157 @@ now — so the parser engine version does not move.
   are declared.
 
 ---
+
+## ADR-075: The Grade 2 practice source declares dayFirst, read off a second source
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-25
+**Implements:** `grade2_practice_v1` 1.1.0 for `G2-TR-PRACTICE` and `G2-EN-PRACTICE`
+**Extends:** ADR-051, ADR-074
+
+### Context
+
+ADR-051 requires every parser profile to declare how its source writes `12/11/2026`,
+and every profile declared `undeclared` because no committed fixture wrote a numeric
+date at all. ADR-074 produced the first one: the Grade 2 Turkish practice workbook
+writes a single cell as `TÜM GRUPLAR / 8.10.2025 / 08:30-10:20`, and version 1.0.0
+refused it, named the cell, and left one whole-cohort session unpublished.
+
+`8.10.2025` is 8 October read day-first and 10 August read month-first. Both are real
+dates, so the cell alone cannot settle it.
+
+### Decision
+
+Declare `numeric_date_order = dayFirst` for `grade2_practice_v1` and bump it to 1.1.0.
+Every other profile keeps `undeclared`.
+
+The declaration is read off a second source, not off the Turkish writing convention:
+
+- The Grade 2 Turkish **annual** workbook schedules the same session as a spreadsheet
+  serial — 2025-10-08, 08:30-10:20, `FİZYOLOJİ 1. UYGULAMASI (TÜM GRUPLAR Amfide
+  yapılacak)`. Subject, time, audience and room all match the practice cell.
+- The month-first reading, 10 August 2025, falls outside the academic year and outside
+  the `DOLAŞIM-1` block's own 3-16 October range.
+
+The convention argument is deliberately not used. It would have justified declaring
+every Turkish profile at once, and the point of ADR-051 is that a declaration is a
+claim about a specific document.
+
+A declared order does not weaken the other refusals. `_as_declared` refuses a date the
+declared order cannot explain (`numericDateImpossibleUnderDeclaredOrder`) rather than
+falling back to the other order, and a numeric text with no year is still refused
+because this profile supplies no year rule — which is what keeps a slot label such as
+`2/6` from being completed into 2 June.
+
+### Consequences
+
+- `G2-TR-PRACTICE` publishes 164 candidates instead of 163. The one recovered candidate
+  is `1!R34C3`, `Fizyoloji 1` in `AMFİ` on 2025-10-08 08:30-10:20, for the whole cohort,
+  at confidence 0.95 (`dates.rule.numericDayFirstDate`). Nothing else in the golden file
+  moved: no other candidate, warning or metric changed except the ones this cell owns.
+- The bump to 1.1.0 is required even though the implementation is a day old. A parse run
+  is keyed by (snapshot, profile, version), so leaving the version alone would let a
+  stored 1.0.0 run stand while the parser now reads that cell differently. Both catalog
+  entries naming the profile move with it, including the unimplemented English one, so
+  neither points at a version the registry no longer holds.
+- All three whole-cohort practice sessions now published (`Fizyoloji 1` on 2025-10-08,
+  `Fizyoloji 2` on 2025-10-23, `Fizyoloji` on 2026-04-17) are also published by
+  `grade2_yearly_v1` from the annual workbook, which writes them as titled rows rather
+  than as the bare `UYGULAMA` placeholders ADR-071 excludes. That duplication is
+  pre-existing — two of the three were already published at 1.0.0 — and is a
+  cross-source concern, not a consequence of this decision. It is recorded here because
+  this ADR adds the third instance and because no rule yet reconciles a titled annual
+  row against the practice source that restates it.
+- No engine version change: `dates.py` was not modified. No .NET change and no database
+  migration.
+
+---
+
+## ADR-076: A Word document is converted onto the normalized snapshot contract
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-25
+**Implements:** `LocalDocxSnapshotConverter`, `--document` in `Sirkadiyen.SnapshotTool`,
+and the four Grade 2 DOCX snapshot fixtures
+**Extends:** ADR-014 (normalized snapshot contract), ADR-015 (transport is not format),
+ADR-073, ADR-074
+
+### Context
+
+Not every program is published as a sheet. The Grade 2 anatomy group lists, the Grade 2
+vertical-corridor calendar and the Grade 3 bedside programs are Word documents, and the
+pipeline could do nothing with them: `ScheduleSourcePoller` answers
+`UnsupportedTransport` for any source that is not Google Sheets, and the snapshot tool
+refused anything but `.xlsx`.
+
+Two of those documents are the sources ADR-073 and ADR-074 defer to. 159 annual
+dissection rows and 95 practice cells marked `*` reach no calendar until they are read,
+so this is not a future format: it is the missing half of work already shipped. ADR-015
+separated transport from document format for exactly this reason and left DOCX
+conversion as implementation work; this is that work.
+
+The two Grade 2 families also differ in how they are maintained. The anatomy documents
+are handed out once at the start of each semester and are not edited afterwards. The
+vertical-corridor documents are edited by Student Affairs during the year.
+
+### Decision
+
+Convert a Word document onto `NormalizedSpreadsheetSnapshot`, the same contract the
+workbooks produce, rather than adding a second document contract. A Word table is rows,
+columns and merges; everything downstream — immutable snapshot storage, the
+unchanged-snapshot short circuit, the parser's grid primitives, A1 evidence, golden
+files — then works unchanged, and a parser profile never learns which format its source
+was published in.
+
+The mapping is stated rather than inferred, because a Word document is a sequence of
+blocks and not a set of named sheets:
+
+- each body-level table is one worksheet, and each run of paragraphs between tables is
+  one single-column worksheet, both in document order. The paragraphs are not
+  decoration: the Grade 3 bedside documents write their practice topics that way.
+- worksheet titles are `Table n` and `Text n`, assigned by the converter. Word names
+  nothing, and the snapshot says so in its own diagnostics rather than letting a reader
+  assume the titles came from the document.
+- a paragraph boundary and an explicit break both become a newline. The line structure
+  is load-bearing: a vertical-corridor slot cell writes a label, a date and a time range
+  as three lines, exactly as the Grade 2 practice sheet does.
+- text is transcribed untrimmed. Collapsing ragged whitespace is the parser's
+  normalization step, and it already does it for the spreadsheet sources.
+- a cell or paragraph whose text is only whitespace states nothing and produces no cell.
+  The grid position is already implied by the table's row and column count.
+
+What cannot be represented is reported, never dropped quietly: a blank paragraph run is
+counted in a diagnostic, and a table nested inside a cell is an **Error** diagnostic
+naming the cell's A1 address. Flattening a nested table into its containing cell would
+state a single value the document never wrote.
+
+The Grade 2 anatomy sources are **not** added to `config/schedule-sources.json`. The
+catalog requires an absolute HTTPS URI and these documents have no published location —
+they are handed out. Inventing a URL to satisfy the schema would put a false statement
+about provenance in the one file the pipeline trusts. The snapshot tool instead accepts
+`--document`, converting a file under a source ID the manifest reserves, and the catalog
+stays the authority for every source it can actually describe.
+
+### Consequences
+
+- Four Grade 2 documents are converted and committed as fixtures. The anatomy documents
+  yield two worksheets each and confirm ADR-073 directly: the three dissection hours of
+  one date carry anatomy groups 1, 2 and 3 in rotation, so a student attends one.
+- The anatomy documents write that rotation two ways in one table — an empty neighbour
+  row up to autumn row 45, a vertical merge from row 46 — and the profile that reads
+  them will have to handle both.
+- Every converted cell is text and none declares a number format, so a DOCX-backed
+  profile resolves dates and times from text alone. There is no serial to fall back on
+  and no format to corroborate a reading, which makes the ADR-051 declaration a live
+  question for `grade2_vertical_corridor_v1` before it publishes anything.
+- Conversion alone changes nothing at runtime. `ScheduleSourcePoller` still answers
+  `UnsupportedTransport` for a DOCX source, because acquiring one needs a transport that
+  does not exist yet: a Drive download for the vertical-corridor documents, which change,
+  and an administrative upload for the anatomy documents, which do not. Those are
+  separate decisions, and the maintenance difference above is the reason they will not
+  be the same mechanism.
+- No parser profile reads these fixtures yet, so they are committed evidence rather than
+  covered behaviour. What is covered: seven converter unit tests, and a parser-side test
+  that each snapshot validates against the inbound contract and states only text.
+
+---

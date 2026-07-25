@@ -2,7 +2,7 @@
   "fixture": "real/g2-tr-practice.snapshot.json",
   "parserEngineVersion": "0.2.0",
   "payload": {
-    "candidateCount": 163,
+    "candidateCount": 164,
     "candidateDigests": [
       "1!R4C3|2025-09-08|08:30-10:20|practice|id:5f186cc0565e3644|content:76ae122da1037730|Fizyoloji",
       "1!R4C4|2025-09-09|08:30-10:20|practice|id:17fc73da25764c25|content:39b71b45e0308e77|Fizyoloji",
@@ -26,6 +26,7 @@
       "1!R8C7|2025-09-23|10:30-12:20|practice|id:a492918491285b2f|content:e9bce61167fcd2d7|Histoloji",
       "1!R8C9|2025-09-26|08:30-10:20|practice|id:934a86465a983170|content:8141cf9561b759bb|Histoloji",
       "1!R8C10|2025-10-02|08:30-10:20|practice|id:0aeb5dd6e0766822|content:41ba14792b771061|Histoloji",
+      "1!R34C3|2025-10-08|08:30-10:20|practice|id:de09645094cdddf9|content:ee1fa21ddd4829af|Fizyoloji 1",
       "1!R36C3|2025-10-03|14:00-15:30|practice|id:3e55a82eb163c90e|content:d092791b5eca4b7d|Fizyoloji 2",
       "1!R36C4|2025-10-09|08:30-10:20|practice|id:c385cd792ab0e38d|content:325c9059b828389c|Fizyoloji 2",
       "1!R36C5|2025-10-10|08:30-10:20|practice|id:bc9aa5c5c53c438b|content:aa25fa962efe573e|Fizyoloji 2",
@@ -300,6 +301,12 @@
         "field": "localDate",
         "reason": "monthNameDate",
         "score": 0.9
+      },
+      {
+        "candidateId": "1!R34C3",
+        "field": "localDate",
+        "reason": "numericDayFirstDate",
+        "score": 0.95
       },
       {
         "candidateId": "1!R36C3",
@@ -1343,7 +1350,7 @@
       {
         "name": "candidates.emitted",
         "unit": null,
-        "value": 163.0
+        "value": 164.0
       },
       {
         "name": "candidates.eventType.exam",
@@ -1353,17 +1360,17 @@
       {
         "name": "candidates.eventType.practice",
         "unit": null,
-        "value": 156.0
+        "value": 157.0
       },
       {
         "name": "candidates.selfDatedCell",
         "unit": null,
-        "value": 2.0
+        "value": 3.0
       },
       {
         "name": "cells.ignored",
         "unit": null,
-        "value": 168.0
+        "value": 167.0
       },
       {
         "name": "cells.ignored.cellInRefusedSlot",
@@ -1391,11 +1398,6 @@
         "value": 3.0
       },
       {
-        "name": "cells.ignored.unresolvedSelfDatedCell",
-        "unit": null,
-        "value": 1.0
-      },
-      {
         "name": "cells.ignored.unsupportedGroupValueShape",
         "unit": null,
         "value": 1.0
@@ -1414,6 +1416,11 @@
         "name": "dates.rule.monthNameDate",
         "unit": null,
         "value": 163.0
+      },
+      {
+        "name": "dates.rule.numericDayFirstDate",
+        "unit": null,
+        "value": 1.0
       },
       {
         "name": "place.deferredToAnnouncement",
@@ -1488,9 +1495,9 @@
     ],
     "parserProfile": {
       "name": "grade2_practice_v1",
-      "version": "1.0.0"
+      "version": "1.1.0"
     },
-    "responseDigest": "sha256:56dd270774c6c9e7172da963f4a44c91fc2899ae2f48f076247fd4b6f8599603",
+    "responseDigest": "sha256:54b2264a40c06b9679afadbf95d66638600c316e5c29db938b8c8e274a58ed73",
     "snapshotId": "fixture:sha256:8f50eb1ea01f9945d5b4cfca7737c83e84fd9642235ab97175e0d8748a2eab27",
     "sourceId": "G2-TR-PRACTICE",
     "status": "completedWithWarnings",
@@ -1546,19 +1553,6 @@
         },
         "message": "Cells were ignored because of rule 'cellInRefusedSlot'. See metric 'cells.ignored.cellInRefusedSlot' for the total.",
         "severity": "information"
-      },
-      {
-        "candidateId": null,
-        "code": "cellsIgnored",
-        "evidence": {
-          "extractionRule": "practiceSlots.groupCell",
-          "range": "C34:J34",
-          "rawText": "TÜM GRUPLAR\n8.10.2025\n08:30-10:20",
-          "sheetId": "1",
-          "sheetTitle": "Sayfa1"
-        },
-        "message": "Cell date 'TÜM GRUPLAR 8.10.2025 08:30-10:20' could not be read as a date (numericDateOrderNotDeclaredByProfile), so nothing was published from it.",
-        "severity": "warning"
       },
       {
         "candidateId": null,

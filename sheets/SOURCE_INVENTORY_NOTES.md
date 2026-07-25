@@ -7,6 +7,10 @@ the source files. CSV exports were retained as secondary inspection aids. DOCX
 files were inventoried but were not treated as normalized Google Sheets
 snapshots.
 
+Since 2026-07-25 the four Grade 2 DOCX sources are converted onto the same
+normalized snapshot contract as the workbooks (ADR-076); see the Grade 2 DOCX
+reading rules below. The Grade 3 bedside documents are still only inventoried.
+
 ## Structural families
 
 ### Annual programs
@@ -126,11 +130,50 @@ Read from the committed `Uygulama Tablosu` workbook while implementing
   `26 Şubat 2025`, `27 Şubat 2025`); every one of them also contradicts the weekday
   typed beside it. One more is an unreadable month (`24 Eylü 2025`).
 - One cell writes a numeric date, `TÜM GRUPLAR 8.10.2025`. It is the first numeric
-  date any committed fixture states, and no profile declares a component order
-  (ADR-051). The Turkish annual program schedules the same session on 8 October,
-  which is evidence for `dayFirst` if that declaration is ever made.
+  date any committed fixture states. Profile version 1.0.0 refused it under ADR-051;
+  1.1.0 declares `dayFirst` and publishes it as 8 October 2025, because the Turkish
+  annual program schedules the same session — `FİZYOLOJİ 1. UYGULAMASI (TÜM GRUPLAR
+  Amfide yapılacak)`, 08:30-10:20 — on that day as a spreadsheet serial, and the
+  month-first reading falls outside both the academic year and the `DOLAŞIM-1`
+  block's own 3-16 October range (ADR-075).
 - The room-and-telephone lookup tables at the end of the worksheet
   (`Dikey Koridor II Laboratuarı`) are not schedule data.
+
+## Grade 2 DOCX reading rules (confirmed 2026-07-25)
+
+Read from the four committed Grade 2 Word documents while implementing the DOCX
+conversion (ADR-076). They are now converted to normalized snapshots, so these are
+observations about the documents rather than about the conversion.
+
+- **Anatomy (`SALON GRUP SAATLERİ`, autumn and spring).** Three columns: a date, one
+  of the three dissection hours (13:30-14:20, 14:30-15:20, 15:30-16:20), and the
+  anatomy group `1`, `2` or `3` attending it. Each date occupies three consecutive
+  rows and the groups rotate between them, which is the direct confirmation of
+  ADR-073: the annual program's three identical `DİSEKSİYON (n/13)` rows are one
+  session per student, not three.
+- The same document writes that structure **two different ways**. Up to autumn row 45
+  the date sits in the middle row of its triple and the rows above and below are
+  empty; from row 46 onward the three rows are a vertical merge. A profile must read
+  both, and the empty-neighbour form cannot be told from a genuinely undated row by
+  shape alone.
+- Both anatomy documents are split into two Word tables by a page break, and the
+  second table has no header row. They are two worksheets in the snapshot, because
+  joining them would state a table the document does not contain.
+- **Vertical corridor (`Beceri uygulama takvimi`).** A row is a dated slot whose first
+  cell holds a slot label, a date and a time range on three lines — the same cell
+  shape the Grade 2 practice sheet uses — and a column is one of five skill
+  practices (`AYDINLATILMIŞ ONAM`, `OKSİJEN`, `HASTANE ENF. ÖNLENMESİ`, `EKİP OLMA`,
+  `SH ÖYKÜ ALMA`). A cell holds the cohort letter attending. **This is the table the
+  practice sheet's 95 `*` cells defer to.**
+- The autumn file is one 60-row table; the spring file is the same content split
+  across seven tables, and its file name says `26.01.2025`, a year before the
+  academic year it belongs to.
+- Most of the vertical-corridor grid is a non-breaking space rather than an empty
+  cell, and its second column repeats `Web Sitesinde Yayınlanacak` — the same
+  deferred room the practice sheet writes.
+- Neither anatomy document states a URL anywhere, and the spring/autumn pair is
+  handed out once per semester. The vertical-corridor documents are edited by
+  Student Affairs during the year.
 
 ## Parser implications
 

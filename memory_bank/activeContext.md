@@ -53,7 +53,10 @@ affected completed-sync users before applying idempotent Calendar operations.
 The Grade 2 annual program now parses too: one profile, `grade2_yearly_v1`, serves
 the Turkish and the English source, deferring the dissection group rotation to the
 anatomy sources (ADR-073). The Grade 2 Turkish practice table parses through its own
-slot-column reader, `grade2_practice_v1` (ADR-074). Drive and HTTP acquisition, DOCX conversion, the
+slot-column reader, `grade2_practice_v1` (ADR-074). **A Word document now converts onto
+the same normalized snapshot contract as a workbook** (ADR-076), so the four Grade 2 DOCX
+sources exist as committed snapshots; acquiring one at runtime still does not, and no
+profile reads them yet. Drive, HTTP and administrative-upload acquisition, the
 remaining parser profiles, Grade 2 support in the student-profile schema, and the
 remaining operational surfaces still do not exist. The **consumer frontend now
 has a runnable foundation** (`web/`, ADR-066): Google sign-in, license redemption,
@@ -76,6 +79,39 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- **Declared the numeric date order of the Grade 2 practice source (ADR-075).**
+  `grade2_practice_v1` 1.1.0 declares `dayFirst`, read off a second source rather than
+  off the Turkish writing convention: the Grade 2 annual workbook schedules the same
+  session as a serial, 2025-10-08 08:30-10:20 `FİZYOLOJİ 1. UYGULAMASI (TÜM GRUPLAR
+  Amfide yapılacak)`, and the month-first reading falls outside both the academic year
+  and the block's own 3-16 October range. The profile now publishes 164 candidates; one
+  whole-cohort session was recovered and nothing else in the golden file moved.
+- The version bump is required even a day after 1.0.0: a parse run is keyed by
+  (snapshot, profile, version), so a stored 1.0.0 run would otherwise stand while the
+  parser reads that cell differently. Both catalog entries naming the profile moved with
+  it. A numeric text with no year is still refused, so a slot label such as `2/6` is not
+  completed into 2 June.
+- **A Word document is converted onto the normalized snapshot contract (ADR-076).**
+  `LocalDocxSnapshotConverter` maps a body-level table to a worksheet and a run of
+  paragraphs between tables to a single-column worksheet, keeps line structure (a
+  vertical-corridor slot cell writes a label, date and time range as three lines),
+  and maps `gridSpan`/`vMerge` onto merged ranges. Titles are `Table n`/`Text n` and the
+  snapshot says so in its own diagnostics. A nested table is an Error diagnostic naming
+  its cell rather than a flattened value.
+- Four Grade 2 documents are converted and committed. The anatomy pair **confirms
+  ADR-073 directly**: the three dissection hours of one date carry anatomy groups 1, 2
+  and 3 in rotation. The vertical-corridor pair is where the practice sheet's 95 `*`
+  cells are answered. Every converted cell is text with no number format, so those
+  profiles will resolve dates from text alone.
+- The Grade 2 anatomy sources are deliberately **not** in `config/schedule-sources.json`:
+  the catalog requires an absolute HTTPS URI and these documents are handed out, not
+  published. The snapshot tool gained `--document` instead of the catalog gaining a
+  fabricated URL. They are handed out once a semester and unchanged afterwards, so an
+  administrative upload fits them; Student Affairs edits the vertical-corridor documents
+  during the year, so those need re-acquisition. Both transports remain unbuilt.
+- 358 Python tests (up from 349) and 344 Infrastructure unit tests (up from 337) pass;
+  Ruff, Ruff format, Mypy and the Release build are clean.
 
 - **Implemented the Grade 2 Turkish practice profile (ADR-074).** `grade2_practice_v1`
   1.0.0 publishes 163 candidates for the eight `A`-`H` cohorts from `G2-TR-PRACTICE`.

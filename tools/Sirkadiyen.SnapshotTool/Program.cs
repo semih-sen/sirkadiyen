@@ -22,33 +22,57 @@ if (acquiredAtUtc.Offset != TimeSpan.Zero)
     throw new ArgumentException("--acquired-at-utc must resolve to UTC.");
 }
 
-string catalogPath = Path.Combine(repositoryRoot, "config", "schedule-sources.json");
-ScheduleSourceCatalog catalog = await new ScheduleSourceCatalogLoader()
-    .LoadAsync(catalogPath, CancellationToken.None);
-ScheduleSourceDefinition source = catalog.Sources.SingleOrDefault(
-    candidate => string.Equals(candidate.SourceId, sourceId, StringComparison.Ordinal))
-    ?? throw new ArgumentException($"Source '{sourceId}' was not found in the catalog.");
-
-if (source.FixturePath is null || !source.FixturePath.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase))
+// A document may be collected before the catalog can describe it. The Grade 2
+// anatomy group lists are handed out once a semester and have no published URL,
+// and the catalog requires an absolute HTTPS one, so --document converts a file
+// under a source ID the manifest reserves. The catalog stays the authority for
+// every source it can actually describe.
+string? explicitDocument = arguments.GetValueOrDefault("document");
+string? externalId = null;
+if (explicitDocument is null)
 {
-    throw new InvalidOperationException(
-        $"Source '{source.SourceId}' does not have a local XLSX fixture.");
+    string catalogPath = Path.Combine(repositoryRoot, "config", "schedule-sources.json");
+    ScheduleSourceCatalog catalog = await new ScheduleSourceCatalogLoader()
+        .LoadAsync(catalogPath, CancellationToken.None);
+    ScheduleSourceDefinition source = catalog.Sources.SingleOrDefault(
+        candidate => string.Equals(candidate.SourceId, sourceId, StringComparison.Ordinal))
+        ?? throw new ArgumentException($"Source '{sourceId}' was not found in the catalog.");
+
+    if (source.FixturePath is null)
+    {
+        throw new InvalidOperationException(
+            $"Source '{source.SourceId}' has no local fixture. Pass --document to convert a file "
+            + "the catalog does not describe.");
+    }
+
+    explicitDocument = source.FixturePath;
+    externalId = source.ExternalId;
 }
 
-string fixturePath = ResolveRepositoryPath(repositoryRoot, source.FixturePath);
+bool isXlsx = explicitDocument.EndsWith(".xlsx", StringComparison.OrdinalIgnoreCase);
+bool isDocx = explicitDocument.EndsWith(".docx", StringComparison.OrdinalIgnoreCase);
+if (!isXlsx && !isDocx)
+{
+    throw new InvalidOperationException(
+        $"Source '{sourceId}' does not point at a local XLSX or DOCX document.");
+}
+
+string fixturePath = ResolveRepositoryPath(repositoryRoot, explicitDocument);
 byte[] fixtureHash = SHA256.HashData(await File.ReadAllBytesAsync(fixturePath));
 string fixtureDigest = Convert.ToHexStringLower(fixtureHash);
 AcquireSpreadsheetSnapshotRequest request = new()
 {
-    SourceId = source.SourceId,
+    SourceId = sourceId,
     SnapshotId = $"fixture:sha256:{fixtureDigest}",
-    SpreadsheetId = source.ExternalId ?? $"fixture:sha256:{fixtureDigest}",
+    SpreadsheetId = externalId ?? $"fixture:sha256:{fixtureDigest}",
     AcquiredAtUtc = acquiredAtUtc,
 };
 
-NormalizedSpreadsheetSnapshot snapshot = new LocalXlsxSnapshotConverter().Convert(
-    fixturePath,
-    request);
+// A Word document is converted onto the same normalized snapshot contract as a
+// workbook (ADR-076), so only the reader differs here.
+NormalizedSpreadsheetSnapshot snapshot = isXlsx
+    ? new LocalXlsxSnapshotConverter().Convert(fixturePath, request)
+    : new LocalDocxSnapshotConverter().Convert(fixturePath, request);
 JsonSerializerOptions jsonOptions = ContractJson.CreateOptions();
 string json = JsonSerializer.Serialize(snapshot, jsonOptions);
 
@@ -60,7 +84,7 @@ await File.WriteAllTextAsync(resolvedOutput, json + Environment.NewLine);
 Console.WriteLine(
     $"Wrote {snapshot.Worksheets.Count} worksheets and "
     + $"{snapshot.Worksheets.Sum(static worksheet => worksheet.Cells.Count)} cells "
-    + $"for {source.SourceId} to {resolvedOutput}.");
+    + $"for {sourceId} to {resolvedOutput}.");
 
 static Dictionary<string, string> ParseArguments(string[] values)
 {

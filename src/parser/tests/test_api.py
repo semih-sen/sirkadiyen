@@ -38,8 +38,10 @@ def test_every_profile_advertises_the_numeric_date_order_it_declares() -> None:
 
     declared = {profile["name"]: profile["numeric_date_order"] for profile in response.json()}
     assert set(declared.values()) <= {"dayFirst", "monthFirst", "undeclared"}
-    # No committed fixture writes a numeric date, so nothing has established an
-    # order yet. Changing this line means a source finally showed one.
+    # One committed source writes a numeric date, and the Grade 2 annual workbook
+    # dates that same session as a serial, so that profile declares an order
+    # (ADR-075). Every other profile still states that nothing has established one.
+    assert declared["grade2_practice_v1"] == "dayFirst"
     assert declared["grade1_yearly_v1"] == "undeclared"
 
 

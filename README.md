@@ -186,5 +186,15 @@ dotnet run --project tools/Sirkadiyen.SnapshotTool -- `
   --acquired-at-utc 2026-07-21T00:00:00Z
 ```
 
+The fixture may be an XLSX workbook or a DOCX document: several programs are
+published as Word files, and both are converted onto the same normalized
+snapshot contract, so a parser profile never learns which one its source was
+(ADR-076). A document the catalog cannot describe — the Grade 2 anatomy group
+lists are handed out once a semester and have no published URL — is named
+directly with `--document <repository-relative path>` instead of being looked up
+by source ID.
+
 This command is for fixture development only. Production ingestion uses
 transport-specific adapters and persists immutable snapshots before parsing.
+There is no DOCX transport yet: converting one is possible, acquiring one is
+not.

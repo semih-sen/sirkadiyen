@@ -33,9 +33,9 @@ from sirkadiyen_parser.profiles import ParserProfileDefinition, get_profile
 
 PROFILE = ParserProfileDefinition(
     "grade2_practice_v1",
-    "1.0.0",
+    "1.1.0",
     "practice",
-    NumericDateOrder.UNDECLARED,
+    NumericDateOrder.DAY_FIRST,
     ("practiceGroup",),
     group_rotation_subjects=("anatomi", "anatomy", "diseksiyon", "dissection"),
 )
@@ -154,11 +154,14 @@ def metrics(response: ParseSnapshotResponse) -> dict[str, float]:
 
 
 def test_the_registered_profile_is_the_slot_column_implementation() -> None:
-    profile = get_profile("grade2_practice_v1", "1.0.0")
+    profile = get_profile(PROFILE.name, PROFILE.version)
 
     assert profile is not None
     assert get_parser(profile.name, profile.version) is parse_practice_slot_snapshot
-    assert ("grade2_practice_v1", "1.0.0") in implemented_profiles()
+    assert (PROFILE.name, PROFILE.version) in implemented_profiles()
+    # These tests parse through a profile they declare themselves, so what they
+    # prove is only worth anything while it matches the registered one.
+    assert profile == PROFILE
 
 
 def test_a_group_cell_becomes_a_candidate_for_that_group() -> None:
@@ -288,6 +291,56 @@ def test_a_cell_that_dates_itself_is_read_from_the_cell_not_its_column() -> None
     assert candidate.audience.scope is AudienceScope.ALL_STUDENTS_IN_PROGRAM
     assert candidate.audience.selectors == []
     assert metrics(response)[METRIC_CANDIDATES_SELF_DATED] == 1
+
+
+def test_a_numeric_date_is_read_day_first_as_the_profile_declares() -> None:
+    # The workbook writes one date numerically: `8.10.2025`. It is 8 October
+    # day-first and 10 August month-first, and the Grade 2 annual workbook dates
+    # that same session 2025-10-08 as a spreadsheet serial, which is what the
+    # declaration is read from (ADR-075).
+    response = parse(
+        build(subject_rows=[["Fizyoloji 1", "AMFİ", "TÜM GRUPLAR\n8.10.2025\n08:30-10:20"]]),
+    )
+
+    candidate = response.candidates[0]
+    assert candidate.local_date.isoformat() == "2025-10-08"
+    assert candidate.audience.scope is AudienceScope.ALL_STUDENTS_IN_PROGRAM
+    assert metrics(response)["dates.rule.numericDayFirstDate"] == 1
+
+
+def test_a_date_the_declared_order_cannot_explain_is_refused_not_flipped() -> None:
+    # `13.10.2025` is 13 October day-first; `10.13.2025` is a real date only
+    # month-first. Reading it the other way round would quietly undo the
+    # declaration for whichever cells happen to contradict it, so the cell is
+    # refused with its address instead.
+    response = parse(
+        build(subject_rows=[["Fizyoloji 1", "AMFİ", "TÜM GRUPLAR\n10.13.2025\n08:30-10:20"]]),
+    )
+
+    assert response.candidates == []
+    assert metrics(response)["cells.ignored.unresolvedSelfDatedCell"] == 1
+    warning = next(
+        warning
+        for warning in response.warnings
+        if warning.severity is ParserWarningSeverity.WARNING
+    )
+    assert "numericDateImpossibleUnderDeclaredOrder" in warning.message
+    assert warning.evidence is not None
+
+
+def test_a_session_number_is_never_completed_into_a_date() -> None:
+    # A slot label such as `2/6` has the shape of a numeric date, and declaring
+    # an order is exactly what would let one be read as 2 June. It states no
+    # year, and this profile supplies none, so no reading is possible.
+    response = parse(
+        build(
+            slots=["1/1\n2/6\n08:30-10:20"],
+            subject_rows=[["Fizyoloji", "Fizyoloji Pratik salonu", "A"]],
+        )
+    )
+
+    assert response.candidates == []
+    assert metrics(response)["slots.ignored.unresolvedSlotDate"] == 1
 
 
 def test_a_self_dated_session_merged_across_columns_is_published_once() -> None:

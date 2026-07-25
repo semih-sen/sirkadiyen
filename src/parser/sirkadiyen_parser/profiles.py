@@ -26,12 +26,13 @@ class ParserProfileDefinition:
 
 _PROFILE_VERSION = "1.0.0"
 
-#: Every source whose fixture is committed writes dates as spreadsheet serials or
-#: as text naming the month, so no source has yet shown which numeric order it
-#: uses. Declaring one from the Turkish writing convention would be a guess about
-#: a document, so the profiles state that the order is undeclared and refuse the
-#: cells that depend on it. The declaration is corrected from the first refusal a
-#: real source produces (ADR-051).
+#: Almost every source whose fixture is committed writes dates as spreadsheet
+#: serials or as text naming the month, so those sources have never shown which
+#: numeric order they use. Declaring one from the Turkish writing convention
+#: would be a guess about a document, so those profiles state that the order is
+#: undeclared and refuse the cells that depend on it. The declaration is
+#: corrected from the first refusal a real source produces (ADR-051), which is
+#: what happened to `grade2_practice_v1` below.
 _UNDECLARED = NumericDateOrder.UNDECLARED
 
 _PROFILES = (
@@ -76,11 +77,21 @@ _PROFILES = (
     # a dated slot and a row is a practice subject. Anatomy appears in it as a
     # row of dissection dates rather than of groups, which is the same rotation
     # the anatomy sources own, so it is declared out of scope here too (ADR-074).
+    #
+    # 1.1.0 declares the numeric date order this source writes. It is the first
+    # committed source to write a numeric date at all — one cell, `TÜM GRUPLAR
+    # 8.10.2025 08:30-10:20` — and 1.0.0 refused it exactly as ADR-051 requires.
+    # The Turkish annual workbook schedules that same session as a spreadsheet
+    # serial: 2025-10-08, 08:30-10:20, "FİZYOLOJİ 1. UYGULAMASI (TÜM GRUPLAR
+    # Amfide yapılacak)". The other reading, 10 August 2025, falls outside both
+    # the academic year and the block's own 3-16 October range. The declaration
+    # is therefore read off a second source rather than off a writing convention
+    # (ADR-075).
     ParserProfileDefinition(
         "grade2_practice_v1",
-        _PROFILE_VERSION,
+        "1.1.0",
         "practice",
-        _UNDECLARED,
+        NumericDateOrder.DAY_FIRST,
         ("practiceGroup",),
         group_rotation_subjects=("anatomi", "anatomy", "diseksiyon", "dissection"),
     ),

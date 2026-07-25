@@ -102,7 +102,7 @@
       "externalId": "1dyCMtRRN9gVkQxdgZU9aeYzMYPc6tyxk680HboAEzlU",
       "sheetGid": 77218153,
       "parserProfile": "grade2_practice_v1",
-      "parserProfileVersion": "1.0.0",
+      "parserProfileVersion": "1.1.0",
       "academicYear": "2025-2026",
       "classYear": 2,
       "programLanguage": "turkish",
@@ -111,7 +111,7 @@
         "practiceGroup": ["A", "B", "C", "D", "E", "F", "G", "H"]
       },
       "fixturePath": "sheets/donem-2-tr/xlsx/2025-2026 Dönem 2 Türkçe Tıp Programı Uygulama Tablosu (1).xlsx",
-      "notes": "The committed 2025-2026 fixture states eight practice cohorts A-H and no subgroup values."
+      "notes": "The committed 2025-2026 fixture states eight practice cohorts A-H and no subgroup values. It is also the only committed source that writes a numeric date, which is why this profile declares dayFirst (ADR-075)."
     },
     {
       "sourceId": "G2-VERTICAL-SPRING",
@@ -168,7 +168,7 @@
       "externalId": "1YPWACCifZGY5-7IJ5_Yzzya4aqubziKN5LlnMx1ST_8",
       "sheetGid": 1629561847,
       "parserProfile": "grade2_practice_v1",
-      "parserProfileVersion": "1.0.0",
+      "parserProfileVersion": "1.1.0",
       "academicYear": "2025-2026",
       "classYear": 2,
       "programLanguage": "english",

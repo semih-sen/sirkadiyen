@@ -109,6 +109,8 @@
 - [x] Refuse a numeric time cell that is not a day fraction (parser engine 0.2.0, ADR-073)
 - [x] Declare per-profile group-rotation subjects owned by a companion source (ADR-073)
 - [x] Add the slot-column rotation reader and a bounded multi-letter cohort run (ADR-074)
+- [x] Declare the numeric date order the Grade 2 practice source writes (ADR-075)
+- [x] Convert a Word document onto the normalized snapshot contract (ADR-076)
 
 ## Phase 6: Parser profiles
 
@@ -345,16 +347,30 @@ session as three consecutive daily slots and the anatomy group list assigns each
 of them — and a **numeric time cell that is not a day fraction** is refused instead of being
 reduced modulo one day, which used to publish an English free-study block from midnight.
 
-The Grade 2 Turkish practice slice is implemented too (ADR-074). `grade2_practice_v1` 1.0.0
+The Grade 2 Turkish practice slice is implemented too (ADR-074). `grade2_practice_v1` 1.1.0
 reads the transpose of the Grade 1 rotation table through a new `parsers/practice_slots.py`:
-a column is a dated slot and a row is a practice subject. It publishes 163 candidates for the
-eight `A`-`H` cohorts and is predicted to validate with no findings.
+a column is a dated slot and a row is a practice subject. It publishes 164 candidates for the
+eight `A`-`H` cohorts and is predicted to validate with no findings. It is also the only
+profile that declares a numeric date order — `dayFirst`, read off the annual workbook's
+serial for the same session rather than off the Turkish writing convention (ADR-075).
 
-The next schedule-source slices are the Grade 2 anatomy and vertical-corridor DOCX sources,
-which own the dissection rotation and the 95 skill-practice sessions both Grade 2 profiles now
-defer, and the Grade 2 English practice source, whose committed fixture is still from
-2024-2025. Before any Grade 2 student can receive these revisions, the supported-profile
-schema (ADR-055) must be extended past class year 1.
+DOCX conversion exists (ADR-076). A Word document is converted onto the same normalized
+snapshot contract as a workbook — a table becomes a worksheet, a run of paragraphs between
+tables becomes a single-column worksheet, and merges and line structure survive — so a
+parser profile never learns which format its source was published in. The four Grade 2
+Word documents are converted and committed as fixtures. **Converting is not acquiring:**
+`ScheduleSourcePoller` still answers `UnsupportedTransport` for a DOCX source. The two
+families need different transports, which is why they are separate work: the anatomy
+documents are handed out once a semester and unchanged afterwards, which suits an
+administrative upload, while Student Affairs edits the vertical-corridor documents during
+the year.
+
+The next schedule-source slices are the Grade 2 anatomy and vertical-corridor profiles,
+which own the dissection rotation and the 95 skill-practice sessions both Grade 2 profiles
+defer — their evidence is now converted and waiting — and the Grade 2 English practice
+source, whose committed fixture is still from 2024-2025. Before any Grade 2 student can
+receive these revisions, the supported-profile schema (ADR-055) must be extended past
+class year 1.
 
 Calendar backlog scheduling is complete through ADR-070. Ordinary 100-operation
 quota yields no longer wait for the adaptive source polling interval: the worker

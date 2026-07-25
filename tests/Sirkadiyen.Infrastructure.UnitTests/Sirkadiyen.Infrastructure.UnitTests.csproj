@@ -31,5 +31,16 @@
     <None Include="../../sheets/donem-1-tr/xlsx/2025-2026 Dönem 1 Türkçe Uygulama Tablosu (1).xlsx" Link="fixtures/g1-tr-practice.xlsx">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!--
+      Matched by pattern on purpose: the file name on disk writes its İ as a
+      decomposed I plus a combining dot, and a literal path here would be a
+      different string that MSBuild cannot find. The pattern matches one file.
+    -->
+    <None Include="../../sheets/donem-2-tr/2. SINIF SALON GRUP SAATLER* GÜZ.docx" Link="fixtures/g2-anatomy-autumn.docx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="../../sheets/donem-2-tr/Dönem 2 Beceri uygulama takvimi güz.docx" Link="fixtures/g2-vertical-autumn.docx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 </Project>
