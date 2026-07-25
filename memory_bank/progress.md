@@ -112,6 +112,7 @@
 - [x] Declare the numeric date order the Grade 2 practice source writes (ADR-075)
 - [x] Convert a Word document onto the normalized snapshot contract (ADR-076)
 - [x] Publish the vertical-corridor sessions the other Grade 2 profiles defer (ADR-077)
+- [x] Publish the dissection rotation the Grade 2 annual profile defers (ADR-078)
 
 ## Phase 6: Parser profiles
 
@@ -124,8 +125,8 @@
 - [x] Second-year Turkish practice (`grade2_practice_v1`, slot-column layout, ADR-074)
 - [x] Second-year English annual (same profile, ADR-073)
 - [ ] Second-year English practice
-- [ ] Second-year anatomy autumn
-- [ ] Second-year anatomy spring
+- [x] Second-year anatomy autumn (`grade2_anatomy_autumn_v1`, ADR-078)
+- [x] Second-year anatomy spring (`grade2_anatomy_spring_v1`, same implementation)
 - [x] Second-year vertical corridor (`grade2_vertical_corridor_v1`, ADR-077)
 - [ ] Third-year Turkish A annual
 - [ ] Third-year Turkish A bedside
@@ -374,12 +375,20 @@ faculty has scheduled a fraction of them, so re-acquisition rather than a parser
 publishes the rest. Nine dated rows contradict their own weekday and are refused; three of
 them carry groups, so four cohort-sessions wait on a source correction.
 
-The next schedule-source slices are the Grade 2 anatomy profiles, which own the dissection
-rotation both other Grade 2 profiles defer — their evidence is converted and waiting — and
-the Grade 2 English practice source, whose committed fixture is still from 2024-2025.
-Before any Grade 2 student can receive any of these revisions, the supported-profile
-schema (ADR-055) must be extended past class year 1, and a Word document must become
-acquirable rather than only convertible.
+The anatomy slice is implemented (ADR-078), which gives **every Grade 2 source a parser
+profile**. One implementation serves both semesters and publishes 156 dissection sessions,
+90 in autumn and 66 in spring, one per anatomy group per teaching day — the rotation
+ADR-073 predicted from the annual program and could not prove from it. A day is recognized
+as a run of hours stating exactly one date, because the same document writes a day both as
+a vertical merge and as a date typed into the middle of three rows.
+
+What Grade 2 still lacks is not a parser. Four of its six revisions come from Word
+documents that nothing can **acquire** at runtime, and the two anatomy sources are not in
+the catalog at all, because it requires an absolute HTTPS URI and those documents are
+handed out. The remaining work before a Grade 2 student receives anything is therefore an
+administrative upload path, a Drive download for the vertical-corridor documents, and the
+supported-profile schema (ADR-055) extended past class year 1. The Grade 2 English
+practice source also still needs a current fixture; its committed one is from 2024-2025.
 
 Calendar backlog scheduling is complete through ADR-070. Ordinary 100-operation
 quota yields no longer wait for the adaptive source polling interval: the worker

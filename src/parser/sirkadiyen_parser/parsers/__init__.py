@@ -9,6 +9,7 @@ service reports that explicitly instead of returning an empty result.
 from collections.abc import Callable
 
 from sirkadiyen_parser.contracts.parsing import ParseSnapshotRequest, ParseSnapshotResponse
+from sirkadiyen_parser.parsers.anatomy import parse_anatomy_snapshot
 from sirkadiyen_parser.parsers.annual import parse_annual_snapshot
 from sirkadiyen_parser.parsers.practice import parse_practice_snapshot
 from sirkadiyen_parser.parsers.practice_slots import parse_practice_slot_snapshot
@@ -36,6 +37,12 @@ _IMPLEMENTATIONS: dict[tuple[str, str], ParserImplementation] = {
     # It is published as a Word document and reaches the parser on the same
     # normalized snapshot contract as a workbook (ADR-076, ADR-077).
     ("grade2_vertical_corridor_v1", "1.0.0"): parse_vertical_corridor_snapshot,
+    # The two anatomy group lists are one document per semester with one layout,
+    # so they share an implementation the way the Grade 2 annual profile serves
+    # both languages. The profiles stay separate because the sources are
+    # separate: each states its own semester's dates (ADR-078).
+    ("grade2_anatomy_autumn_v1", "1.0.0"): parse_anatomy_snapshot,
+    ("grade2_anatomy_spring_v1", "1.0.0"): parse_anatomy_snapshot,
 }
 
 

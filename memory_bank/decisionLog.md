@@ -3786,3 +3786,83 @@ titles, one ending mid-bracket.
   entries gain their supported selectors.
 
 ---
+
+## ADR-078: A dissection day is a run of hours, not a row with a date
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-25
+**Implements:** `grade2_anatomy_autumn_v1` and `grade2_anatomy_spring_v1` 1.0.0, and the
+`parsers/anatomy.py` reader
+**Extends:** ADR-020, ADR-048, ADR-073, ADR-076
+
+### Context
+
+ADR-073 excluded 159 dissection rows from each Grade 2 annual workbook. The annual
+program states all three of a day's dissection hours with the same session number, and
+publishing them would have booked every student into two hours they must not attend. The
+anatomy group list is the document that says which hour each student attends, so until it
+is read those sessions reach no calendar at all.
+
+It is the simplest schedule the faculty publishes: three columns — a date, one of the
+three hours, and the anatomy group `1`, `2` or `3` — and three rows per teaching day. The
+anatomy group is independent of a student's practice group.
+
+One thing about it is not simple. **The same document states a day two different ways.**
+In the later rows a day is a vertical merge over its three hours. In the earlier ones the
+date is typed into the middle row of the three, with the cells above and below left
+empty. To a reader those are identical. To a grid the second is one dated row and two
+undated ones, and 30 of the autumn document's 90 rows are written that way.
+
+### Decision
+
+**Recognize a day by its own shape: a run of consecutive rows whose hours advance,
+stating exactly one date between them.** The boundary is read from the document rather
+than assumed — its hours always run 13:30, 14:30, 15:30, so a row whose hour does not
+follow the previous one begins the next day. A run that states no date, or more than one,
+publishes nothing.
+
+**The day is the unit of refusal.** Publishing the hour that happens to state the date and
+dropping the two beside it would give two of the three groups no session and the third one
+that may not be theirs — worse than publishing nothing, because it looks complete.
+
+**A date attributed from a neighbouring row is published at 0.8 and says so**, in a
+confidence indicator naming `dateFromNeighbouringRowInDayBlock`. The date is the
+document's own, but the association is a rule of this profile, and the precedent is
+`CONFIDENCE_YEAR_FROM_PROFILE`: a value supplied by a profile rule scores below one the
+cell states. A date reached through a merge is *not* marked, because a merge is the
+document itself saying the three hours are one day.
+
+**The lesson title comes from the profile's declared annual marker**, `Diseksiyon`. These
+rows name no lesson — they are a date, an hour and a group — and the marker is the name
+the annual program gives the same lesson, so the two sources agree on identity. A profile
+declaring no marker rejects the snapshot rather than inventing a name.
+
+One implementation serves both profiles, the way `grade2_yearly_v1` serves both languages.
+The profile names stay separate because the sources are: each document states its own
+semester's dates, and a semester is a different source, not a different layout.
+
+### Consequences
+
+- **156 dissection sessions now publish**: 90 from the autumn document over 30 teaching
+  days, 66 from the spring one over 22. Each of the three anatomy groups gets exactly one
+  session per teaching day, which is the rotation ADR-073 predicted from the annual
+  program and could not prove from it.
+- Both revisions are predicted to validate with no findings: no group attends two hours on
+  one day, every session is 50 minutes, every selector is one of the three the source
+  states, and every date falls inside the academic year.
+- The spring document states `9 Nisan 2025` where it means 2026, and its own weekday says
+  so. That day is refused whole — three sessions — and named. It is the fourth Grade 2
+  document to carry a date whose year is a year out.
+- **Neither source is in `config/schedule-sources.json`,** so neither profile can run
+  outside a fixture. The catalog requires an absolute HTTPS URI and these documents are
+  handed out once a semester with no published location (ADR-076). Two things follow: no
+  real revision can be produced yet, and `supportedAudienceSelectors` cannot be declared,
+  so the unknown-selector rule is not enforced for `anatomyGroup` — the profile's own
+  three-value bound is the only guard. Both are fixed by the same missing piece: an
+  administrative upload path.
+- `grade1_anatomy_v1` stays unimplemented. The source notes record it as the same
+  structural family, but no Grade 1 anatomy fixture has been identified, and a profile is
+  registered only when a fixture backs it.
+- No engine version change, no .NET change and no database migration.
+
+---

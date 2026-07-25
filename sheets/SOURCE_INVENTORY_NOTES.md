@@ -155,7 +155,17 @@ observations about the documents rather than about the conversion.
   the date sits in the middle row of its triple and the rows above and below are
   empty; from row 46 onward the three rows are a vertical merge. A profile must read
   both, and the empty-neighbour form cannot be told from a genuinely undated row by
-  shape alone.
+  shape alone. ADR-078 resolves it by reading a day as a run of consecutive rows whose
+  hours advance and that state exactly one date between them.
+- Both documents use exactly three time ranges (`13:30-14:20`, `14:30-15:20`,
+  `15:30-16:20`) and exactly three group values (`1`, `2`, `3`). Autumn states 30
+  teaching days, spring 23.
+- The spring document writes `9 Nisan 2025 Perşembe` where it means 2026, and the
+  weekday contradicts the year it typed. It is the fourth Grade 2 document to carry a
+  date whose year is a year out.
+- Neither document's rows name a lesson: they are a date, an hour and a group. The
+  title comes from the annual program's word for the same lesson, `Diseksiyon`, which
+  the profile declares.
 - Both anatomy documents are split into two Word tables by a page break, and the
   second table has no header row. They are two worksheets in the snapshot, because
   joining them would state a table the document does not contain.

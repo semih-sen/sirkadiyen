@@ -1,0 +1,895 @@
+{
+  "fixture": "real/g2-anatomy-autumn.snapshot.json",
+  "parserEngineVersion": "0.2.0",
+  "payload": {
+    "candidateCount": 90,
+    "candidateDigests": [
+      "1!R2C3|2025-09-02|13:30-14:20|anatomyPractice|id:89e2037c5c0ed1b9|content:1c9ae1e50e586475|Diseksiyon",
+      "1!R3C3|2025-09-02|14:30-15:20|anatomyPractice|id:905e1dcdcf6d57f4|content:b1a40bbb0af6333f|Diseksiyon",
+      "1!R4C3|2025-09-02|15:30-16:20|anatomyPractice|id:301fbd063ab82142|content:55b3384d8ee946d4|Diseksiyon",
+      "1!R5C3|2025-09-04|13:30-14:20|anatomyPractice|id:ffe2eb671d9b7040|content:14305edefe4d8012|Diseksiyon",
+      "1!R6C3|2025-09-04|14:30-15:20|anatomyPractice|id:27297a2a36de951f|content:387032674133ce35|Diseksiyon",
+      "1!R7C3|2025-09-04|15:30-16:20|anatomyPractice|id:042b1b42a96bf040|content:9dfa723a3d695a6c|Diseksiyon",
+      "1!R8C3|2025-09-09|13:30-14:20|anatomyPractice|id:28b999b8fa1cef51|content:c74ac955b477e49c|Diseksiyon",
+      "1!R9C3|2025-09-09|14:30-15:20|anatomyPractice|id:ecff352740fe3ec4|content:663dbc5a8c9d3f91|Diseksiyon",
+      "1!R10C3|2025-09-09|15:30-16:20|anatomyPractice|id:6b9c766d10db16fc|content:a3aa79fdc1b6d2fa|Diseksiyon",
+      "1!R11C3|2025-09-11|13:30-14:20|anatomyPractice|id:ffc4518660fef4ae|content:15ae282851404033|Diseksiyon",
+      "1!R12C3|2025-09-11|14:30-15:20|anatomyPractice|id:331f9993c8d5c3a5|content:f4805766b80156d6|Diseksiyon",
+      "1!R13C3|2025-09-11|15:30-16:20|anatomyPractice|id:ee02c2d291a93b5c|content:f3a078ba5de599aa|Diseksiyon",
+      "1!R14C3|2025-09-16|13:30-14:20|anatomyPractice|id:b8f8840ba8172b21|content:9f70ce4ad68da9fe|Diseksiyon",
+      "1!R15C3|2025-09-16|14:30-15:20|anatomyPractice|id:5b23f7e57681bef0|content:890449c9dbb76ca8|Diseksiyon",
+      "1!R16C3|2025-09-16|15:30-16:20|anatomyPractice|id:b61fa20bcb7b0bfa|content:9b99bcc955080cc4|Diseksiyon",
+      "1!R17C3|2025-09-18|13:30-14:20|anatomyPractice|id:36ca6b5ae335052f|content:637e85cd57ad16cc|Diseksiyon",
+      "1!R18C3|2025-09-18|14:30-15:20|anatomyPractice|id:fa24b570c37eee43|content:ae5c7d05366ed7a2|Diseksiyon",
+      "1!R19C3|2025-09-18|15:30-16:20|anatomyPractice|id:c52b1352a2826037|content:1fd16988e455571e|Diseksiyon",
+      "1!R20C3|2025-09-23|13:30-14:20|anatomyPractice|id:e32dd96bae6e3e67|content:9a0854619a5557ec|Diseksiyon",
+      "1!R21C3|2025-09-23|14:30-15:20|anatomyPractice|id:aa08f68be9afffae|content:9312b33e297ca935|Diseksiyon",
+      "1!R22C3|2025-09-23|15:30-16:20|anatomyPractice|id:798f7c2feabffa47|content:32950b87c878653a|Diseksiyon",
+      "1!R23C3|2025-09-25|13:30-14:20|anatomyPractice|id:c69ab435f9335883|content:28ab2a2d9dc8c7bb|Diseksiyon",
+      "1!R24C3|2025-09-25|14:30-15:20|anatomyPractice|id:c128c57ca41a4801|content:e0f71e8b0b1beeb2|Diseksiyon",
+      "1!R25C3|2025-09-25|15:30-16:20|anatomyPractice|id:900709332eebf97e|content:f03317806e0105ad|Diseksiyon",
+      "1!R26C3|2025-09-30|13:30-14:20|anatomyPractice|id:a82c760140dd214b|content:6946798eebc4e61d|Diseksiyon",
+      "1!R27C3|2025-09-30|14:30-15:20|anatomyPractice|id:b5761661c60f6948|content:db8b91696f016144|Diseksiyon",
+      "1!R28C3|2025-09-30|15:30-16:20|anatomyPractice|id:71566d37db1b63b7|content:4365aaa989fd7ede|Diseksiyon",
+      "1!R29C3|2025-10-02|13:30-14:20|anatomyPractice|id:c3e037e7cc30cba7|content:1ab48c58f6ad3b95|Diseksiyon",
+      "1!R30C3|2025-10-02|14:30-15:20|anatomyPractice|id:2b55d6cc3f0fda12|content:2a3eb674ed12b060|Diseksiyon",
+      "1!R31C3|2025-10-02|15:30-16:20|anatomyPractice|id:ca6220d665c72593|content:9d7732f98c7a683d|Diseksiyon",
+      "1!R32C3|2025-10-07|13:30-14:20|anatomyPractice|id:b070eab0c42d25f2|content:d62fd19e245d5062|Diseksiyon",
+      "1!R33C3|2025-10-07|14:30-15:20|anatomyPractice|id:990b34a604eda5d0|content:e6963d77c642443e|Diseksiyon",
+      "1!R34C3|2025-10-07|15:30-16:20|anatomyPractice|id:3fb7727d83fd39c2|content:3831e98282cd1a33|Diseksiyon",
+      "1!R35C3|2025-10-09|13:30-14:20|anatomyPractice|id:6607e3ca7dd44fa4|content:ebb6b6c41beb7bb6|Diseksiyon",
+      "1!R36C3|2025-10-09|14:30-15:20|anatomyPractice|id:736a1153fcbf93cc|content:db4f6d1c6af5b08b|Diseksiyon",
+      "1!R37C3|2025-10-09|15:30-16:20|anatomyPractice|id:462fa998ae9cb39a|content:d8d3fd13cb2bf442|Diseksiyon",
+      "1!R38C3|2025-10-14|13:30-14:20|anatomyPractice|id:0b3745b5e8c1bf97|content:ae0276c77c19cb35|Diseksiyon",
+      "1!R39C3|2025-10-14|14:30-15:20|anatomyPractice|id:3cd969d47ca5604e|content:b6a6b7938be7e077|Diseksiyon",
+      "1!R40C3|2025-10-14|15:30-16:20|anatomyPractice|id:4b94d46eb7c44501|content:7e90e50a9c7d11dc|Diseksiyon",
+      "1!R41C3|2025-10-23|13:30-14:20|anatomyPractice|id:6594fba372a43070|content:a6002edaeac43b77|Diseksiyon",
+      "1!R42C3|2025-10-23|14:30-15:20|anatomyPractice|id:50ee1bb8be31d9ef|content:04c45008498a5021|Diseksiyon",
+      "1!R43C3|2025-10-23|15:30-16:20|anatomyPractice|id:4fb73f32a81fde62|content:1765c0f8e8018f48|Diseksiyon",
+      "1!R44C3|2025-10-30|13:30-14:20|anatomyPractice|id:5f7f32535f0d9862|content:96bbcd656dda5860|Diseksiyon",
+      "1!R45C3|2025-10-30|14:30-15:20|anatomyPractice|id:e22f46fff24efa3a|content:695bbc47fcd606d5|Diseksiyon",
+      "1!R46C3|2025-10-30|15:30-16:20|anatomyPractice|id:1b6fe8c1b64fa63b|content:7b656838ef437596|Diseksiyon",
+      "1!R47C3|2025-11-04|13:30-14:20|anatomyPractice|id:f963c46006c490de|content:a2297d005e380936|Diseksiyon",
+      "1!R48C3|2025-11-04|14:30-15:20|anatomyPractice|id:16595358c7590649|content:8f9a81bb1b302eb3|Diseksiyon",
+      "1!R49C3|2025-11-04|15:30-16:20|anatomyPractice|id:1bfeb2a8827860f7|content:27e03e6f13918dfc|Diseksiyon",
+      "2!R1C3|2025-11-06|13:30-14:20|anatomyPractice|id:6c24fdb8b452a5ed|content:f4f3ed28ad44f2b2|Diseksiyon",
+      "2!R2C3|2025-11-06|14:30-15:20|anatomyPractice|id:55ecdea095073415|content:fe0bd145bb889503|Diseksiyon",
+      "2!R3C3|2025-11-06|15:30-16:20|anatomyPractice|id:b081ffc00c72aadb|content:7f1a6a313e77216e|Diseksiyon",
+      "2!R4C3|2025-11-11|13:30-14:20|anatomyPractice|id:20c043c820ae6503|content:8b8cbf60e814319c|Diseksiyon",
+      "2!R5C3|2025-11-11|14:30-15:20|anatomyPractice|id:a9904506ad5132dd|content:d679a3a2020b971c|Diseksiyon",
+      "2!R6C3|2025-11-11|15:30-16:20|anatomyPractice|id:a133fdb348046976|content:56647fa5c487b84f|Diseksiyon",
+      "2!R7C3|2025-11-13|13:30-14:20|anatomyPractice|id:48ae16e791ed4a19|content:3f657b9054657fed|Diseksiyon",
+      "2!R8C3|2025-11-13|14:30-15:20|anatomyPractice|id:a35cf064ba104633|content:7fdaa7f3cf3d970c|Diseksiyon",
+      "2!R9C3|2025-11-13|15:30-16:20|anatomyPractice|id:214efdfbae4560b6|content:4bef07ef6001b7bf|Diseksiyon",
+      "2!R10C3|2025-11-18|13:30-14:20|anatomyPractice|id:66e133dbd22c183a|content:ce7dec27b7bee768|Diseksiyon",
+      "2!R11C3|2025-11-18|14:30-15:20|anatomyPractice|id:7f095a953f23578f|content:1351ff3eecfdbc50|Diseksiyon",
+      "2!R12C3|2025-11-18|15:30-16:20|anatomyPractice|id:63612826df2bbdf3|content:2e1746fe40c1606f|Diseksiyon",
+      "2!R13C3|2025-11-20|13:30-14:20|anatomyPractice|id:5f07e84d6ae26a29|content:a35b4aa4d7a90b2c|Diseksiyon",
+      "2!R14C3|2025-11-20|14:30-15:20|anatomyPractice|id:37312ca5e90d7d6e|content:ee37ed074bde7d8a|Diseksiyon",
+      "2!R15C3|2025-11-20|15:30-16:20|anatomyPractice|id:5954dd632962cd21|content:a0988840e87800c6|Diseksiyon",
+      "2!R16C3|2025-11-25|13:30-14:20|anatomyPractice|id:1c91df87dbc8a0c1|content:a6750e812ef66c62|Diseksiyon",
+      "2!R17C3|2025-11-25|14:30-15:20|anatomyPractice|id:291caac19158ef2b|content:a9ed89d59458c9bb|Diseksiyon",
+      "2!R18C3|2025-11-25|15:30-16:20|anatomyPractice|id:318c062e6a44d87b|content:2d0a68e6a2932b82|Diseksiyon",
+      "2!R19C3|2025-11-27|13:30-14:20|anatomyPractice|id:71ac33a59ca9bff4|content:11c1b2e8bf1c6e63|Diseksiyon",
+      "2!R20C3|2025-11-27|14:30-15:20|anatomyPractice|id:5b22da1bbdae9379|content:311409e5c6274c32|Diseksiyon",
+      "2!R21C3|2025-11-27|15:30-16:20|anatomyPractice|id:e09d6a83fad251c6|content:a737a21378d5b525|Diseksiyon",
+      "2!R22C3|2025-12-02|13:30-14:20|anatomyPractice|id:79be28ee36e9b4f1|content:2507cf9aae01608c|Diseksiyon",
+      "2!R23C3|2025-12-02|14:30-15:20|anatomyPractice|id:df9db563d41efdcf|content:3dca2a6649f08418|Diseksiyon",
+      "2!R24C3|2025-12-02|15:30-16:20|anatomyPractice|id:ae3e4a045a057b8c|content:4c289f53b1373357|Diseksiyon",
+      "2!R25C3|2025-12-04|13:30-14:20|anatomyPractice|id:06c0e5974c9d4f09|content:a7ed7a45f50b1431|Diseksiyon",
+      "2!R26C3|2025-12-04|14:30-15:20|anatomyPractice|id:a4c739f989528994|content:9e056f6208dff256|Diseksiyon",
+      "2!R27C3|2025-12-04|15:30-16:20|anatomyPractice|id:f985982ba2623a64|content:8a70e6f37825e5e6|Diseksiyon",
+      "2!R28C3|2025-12-09|13:30-14:20|anatomyPractice|id:fc67448a2ff3a87f|content:420b1b89f607647d|Diseksiyon",
+      "2!R29C3|2025-12-09|14:30-15:20|anatomyPractice|id:13d9470342debe0d|content:4c8b7e32379010a1|Diseksiyon",
+      "2!R30C3|2025-12-09|15:30-16:20|anatomyPractice|id:33e5055e5b52ab90|content:a5f9558db7f595a2|Diseksiyon",
+      "2!R31C3|2025-12-11|13:30-14:20|anatomyPractice|id:53cffa4115499a9d|content:95e2b62691bc0549|Diseksiyon",
+      "2!R32C3|2025-12-11|14:30-15:20|anatomyPractice|id:5951aa259015034a|content:51a83231b0c6004e|Diseksiyon",
+      "2!R33C3|2025-12-11|15:30-16:20|anatomyPractice|id:17bd2e5ef314e484|content:157944255154f817|Diseksiyon",
+      "2!R34C3|2025-12-16|13:30-14:20|anatomyPractice|id:61600ce44b4ba796|content:40f71beb2d836c17|Diseksiyon",
+      "2!R35C3|2025-12-16|14:30-15:20|anatomyPractice|id:a72b3485611aba92|content:b25f6bcd68a065c7|Diseksiyon",
+      "2!R36C3|2025-12-16|15:30-16:20|anatomyPractice|id:f2aa2c199a28c20a|content:2b816aab641886f4|Diseksiyon",
+      "2!R37C3|2025-12-18|13:30-14:20|anatomyPractice|id:8541ea454be548e1|content:b8ca2a0e9c5bfd56|Diseksiyon",
+      "2!R38C3|2025-12-18|14:30-15:20|anatomyPractice|id:6464770e97bf701d|content:da71b3fa2fcb2c58|Diseksiyon",
+      "2!R39C3|2025-12-18|15:30-16:20|anatomyPractice|id:4d5e2d4841f93fe2|content:61a1444064c2447f|Diseksiyon",
+      "2!R40C3|2025-12-23|13:30-14:20|anatomyPractice|id:a3f5e8aa68d69095|content:41b0247246703fba|Diseksiyon",
+      "2!R41C3|2025-12-23|14:30-15:20|anatomyPractice|id:e70dbb60144153e3|content:f38e64b926d6d7d6|Diseksiyon",
+      "2!R42C3|2025-12-23|15:30-16:20|anatomyPractice|id:6cca6bd09a72fb47|content:8d6cc34bdc31d5f0|Diseksiyon"
+    ],
+    "confidenceIndicators": [
+      {
+        "candidateId": "1!R2C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R3C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R4C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R5C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R6C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R7C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R8C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R9C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R10C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R11C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R12C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R13C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R14C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R15C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R16C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R17C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R18C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R19C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R20C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R21C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R22C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R23C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R24C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R25C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R26C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R27C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R28C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R29C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R30C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R31C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R32C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R33C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R34C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R35C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R36C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R37C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R38C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R39C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R40C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R41C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R42C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R43C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R44C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R45C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R46C3",
+        "field": "localDate",
+        "reason": "dateFromNeighbouringRowInDayBlock",
+        "score": 0.8
+      },
+      {
+        "candidateId": "1!R47C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R48C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R49C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R1C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R2C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R3C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R4C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R5C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R6C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R7C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R8C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R9C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R10C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R11C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R12C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R13C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R14C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R15C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R16C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R17C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R18C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R19C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R20C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R21C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R22C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R23C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R24C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R25C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R26C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R27C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R28C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R29C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R30C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R31C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R32C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R33C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R34C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R35C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R36C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R37C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R38C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R39C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R40C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R41C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "2!R42C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      }
+    ],
+    "firstCandidate": {
+      "academicYear": "2025-2026",
+      "audience": {
+        "scope": "selectedGroups",
+        "selectors": [
+          {
+            "dimension": "anatomyGroup",
+            "value": "1"
+          }
+        ]
+      },
+      "candidateId": "1!R2C3",
+      "classYear": 2,
+      "confidence": 0.8,
+      "contentHash": "sha256:1c9ae1e50e5864756dbabf786d37c79f7694f8d631102f4f58c1a2f5b2ec45af",
+      "curriculumBlock": null,
+      "departments": [],
+      "displayTitle": "Diseksiyon",
+      "endLocalTime": "14:20:00",
+      "eventType": "anatomyPractice",
+      "evidence": [
+        {
+          "extractionRule": "anatomy.dateCell",
+          "range": "A2",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Table 1"
+        },
+        {
+          "extractionRule": "anatomy.timeRangeCell",
+          "range": "B2",
+          "rawText": "13:30-14:20",
+          "sheetId": "1",
+          "sheetTitle": "Table 1"
+        },
+        {
+          "extractionRule": "anatomy.groupCell",
+          "range": "C2",
+          "rawText": "1",
+          "sheetId": "1",
+          "sheetTitle": "Table 1"
+        }
+      ],
+      "identityComponents": [
+        {
+          "name": "academicYear",
+          "value": "2025-2026"
+        },
+        {
+          "name": "classYear",
+          "value": "2"
+        },
+        {
+          "name": "programLanguage",
+          "value": "turkish"
+        },
+        {
+          "name": "localDate",
+          "value": "2025-09-02"
+        },
+        {
+          "name": "startLocalTime",
+          "value": "13:30:00"
+        },
+        {
+          "name": "courseIdentity",
+          "value": "diseksiyon"
+        },
+        {
+          "name": "audience",
+          "value": "anatomyGroup:1"
+        }
+      ],
+      "instructor": null,
+      "isAllDay": false,
+      "localDate": "2025-09-02",
+      "location": null,
+      "normalizedCourseIdentity": "diseksiyon",
+      "programLanguage": "turkish",
+      "stableIdentity": "sha256:89e2037c5c0ed1b9139e5a2c5bde9564fcf37ef65f86bad685cfcb487e10e3bf",
+      "startLocalTime": "13:30:00",
+      "status": "scheduled",
+      "timeZoneId": "Europe/Istanbul"
+    },
+    "lastCandidate": {
+      "academicYear": "2025-2026",
+      "audience": {
+        "scope": "selectedGroups",
+        "selectors": [
+          {
+            "dimension": "anatomyGroup",
+            "value": "2"
+          }
+        ]
+      },
+      "candidateId": "2!R42C3",
+      "classYear": 2,
+      "confidence": 0.9,
+      "contentHash": "sha256:8d6cc34bdc31d5f048636ff9184a240f9e10e9776e653cae9395e3de28b49ca5",
+      "curriculumBlock": null,
+      "departments": [],
+      "displayTitle": "Diseksiyon",
+      "endLocalTime": "16:20:00",
+      "eventType": "anatomyPractice",
+      "evidence": [
+        {
+          "extractionRule": "anatomy.dateCell",
+          "range": "A40:A42",
+          "rawText": "\n23 Aralık 2025 Salı ",
+          "sheetId": "2",
+          "sheetTitle": "Table 2"
+        },
+        {
+          "extractionRule": "anatomy.timeRangeCell",
+          "range": "B42",
+          "rawText": "15:30-16:20",
+          "sheetId": "2",
+          "sheetTitle": "Table 2"
+        },
+        {
+          "extractionRule": "anatomy.groupCell",
+          "range": "C42",
+          "rawText": "2",
+          "sheetId": "2",
+          "sheetTitle": "Table 2"
+        }
+      ],
+      "identityComponents": [
+        {
+          "name": "academicYear",
+          "value": "2025-2026"
+        },
+        {
+          "name": "classYear",
+          "value": "2"
+        },
+        {
+          "name": "programLanguage",
+          "value": "turkish"
+        },
+        {
+          "name": "localDate",
+          "value": "2025-12-23"
+        },
+        {
+          "name": "startLocalTime",
+          "value": "15:30:00"
+        },
+        {
+          "name": "courseIdentity",
+          "value": "diseksiyon"
+        },
+        {
+          "name": "audience",
+          "value": "anatomyGroup:2"
+        }
+      ],
+      "instructor": null,
+      "isAllDay": false,
+      "localDate": "2025-12-23",
+      "location": null,
+      "normalizedCourseIdentity": "diseksiyon",
+      "programLanguage": "turkish",
+      "stableIdentity": "sha256:6cca6bd09a72fb47b8da5a5522a1f246d62c804d6a01dd5e3c0cdb27009874dc",
+      "startLocalTime": "15:30:00",
+      "status": "scheduled",
+      "timeZoneId": "Europe/Istanbul"
+    },
+    "metrics": [
+      {
+        "name": "audience.dimension.anatomyGroup",
+        "unit": null,
+        "value": 90.0
+      },
+      {
+        "name": "candidates.emitted",
+        "unit": null,
+        "value": 90.0
+      },
+      {
+        "name": "candidates.eventType.anatomyPractice",
+        "unit": null,
+        "value": 90.0
+      },
+      {
+        "name": "dates.rule.monthNameDate",
+        "unit": null,
+        "value": 30.0
+      },
+      {
+        "name": "days.detected",
+        "unit": null,
+        "value": 30.0
+      },
+      {
+        "name": "rows.dateFromDayBlock",
+        "unit": null,
+        "value": 30.0
+      },
+      {
+        "name": "rows.dissection",
+        "unit": null,
+        "value": 90.0
+      },
+      {
+        "name": "rows.ignored",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "rows.ignored.notADissectionRow",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "rows.scanned",
+        "unit": null,
+        "value": 91.0
+      },
+      {
+        "name": "worksheets.scanned",
+        "unit": null,
+        "value": 2.0
+      },
+      {
+        "name": "worksheets.selected",
+        "unit": null,
+        "value": 2.0
+      }
+    ],
+    "parserProfile": {
+      "name": "grade2_anatomy_autumn_v1",
+      "version": "1.0.0"
+    },
+    "responseDigest": "sha256:67fa5d8450fbb0b23b1c72c4d155bb69cbdde0b4cf14da1e4e2bdd70625b90ff",
+    "snapshotId": "fixture:sha256:732583bb338ce5dd6f7af6210bfb9fed79e521f8d6b8f070bed3cb6f53a7f0b1",
+    "sourceId": "G2-ANATOMY-AUTUMN",
+    "status": "completed",
+    "warnings": [
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "anatomy.row",
+          "range": "A1:C1",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Table 1"
+        },
+        "message": "Rows were ignored because of rule 'notADissectionRow'. See metric 'rows.ignored.notADissectionRow' for the total.",
+        "severity": "information"
+      }
+    ]
+  },
+  "subject": "parseResponse"
+}

@@ -55,11 +55,13 @@ the Turkish and the English source, deferring the dissection group rotation to t
 anatomy sources (ADR-073). The Grade 2 Turkish practice table parses through its own
 slot-column reader, `grade2_practice_v1` (ADR-074). **A Word document now converts onto
 the same normalized snapshot contract as a workbook** (ADR-076), and the vertical-corridor
-skill-practice calendar is parsed from it by `grade2_vertical_corridor_v1` (ADR-077).
-**Acquiring** a Word document at runtime still does not exist, so those two revisions
-cannot be produced outside a fixture. Drive, HTTP and administrative-upload acquisition,
-the anatomy profiles, Grade 2 support in the student-profile schema, and the
-remaining operational surfaces still do not exist. The **consumer frontend now
+skill-practice calendar is parsed from it by `grade2_vertical_corridor_v1` (ADR-077), as
+are the anatomy group lists by `grade2_anatomy_{autumn,spring}_v1` (ADR-078). **Every
+Grade 2 source now has a parser profile.** What they do not have is a way in:
+**acquiring** a Word document at runtime does not exist, so none of those four revisions
+can be produced outside a fixture, and the two anatomy sources are not even catalogued.
+Drive, HTTP and administrative-upload acquisition, Grade 2 support in the student-profile
+schema, and the remaining operational surfaces still do not exist. The **consumer frontend now
 has a runnable foundation** (`web/`, ADR-066): Google sign-in, license redemption,
 academic profile, Calendar authorization, and initial-sync progress are wired to
 the existing APIs and gated by authoritative backend onboarding state. Admin
@@ -80,6 +82,31 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- **Implemented the anatomy profiles (ADR-078), which close the last Grade 2 source.**
+  `grade2_anatomy_autumn_v1` and `grade2_anatomy_spring_v1` publish 156 dissection
+  sessions — 90 over 30 autumn teaching days, 66 over 22 spring ones. Each of the three
+  anatomy groups gets exactly one session per day, which is the rotation ADR-073 predicted
+  from the annual program and could not prove from it.
+- **A day is a run of hours, not a row with a date.** The same document states a day two
+  ways: a vertical merge over its three hours in the later rows, and the date simply typed
+  into the middle of three rows in the earlier ones — 30 of the autumn document's 90 rows.
+  A day is therefore a run of consecutive rows whose hours advance, stating exactly one
+  date between them; a run stating none or several publishes nothing.
+- **The day is the unit of refusal.** Publishing the hour that states the date and
+  dropping the two beside it would give two groups no session and the third one that may
+  not be theirs — worse than nothing, because it looks complete. A date attributed from a
+  neighbouring row scores 0.8 and says so in a confidence indicator; a date reached
+  through a merge does not, because a merge is the document saying it.
+- The lesson title is the profile's declared annual marker `Diseksiyon`, so this source
+  and the annual program agree on identity. A profile declaring no marker rejects the
+  snapshot rather than inventing a name.
+- The spring document states `9 Nisan 2025` where it means 2026, contradicting its own
+  weekday; that day is refused whole. It is the fourth Grade 2 document with a year that
+  is a year out.
+- **Neither anatomy source is catalogued**, so neither profile can run outside a fixture
+  and `anatomyGroup` has no declared selector list to validate against. Both wait on the
+  same missing piece: an administrative upload path for a document with no URL.
 
 - **Implemented the vertical-corridor profile (ADR-077), which unblocks the sessions the
   other two Grade 2 profiles defer.** `grade2_vertical_corridor_v1` 1.0.0 publishes 42
@@ -139,7 +166,7 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
   fabricated URL. They are handed out once a semester and unchanged afterwards, so an
   administrative upload fits them; Student Affairs edits the vertical-corridor documents
   during the year, so those need re-acquisition. Both transports remain unbuilt.
-- 387 Python tests (up from 349) and 344 Infrastructure unit tests (up from 337) pass;
+- 408 Python tests (up from 349) and 344 Infrastructure unit tests (up from 337) pass;
   Ruff, Ruff format, Mypy and the Release build are clean.
 
 - **Implemented the Grade 2 Turkish practice profile (ADR-074).** `grade2_practice_v1`

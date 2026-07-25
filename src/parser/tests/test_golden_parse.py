@@ -94,6 +94,22 @@ CASES = (
         "turkish",
         "parse/g2-vertical-spring.json",
     ),
+    # Both semesters again, because the autumn document writes most of its days
+    # without a merge and the spring one carries a date whose year is a year out.
+    (
+        "grade2_anatomy_autumn_v1",
+        "real/g2-anatomy-autumn.snapshot.json",
+        2,
+        "turkish",
+        "parse/g2-anatomy-autumn.json",
+    ),
+    (
+        "grade2_anatomy_spring_v1",
+        "real/g2-anatomy-spring.snapshot.json",
+        2,
+        "turkish",
+        "parse/g2-anatomy-spring.json",
+    ),
 )
 
 CASE_FIELDS = ("profile_name", "fixture", "class_year", "program_language", "golden")

@@ -92,6 +92,7 @@ the remaining profiles.
 | `grade2_yearly_v1` | `G2-TR-ANNUAL`, `G2-EN-ANNUAL` | `tests/fixtures/real/g2-{tr,en}-annual.snapshot.json` |
 | `grade2_practice_v1` | `G2-TR-PRACTICE` | `tests/fixtures/real/g2-tr-practice.snapshot.json` |
 | `grade2_vertical_corridor_v1` | `G2-VERTICAL-AUTUMN`, `G2-VERTICAL-SPRING` | `tests/fixtures/real/g2-vertical-{autumn,spring}.snapshot.json` |
+| `grade2_anatomy_autumn_v1`, `grade2_anatomy_spring_v1` | not yet in the source catalog | `tests/fixtures/real/g2-anatomy-{autumn,spring}.snapshot.json` |
 
 `parsers/annual.py` reads the row-oriented annual layout: one lesson per row,
 with columns selected by header alias rather than by position, so the Turkish
@@ -183,6 +184,37 @@ tables write `OKSİJEN (Doç. Dr. Bengüsu MİRASOĞLU` and never close the brac
 An unclosed trailing parenthetical becomes the instructor **only** when it starts
 with an academic title, which is what keeps the same practice from reaching
 calendars under two titles, one ending mid-bracket.
+
+### A day is a run of hours, not a row with a date
+
+`parsers/anatomy.py` reads the dissection group lists that ADR-073 defers to: the
+annual program states all three of a day's dissection hours and this document
+says which of them each anatomy group attends. Three columns — a date, an hour,
+a group — and three rows per teaching day (ADR-078).
+
+The awkward part is that **one document states a day two different ways**. In its
+later rows a day is a vertical merge over its three hours; in its earlier ones the
+date is simply typed into the middle row of the three, with the cells above and
+below left empty. To a reader those look the same. To a grid the second is two
+undated rows.
+
+So a day is recognized by its own shape: a run of consecutive rows whose hours
+advance, stating exactly one date between them. A run that states none, or
+several, publishes nothing.
+
+- **The day is the unit of refusal.** Publishing the hour that happens to state
+  the date and dropping the two beside it would give two of the three groups no
+  session and the third one that may not be theirs.
+- **A date attributed from a neighbouring row scores 0.8 and says so**, in a
+  confidence indicator naming `dateFromNeighbouringRowInDayBlock`. A date reached
+  through a merge does not: a merge is the document itself saying the three hours
+  are one day.
+- **The lesson title comes from the profile**, not the parser. These rows name no
+  lesson, so the title is the profile's declared annual marker — `Diseksiyon`, the
+  name the annual program gives the same lesson. A profile that declares none
+  publishes nothing rather than inventing one.
+- The anatomy group is a dimension of its own. It is independent of a student's
+  practice group, and a value outside the three the source states is refused.
 
 ### A holiday is an all-day item, not a lesson at midnight
 

@@ -26,9 +26,13 @@ def test_registered_profiles_include_independent_anatomy_group() -> None:
     anatomy_profile = next(
         profile for profile in response.json() if profile["name"] == "grade2_anatomy_autumn_v1"
     )
+    # The anatomy group is a dimension of its own: it is independent of the
+    # practice group a student is in, and the two must never be read into one
+    # another. The annual marker is the title the annual program gives the same
+    # lesson, and it is what this source's rows are published under (ADR-078).
     assert anatomy_profile["audience_dimensions"] == ["anatomyGroup"]
     assert anatomy_profile["annual_markers"] == ["Diseksiyon"]
-    assert anatomy_profile["implemented"] is False
+    assert anatomy_profile["implemented"] is True
 
 
 def test_every_profile_advertises_the_numeric_date_order_it_declares() -> None:
@@ -68,6 +72,10 @@ def test_the_annual_profile_is_advertised_as_implemented() -> None:
 
 def test_registered_but_unimplemented_profile_is_not_silent_success() -> None:
     request = json.loads(CONTRACT_FIXTURE.read_text(encoding="utf-8"))
+    # Named here rather than taken from the shared contract fixture, which the
+    # .NET contract tests read too: the profile it names became implemented, and
+    # this test needs one that is still only described.
+    request["parserProfile"] = {"name": "grade3_bedside_v1", "version": "1.0.0"}
 
     response = client.post("/v1/parse", json=request)
 
