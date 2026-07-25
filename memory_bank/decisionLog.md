@@ -3249,3 +3249,60 @@ interval.
   user re-authorization is required.
 
 ---
+
+## ADR-071: The group-specific practice source supersedes bare annual slot placeholders
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-25
+**Implements:** exact annual placeholder exclusion, parser diagnostics and regressions,
+real-fixture golden updates, `grade1_yearly_v1` 1.3.0 re-parse trigger
+**Amends:** ADR-030, ADR-068
+
+### Context
+
+After the Grade 1 Turkish annual revision reached Calendar, a Group B student saw
+both the whole-program annual event `UYGULAMA` and the group-specific event such as
+`Temel Biyofizik` from the practice table in the same time slot.
+
+The sources were not two independent lessons. The published annual revision contained
+134 rows whose entire title was `UYGULAMA`, with an `AllStudentsInProgram` audience.
+The companion practice source supplied the real lesson identity and selected practice
+groups for those slots. The annual row was therefore a coarse grid placeholder, not a
+calendar event in addition to the detailed practice.
+
+Excluding every annual title containing `uygulama`, `practice`, or `lab` would be
+destructive. The same source also contains real named sessions such as anatomy
+practice, physiology practice, laboratory skills, and theory titles in which
+“uygulama” is ordinary course wording.
+
+### Decision
+
+In the Grade 1 annual parser, exclude a row as
+`outOfScopePracticePlaceholder` only when its normalized title words are exactly
+`("uygulama",)` or `("practice",)`. The curriculum block does not turn that bare
+title into a real lesson; the companion practice source remains authoritative for
+the actual audience and name.
+
+Retain every longer or otherwise named title, including `Anatomi Uygulama 14/21`,
+`FİZYOLOJİ UYGULAMA`, `LABORATORY SKILLS (...)`, and theory titles containing an
+application-related word.
+
+Bump `grade1_yearly_v1` to 1.3.0 for both TR and EN catalog entries. Re-parse retained
+snapshots and publish the reduced revision normally. Already-created placeholder
+events are deleted only by its semantic diff, preserving the deletion authority and
+mapping ledger rules.
+
+### Consequences
+
+- A student receives only their detailed group-specific practice event for those
+  slots, not an additional generic whole-class event.
+- The real TR fixture drops from 855 to 721 candidates, exactly matching the 134
+  excluded placeholders. Named practice records remain. The EN fixture has no bare
+  placeholder and stays at 893 candidates.
+- The live database source may differ slightly from the committed fixture, but the
+  deterministic title rule applies identically and the normal mass-deletion guard
+  still validates the resulting revision.
+- No database migration, direct Google Calendar edit, or user re-authorization is
+  required. Worker restart is required to seed 1.3.0 and drive the forward fix.
+
+---

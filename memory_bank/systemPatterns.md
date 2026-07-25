@@ -837,3 +837,10 @@ schedule. A normal per-pass budget yield should trigger a short, bounded continu
 that runs only the idempotent external-write stages; it must not repeatedly reacquire
 sources or rerun unrelated maintenance. Once the ledger reports no remaining work,
 return to the ordinary adaptive acquisition interval (ADR-070).
+
+When a coarse annual source and a group-specific companion source describe the same
+slot, the source with the narrower audience and real lesson identity is authoritative.
+Exclude only an explicit, semantically empty annual placeholder (for example a
+one-token `UYGULAMA`), never every title containing a practice keyword. Account for
+each exclusion in parser diagnostics and remove previously published placeholders
+only through a new published revision and semantic diff (ADR-071).

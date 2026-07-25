@@ -31,6 +31,7 @@ from sirkadiyen_parser.parsers.annual import (
     METRIC_LOCATION_DEFERRED,
     METRIC_ROWS_HIDDEN,
     METRIC_ROWS_NON_TEACHING_BREAK,
+    METRIC_ROWS_OUT_OF_SCOPE_PRACTICE_PLACEHOLDER,
     METRIC_ROWS_OUT_OF_SCOPE_SUBJECT,
     METRIC_WORKSHEETS_IGNORED_NO_HEADER,
     WARNING_CONFLICTING_DUPLICATE,
@@ -42,7 +43,7 @@ from sirkadiyen_parser.profiles import ParserProfileDefinition, get_profile
 
 PROFILE = ParserProfileDefinition(
     "grade1_yearly_v1",
-    "1.2.0",
+    "1.3.0",
     "annual",
     NumericDateOrder.UNDECLARED,
 )
@@ -50,7 +51,7 @@ PROFILE = ParserProfileDefinition(
 #: The same profile as if a real workbook had shown it writes ``01/10/2025``.
 DAY_FIRST_PROFILE = ParserProfileDefinition(
     "grade1_yearly_v1",
-    "1.2.0",
+    "1.3.0",
     "annual",
     NumericDateOrder.DAY_FIRST,
 )
@@ -196,11 +197,11 @@ def metrics(response: ParseSnapshotResponse) -> dict[str, float]:
 
 
 def test_the_registered_profile_is_the_annual_implementation() -> None:
-    profile = get_profile("grade1_yearly_v1", "1.2.0")
+    profile = get_profile("grade1_yearly_v1", "1.3.0")
 
     assert profile is not None
     assert get_parser(profile.name, profile.version) is parse_annual_snapshot
-    assert ("grade1_yearly_v1", "1.2.0") in implemented_profiles()
+    assert ("grade1_yearly_v1", "1.3.0") in implemented_profiles()
 
 
 def test_a_lesson_row_becomes_a_candidate() -> None:
@@ -231,6 +232,34 @@ def test_pdo_pbl_rows_are_excluded_from_the_whole_class_program(title: str) -> N
 
     assert response.candidates == []
     assert metrics(response)[METRIC_ROWS_OUT_OF_SCOPE_SUBJECT] == 1
+
+
+@pytest.mark.parametrize("title", ["UYGULAMA", "PRACTICE"])
+def test_generic_practice_placeholder_is_excluded_from_the_annual_program(
+    title: str,
+) -> None:
+    response = parse([worksheet(lesson_row(1, title=title))])
+
+    assert response.candidates == []
+    assert metrics(response)[METRIC_ROWS_OUT_OF_SCOPE_PRACTICE_PLACEHOLDER] == 1
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Anatomi Uygulama 14 / 21",
+        "FİZYOLOJİ UYGULAMA",
+        "Psikolojinin Uygulama Alanları",
+        "LABORATORY SKILLS (BIOPHYSICS 1)",
+    ],
+)
+def test_named_practice_and_titles_containing_practice_words_are_retained(
+    title: str,
+) -> None:
+    response = parse([worksheet(lesson_row(1, title=title))])
+
+    assert [candidate.display_title for candidate in response.candidates] == [title]
+    assert METRIC_ROWS_OUT_OF_SCOPE_PRACTICE_PLACEHOLDER not in metrics(response)
 
 
 def test_a_lunch_break_is_excluded_but_free_study_is_kept() -> None:

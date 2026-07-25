@@ -1331,3 +1331,22 @@ dimension can be added with evidence.
 - The 100-mutation safety bound and durable-ledger replanning remain unchanged.
 - Verification: 325 Infrastructure unit tests passed; the full Release solution build,
   `dotnet format --verify-no-changes`, and `git diff --check` passed.
+
+## Latest parser session (2026-07-25, annual practice placeholders)
+
+- The published `G1-TR-ANNUAL` revision contained 134 records whose complete title
+  was `UYGULAMA`. They were whole-program slot placeholders, while
+  `G1-TR-PRACTICE` published the authoritative group-specific lesson in the same
+  slot. A Group B student therefore received both `UYGULAMA` and, for example,
+  `Temel Biyofizik`.
+- ADR-071 excludes only a normalized one-token `UYGULAMA` or `PRACTICE` annual
+  title. Named lessons such as `Anatomi Uygulama 14/21`, `FİZYOLOJİ UYGULAMA`,
+  laboratory skills, and theory titles containing the word remain.
+- `grade1_yearly_v1` is now 1.3.0, forcing retained snapshots to re-parse. The
+  resulting forward-fix revision deletes the placeholders through a published
+  semantic diff; no direct Calendar cleanup is used.
+- Real fixture results: TR candidates 855 → 721 with exactly 134
+  `rows.ignored.outOfScopePracticePlaceholder`; EN remains 893.
+- Verification: 301 Python tests, Ruff lint/format, Mypy, 325 Infrastructure tests,
+  full Release build, .NET format, and diff checks passed. The live parser reload
+  advertises 1.3.0.

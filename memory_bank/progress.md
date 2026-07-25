@@ -339,6 +339,11 @@ quota yields no longer wait for the adaptive source polling interval: the worker
 continues initial sync, incremental dispatch, and reconciliation after a configurable
 five-second Calendar-only delay, without re-polling schedule sources.
 
+Grade 1 annual/practice source ownership is corrected through ADR-071. Bare
+`UYGULAMA`/`PRACTICE` annual slot placeholders are excluded, while named practice
+lessons remain. Profile 1.3.0 reparses retained snapshots and removes already-synced
+placeholders through the normal semantic deletion diff.
+
 The consumer frontend now has a runnable foundation in `web/` (ADR-066). It is a Next.js App
 Router + TypeScript project that walks a student through the whole onboarding path — Google
 sign-in, license redemption, academic profile, Calendar authorization, and initial-sync

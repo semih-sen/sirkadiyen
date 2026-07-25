@@ -28,12 +28,12 @@ _PROFILE_VERSION = "1.0.0"
 _UNDECLARED = NumericDateOrder.UNDECLARED
 
 _PROFILES = (
-    # 1.1.0: the annual parser now excludes PDÖ/PBL and lunch breaks (ADR-068). The
-    # 1.2.0 gives free-study availability blocks an explicit event type so their
-    # source-authored overlaps do not quarantine an otherwise healthy revision.
+    # 1.1.0 excludes PDÖ/PBL and lunch; 1.2.0 models free study explicitly.
+    # 1.3.0 excludes one-token UYGULAMA/PRACTICE slot placeholders because the
+    # companion practice source publishes the authoritative group-specific lesson.
     # The bump forces the worker to re-parse the stored annual snapshots, since a
     # parse run is keyed by (snapshot, profile, version).
-    ParserProfileDefinition("grade1_yearly_v1", "1.2.0", "annual", _UNDECLARED),
+    ParserProfileDefinition("grade1_yearly_v1", "1.3.0", "annual", _UNDECLARED),
     ParserProfileDefinition(
         "grade1_practice_v1",
         _PROFILE_VERSION,
