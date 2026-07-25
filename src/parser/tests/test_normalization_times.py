@@ -4,6 +4,7 @@ import pytest
 
 from sirkadiyen_parser.contracts.snapshot import NormalizedCell
 from sirkadiyen_parser.normalization.times import (
+    REASON_NOT_A_DAY_FRACTION,
     RULE_COMPACT_TEXT,
     RULE_FRACTION,
     RULE_TEXT,
@@ -107,6 +108,32 @@ def test_resolve_cell_time_reads_a_bare_fraction_when_the_profile_opts_in() -> N
     resolution = resolve_cell_time(number_cell(0.375), allow_bare_fraction=True)
 
     assert resolution.value == time(9, 0)
+
+
+def test_resolve_cell_time_refuses_a_whole_number_in_a_time_formatted_cell() -> None:
+    # The Grade 2 English workbook holds a bare 9 in a `hh:mm` cell, meaning nine
+    # in the morning to whoever typed it. As a spreadsheet value it is nine whole
+    # days and no time at all, and the workbook itself renders it 00:00. Reading
+    # only the fractional part would publish a lesson at midnight.
+    resolution = resolve_cell_time(number_cell(9, number_format_type="TIME"))
+
+    assert not resolution.resolved
+    assert resolution.reason == REASON_NOT_A_DAY_FRACTION
+
+
+def test_resolve_cell_time_refuses_an_out_of_range_bare_fraction() -> None:
+    assert (
+        resolve_cell_time(number_cell(9), allow_bare_fraction=True).reason
+        == REASON_NOT_A_DAY_FRACTION
+    )
+
+
+def test_resolve_cell_time_still_reads_the_time_part_of_a_declared_timestamp() -> None:
+    # A DATE_TIME cell legitimately carries the day in its whole part.
+    resolution = resolve_cell_time(number_cell(45973.375, number_format_type="DATE_TIME"))
+
+    assert resolution.value == time(9, 0)
+    assert resolution.rule == RULE_FRACTION
 
 
 def test_resolve_cell_time_range_reads_readable_text() -> None:

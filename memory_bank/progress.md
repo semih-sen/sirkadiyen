@@ -71,7 +71,7 @@
 ## Phase 4: Source inventory and ingestion
 
 - [ ] Add first-year source fixtures
-- [ ] Add second-year source fixtures
+- [x] Add second-year annual source fixtures (`g2-{tr,en}-annual.snapshot.json`)
 - [ ] Add third-year source fixtures
 - [ ] Add weekly amphitheatre fixtures
 - [ ] Document every source
@@ -106,6 +106,8 @@
 - [x] Add parser profile implementation registry
 - [x] Add stable identity and content hashing
 - [x] Declare the numeric date order per parser profile (ADR-051)
+- [x] Refuse a numeric time cell that is not a day fraction (parser engine 0.2.0, ADR-073)
+- [x] Declare per-profile group-rotation subjects owned by a companion source (ADR-073)
 
 ## Phase 6: Parser profiles
 
@@ -114,9 +116,9 @@
 - [x] First-year English annual
 - [ ] First-year English practice
 - [ ] First-year anatomy practice
-- [ ] Second-year Turkish annual
+- [x] Second-year Turkish annual (`grade2_yearly_v1`, ADR-073)
 - [ ] Second-year Turkish practice
-- [ ] Second-year English annual
+- [x] Second-year English annual (same profile, ADR-073)
 - [ ] Second-year English practice
 - [ ] Second-year anatomy autumn
 - [ ] Second-year anatomy spring
@@ -331,8 +333,21 @@ duplicate into deletion authority. Initial sync recovers exactly one marker-matc
 calendar, and PostgreSQL advisory locking fences dispatch, replay and inventory across workers.
 
 Calendar synchronization and reconciliation hardening is complete through ADR-065, including
-intra-diff quota-aware fan-out. The next schedule-source slice remains
-`grade2_yearly_v1`, which needs no new canonical field.
+intra-diff quota-aware fan-out.
+
+The Grade 2 annual slice is implemented (ADR-073). One profile, `grade2_yearly_v1` 1.0.0,
+serves both `G2-TR-ANNUAL` (790 candidates) and `G2-EN-ANNUAL` (935), because the two
+workbooks are the Grade 1 row layout with different header wording and term text. It needed
+no new canonical field. Two source-driven rules came with it: a subject a profile declares as
+a **group rotation** is excluded from the whole-class program — Grade 2 writes one dissection
+session as three consecutive daily slots and the anatomy group list assigns each student one
+of them — and a **numeric time cell that is not a day fraction** is refused instead of being
+reduced modulo one day, which used to publish an English free-study block from midnight.
+
+The next schedule-source slices are `grade2_practice_v1` (a block-and-slot matrix, structurally
+unlike the Grade 1 rotation table) and the Grade 2 anatomy/vertical-corridor DOCX sources,
+which own the rows the annual profile now defers. Before any Grade 2 student can receive these
+revisions, the supported-profile schema (ADR-055) must be extended past class year 1.
 
 Calendar backlog scheduling is complete through ADR-070. Ordinary 100-operation
 quota yields no longer wait for the adaptive source polling interval: the worker

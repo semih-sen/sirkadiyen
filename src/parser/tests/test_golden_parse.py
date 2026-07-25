@@ -1,9 +1,11 @@
-"""Golden-file regression tests for the implemented Grade 1 profiles.
+"""Golden-file regression tests for the implemented parser profiles.
 
-Both sources that the catalog maps to ``grade1_yearly_v1`` are covered, because
-the Turkish and English workbooks differ in header wording, worksheet count and
-the shape of their data-entry mistakes. A change that fixes one and breaks the
-other has to be visible.
+Both sources of each annual profile are covered, because the Turkish and English
+workbooks differ in header wording, worksheet count and the shape of their
+data-entry mistakes. A change that fixes one and breaks the other has to be
+visible. The class year comes from the case rather than from a constant: the two
+annual profiles share an implementation, and reading a Grade 2 workbook as
+Grade 1 would silently drop every row.
 """
 
 from typing import Any
@@ -25,7 +27,7 @@ def _registered_version(profile_name: str) -> str:
     """The single registered version for a profile, so cases need not repeat it.
 
     Profiles are versioned independently (a behaviour change bumps only its own
-    profile, e.g. grade1_yearly_v1 to 1.4.0), so the version is read
+    profile, e.g. grade1_yearly_v1 to 1.5.0), so the version is read
     from the registry rather than shared across every case.
     """
     versions = [version for (name, version) in implemented_profiles() if name == profile_name]
@@ -37,25 +39,49 @@ CASES = (
     (
         "grade1_yearly_v1",
         "real/g1-tr-annual.snapshot.json",
+        1,
         "turkish",
         "parse/g1-tr-annual.json",
     ),
     (
         "grade1_yearly_v1",
         "real/g1-en-annual.snapshot.json",
+        1,
         "english",
         "parse/g1-en-annual.json",
     ),
     (
         "grade1_practice_v1",
         "real/g1-tr-practice.snapshot.json",
+        1,
         "turkish",
         "parse/g1-tr-practice.json",
     ),
+    (
+        "grade2_yearly_v1",
+        "real/g2-tr-annual.snapshot.json",
+        2,
+        "turkish",
+        "parse/g2-tr-annual.json",
+    ),
+    (
+        "grade2_yearly_v1",
+        "real/g2-en-annual.snapshot.json",
+        2,
+        "english",
+        "parse/g2-en-annual.json",
+    ),
 )
 
+CASE_FIELDS = ("profile_name", "fixture", "class_year", "program_language", "golden")
 
-def run_profile(profile_name: str, fixture: str, program_language: str) -> ParseSnapshotResponse:
+
+def run_profile(
+    profile_name: str,
+    fixture: str,
+    class_year: int,
+    program_language: str,
+) -> ParseSnapshotResponse:
     """Parse a fixture through the registered profile implementation."""
     version = _registered_version(profile_name)
     profile = get_profile(profile_name, version)
@@ -68,35 +94,49 @@ def run_profile(profile_name: str, fixture: str, program_language: str) -> Parse
         profile_name=profile_name,
         profile_version=version,
         academic_year="2025-2026",
-        class_year=1,
+        class_year=class_year,
         program_language=program_language,
     )
     return parser(request, profile)
 
 
-def build_document(profile_name: str, fixture: str, program_language: str) -> dict[str, Any]:
+def build_document(
+    profile_name: str,
+    fixture: str,
+    class_year: int,
+    program_language: str,
+) -> dict[str, Any]:
     return build_golden_document(
         fixture=fixture,
         subject="parseResponse",
-        payload=build_response_projection(run_profile(profile_name, fixture, program_language)),
+        payload=build_response_projection(
+            run_profile(profile_name, fixture, class_year, program_language)
+        ),
     )
 
 
-@pytest.mark.parametrize(("profile_name", "fixture", "program_language", "golden"), CASES)
+@pytest.mark.parametrize(CASE_FIELDS, CASES)
 def test_parse_matches_its_golden_file(
     profile_name: str,
     fixture: str,
+    class_year: int,
     program_language: str,
     golden: str,
 ) -> None:
-    assert_matches_golden(golden, build_document(profile_name, fixture, program_language))
+    assert_matches_golden(
+        golden,
+        build_document(profile_name, fixture, class_year, program_language),
+    )
 
 
-@pytest.mark.parametrize(("profile_name", "fixture", "program_language", "golden"), CASES)
+@pytest.mark.parametrize(CASE_FIELDS, CASES)
 def test_parse_is_deterministic(
     profile_name: str,
     fixture: str,
+    class_year: int,
     program_language: str,
     golden: str,
 ) -> None:
-    assert_deterministic(lambda: build_document(profile_name, fixture, program_language))
+    assert_deterministic(
+        lambda: build_document(profile_name, fixture, class_year, program_language)
+    )

@@ -24,6 +24,7 @@ from sirkadiyen_parser.normalization.dates import (
     RULE_SERIAL,
     NumericDateOrder,
 )
+from sirkadiyen_parser.normalization.times import REASON_NOT_A_DAY_FRACTION
 from sirkadiyen_parser.parsers import get_parser, implemented_profiles
 from sirkadiyen_parser.parsers.annual import (
     METRIC_CANDIDATES_ALL_DAY,
@@ -31,6 +32,7 @@ from sirkadiyen_parser.parsers.annual import (
     METRIC_LOCATION_DEFERRED,
     METRIC_ROWS_HIDDEN,
     METRIC_ROWS_NON_TEACHING_BREAK,
+    METRIC_ROWS_OUT_OF_SCOPE_GROUP_ROTATION,
     METRIC_ROWS_OUT_OF_SCOPE_PRACTICE_PLACEHOLDER,
     METRIC_ROWS_OUT_OF_SCOPE_SUBJECT,
     METRIC_WORKSHEETS_IGNORED_NO_HEADER,
@@ -43,7 +45,7 @@ from sirkadiyen_parser.profiles import ParserProfileDefinition, get_profile
 
 PROFILE = ParserProfileDefinition(
     "grade1_yearly_v1",
-    "1.4.0",
+    "1.5.0",
     "annual",
     NumericDateOrder.UNDECLARED,
 )
@@ -51,9 +53,19 @@ PROFILE = ParserProfileDefinition(
 #: The same profile as if a real workbook had shown it writes ``01/10/2025``.
 DAY_FIRST_PROFILE = ParserProfileDefinition(
     "grade1_yearly_v1",
-    "1.4.0",
+    "1.5.0",
     "annual",
     NumericDateOrder.DAY_FIRST,
+)
+
+#: The Grade 2 annual profile, which shares this implementation and differs only
+#: in declaring that its dissection rows are a group rotation (ADR-073).
+GRADE_2_PROFILE = ParserProfileDefinition(
+    "grade2_yearly_v1",
+    "1.0.0",
+    "annual",
+    NumericDateOrder.UNDECLARED,
+    group_rotation_subjects=("diseksiyon", "dissection"),
 )
 
 TURKISH_HEADERS = [
@@ -197,11 +209,11 @@ def metrics(response: ParseSnapshotResponse) -> dict[str, float]:
 
 
 def test_the_registered_profile_is_the_annual_implementation() -> None:
-    profile = get_profile("grade1_yearly_v1", "1.4.0")
+    profile = get_profile("grade1_yearly_v1", "1.5.0")
 
     assert profile is not None
     assert get_parser(profile.name, profile.version) is parse_annual_snapshot
-    assert ("grade1_yearly_v1", "1.4.0") in implemented_profiles()
+    assert ("grade1_yearly_v1", "1.5.0") in implemented_profiles()
 
 
 def test_a_lesson_row_becomes_a_candidate() -> None:
@@ -640,6 +652,83 @@ def test_evidence_cites_every_column_the_candidate_used() -> None:
         "annual.blockCell",
         "annual.locationCell",
     ]
+
+
+def test_the_registered_grade_2_profile_is_the_same_annual_implementation() -> None:
+    profile = get_profile("grade2_yearly_v1", "1.0.0")
+
+    assert profile is not None
+    assert get_parser(profile.name, profile.version) is parse_annual_snapshot
+    assert ("grade2_yearly_v1", "1.0.0") in implemented_profiles()
+
+
+@pytest.mark.parametrize("term", ["Dönem 2", "Time Table 2"])
+def test_the_grade_2_profile_reads_both_workbooks_term_wording(term: str) -> None:
+    response = parse(
+        [worksheet(lesson_row(1, term=term), title="DÖNEM 2")],
+        class_year=2,
+        profile=GRADE_2_PROFILE,
+    )
+
+    assert len(response.candidates) == 1
+    assert response.candidates[0].class_year == 2
+
+
+@pytest.mark.parametrize("title", ["DİSEKSİYON (1/13)", "DISSECTION (1/13)"])
+def test_a_declared_group_rotation_is_excluded_from_the_whole_class_program(title: str) -> None:
+    # The Grade 2 annual program writes one dissection session as three
+    # consecutive daily slots, and the anatomy group list assigns each student
+    # exactly one of them. Publishing all three would book every student into two
+    # sessions they must not attend (ADR-073).
+    response = parse(
+        [worksheet(lesson_row(1, term="Dönem 2", title=title), title="DÖNEM 2")],
+        class_year=2,
+        profile=GRADE_2_PROFILE,
+    )
+
+    assert response.candidates == []
+    assert metrics(response)[METRIC_ROWS_OUT_OF_SCOPE_GROUP_ROTATION] == 1
+
+
+def test_a_group_rotation_subject_is_only_excluded_where_the_profile_declares_it() -> None:
+    # Grade 1 declares no rotation subject, so the same title stays published
+    # there. The exclusion is a property of the source family, not of the word.
+    response = parse([worksheet(lesson_row(1, title="Diseksiyon"))])
+
+    assert [candidate.display_title for candidate in response.candidates] == ["Diseksiyon"]
+    assert METRIC_ROWS_OUT_OF_SCOPE_GROUP_ROTATION not in metrics(response)
+
+
+def test_an_anatomy_examination_is_not_mistaken_for_the_dissection_rotation() -> None:
+    response = parse(
+        [
+            worksheet(
+                lesson_row(1, term="Dönem 2", title="ANATOMİ UYGULAMA SINAVI"),
+                title="DÖNEM 2",
+            )
+        ],
+        class_year=2,
+        profile=GRADE_2_PROFILE,
+    )
+
+    assert len(response.candidates) == 1
+    assert response.candidates[0].event_type is ScheduleEventType.EXAM
+
+
+def test_a_whole_number_in_a_time_column_is_refused_rather_than_read_as_midnight() -> None:
+    # The Grade 2 English workbook holds a bare 9 in an `hh:mm` start-time cell.
+    # Truncating it would publish a free-study block from midnight to 13:00, which
+    # revision validation then quarantines as an impossible duration.
+    rows = lesson_row(1, start=None)
+    rows.append(typed_cell(1, 2, 9, "TIME"))
+
+    response = parse([worksheet(rows)])
+
+    assert response.candidates == []
+    assert metrics(response)["rows.ignored.unresolvedStartTime"] == 1
+    ignored = [warning for warning in response.warnings if warning.code == "rowsIgnored"]
+    assert ignored[0].severity is ParserWarningSeverity.WARNING
+    assert REASON_NOT_A_DAY_FRACTION in ignored[0].message
 
 
 @pytest.mark.parametrize(

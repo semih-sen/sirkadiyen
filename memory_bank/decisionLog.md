@@ -3368,3 +3368,89 @@ Calendar/account locale; the event API has no per-event display-format override.
   provider failure classification.
 
 ---
+
+## ADR-073: Grade 2 annual is one profile for both languages, and a stated group rotation is not a whole-class lesson
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-25
+**Implements:** `grade2_yearly_v1` 1.0.0 for `G2-TR-ANNUAL` and `G2-EN-ANNUAL`, per-profile
+group-rotation exclusion, day-fraction time refusal (parser engine 0.2.0,
+`grade1_yearly_v1` 1.5.0), Grade 2 real-snapshot fixtures and goldens
+**Extends:** ADR-030, ADR-051, ADR-071
+
+### Context
+
+The Grade 2 Turkish (`DÖNEM 2`) and English (`CLASS 2`) annual workbooks are the same
+row-oriented layout as Grade 1: term, date, start time, end time, subject,
+`DİLİM ADI / ANABİLİM DALI` / `Description`, and location, differing only in header
+wording and in the term cell (`Dönem 2` against `Time Table 2`). The catalog already
+maps both sources to one profile, `grade2_yearly_v1`, which had no implementation.
+
+Reading the two workbooks raised three source facts the Grade 1 rules did not cover.
+
+1. **Dissection is a group rotation the annual program states in full.** Each Turkish
+   and English workbook holds 159 `DİSEKSİYON (n/13)` / `DISSECTION (n/13)` rows,
+   written as three consecutive daily slots — 13:30-14:20, 14:30-15:20, 15:30-16:20 —
+   carrying the *same* session number. The separate anatomy source
+   (`2. SINIF SALON GRUP SAATLERİ`, `G2-ANATOMY-AUTUMN`/`SPRING`) assigns anatomy groups
+   1, 2 and 3 to those three hours in rotation, so a student attends exactly one. The
+   annual row states no group, and nothing in it could be inferred into one.
+   The three slots do not overlap, so revision validation would not catch them either.
+2. **The bare `UYGULAMA` placeholder states its own deferral.** 119 Turkish rows whose
+   whole title is `UYGULAMA` carry the location
+   `FAKÜLTEMİZ WEB SİTESİ ÖĞRENCİ AĞI DÖNEM 2 UYGULAMA PROGRAMINA BAKINIZ`, which is the
+   source itself pointing at the companion practice program that ADR-071 already
+   treats as authoritative.
+3. **A numeric time cell need not be a time.** The English workbook holds a bare `9` in
+   an `hh:mm`-formatted start-time cell. The shared resolver reduced any number to its
+   fractional part, so nine whole days became `00:00` and published a free-study block
+   from midnight to 13:00 — 780 minutes, which revision validation quarantines as an
+   impossible duration. The workbook itself renders that cell `00:00`; the hour was
+   never stated by anyone.
+
+### Decision
+
+Register `grade2_yearly_v1` 1.0.0 against the existing row-oriented annual
+implementation for both language sources. The class year is taken from the request
+context, as it already was, so no language- or grade-specific parser is introduced.
+
+Add `group_rotation_subjects` to the parser profile definition, reported by
+`GET /v1/profiles`. `grade2_yearly_v1` declares `diseksiyon` and `dissection`; a row
+whose title names one is excluded as `rows.ignored.outOfScopeGroupRotation` and
+accounted for like every other exclusion. The declaration is per profile rather than a
+shared word list, because it depends on which companion sources exist for that grade:
+Grade 1 declares none and keeps such rows.
+
+Refuse a numeric time cell that is not a day fraction. Only a cell whose number format
+declares a full timestamp may carry a whole-day part; a cell declaring a time of day,
+or a column a profile confirmed holds fractions, must hold a value in `[0, 1)`. This is
+a behavioural change to a shared primitive, so the parser engine goes to 0.2.0 and the
+one affected profile, `grade1_yearly_v1`, goes to 1.5.0. Its committed goldens do not
+move, but a stored snapshot cannot be proved free of such a cell, so the bump reparses
+them. `grade1_practice_v1` reads only textual time ranges and is untouched.
+
+Do **not** infer an audience from the practice-group labels the English workbook writes
+inside titles (`LABORATORY SKILLS (HISTOLOGY AND EMBRYOLOGY) İ2`,
+`LABORATORY SKILLS Team Work İ1`-`İ5`). They are published verbatim to the whole
+program, as the source writes them, until `G2-EN-ANNUAL` declares supported selectors
+on evidence (ADR-048) and the supported-profile schema carries Grade 2.
+
+### Consequences
+
+- `G2-TR-ANNUAL` publishes 790 candidates from 1156 rows and `G2-EN-ANNUAL` 935 from
+  1252. Every unpublished row is counted by reason: 159 group-rotation rows in each,
+  119 Turkish practice placeholders, 77 Turkish and 145 English breaks, 7 and 6 PDÖ
+  rows, and single-figure source faults that are reported as warnings.
+- Grade 2 students see no dissection at all until `grade2_anatomy_autumn_v1` and
+  `grade2_anatomy_spring_v1` publish it with its real audience. That is deliberate: an
+  event a student must not attend is a worse failure than a missing one, and the
+  omission is visible in the metrics rather than silent.
+- Both revisions are predicted to validate rather than quarantine, but each sits at the
+  tolerance boundary with exactly one same-course overlap (`Ek Ders ( ANATOMİ)` in
+  Turkish, `LABORATORY SKILLS EXAMINATION` in English, each written twice for one slot).
+  A second such source typo would hold the revision for review.
+- No Grade 2 student can onboard yet: the supported-profile schema (ADR-055) still
+  covers class year 1 only, so these revisions publish to an empty audience until it is
+  extended. No database migration is required.
+
+---

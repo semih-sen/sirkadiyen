@@ -43,6 +43,17 @@ def test_every_profile_advertises_the_numeric_date_order_it_declares() -> None:
     assert declared["grade1_yearly_v1"] == "undeclared"
 
 
+def test_a_profile_advertises_the_group_rotation_subjects_it_excludes() -> None:
+    # An operator asking why the Grade 2 calendars hold no dissection must be able
+    # to see that the profile defers those rows to the anatomy source (ADR-073),
+    # without reading the parser.
+    response = client.get("/v1/profiles")
+
+    declared = {profile["name"]: profile["group_rotation_subjects"] for profile in response.json()}
+    assert declared["grade2_yearly_v1"] == ["diseksiyon", "dissection"]
+    assert declared["grade1_yearly_v1"] == []
+
+
 def test_the_annual_profile_is_advertised_as_implemented() -> None:
     response = client.get("/v1/profiles")
 
@@ -83,7 +94,7 @@ def test_a_request_without_source_context_is_refused() -> None:
 
 def test_the_annual_profile_parses_a_snapshot_over_http() -> None:
     request = json.loads(CONTRACT_FIXTURE.read_text(encoding="utf-8"))
-    request["parserProfile"] = {"name": "grade1_yearly_v1", "version": "1.4.0"}
+    request["parserProfile"] = {"name": "grade1_yearly_v1", "version": "1.5.0"}
 
     response = client.post("/v1/parse", json=request)
 

@@ -126,6 +126,7 @@ REASON_END_NOT_AFTER_START = "endTimeNotAfterStartTime"
 REASON_DUPLICATE_IDENTITY = "duplicateStableIdentity"
 REASON_OUT_OF_SCOPE_SUBJECT = "outOfScopeSubject"
 REASON_OUT_OF_SCOPE_PRACTICE_PLACEHOLDER = "outOfScopePracticePlaceholder"
+REASON_OUT_OF_SCOPE_GROUP_ROTATION = "outOfScopeGroupRotation"
 REASON_NON_TEACHING_BREAK = "nonTeachingBreak"
 
 WARNING_CONFLICTING_DUPLICATE = "conflictingDuplicateLesson"
@@ -157,6 +158,7 @@ METRIC_DEPARTMENTS_IGNORED_UNMARKED = "departments.ignored.unmarkedSegment"
 #: practice source (ADR-030/071), and breaks excluded because they are not lessons.
 METRIC_ROWS_OUT_OF_SCOPE_SUBJECT = "rows.ignored.outOfScopeSubject"
 METRIC_ROWS_OUT_OF_SCOPE_PRACTICE_PLACEHOLDER = "rows.ignored.outOfScopePracticePlaceholder"
+METRIC_ROWS_OUT_OF_SCOPE_GROUP_ROTATION = "rows.ignored.outOfScopeGroupRotation"
 METRIC_ROWS_NON_TEACHING_BREAK = "rows.ignored.nonTeachingBreak"
 
 RULE_HEADER_ALIAS = "annual.headerAlias"
@@ -319,6 +321,7 @@ def parse_annual_snapshot(
             columns=mapping,
             context=request.source_context,
             numeric_date_order=profile.numeric_date_order,
+            group_rotation_subjects=frozenset(profile.group_rotation_subjects),
             diagnostics=diagnostics,
             accumulator=accumulator,
         )
@@ -387,6 +390,7 @@ def _parse_worksheet(
     columns: Mapping[str, int],
     context: ParseSourceContext,
     numeric_date_order: NumericDateOrder,
+    group_rotation_subjects: frozenset[str],
     diagnostics: ParseDiagnostics,
     accumulator: _Accumulator,
 ) -> None:
@@ -408,6 +412,7 @@ def _parse_worksheet(
             row=row,
             context=context,
             numeric_date_order=numeric_date_order,
+            group_rotation_subjects=group_rotation_subjects,
             diagnostics=diagnostics,
         )
         if draft is None:
@@ -421,6 +426,7 @@ def _parse_row(
     row: _RowContext,
     context: ParseSourceContext,
     numeric_date_order: NumericDateOrder,
+    group_rotation_subjects: frozenset[str],
     diagnostics: ParseDiagnostics,
 ) -> _CandidateDraft | None:
     if not any(row.text(role) for role in (*REQUIRED_ROLES, *OPTIONAL_ROLES)):
@@ -443,7 +449,7 @@ def _parse_row(
         )
         return None
 
-    exclusion = _out_of_scope_exclusion(title_text)
+    exclusion = _out_of_scope_exclusion(title_text, group_rotation_subjects)
     if exclusion is not None:
         reason, message = exclusion
         diagnostics.record_ignored_row(
@@ -1016,14 +1022,22 @@ def _accept(
     )
 
 
-def _out_of_scope_exclusion(title: str) -> tuple[str, str] | None:
+def _out_of_scope_exclusion(
+    title: str,
+    group_rotation_subjects: frozenset[str],
+) -> tuple[str, str] | None:
     """Return ``(reason, message)`` when a row must be excluded, else ``None``.
 
-    Three exclusions apply to the whole-class annual program:
+    Four exclusions apply to the whole-class annual program:
 
     - **PDÖ/PBL** problem-based learning is group-specific and published by the
       practice source (ADR-030). An annual row naming it would otherwise be shown to
       the whole class and overlap the parallel lecture the rest of the cohort attends.
+    - A subject the profile declares as a **group rotation**: the annual program
+      states every slot of it, and a companion source assigns each student exactly
+      one (ADR-073). Grade 2 dissection is written as three consecutive daily slots
+      for one session, so publishing them all would book every student into two
+      sessions they must not attend.
     - A one-token **UYGULAMA/PRACTICE** title is a whole-class slot placeholder.
       The companion practice source publishes the real group-specific lesson.
     - A **lunch or interval break** is not a lesson. Free study is deliberately kept.
@@ -1041,6 +1055,14 @@ def _out_of_scope_exclusion(title: str) -> tuple[str, str] | None:
             "Row names PDÖ/PBL problem-based learning, which is group-specific and "
             "published by the practice source, so it was not added to the whole-class "
             "annual program.",
+        )
+    if group_rotation_subjects and _matches(words, group_rotation_subjects):
+        return (
+            REASON_OUT_OF_SCOPE_GROUP_ROTATION,
+            "Row names a subject this profile declares as a group rotation. The annual "
+            "program states every slot of the rotation while a student attends exactly "
+            "one, so the slots were not published to the whole class; the companion "
+            "group source owns them.",
         )
     if tuple(words) in PRACTICE_PLACEHOLDER_TITLES:
         return (

@@ -19,8 +19,12 @@ ParserImplementation = Callable[
 ]
 
 _IMPLEMENTATIONS: dict[tuple[str, str], ParserImplementation] = {
-    ("grade1_yearly_v1", "1.4.0"): parse_annual_snapshot,
+    ("grade1_yearly_v1", "1.5.0"): parse_annual_snapshot,
     ("grade1_practice_v1", "1.0.0"): parse_practice_snapshot,
+    # The Grade 2 annual workbooks are the same row-oriented layout as Grade 1 in
+    # both languages, so they share the implementation and differ only in what the
+    # profile definition declares (ADR-073).
+    ("grade2_yearly_v1", "1.0.0"): parse_annual_snapshot,
 }
 
 

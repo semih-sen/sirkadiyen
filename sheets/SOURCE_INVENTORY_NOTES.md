@@ -75,6 +75,32 @@ and the requested week before producing enrichment candidates.
 - The special-program documents enrich or disambiguate annual-program entries;
   they must not create duplicate logical lessons when joined.
 
+## Grade 2 annual reading rules (confirmed 2026-07-25)
+
+Read from the committed `DÖNEM 2` and `CLASS 2` workbooks while implementing
+`grade2_yearly_v1` (ADR-073).
+
+- Both workbooks are the Grade 1 row layout. The header wording differs
+  (`TARİH`/`Start Date`, `KONU`/`Subject`, `DİLİM ADI / ANABİLİM DALI`/`Description`)
+  and so does the term cell: `Dönem 2` against `Time Table 2`.
+- Every date is a spreadsheet serial and every time a day fraction, except one
+  English start-time cell holding the whole number `9`, which the workbook itself
+  renders `00:00`.
+- `DİSEKSİYON (n/13)` / `DISSECTION (n/13)` appears three times per day at
+  13:30-14:20, 14:30-15:20 and 15:30-16:20 with the **same** session number. The
+  autumn and spring `SALON GRUP SAATLERİ` documents assign anatomy groups 1, 2 and 3
+  to those three hours in rotation, so each student attends exactly one. The annual
+  row states no group; 159 such rows exist in each workbook.
+- The Turkish workbook writes 119 rows whose whole title is `UYGULAMA`, each with the
+  location `FAKÜLTEMİZ WEB SİTESİ ÖĞRENCİ AĞI DÖNEM 2 UYGULAMA PROGRAMINA BAKINIZ` —
+  the source deferring to the companion practice program.
+- The English workbook writes practice group labels inside lesson titles
+  (`LABORATORY SKILLS (HISTOLOGY AND EMBRYOLOGY) İ2`, `Team Work İ1` to `İ5`), which
+  is a *fifth* group value beyond the `İ1`-`İ3` the Grade 1 English practice fixture
+  states. Capture the current Grade 2 English practice source before declaring any of
+  them as supported selectors.
+- English `lunch break` rows carry an empty term and an empty date cell.
+
 ## Parser implications
 
 - Preserve raw values, formulas, formatted values, merges, hidden dimensions,

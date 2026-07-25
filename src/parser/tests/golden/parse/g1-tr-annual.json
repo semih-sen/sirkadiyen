@@ -1,6 +1,6 @@
 {
   "fixture": "real/g1-tr-annual.snapshot.json",
-  "parserEngineVersion": "0.1.0",
+  "parserEngineVersion": "0.2.0",
   "payload": {
     "candidateCount": 721,
     "candidateDigests": [
@@ -1221,9 +1221,9 @@
     ],
     "parserProfile": {
       "name": "grade1_yearly_v1",
-      "version": "1.4.0"
+      "version": "1.5.0"
     },
-    "responseDigest": "sha256:93e173b704fcb6afa21eb461c977d594857eb8f764d7ede9b82603f3647430c4",
+    "responseDigest": "sha256:3adcd719e593a0c10ca10d256ff95cdb02d250916d886e37607a0acec89bedd5",
     "snapshotId": "fixture:sha256:16350cb5bbee7efd78a2a05e2a67cc11453edbd205deb58df2fa17758fe21e23",
     "sourceId": "G1-TR-ANNUAL",
     "status": "completedWithWarnings",

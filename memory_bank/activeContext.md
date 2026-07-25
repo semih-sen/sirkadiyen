@@ -50,8 +50,11 @@ hold is never releasable and is corrected at the source (ADR-042).
 
 The incremental dispatcher now consumes every dispatchable diff and resolves the
 affected completed-sync users before applying idempotent Calendar operations.
-Drive and HTTP acquisition, DOCX conversion, the remaining parser profiles, and
-the remaining operational surfaces still do not exist. The **consumer frontend now
+The Grade 2 annual program now parses too: one profile, `grade2_yearly_v1`, serves
+the Turkish and the English source, deferring the dissection group rotation to the
+anatomy sources (ADR-073). Drive and HTTP acquisition, DOCX conversion, the
+remaining parser profiles, Grade 2 support in the student-profile schema, and the
+remaining operational surfaces still do not exist. The **consumer frontend now
 has a runnable foundation** (`web/`, ADR-066): Google sign-in, license redemption,
 academic profile, Calendar authorization, and initial-sync progress are wired to
 the existing APIs and gated by authoritative backend onboarding state. Admin
@@ -72,6 +75,44 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- **Implemented the Grade 2 annual parser profile for both languages (ADR-073).**
+  `grade2_yearly_v1` 1.0.0 is registered against the existing row-oriented annual
+  implementation and covers `G2-TR-ANNUAL` (790 candidates from 1156 rows) and
+  `G2-EN-ANNUAL` (935 from 1252). The workbooks are the Grade 1 layout with different
+  header wording and term text (`Dönem 2` / `Time Table 2`); the class year comes from
+  the request context, so no per-language parser exists.
+- **A declared group rotation is no longer published to the whole class.** Each Grade 2
+  workbook writes one dissection session as three consecutive daily slots carrying the
+  same session number, and the separate `SALON GRUP SAATLERİ` source assigns anatomy
+  groups 1/2/3 to those hours in rotation. Publishing all three would have booked every
+  student into two sessions they must not attend, and the slots do not overlap, so
+  revision validation would not have caught it. `ParserProfileDefinition` now carries
+  `group_rotation_subjects` (reported by `GET /v1/profiles`); Grade 2 declares
+  `diseksiyon`/`dissection` and 159 rows per workbook are counted as
+  `rows.ignored.outOfScopeGroupRotation`. Grade 1 declares none and is unchanged.
+- **Fixed a shared-primitive misreading that would have quarantined every English
+  revision.** A bare `9` in an `hh:mm` cell was reduced to `00:00`, publishing a
+  free-study block of 780 minutes, which validation rejects as an impossible duration.
+  A numeric time cell must now hold a day fraction in `[0, 1)` unless its format
+  declares a full timestamp. Parser engine 0.2.0 and `grade1_yearly_v1` 1.5.0 (both
+  catalog entries) follow from that; the Grade 1 goldens moved only in their version and
+  digest lines, and `grade1_practice_v1` reads only textual ranges and was untouched.
+- The 119 bare Turkish `UYGULAMA` rows are excluded under the existing ADR-071 rule, and
+  the source agrees: their location cell reads "see the Dönem 2 practice program".
+- **Open risks.** Both Grade 2 revisions are predicted to validate, but each sits exactly
+  at the overlap tolerance with one same-course overlap the source wrote twice; a second
+  such typo holds the revision for review. The English workbook writes practice groups
+  inside titles (`… İ2`, `Team Work İ1`-`İ5`) and those are published verbatim to the
+  whole program — no audience is inferred from them. No Grade 2 student can onboard yet:
+  the supported-profile schema still covers class year 1 only (ADR-055), so these
+  revisions publish to an empty audience until it is extended.
+- 317 Python tests pass, up from 301; Ruff, Ruff format and Mypy are clean. 337
+  Infrastructure, 6 Contracts and 2 API .NET tests pass and the Release solution build
+  has no warnings. PostgreSQL integration tests were not run this session; no .NET or
+  database code changed.
+
+## Previous free-study session
 
 - **Fixed annual revisions being quarantined by source-authored free-study overlaps
   (ADR-069).** The parser had faithfully retained separate `SERBEST ÇALIŞMA` /

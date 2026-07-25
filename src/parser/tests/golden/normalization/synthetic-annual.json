@@ -1,6 +1,6 @@
 {
   "fixture": "synthetic/annual-normalization-sample.json",
-  "parserEngineVersion": "0.1.0",
+  "parserEngineVersion": "0.2.0",
   "payload": {
     "snapshotId": "synthetic-annual-0001",
     "sourceId": "SYNTHETIC-ANNUAL",

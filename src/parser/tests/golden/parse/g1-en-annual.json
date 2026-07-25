@@ -1,6 +1,6 @@
 {
   "fixture": "real/g1-en-annual.snapshot.json",
-  "parserEngineVersion": "0.1.0",
+  "parserEngineVersion": "0.2.0",
   "payload": {
     "candidateCount": 893,
     "candidateDigests": [
@@ -1310,9 +1310,9 @@
     ],
     "parserProfile": {
       "name": "grade1_yearly_v1",
-      "version": "1.4.0"
+      "version": "1.5.0"
     },
-    "responseDigest": "sha256:4a084d40f9bb1e3ac8a8c4d5172c9622cd96da0653046a46b9004604f9efcf88",
+    "responseDigest": "sha256:caae722bb658b74c1338682d1b61bdd149657add6a74c05f9bce4bc8e435ed7f",
     "snapshotId": "fixture:sha256:c6bd6de674e28e7abef83247281d72e7a30953b38f6f1b729900071baf628d68",
     "sourceId": "G1-EN-ANNUAL",
     "status": "completedWithWarnings",

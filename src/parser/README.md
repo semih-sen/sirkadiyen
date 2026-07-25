@@ -82,10 +82,29 @@ corrected from.
 | --- | --- | --- |
 | `grade1_yearly_v1` | `G1-TR-ANNUAL`, `G1-EN-ANNUAL` | `tests/fixtures/real/g1-{tr,en}-annual.snapshot.json` |
 | `grade1_practice_v1` | `G1-TR-PRACTICE` | `tests/fixtures/real/g1-tr-practice.snapshot.json` |
+| `grade2_yearly_v1` | `G2-TR-ANNUAL`, `G2-EN-ANNUAL` | `tests/fixtures/real/g2-{tr,en}-annual.snapshot.json` |
 
 `parsers/annual.py` reads the row-oriented annual layout: one lesson per row,
 with columns selected by header alias rather than by position, so the Turkish
-and English workbooks share one implementation.
+and English workbooks share one implementation. The Grade 1 and Grade 2 annual
+profiles share it too; the class year comes from the request context, so a row
+whose term cell names another year is excluded and counted rather than guessed
+at.
+
+### A group rotation stated in the annual program is not a whole-class lesson
+
+An annual profile may declare `group_rotation_subjects`, reported by
+`GET /v1/profiles`. `grade2_yearly_v1` declares `diseksiyon` and `dissection`
+(ADR-073): the Grade 2 workbooks write one dissection session as three
+consecutive daily slots, and the anatomy group list — the separate
+`SALON GRUP SAATLERİ` source — assigns each student exactly one of them.
+Publishing all three to the cohort would book every student into two sessions
+they must not attend, so those rows are excluded and counted as
+`rows.ignored.outOfScopeGroupRotation` (159 rows in each Grade 2 workbook) until
+the anatomy profiles publish them with their real audience.
+
+The declaration is per profile, not a shared word list: Grade 1 declares none, so
+the same title stays published there.
 
 `parsers/practice.py` reads the rotation matrix, where **a candidate is a cell**:
 the group comes from the cell, the subject from its column header, and the date
@@ -124,6 +143,11 @@ What it deliberately refuses:
 - a dated row with no times that names no closure
 - a time cell that the source spreadsheet converted into a date, which would
   otherwise publish a lesson at midnight
+- a numeric time cell that is not a day fraction. The Grade 2 English workbook
+  holds a bare `9` in an `hh:mm` cell, meaning nine in the morning to whoever
+  typed it; as a spreadsheet value it is nine whole days and the workbook itself
+  renders it `00:00`. Only a cell whose format declares a full timestamp may
+  carry a whole-day part
 - an end time that does not follow its start
 - a second row claiming a lesson identity an earlier row already published
 

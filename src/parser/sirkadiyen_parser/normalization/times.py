@@ -23,12 +23,20 @@ RULE_COMPACT_TEXT = "compactTextTime"
 RULE_TEXT_RANGE = "textTimeRange"
 RULE_UNRESOLVED = "unresolvedTime"
 
+#: A cell that states a time of day, but whose number is not one. A source typed
+#: ``9`` into a time-formatted cell meaning nine in the morning; as a spreadsheet
+#: value that is nine whole days and no time at all, and the spreadsheet itself
+#: shows it as ``00:00``. Reading only the fractional part would publish a lesson
+#: at midnight, which is exactly the silent misreading ADR-051 forbids.
+REASON_NOT_A_DAY_FRACTION = "numericTimeOutsideDayFraction"
+
 CONFIDENCE_FRACTION = 1.0
 CONFIDENCE_TEXT = 1.0
 #: A four-digit block is only a time by profile agreement; ``2025`` is equally a
 #: year. The score records that weaker evidence.
 CONFIDENCE_COMPACT_TEXT = 0.8
 
+_FORMAT_SEPARATOR_PATTERN = re.compile(r"[ _-]+")
 _TIME_PATTERN = re.compile(r"^(\d{1,2})[:.,](\d{2})$")
 _COMPACT_PATTERN = re.compile(r"^(\d{1,2})(\d{2})$")
 _RANGE_SEPARATOR_PATTERN = re.compile(r"\s*[-–—~]\s*|\s+/\s*|\s*/\s+")
@@ -156,12 +164,20 @@ def resolve_cell_time(
     A numeric cell is read as a day fraction when its number format declares a
     time, or when ``allow_bare_fraction`` records that the parser profile has
     confirmed the column holds fractions.
+
+    Only a cell whose format declares a full timestamp may carry a whole-day
+    part. A cell that declares a time of day, or a column the profile confirmed
+    holds fractions, must hold a value in ``[0, 1)``; anything else states no
+    time this resolver can read and is refused rather than truncated.
     """
     if cell is None:
         return unresolved_time("missingCell")
 
     number = cell_number(cell)
-    if number is not None and (allow_bare_fraction or _declares_time_format(cell)):
+    timestamp = _declares_timestamp_format(cell)
+    if number is not None and (allow_bare_fraction or timestamp or _declares_time_format(cell)):
+        if not timestamp and not 0.0 <= number < 1.0:
+            return unresolved_time(REASON_NOT_A_DAY_FRACTION)
         resolved = time_from_fraction(number)
         if resolved is None:
             return unresolved_time("fractionOutOfSupportedRange")
@@ -197,8 +213,30 @@ def duration_minutes(start: time, end: time) -> int:
 
 
 def _declares_time_format(cell: NormalizedCell) -> bool:
+    """Whether the cell's format declares a time of day."""
+    return _number_format(cell) == "time"
+
+
+def _declares_timestamp_format(cell: NormalizedCell) -> bool:
+    """Whether the cell's format declares a date and a time together.
+
+    A timestamp legitimately carries a whole-day serial part, so only this shape
+    may be reduced to its fractional part.
+    """
+    return _number_format(cell) == "datetime"
+
+
+def _number_format(cell: NormalizedCell) -> str | None:
+    """The cell's declared number format, folded to a separator-free key.
+
+    Producers spell the same format differently — the Sheets API returns
+    ``DATE_TIME`` and another converter may return ``DateTime`` — so the
+    separators are removed rather than compared literally.
+    """
     number_format = cell.effective_format.number_format_type if cell.effective_format else None
-    return number_format is not None and comparison_key(number_format) in {"time", "datetime"}
+    if number_format is None:
+        return None
+    return _FORMAT_SEPARATOR_PATTERN.sub("", comparison_key(number_format))
 
 
 def _build_time(hour: int, minute: int, *, rule: str, confidence: float) -> TimeResolution:
