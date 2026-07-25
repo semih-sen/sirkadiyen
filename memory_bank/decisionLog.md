@@ -3866,3 +3866,93 @@ semester's dates, and a semester is a different source, not a different layout.
 - No engine version change, no .NET change and no database migration.
 
 ---
+
+## ADR-079: An administratively uploaded source names itself, and Grade 2 Turkish onboards
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-26
+**Implements:** the `AdministrativeUpload` transport and its catalog rule, the two
+Grade 2 anatomy catalog entries, the Grade 2 Turkish supported profile, and their
+tests
+**Extends:** ADR-048 (evidence-based selectors), ADR-055 (server-owned supported
+schema), ADR-076 (DOCX conversion), ADR-078 (the anatomy profiles)
+
+### Context
+
+Two things were blocked on each other. The anatomy documents could not be
+catalogued, because the catalog requires an absolute HTTPS URI and these documents
+are handed out once a semester with no published location (ADR-078). And Grade 2
+students could not onboard, because the supported-profile schema admits only
+cohorts a catalogued source declares (ADR-048) — and `anatomyGroup` is declared by
+exactly those two uncatalogued documents.
+
+The product answer to the first is that an administrator will upload each file
+through the admin panel at the start of the semester. That is a real acquisition
+path, not an absence of one, and the catalog had no way to say so.
+
+The temptation was to give the entries a plausible Drive URL. That was tried and
+reverted while implementing ADR-076: it is a false provenance claim, and every
+downstream record would have carried it.
+
+### Decision
+
+Add a fourth transport, `AdministrativeUpload`, for a document that is handed out
+rather than published. Such a source **names itself instead of naming a location**:
+its URI is `urn:sirkadiyen:upload:{sourceId}`, and the catalog refuses any other
+value for it — including an HTTPS one, which would claim a fetchable origin the
+document does not have. The URN must spell out its own source ID, because it is
+pure identity: a copied entry that kept another source's URN would attach one
+document's evidence to the other, and nothing downstream could detect that.
+
+A fetched source keeps the absolute-HTTPS rule unchanged. The rule is now chosen by
+transport rather than applied to every source, so each transport states what it can
+actually do.
+
+The poller reports `AwaitingAdministrativeUpload` for such a source rather than
+`UnsupportedTransport`. Both mean "nothing was read", but only one is true: the
+transport is not missing an implementation, the document is missing an upload.
+
+With the two anatomy sources catalogued and declaring `anatomyGroup` `1`, `2`, `3`,
+**Grade 2 Turkish joins the supported-profile schema** with three required
+selectors: `practiceGroup` `A`-`H` and its `practiceSubgroup` `A1`-`H2`, evidenced
+by the practice table and the vertical-corridor calendar, plus the independent
+`anatomyGroup`. The anatomy group is not a subdivision of the practice group — the
+dissection rotation assigns it regardless of which letter a student carries — so it
+is a third dimension rather than a deeper dependency chain.
+
+**Grade 2 English stays out.** Its only current-year source is the annual program,
+which states no cohorts; its practice fixture is from 2024-2025, and ADR-048
+forbids promoting a prior year's values into this year's allowlist. Admitting it
+with no selectors would let an English student onboard and receive a calendar
+missing every practice and dissection session, which reads as complete.
+
+The schema version moves to `1.1`. It is recorded on every stored profile, so a
+profile written before Grade 2 existed stays identifiable as one.
+
+### Consequences
+
+- The two anatomy sources are catalogued, so `anatomyGroup` is validated against
+  declared evidence on both sides: a student cannot select a fourth group, and a
+  revision cannot publish one.
+- **A Grade 2 Turkish student can now complete onboarding**, and the four Grade 2
+  Turkish revisions have an audience. They still cannot be produced from the real
+  documents: acquisition for Drive, HTTP and administrative upload does not exist
+  yet, which is now the only remaining step for Grade 2 Turkish.
+- Nothing polls an uploaded source, so cataloguing one starts no external traffic
+  and creates no snapshot. The entry is a declaration of what the source is, not a
+  claim that it has been read.
+- The upload endpoint, its authorization, and the rule that an uploaded snapshot
+  belongs to the source that names it are not implemented here. Until they are, the
+  only way to produce these snapshots stays `tools/Sirkadiyen.SnapshotTool`.
+- The four DOCX snapshot fixtures were regenerated through the catalog. Their cells
+  are byte-identical; two `INFORMATION` diagnostics per fixture carried wording the
+  converter stopped emitting, so the committed evidence was not reproducible from
+  the committed document. It is now.
+- The onboarding form needed no structural change: it renders class years and
+  dimensions from `GET /api/profile/options`. It did need Turkish labels for the
+  selector keys, which it had been rendering raw — tolerable for `practiceGroup`,
+  not for `anatomyGroup`.
+- No parser change, no engine version change, no database migration. The transport
+  column already stores its enum as text.
+
+---

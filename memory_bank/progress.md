@@ -382,12 +382,20 @@ ADR-073 predicted from the annual program and could not prove from it. A day is 
 as a run of hours stating exactly one date, because the same document writes a day both as
 a vertical merge and as a date typed into the middle of three rows.
 
-What Grade 2 still lacks is not a parser. Four of its six revisions come from Word
-documents that nothing can **acquire** at runtime, and the two anatomy sources are not in
-the catalog at all, because it requires an absolute HTTPS URI and those documents are
-handed out. The remaining work before a Grade 2 student receives anything is therefore an
-administrative upload path, a Drive download for the vertical-corridor documents, and the
-supported-profile schema (ADR-055) extended past class year 1. The Grade 2 English
+Grade 2 Turkish onboarding is open (ADR-079). The two anatomy documents are catalogued
+under a new `administrativeUpload` transport: a source that is handed out rather than
+published names itself `urn:sirkadiyen:upload:{sourceId}` instead of claiming a location,
+and the catalog refuses any other URI for it. With their `anatomyGroup` `1`/`2`/`3`
+declared, Grade 2 Turkish enters the supported-profile schema (version `1.1`) with
+`practiceGroup`, `practiceSubgroup` and the independent `anatomyGroup`, all three required.
+Grade 2 English stays out: its only current-year source states no cohorts and its practice
+fixture is from 2024-2025, so admitting it would hand a student a calendar missing every
+practice and dissection session.
+
+What Grade 2 still lacks is not a parser and no longer a catalog entry or an audience. Four
+of its six revisions come from Word documents that nothing can **acquire** at runtime, so
+the remaining work before a Grade 2 student receives anything is the administrative upload
+endpoint and a Drive download for the vertical-corridor documents. The Grade 2 English
 practice source also still needs a current fixture; its committed one is from 2024-2025.
 
 Calendar backlog scheduling is complete through ADR-070. Ordinary 100-operation

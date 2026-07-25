@@ -160,6 +160,42 @@
       "notes": "As G2-VERTICAL-SPRING. The autumn document has not used a subgroup yet, but the cohort scheme belongs to the programme rather than to the file, and Student Affairs adds rows to it all year, so both dimensions are declared."
     },
     {
+      "sourceId": "G2-ANATOMY-AUTUMN",
+      "displayName": "Dönem 2 anatomi salon grup saatleri güz",
+      "transport": "administrativeUpload",
+      "documentFormat": "docx",
+      "sourceUri": "urn:sirkadiyen:upload:G2-ANATOMY-AUTUMN",
+      "parserProfile": "grade2_anatomy_autumn_v1",
+      "parserProfileVersion": "1.0.0",
+      "academicYear": "2025-2026",
+      "classYear": 2,
+      "programLanguage": "turkish",
+      "timeZoneId": "Europe/Istanbul",
+      "supportedAudienceSelectors": {
+        "anatomyGroup": ["1", "2", "3"]
+      },
+      "fixturePath": "sheets/donem-2-tr/2. SINIF SALON GRUP SAATLERİ 2025-2026 GÜZ.docx",
+      "notes": "The dissection rotation the annual program's three identical DİSEKSİYON rows defer to (ADR-073, ADR-078). The document states exactly the three anatomy groups 1, 2 and 3, which are independent of the practice group. It is handed out once at the start of the semester, states no URL anywhere, and is acquired by administrative upload (ADR-079)."
+    },
+    {
+      "sourceId": "G2-ANATOMY-SPRING",
+      "displayName": "Dönem 2 anatomi salon grup saatleri bahar",
+      "transport": "administrativeUpload",
+      "documentFormat": "docx",
+      "sourceUri": "urn:sirkadiyen:upload:G2-ANATOMY-SPRING",
+      "parserProfile": "grade2_anatomy_spring_v1",
+      "parserProfileVersion": "1.0.0",
+      "academicYear": "2025-2026",
+      "classYear": 2,
+      "programLanguage": "turkish",
+      "timeZoneId": "Europe/Istanbul",
+      "supportedAudienceSelectors": {
+        "anatomyGroup": ["1", "2", "3"]
+      },
+      "fixturePath": "sheets/donem-2-tr/2. SINIF SALON GRUP SAATLERİ 2025-2026  BAHAR.docx",
+      "notes": "As G2-ANATOMY-AUTUMN, for the spring semester. One of its days states a year that is a year out and is refused whole, so that day's three sessions are absent by design until the document is corrected and re-uploaded."
+    },
+    {
       "sourceId": "G2-EN-ANNUAL",
       "displayName": "Dönem 2 İngilizce yıllık program",
       "transport": "googleSheets",

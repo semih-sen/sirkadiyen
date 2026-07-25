@@ -11,17 +11,22 @@ namespace Sirkadiyen.Application.StudentProfiles;
 /// at academic-year rollover, which is a deployment anyway (ADR-055).
 /// <para>
 /// Only cohorts confirmed by a committed, current-year fixture appear here
-/// (ADR-048). Grade 1 anatomy, Grade 2 and Grade 3 selectors are deliberately
-/// absent until their sources are captured and their profiles implemented; adding
-/// them here without evidence would let a student select a cohort nothing
-/// publishes.
+/// (ADR-048). Grade 1 anatomy, Grade 2 English and Grade 3 selectors are
+/// deliberately absent until their sources are captured and their profiles
+/// implemented; adding them here without evidence would let a student select a
+/// cohort nothing publishes.
 /// </para>
 /// </remarks>
 public static class CurrentSupportedProfileSchema
 {
     public const string AcademicYear = "2025-2026";
 
-    public const string SchemaVersion = "1.0";
+    /// <summary>
+    /// Bumped to 1.1 when Grade 2 Turkish was added (ADR-079). It is recorded on
+    /// every stored profile, so a profile written under 1.0 stays identifiable as
+    /// one validated before Grade 2 existed.
+    /// </summary>
+    public const string SchemaVersion = "1.1";
 
     public static SupportedProfileSchema Create() => new()
     {
@@ -31,6 +36,7 @@ public static class CurrentSupportedProfileSchema
         [
             Grade1Turkish(),
             Grade1English(),
+            Grade2Turkish(),
         ],
     };
 
@@ -77,6 +83,46 @@ public static class CurrentSupportedProfileSchema
                 {
                     ["İ"] = ["İ1", "İ2", "İ3"],
                 },
+            },
+        ],
+    };
+
+    /// <summary>
+    /// Grade 2 Turkish: the same lettered practice cohorts as Grade 1, plus the
+    /// anatomy group, which is a separate rotation a student also belongs to.
+    /// </summary>
+    /// <remarks>
+    /// The practice sheet states groups <c>A</c>-<c>H</c> and the vertical-corridor
+    /// calendar states both those groups and their subgroups, so the pair is
+    /// evidenced across two sources (ADR-074, ADR-077). The anatomy group is
+    /// independent of them: the dissection rotation assigns <c>1</c>, <c>2</c> or
+    /// <c>3</c> to a student regardless of which letter they carry, so a Grade 2
+    /// student declares three selectors rather than two (ADR-078, ADR-079).
+    /// </remarks>
+    private static SupportedProfileProgram Grade2Turkish() => new()
+    {
+        ClassYear = 2,
+        ProgramLanguage = ProgramLanguage.Turkish,
+        Dimensions =
+        [
+            new SupportedProfileDimension
+            {
+                Key = "practiceGroup",
+                Required = true,
+                Values = ["A", "B", "C", "D", "E", "F", "G", "H"],
+            },
+            new SupportedProfileDimension
+            {
+                Key = "practiceSubgroup",
+                Required = true,
+                DependsOn = "practiceGroup",
+                ValuesByParent = TwoSubgroupsEach("A", "B", "C", "D", "E", "F", "G", "H"),
+            },
+            new SupportedProfileDimension
+            {
+                Key = "anatomyGroup",
+                Required = true,
+                Values = ["1", "2", "3"],
             },
         ],
     };

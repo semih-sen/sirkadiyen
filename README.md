@@ -189,12 +189,16 @@ dotnet run --project tools/Sirkadiyen.SnapshotTool -- `
 The fixture may be an XLSX workbook or a DOCX document: several programs are
 published as Word files, and both are converted onto the same normalized
 snapshot contract, so a parser profile never learns which one its source was
-(ADR-076). A document the catalog cannot describe — the Grade 2 anatomy group
-lists are handed out once a semester and have no published URL — is named
-directly with `--document <repository-relative path>` instead of being looked up
-by source ID.
+(ADR-076). A document the catalog does not describe yet is named directly with
+`--document <repository-relative path>` instead of being looked up by source ID.
+
+A source that is handed out rather than published — the Grade 2 anatomy group
+lists arrive once a semester with no URL — is catalogued under the
+`administrativeUpload` transport and names itself `urn:sirkadiyen:upload:{sourceId}`
+rather than claiming a location it does not have (ADR-079). It is looked up by
+source ID like any other.
 
 This command is for fixture development only. Production ingestion uses
 transport-specific adapters and persists immutable snapshots before parsing.
 There is no DOCX transport yet: converting one is possible, acquiring one is
-not.
+not, whether by download or by upload.

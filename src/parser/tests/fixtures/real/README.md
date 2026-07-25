@@ -42,13 +42,19 @@ resolves dates and times from text alone.
 | `g2-vertical-autumn.snapshot.json` | `G2-VERTICAL-AUTUMN` | one 60x7 table: a row is a dated slot whose first cell holds a label, a date and a time range on three lines, and a column is a skill practice. This is where the Grade 2 practice sheet's `*` cells are answered. Only twelve of its 53 dated rows name a group so far — the document is filled in over the year |
 | `g2-vertical-spring.snapshot.json` | `G2-VERTICAL-SPRING` | the same table split across seven Word tables, one of which leaves the place header empty. Carries subgroups (`B2`), two-cohort runs (`CD`), examinations (`A-B-C-D SINAV`), the English programme's cohorts and the separately published `EK-n` lists |
 
-Neither anatomy document is in `config/schedule-sources.json`, so their
-snapshots are produced by naming the file explicitly:
+All four are in `config/schedule-sources.json`, so all four regenerate through
+the ordinary `--source-id` form above. The anatomy pair is catalogued under the
+`administrativeUpload` transport (ADR-079): the document has no URL, so the
+entry names itself with a URN and an administrator uploads the file each
+semester. The catalog entry is what makes the fixture reproducible; it does not
+mean the worker can fetch the document.
+
+Use `--document` only for a file the catalog does not describe yet:
 
 ```powershell
 dotnet run --project tools/Sirkadiyen.SnapshotTool -- `
-  --repository-root . --source-id G2-ANATOMY-AUTUMN `
-  --document "sheets/donem-2-tr/2. SINIF SALON GRUP SAATLERİ 2025-2026 GÜZ.docx" `
-  --output src/parser/tests/fixtures/real/g2-anatomy-autumn.snapshot.json `
+  --repository-root . --source-id G1-ANATOMY `
+  --document "sheets/donem-1-tr/some-new-document.docx" `
+  --output src/parser/tests/fixtures/real/g1-anatomy.snapshot.json `
   --acquired-at-utc 2026-07-25T00:00:00Z
 ```

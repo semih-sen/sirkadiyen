@@ -16,12 +16,14 @@ public sealed class ScheduleSourceCatalogTests
             .LoadAsync(path, CancellationToken.None);
 
         Assert.Equal("1.0", catalog.CatalogVersion);
-        Assert.Equal(18, catalog.Sources.Count);
+        Assert.Equal(20, catalog.Sources.Count);
         Assert.Equal(7, catalog.Sources.Count(
             source => source.Transport == ScheduleSourceTransport.GoogleSheets));
         Assert.Equal(10, catalog.Sources.Count(
             source => source.Transport == ScheduleSourceTransport.GoogleDriveFile));
         Assert.Single(catalog.Sources, source => source.Transport == ScheduleSourceTransport.HttpFile);
+        Assert.Equal(2, catalog.Sources.Count(
+            source => source.Transport == ScheduleSourceTransport.AdministrativeUpload));
 
         ScheduleSourceDefinition annual = Assert.Single(
             catalog.Sources,
@@ -49,10 +51,26 @@ public sealed class ScheduleSourceCatalogTests
             source => source.SourceId == "G2-VERTICAL-SPRING");
         Assert.Equal(ScheduleDocumentFormat.Docx, vertical.DocumentFormat);
 
+        // The anatomy documents are handed out rather than published, so they
+        // name themselves instead of claiming a location they do not have.
+        ScheduleSourceDefinition anatomy = Assert.Single(
+            catalog.Sources,
+            source => source.SourceId == "G2-ANATOMY-AUTUMN");
+        Assert.Equal(ScheduleSourceTransport.AdministrativeUpload, anatomy.Transport);
+        Assert.Equal(
+            "urn:sirkadiyen:upload:G2-ANATOMY-AUTUMN",
+            anatomy.SourceUri.OriginalString);
+        Assert.Null(anatomy.ExternalId);
+        Assert.Equal(["1", "2", "3"], anatomy.SupportedAudienceSelectors!["anatomyGroup"]);
+
         Assert.All(catalog.Sources, source =>
         {
             Assert.True(source.SourceUri.IsAbsoluteUri);
-            Assert.Equal(Uri.UriSchemeHttps, source.SourceUri.Scheme);
+            Assert.Equal(
+                source.Transport == ScheduleSourceTransport.AdministrativeUpload
+                    ? "urn"
+                    : Uri.UriSchemeHttps,
+                source.SourceUri.Scheme);
             Assert.False(string.IsNullOrWhiteSpace(source.ParserProfile));
         });
     }

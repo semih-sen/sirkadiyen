@@ -22,11 +22,10 @@ if (acquiredAtUtc.Offset != TimeSpan.Zero)
     throw new ArgumentException("--acquired-at-utc must resolve to UTC.");
 }
 
-// A document may be collected before the catalog can describe it. The Grade 2
-// anatomy group lists are handed out once a semester and have no published URL,
-// and the catalog requires an absolute HTTPS one, so --document converts a file
-// under a source ID the manifest reserves. The catalog stays the authority for
-// every source it can actually describe.
+// A document may be collected before the catalog describes it, so --document
+// converts a file under a source ID the manifest reserves but the catalog does
+// not carry yet. The catalog stays the authority for every source it does carry,
+// including the administratively uploaded ones (ADR-079).
 string? explicitDocument = arguments.GetValueOrDefault("document");
 string? externalId = null;
 if (explicitDocument is null)

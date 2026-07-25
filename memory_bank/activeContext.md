@@ -57,11 +57,15 @@ slot-column reader, `grade2_practice_v1` (ADR-074). **A Word document now conver
 the same normalized snapshot contract as a workbook** (ADR-076), and the vertical-corridor
 skill-practice calendar is parsed from it by `grade2_vertical_corridor_v1` (ADR-077), as
 are the anatomy group lists by `grade2_anatomy_{autumn,spring}_v1` (ADR-078). **Every
-Grade 2 source now has a parser profile.** What they do not have is a way in:
-**acquiring** a Word document at runtime does not exist, so none of those four revisions
-can be produced outside a fixture, and the two anatomy sources are not even catalogued.
-Drive, HTTP and administrative-upload acquisition, Grade 2 support in the student-profile
-schema, and the remaining operational surfaces still do not exist. The **consumer frontend now
+Grade 2 source now has a parser profile.** Every Grade 2 source is now catalogued too:
+the anatomy documents are handed out with no URL, so they are declared under the
+`administrativeUpload` transport and name themselves with a URN instead of claiming a
+location (ADR-079). **A Grade 2 Turkish student can now onboard**, with `practiceGroup`,
+`practiceSubgroup` and the independent `anatomyGroup`. What Grade 2 still does not have is
+a way in: **acquiring** a Word document at runtime does not exist, so none of those four
+revisions can be produced outside a fixture. Drive, HTTP and administrative-upload
+acquisition, Grade 2 English support, and the remaining operational surfaces still do not
+exist. The **consumer frontend now
 has a runnable foundation** (`web/`, ADR-066): Google sign-in, license redemption,
 academic profile, Calendar authorization, and initial-sync progress are wired to
 the existing APIs and gated by authoritative backend onboarding state. Admin
@@ -82,6 +86,46 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- **Opened Grade 2 Turkish onboarding, and catalogued the sources that were blocking it
+  (ADR-079).** The two blockers were each other's: the anatomy documents could not be
+  catalogued without an HTTPS URI, and Grade 2 could not enter the supported-profile
+  schema without a catalogued source declaring `anatomyGroup`.
+- **A handed-out document names itself.** A fourth transport, `AdministrativeUpload`,
+  covers a source an administrator uploads each semester. Its URI is
+  `urn:sirkadiyen:upload:{sourceId}` and the catalog refuses anything else for it,
+  including an HTTPS URL — a plausible Drive link was tried and reverted during ADR-076
+  precisely because it is a false provenance claim. The URN must spell out its own source
+  ID, so a copied entry cannot silently attach one document's evidence to another.
+- The absolute-HTTPS rule is now chosen by transport instead of applied to every source.
+  The poller answers `AwaitingAdministrativeUpload` rather than `UnsupportedTransport`:
+  the transport is not missing an implementation, the document is missing an upload.
+  Nothing polls such a source, so cataloguing one starts no traffic and stores no snapshot.
+- **Grade 2 Turkish is in the supported-profile schema** with three required selectors:
+  `practiceGroup` `A`-`H` and `practiceSubgroup` `A1`-`H2` from the practice table and the
+  vertical-corridor calendar, plus the independent `anatomyGroup` `1`/`2`/`3` from the
+  newly catalogued anatomy sources. The anatomy group is not a subdivision of the practice
+  group, so it is a third dimension, not a deeper chain. Schema version is now `1.1`.
+- **Grade 2 English deliberately stays out.** Its only current-year source is the annual
+  program, which states no cohorts, and its practice fixture is from 2024-2025 (ADR-048).
+  Admitting it with no selectors would hand an English student a calendar missing every
+  practice and dissection session, which reads as complete.
+- The onboarding form needed no structural change — it renders class years and dimensions
+  from `GET /api/profile/options` — but it had been rendering the raw selector keys, so it
+  now carries Turkish labels for them.
+- The four DOCX snapshot fixtures were regenerated through the catalog. Their cells are
+  byte-identical; two `INFORMATION` diagnostics per fixture carried wording the converter
+  had stopped emitting, so the committed evidence had drifted from what the committed
+  document produces.
+- **Open risks.** No anatomy snapshot can be produced outside the tool until the upload
+  endpoint and its authorization exist; the catalog entry declares what the source is, not
+  that it has been read. A profile stored under schema `1.0` is still not re-validated
+  when the schema changes (ADR-055), and there are now two versions in the field.
+- 408 Python tests pass, unchanged and unaffected. 355 Infrastructure (up from 344), 133
+  Persistence, 6 Contracts and 2 API .NET tests pass; the Release build has no warnings,
+  `dotnet format --verify-no-changes` is clean, and the frontend typechecks.
+
+## Previous Grade 2 source sessions
 
 - **Implemented the anatomy profiles (ADR-078), which close the last Grade 2 source.**
   `grade2_anatomy_autumn_v1` and `grade2_anatomy_spring_v1` publish 156 dissection

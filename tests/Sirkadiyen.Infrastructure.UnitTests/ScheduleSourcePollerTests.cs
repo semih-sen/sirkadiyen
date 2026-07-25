@@ -72,6 +72,42 @@ public sealed class ScheduleSourcePollerTests
     }
 
     [Fact]
+    public async Task AnAdministrativelyUploadedSourceIsNotPolledAtAll()
+    {
+        ScheduleSource source = new(
+            SourceId.Parse("G2-ANATOMY-AUTUMN"),
+            "Uploaded document",
+            ScheduleSourceTransport.AdministrativeUpload,
+            ScheduleDocumentFormat.Docx,
+            "urn:sirkadiyen:upload:G2-ANATOMY-AUTUMN",
+            "grade2_anatomy_autumn_v1",
+            "1.0.0",
+            "2025-2026",
+            2,
+            DomainLanguage.Turkish,
+            "Europe/Istanbul");
+        FakeSnapshotAcquirer acquirer = new(Snapshot(Source()));
+        FakeParserClient parser = new();
+        ScheduleSourcePoller poller = new(
+            acquirer,
+            new FakeSnapshotStore(StoredSnapshot(Source(), Snapshot(Source())), changed: true),
+            parser,
+            new FakeParseResultStore(shouldInvokeParser: true),
+            ValidationService(),
+            new FakeOperationalFreezeStore(),
+            new ParseRunOptions(),
+            TimeProvider.System);
+
+        ScheduleSourcePollResult result = await poller.PollAsync(source, CancellationToken.None);
+
+        // It is not an unimplemented transport but a source with no location, so
+        // the outcome says what an operator is actually waiting for.
+        Assert.Equal(ScheduleSourcePollOutcome.AwaitingAdministrativeUpload, result.Outcome);
+        Assert.Equal(0, acquirer.CallCount);
+        Assert.Equal(0, parser.CallCount);
+    }
+
+    [Fact]
     public async Task UnsupportedTransportNeverAcquiresOrParses()
     {
         ScheduleSource source = new(

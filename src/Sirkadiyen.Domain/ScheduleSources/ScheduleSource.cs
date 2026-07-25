@@ -138,6 +138,16 @@ public enum ScheduleSourceTransport
     GoogleSheets,
     GoogleDriveFile,
     HttpFile,
+
+    /// <summary>
+    /// The document is handed out rather than published, so an administrator
+    /// uploads it and that upload is the only acquisition path (ADR-079).
+    /// </summary>
+    /// <remarks>
+    /// Such a source is never polled: there is nothing to read until someone
+    /// uploads, and the worker must not invent a location to fetch it from.
+    /// </remarks>
+    AdministrativeUpload,
 }
 
 public enum ScheduleDocumentFormat

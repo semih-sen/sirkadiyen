@@ -182,8 +182,10 @@ observations about the documents rather than about the conversion.
   cell, and its second column repeats `Web Sitesinde Yayınlanacak` — the same
   deferred room the practice sheet writes.
 - Neither anatomy document states a URL anywhere, and the spring/autumn pair is
-  handed out once per semester. The vertical-corridor documents are edited by
-  Student Affairs during the year.
+  handed out once per semester, so both are catalogued under the
+  `administrativeUpload` transport and are acquired by an administrator uploading
+  the file rather than by polling (ADR-079). The vertical-corridor documents are
+  edited by Student Affairs during the year and keep their Drive URLs.
 - **The vertical-corridor grid is mostly unassigned.** Autumn states groups on 12 of
   its 53 dated rows and spring on 30 of 52, because the faculty schedules them as the
   year goes on. A dated row with no groups is the document's normal state, not a defect.

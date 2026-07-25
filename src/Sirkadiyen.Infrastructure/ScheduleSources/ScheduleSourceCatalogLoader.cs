@@ -7,6 +7,12 @@ namespace Sirkadiyen.Infrastructure.ScheduleSources;
 
 public sealed class ScheduleSourceCatalogLoader
 {
+    /// <summary>
+    /// How an administratively uploaded source names itself, since it has no
+    /// location to be named by (ADR-079).
+    /// </summary>
+    public const string AdministrativeUploadUriPrefix = "urn:sirkadiyen:upload:";
+
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = false,
@@ -64,11 +70,7 @@ public sealed class ScheduleSourceCatalogLoader
                 throw new InvalidDataException($"Duplicate source ID '{source.SourceId}'.");
             }
 
-            if (!source.SourceUri.IsAbsoluteUri || source.SourceUri.Scheme != Uri.UriSchemeHttps)
-            {
-                throw new InvalidDataException(
-                    $"Source '{source.SourceId}' must use an absolute HTTPS URI.");
-            }
+            ValidateSourceUri(source);
 
             if (source.Transport is ScheduleSourceTransport.GoogleSheets)
             {
@@ -88,6 +90,42 @@ public sealed class ScheduleSourceCatalogLoader
             }
 
             ValidateSupportedAudienceSelectors(source);
+        }
+    }
+
+    /// <summary>
+    /// Enforces that the source URI states what the transport can actually do.
+    /// </summary>
+    /// <remarks>
+    /// A fetched source must name an absolute HTTPS location, because the worker
+    /// reads it from there. An administratively uploaded document has no location
+    /// at all, and giving it a plausible-looking URL would be a false provenance
+    /// claim, so it names itself with a URN instead. The URN must spell out its
+    /// own source ID: it is pure identity, and a copied entry that kept another
+    /// source's URN would attach one document's evidence to the other (ADR-079).
+    /// </remarks>
+    private static void ValidateSourceUri(ScheduleSourceDefinition source)
+    {
+        if (source.Transport is ScheduleSourceTransport.AdministrativeUpload)
+        {
+            string expected = AdministrativeUploadUriPrefix + source.SourceId;
+            if (!string.Equals(
+                source.SourceUri.OriginalString,
+                expected,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException(
+                    $"Administratively uploaded source '{source.SourceId}' must identify itself "
+                    + $"as '{expected}'.");
+            }
+
+            return;
+        }
+
+        if (!source.SourceUri.IsAbsoluteUri || source.SourceUri.Scheme != Uri.UriSchemeHttps)
+        {
+            throw new InvalidDataException(
+                $"Source '{source.SourceId}' must use an absolute HTTPS URI.");
         }
     }
 

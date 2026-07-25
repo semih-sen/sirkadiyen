@@ -152,10 +152,17 @@ A source poll result must distinguish:
 - rate-limited
 
 Source transport and document format are separate concerns. A source catalog
-selects a transport adapter (`GoogleSheets`, `GoogleDriveFile`, or `HttpFile`),
-then a format converter (`GoogleSheetsGrid`, `Xlsx`, or `Docx`) produces the
-versioned normalized snapshot. Parser profiles depend only on the snapshot
-contract, never on the acquisition transport.
+selects a transport adapter (`GoogleSheets`, `GoogleDriveFile`, `HttpFile`, or
+`AdministrativeUpload`), then a format converter (`GoogleSheetsGrid`, `Xlsx`, or
+`Docx`) produces the versioned normalized snapshot. Parser profiles depend only
+on the snapshot contract, never on the acquisition transport.
+
+`AdministrativeUpload` is the push case: the document is handed out rather than
+published, so it is never polled and its snapshot arrives from an audited
+administrative action instead of a fetch. Such a source has no location, so it
+names itself `urn:sirkadiyen:upload:{sourceId}`; every other transport requires
+an absolute HTTPS URI, and the catalog enforces the one that matches the
+transport rather than a single rule for all of them (ADR-079).
 
 ## 5. Snapshot pattern
 

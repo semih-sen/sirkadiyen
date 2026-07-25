@@ -34,6 +34,20 @@ public sealed class ScheduleSourcePoller(
     {
         ArgumentNullException.ThrowIfNull(source);
 
+        // An uploaded source is not unsupported, it is simply not fetchable: it
+        // has no location, and its snapshot arrives through the administration
+        // flow instead (ADR-079). Saying so keeps an operator from reading a
+        // permanent state as a missing transport implementation.
+        if (source.Transport is ScheduleSourceTransport.AdministrativeUpload)
+        {
+            return new ScheduleSourcePollResult
+            {
+                SourceId = source.SourceId,
+                Outcome = ScheduleSourcePollOutcome.AwaitingAdministrativeUpload,
+                SnapshotChanged = false,
+            };
+        }
+
         if (source.Transport is not ScheduleSourceTransport.GoogleSheets
             || source.DocumentFormat is not ScheduleDocumentFormat.GoogleSheet)
         {
@@ -236,6 +250,10 @@ public enum ScheduleSourcePollOutcome
 {
     Frozen,
     UnsupportedTransport,
+
+    /// <summary>The source is uploaded by an administrator and has nothing to poll.</summary>
+    AwaitingAdministrativeUpload,
+
     ParseAlreadyRunning,
     AlreadyParsed,
     Parsed,

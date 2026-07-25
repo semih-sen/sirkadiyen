@@ -19,8 +19,36 @@ public sealed class CurrentSupportedProfileSchemaTests
     public void SchemaCarriesTheCurrentYearAndVersion()
     {
         Assert.Equal("2025-2026", Schema.AcademicYear);
-        Assert.Equal("1.0", Schema.SchemaVersion);
+        Assert.Equal("1.1", Schema.SchemaVersion);
         Assert.NotEmpty(Schema.Programs);
+    }
+
+    [Fact]
+    public void GradeTwoTurkishDeclaresItsPracticeAndAnatomyCohorts()
+    {
+        SupportedProfileProgram program = Assert.IsType<SupportedProfileProgram>(
+            Schema.FindProgram(2, ProgramLanguage.Turkish));
+
+        Assert.Equal(
+            ["practiceGroup", "practiceSubgroup", "anatomyGroup"],
+            program.Dimensions.Select(dimension => dimension.Key));
+        Assert.All(program.Dimensions, dimension => Assert.True(dimension.Required));
+
+        // The anatomy rotation is a group a student belongs to in its own right,
+        // not a subdivision of the practice group, so it is independent.
+        SupportedProfileDimension anatomy = Assert.IsType<SupportedProfileDimension>(
+            program.FindDimension("anatomyGroup"));
+        Assert.False(anatomy.IsDependent);
+        Assert.Equal(["1", "2", "3"], anatomy.Values);
+    }
+
+    [Fact]
+    public void GradeTwoEnglishIsStillAbsent()
+    {
+        // Its only current-year source is the annual program, which states no
+        // cohorts; the English practice fixture is from 2024-2025 and ADR-048
+        // forbids promoting a prior year's values into this year's allowlist.
+        Assert.Null(Schema.FindProgram(2, ProgramLanguage.English));
     }
 
     [Fact]

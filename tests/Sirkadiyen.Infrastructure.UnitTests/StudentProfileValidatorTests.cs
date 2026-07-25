@@ -34,6 +34,63 @@ public sealed class StudentProfileValidatorTests
     }
 
     [Fact]
+    public void AConfirmedGradeTwoTurkishCohortIsValid()
+    {
+        StudentProfileValidationResult result = Validate(
+            2,
+            ProgramLanguage.Turkish,
+            ("practiceGroup", "C"),
+            ("practiceSubgroup", "C2"),
+            ("anatomyGroup", "3"));
+
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
+    }
+
+    [Fact]
+    public void AGradeTwoProfileWithoutItsAnatomyGroupIsRejected()
+    {
+        // The dissection rotation is the whole reason the anatomy documents are
+        // parsed; a Grade 2 profile that omits it would silently receive none of it.
+        StudentProfileValidationResult result = Validate(
+            2,
+            ProgramLanguage.Turkish,
+            ("practiceGroup", "C"),
+            ("practiceSubgroup", "C2"));
+
+        StudentProfileValidationError error = Assert.Single(result.Errors);
+        Assert.Equal(StudentProfileValidationErrorCode.MissingRequiredSelector, error.Code);
+        Assert.Equal("anatomyGroup", error.Key);
+    }
+
+    [Fact]
+    public void AnAnatomyGroupOutsideTheThreeTheSourceStatesIsRejected()
+    {
+        StudentProfileValidationResult result = Validate(
+            2,
+            ProgramLanguage.Turkish,
+            ("practiceGroup", "C"),
+            ("practiceSubgroup", "C2"),
+            ("anatomyGroup", "4"));
+
+        StudentProfileValidationError error = Assert.Single(result.Errors);
+        Assert.Equal(StudentProfileValidationErrorCode.UnsupportedValue, error.Code);
+        Assert.Equal("anatomyGroup", error.Key);
+    }
+
+    [Fact]
+    public void GradeTwoEnglishHasNoConfirmedProfileYet()
+    {
+        StudentProfileValidationResult result = ValidateWith(
+            2,
+            ProgramLanguage.English,
+            "0102240048");
+
+        StudentProfileValidationError error = Assert.Single(result.Errors);
+        Assert.Equal(StudentProfileValidationErrorCode.UnsupportedProgram, error.Code);
+    }
+
+    [Fact]
     public void AClassYearWithNoConfirmedProfileIsUnsupported()
     {
         StudentProfileValidationResult result = Validate(3, ProgramLanguage.Turkish);

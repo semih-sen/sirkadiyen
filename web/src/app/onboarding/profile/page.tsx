@@ -14,6 +14,15 @@ import type {
   SupportedProfileProgram,
 } from '@/lib/types';
 
+// The schema names dimensions in the contract's language; the form is Turkish.
+// An unlabelled key falls back to itself rather than being hidden, so a new
+// dimension is visibly unlabelled instead of silently unselectable.
+const DIMENSION_LABELS: Record<string, string> = {
+  practiceGroup: 'Uygulama grubu',
+  practiceSubgroup: 'Uygulama alt grubu',
+  anatomyGroup: 'Anatomi grubu',
+};
+
 function allowedValues(dimension: SupportedProfileDimension, selectors: Record<string, string>): string[] {
   if (!dimension.dependsOn) {
     return dimension.values ?? [];
@@ -173,7 +182,7 @@ function ProfileForm() {
           return (
             <div key={dimension.key}>
               <label htmlFor={dimension.key}>
-                {dimension.key}
+                {DIMENSION_LABELS[dimension.key] ?? dimension.key}
                 {dimension.required ? ' *' : ''}
               </label>
               <select
