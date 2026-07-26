@@ -200,5 +200,7 @@ source ID like any other.
 
 This command is for fixture development only. Production ingestion uses
 transport-specific adapters and persists immutable snapshots before parsing.
-There is no DOCX transport yet: converting one is possible, acquiring one is
-not, whether by download or by upload.
+An administratively uploaded document is acquired over the API instead
+(`POST /api/sources/{sourceId}/document`, ADR-080); a DOCX that must be
+*downloaded* still has no transport, so the two vertical-corridor sources cannot
+be acquired at runtime yet.

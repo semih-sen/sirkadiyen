@@ -392,11 +392,20 @@ Grade 2 English stays out: its only current-year source states no cohorts and it
 fixture is from 2024-2025, so admitting it would hand a student a calendar missing every
 practice and dissection session.
 
-What Grade 2 still lacks is not a parser and no longer a catalog entry or an audience. Four
-of its six revisions come from Word documents that nothing can **acquire** at runtime, so
-the remaining work before a Grade 2 student receives anything is the administrative upload
-endpoint and a Drive download for the vertical-corridor documents. The Grade 2 English
-practice source also still needs a current fixture; its committed one is from 2024-2025.
+Administrative acquisition is implemented (ADR-080). A SuperAdmin uploads a handed-out
+document to `POST /api/sources/{sourceId}/document`; it is converted and stored as
+immutable evidence, and the worker parses it on its next cycle under the same rules as a
+polled source. Sources whose document is literally the same file declare a
+`sharedDocumentGroup`, so **one upload serves every program the document serves**: the
+anatomy pair gained English counterparts, and one upload now produces a Turkish and an
+English snapshot from a single file. Every upload is audited per target with the uploader,
+the file name, the byte count and the digest of the bytes.
+
+What Grade 2 still lacks is not a parser, a catalog entry, an audience, or a way in for
+the anatomy documents. The vertical-corridor pair still has no Drive download, so two of
+its six revisions cannot be produced at runtime. The English anatomy revisions publish to
+an empty audience until Grade 2 English enters the supported-profile schema, which needs a
+current-year English practice fixture; the committed one is from 2024-2025.
 
 Calendar backlog scheduling is complete through ADR-070. Ordinary 100-operation
 quota yields no longer wait for the adaptive source polling interval: the worker

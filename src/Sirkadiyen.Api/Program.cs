@@ -14,6 +14,7 @@ using Sirkadiyen.Application.Identity;
 using Sirkadiyen.Application.Licensing;
 using Sirkadiyen.Application.Onboarding;
 using Sirkadiyen.Application.ScheduleDiffing;
+using Sirkadiyen.Application.ScheduleIngestion;
 using Sirkadiyen.Application.SchedulePublication;
 using Sirkadiyen.Application.StudentProfiles;
 using Sirkadiyen.Domain.Identity;
@@ -21,6 +22,7 @@ using Sirkadiyen.Infrastructure.Configuration;
 using Sirkadiyen.Infrastructure.Google;
 using Sirkadiyen.Infrastructure.Licensing;
 using Sirkadiyen.Infrastructure.Persistence;
+using Sirkadiyen.Infrastructure.ScheduleIngestion;
 using Sirkadiyen.Infrastructure.Security;
 
 // Before the builder, because the environment-variable provider reads the
@@ -162,6 +164,12 @@ builder.Services.AddRateLimiter(options =>
 });
 builder.Services.AddScoped<ScheduleRevisionPublicationService>();
 builder.Services.AddScoped<ScheduleDiffReviewService>();
+
+// Administrative acquisition. The API stores the uploaded evidence; the worker
+// still owns parsing, validation and publication (ADR-080).
+builder.Services.AddSingleton<DocxSnapshotConverter>();
+builder.Services.AddScoped<IUploadedDocumentConverter, UploadedDocumentConverter>();
+builder.Services.AddScoped<AdministrativeDocumentUploadService>();
 builder.Services.AddSirkadiyenPersistence(connectionString);
 
 var app = builder.Build();
@@ -183,6 +191,7 @@ app.MapCalendarAuthorizationEndpoints();
 app.MapCalendarSyncEndpoints();
 app.MapOnboardingEndpoints();
 app.MapRevisionEndpoints();
+app.MapSourceDocumentEndpoints();
 app.MapDiffEndpoints();
 app.MapOperationalEndpoints();
 

@@ -60,6 +60,12 @@ public sealed record ScheduleSourceDefinition
         init;
     }
 
+    /// <summary>
+    /// Names the set of sources whose document is literally the same file, so one
+    /// administrative upload becomes evidence for all of them (ADR-080).
+    /// </summary>
+    public string? SharedDocumentGroup { get; init; }
+
     public string? FixturePath { get; init; }
 
     public string? Notes { get; init; }
@@ -79,5 +85,6 @@ public sealed record ScheduleSourceDefinition
         TimeZoneId,
         ExternalId,
         SheetGid,
-        SupportedAudienceSelectors);
+        SupportedAudienceSelectors,
+        SharedDocumentGroup);
 }

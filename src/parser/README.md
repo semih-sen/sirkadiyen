@@ -92,7 +92,7 @@ the remaining profiles.
 | `grade2_yearly_v1` | `G2-TR-ANNUAL`, `G2-EN-ANNUAL` | `tests/fixtures/real/g2-{tr,en}-annual.snapshot.json` |
 | `grade2_practice_v1` | `G2-TR-PRACTICE` | `tests/fixtures/real/g2-tr-practice.snapshot.json` |
 | `grade2_vertical_corridor_v1` | `G2-VERTICAL-AUTUMN`, `G2-VERTICAL-SPRING` | `tests/fixtures/real/g2-vertical-{autumn,spring}.snapshot.json` |
-| `grade2_anatomy_autumn_v1`, `grade2_anatomy_spring_v1` | `G2-ANATOMY-AUTUMN`, `G2-ANATOMY-SPRING` | `tests/fixtures/real/g2-anatomy-{autumn,spring}.snapshot.json` |
+| `grade2_anatomy_autumn_v1`, `grade2_anatomy_spring_v1` | `G2-ANATOMY-{AUTUMN,SPRING}` and their `-EN` counterparts | `tests/fixtures/real/g2-anatomy-{autumn,spring}.snapshot.json` |
 
 `parsers/annual.py` reads the row-oriented annual layout: one lesson per row,
 with columns selected by header alias rather than by position, so the Turkish

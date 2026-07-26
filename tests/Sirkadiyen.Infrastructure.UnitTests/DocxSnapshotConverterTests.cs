@@ -11,9 +11,9 @@ using OpenXmlTableRow = DocumentFormat.OpenXml.Wordprocessing.TableRow;
 
 namespace Sirkadiyen.Infrastructure.UnitTests;
 
-public sealed class LocalDocxSnapshotConverterTests
+public sealed class DocxSnapshotConverterTests
 {
-    private readonly LocalDocxSnapshotConverter _converter = new();
+    private readonly DocxSnapshotConverter _converter = new();
 
     [Fact]
     public void AnatomyFixtureKeepsTableBoundariesAndVerticalMerges()
@@ -112,6 +112,46 @@ public sealed class LocalDocxSnapshotConverterTests
     }
 
     [Fact]
+    public void AnUploadedDocumentConvertsToTheSameGridAndSaysHowItArrived()
+    {
+        string path = Path.Combine(AppContext.BaseDirectory, "fixtures", "g2-anatomy-autumn.docx");
+        AcquireSpreadsheetSnapshotRequest request = CreateRequest("G2-ANATOMY-AUTUMN");
+
+        NormalizedSpreadsheetSnapshot fromFile = _converter.Convert(path, request);
+        NormalizedSpreadsheetSnapshot fromUpload = _converter.ConvertUpload(
+            File.ReadAllBytes(path),
+            request);
+
+        // The document is the document; how it reached the host changes nothing
+        // about the grid a parser profile will read.
+        Assert.Equal(
+            fromFile.Worksheets.Select(worksheet => worksheet.Title),
+            fromUpload.Worksheets.Select(worksheet => worksheet.Title));
+        Assert.Equal(
+            fromFile.Worksheets.Sum(worksheet => worksheet.Cells.Count),
+            fromUpload.Worksheets.Sum(worksheet => worksheet.Cells.Count));
+
+        // An uploaded source has no location to be traced back to, so the
+        // snapshot itself has to say where it came from, and it must never claim
+        // to be the development fixture conversion.
+        Assert.Contains(
+            fromUpload.Diagnostics,
+            diagnostic => diagnostic.Code
+                == DocxSnapshotConverter.AdministrativeUploadDiagnosticCode);
+        Assert.DoesNotContain(
+            fromUpload.Diagnostics,
+            diagnostic => diagnostic.Code == DocxSnapshotConverter.LocalFixtureDiagnosticCode);
+        Assert.DoesNotContain(
+            fromFile.Diagnostics,
+            diagnostic => diagnostic.Code
+                == DocxSnapshotConverter.AdministrativeUploadDiagnosticCode);
+
+        // The acquisition diagnostic is part of the hashed content, so the two
+        // are deliberately not interchangeable evidence.
+        Assert.NotEqual(fromFile.ContentHash, fromUpload.ContentHash);
+    }
+
+    [Fact]
     public void ParagraphsBetweenTablesBecomeTheirOwnWorksheet()
     {
         using MemoryStream stream = BuildDocument(
@@ -152,7 +192,7 @@ public sealed class LocalDocxSnapshotConverterTests
         AcquisitionDiagnostic diagnostic = Assert.Single(
             snapshot.Diagnostics,
             candidate => candidate.Code
-                == LocalDocxSnapshotConverter.BlankParagraphBlockDiagnosticCode);
+                == DocxSnapshotConverter.BlankParagraphBlockDiagnosticCode);
         Assert.Contains("2 paragraph(s)", diagnostic.Message, StringComparison.Ordinal);
         Assert.Contains("after worksheet 1", diagnostic.Message, StringComparison.Ordinal);
     }
@@ -175,7 +215,7 @@ public sealed class LocalDocxSnapshotConverterTests
         // never wrote, so the address is reported instead.
         AcquisitionDiagnostic diagnostic = Assert.Single(
             snapshot.Diagnostics,
-            candidate => candidate.Code == LocalDocxSnapshotConverter.NestedTableDiagnosticCode);
+            candidate => candidate.Code == DocxSnapshotConverter.NestedTableDiagnosticCode);
         Assert.Equal(DiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Equal("B1", diagnostic.Range);
         Assert.Equal("1", diagnostic.SheetId);

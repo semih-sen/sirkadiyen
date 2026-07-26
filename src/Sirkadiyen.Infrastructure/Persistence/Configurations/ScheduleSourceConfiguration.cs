@@ -124,6 +124,13 @@ internal sealed class ScheduleSourceConfiguration : IEntityTypeConfiguration<Sch
             .Metadata.SetValueComparer(new AudienceSelectorMapComparer());
         builder.Property(source => source.SupportedAudienceSelectors).HasColumnType("jsonb");
 
+        // One administrative upload resolves its targets by this name, so it is
+        // indexed for that lookup rather than scanned (ADR-080).
+        builder.Property(source => source.SharedDocumentGroup)
+            .HasMaxLength(ScheduleSource.MaximumSharedDocumentGroupLength);
+        builder.HasIndex(source => source.SharedDocumentGroup)
+            .HasFilter("\"SharedDocumentGroup\" IS NOT NULL");
+
         // PostgreSQL maintains xmin itself, which gives optimistic concurrency
         // without an application-managed version column.
         builder.Property(source => source.RowVersion).IsRowVersion();

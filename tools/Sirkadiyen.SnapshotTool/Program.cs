@@ -71,7 +71,7 @@ AcquireSpreadsheetSnapshotRequest request = new()
 // workbook (ADR-076), so only the reader differs here.
 NormalizedSpreadsheetSnapshot snapshot = isXlsx
     ? new LocalXlsxSnapshotConverter().Convert(fixturePath, request)
-    : new LocalDocxSnapshotConverter().Convert(fixturePath, request);
+    : new DocxSnapshotConverter().Convert(fixturePath, request);
 JsonSerializerOptions jsonOptions = ContractJson.CreateOptions();
 string json = JsonSerializer.Serialize(snapshot, jsonOptions);
 

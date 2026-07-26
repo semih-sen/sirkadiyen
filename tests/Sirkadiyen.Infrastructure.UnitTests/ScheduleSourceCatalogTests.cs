@@ -16,13 +16,13 @@ public sealed class ScheduleSourceCatalogTests
             .LoadAsync(path, CancellationToken.None);
 
         Assert.Equal("1.0", catalog.CatalogVersion);
-        Assert.Equal(20, catalog.Sources.Count);
+        Assert.Equal(22, catalog.Sources.Count);
         Assert.Equal(7, catalog.Sources.Count(
             source => source.Transport == ScheduleSourceTransport.GoogleSheets));
         Assert.Equal(10, catalog.Sources.Count(
             source => source.Transport == ScheduleSourceTransport.GoogleDriveFile));
         Assert.Single(catalog.Sources, source => source.Transport == ScheduleSourceTransport.HttpFile);
-        Assert.Equal(2, catalog.Sources.Count(
+        Assert.Equal(4, catalog.Sources.Count(
             source => source.Transport == ScheduleSourceTransport.AdministrativeUpload));
 
         ScheduleSourceDefinition annual = Assert.Single(
@@ -62,6 +62,16 @@ public sealed class ScheduleSourceCatalogTests
             anatomy.SourceUri.OriginalString);
         Assert.Null(anatomy.ExternalId);
         Assert.Equal(["1", "2", "3"], anatomy.SupportedAudienceSelectors!["anatomyGroup"]);
+
+        // The document is handed to both programs, and each needs its own
+        // revision, so the pair is declared as one shared document (ADR-080).
+        ScheduleSourceDefinition anatomyEnglish = Assert.Single(
+            catalog.Sources,
+            source => source.SourceId == "G2-ANATOMY-AUTUMN-EN");
+        Assert.Equal(ProgramLanguage.English, anatomyEnglish.ProgramLanguage);
+        Assert.Equal("g2-anatomy-autumn", anatomy.SharedDocumentGroup);
+        Assert.Equal("g2-anatomy-autumn", anatomyEnglish.SharedDocumentGroup);
+        Assert.Equal(anatomy.FixturePath, anatomyEnglish.FixturePath);
 
         Assert.All(catalog.Sources, source =>
         {

@@ -61,11 +61,12 @@ Grade 2 source now has a parser profile.** Every Grade 2 source is now catalogue
 the anatomy documents are handed out with no URL, so they are declared under the
 `administrativeUpload` transport and name themselves with a URN instead of claiming a
 location (ADR-079). **A Grade 2 Turkish student can now onboard**, with `practiceGroup`,
-`practiceSubgroup` and the independent `anatomyGroup`. What Grade 2 still does not have is
-a way in: **acquiring** a Word document at runtime does not exist, so none of those four
-revisions can be produced outside a fixture. Drive, HTTP and administrative-upload
-acquisition, Grade 2 English support, and the remaining operational surfaces still do not
-exist. The **consumer frontend now
+`practiceSubgroup` and the independent `anatomyGroup`. **Administrative acquisition is
+implemented** (ADR-080): an administrator uploads a handed-out document over the API, one
+upload serves every source that document serves, and the worker parses it under the same
+rules as a polled source — so the anatomy pair can now produce real revisions for both
+programs. Drive and HTTP acquisition for the vertical-corridor documents, Grade 2 English
+support, and the remaining operational surfaces still do not exist. The **consumer frontend now
 has a runnable foundation** (`web/`, ADR-066): Google sign-in, license redemption,
 academic profile, Calendar authorization, and initial-sync progress are wired to
 the existing APIs and gated by authoritative backend onboarding state. Admin
@@ -86,6 +87,52 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- **Built administrative acquisition, so a handed-out document can finally become a
+  snapshot (ADR-080).** `POST /api/sources/{sourceId}/document` converts an uploaded
+  DOCX and stores it as immutable evidence; `GET .../document/uploads` returns the
+  audit trail. SuperAdmin only, antiforgery-protected, 8 MB bound, refused while the
+  pipeline is frozen because an upload is an acquisition.
+- **The endpoint acquires and nothing else.** The worker's next cycle finds the stored
+  snapshot and runs the same parse run, validation thresholds and publication rules as
+  a polled source, so an uploaded document is not a privileged path into the schedule.
+  Re-entering each cycle is safe: a parse run is keyed by snapshot, profile and version.
+- **One upload serves every source the document serves.** Sources whose document is
+  literally the same file declare a `sharedDocumentGroup`; an upload to any member
+  becomes a separate snapshot for every member. The anatomy document is handed to both
+  programs and each needs its own revision, because a canonical record reaches a
+  student only when its program language matches theirs — so `G2-ANATOMY-AUTUMN-EN`
+  and `G2-ANATOMY-SPRING-EN` now exist beside the Turkish pair.
+- The catalog refuses the three ways to get a group wrong: a group on a fetched source,
+  a group of one (what a mistyped group name looks like), and two members serving the
+  same class year and language, which would publish every lesson to those students
+  twice.
+- **Every upload is audited per target** in `source_document_uploads`: who, file name,
+  byte count, SHA-256 of the bytes, resulting snapshot, and whether the content was
+  new. A row is written for an unchanged re-upload too, because that is what explains
+  an absent revision. The file digest is not the snapshot content hash; one identifies
+  the delivered bytes, the other the normalized content.
+- An uploaded snapshot carries `snapshot.administrative_upload` rather than the
+  local-fixture diagnostic, and that diagnostic is hashed, so it can never be confused
+  with the committed development conversion. `LocalDocxSnapshotConverter` is renamed
+  `DocxSnapshotConverter`, since it is no longer local-only.
+- **Open risks.** The English anatomy revisions will publish to an empty audience until
+  Grade 2 English enters the supported-profile schema, which still waits on a
+  current-year English practice fixture (ADR-048). There is no admin UI for the
+  endpoint yet. A fan-out interrupted between its targets leaves one source with the
+  document and the other without; repeating the upload completes it, and the per-target
+  audit rows say which landed.
+- Two adjacent defects were fixed on the way: the poller refactor briefly parsed the
+  freshly acquired document instead of the stored one when content was unchanged (an
+  existing test caught it), and `ScheduleSourceStore` never copied
+  `SupportedAudienceSelectors` when reseeding, so an edited cohort allowlist applied
+  only to a fresh database.
+- 375 Infrastructure (up from 355), 136 Persistence (up from 133), 6 Contracts and 2
+  API .NET tests pass. Release build has no warnings and `dotnet format
+  --verify-no-changes` is clean. Migration `AddSourceDocumentUploads` adds the shared
+  group column and the audit table. No Python change.
+
+## Previous Grade 2 onboarding session
 
 - **Opened Grade 2 Turkish onboarding, and catalogued the sources that were blocking it
   (ADR-079).** The two blockers were each other's: the anatomy documents could not be

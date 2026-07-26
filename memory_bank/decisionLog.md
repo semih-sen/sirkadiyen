@@ -3956,3 +3956,98 @@ profile written before Grade 2 existed stays identifiable as one.
   column already stores its enum as text.
 
 ---
+
+## ADR-080: One upload, one document, every source it serves
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-26
+**Implements:** the administrative upload endpoint and its audit trail, the
+`sharedDocumentGroup` fan-out, `DocxSnapshotConverter.ConvertUpload`, the worker's
+parse path for uploaded sources, the two English anatomy sources, and migration
+`AddSourceDocumentUploads`
+**Extends:** ADR-076 (DOCX conversion), ADR-079 (the upload transport)
+
+### Context
+
+ADR-079 catalogued the anatomy documents but left them unacquirable: the entry
+declared what the source is, and nothing could turn a real file into a snapshot
+outside the development tool.
+
+The same document is handed to the Turkish and the English program. Serving both
+is not a matter of tagging one revision: `CalendarAudienceResolver` matches a
+canonical record to a student only when the record's program language equals
+theirs, so a Turkish-sourced record can never reach an English student. Each
+program needs its own source, its own snapshot and its own revision.
+
+That is two sources for one file, and the naive consequence is asking an
+administrator to upload the identical document twice — making double work the
+normal case and a half-finished pair the routine failure.
+
+### Decision
+
+**The upload endpoint acquires; the worker does everything else.**
+`POST /api/sources/{sourceId}/document` converts the file and stores it as an
+immutable snapshot, then stops. The worker's next cycle finds the stored snapshot
+and runs the same parse run, validation thresholds and publication rules as a
+polled source. An uploaded document is therefore not a privileged path into the
+schedule: the only thing an administrator can do is decide what the source
+contains, which is exactly what a poll decides for a fetched source.
+
+**Sources whose document is literally the same file declare a
+`sharedDocumentGroup`, and one upload becomes a snapshot for every member.** The
+group is symmetric — uploading to either member serves both — so there is no
+primary source whose absence breaks the other. The catalog refuses the three ways
+of getting it wrong: a group on a fetched source (which acquires its own copy and
+shares nothing), a group of one (what a mistyped group name looks like), and two
+members serving the same class year and language (which would publish every
+lesson to those students twice).
+
+Each target is stored in its own transaction rather than all in one. A target's
+evidence is independently valid, and re-uploading is idempotent, so a partial
+fan-out is completed by repeating the upload rather than by a rollback that would
+throw away evidence already stored.
+
+**An upload is audited per target.** `source_document_uploads` records who
+uploaded, the submitted file name, the byte count, the SHA-256 of the bytes, the
+snapshot it became, and whether the content was new. A row is written even when
+the content matched, because "an administrator re-uploaded an unchanged file" is
+what explains an absent revision. The digest of the file is deliberately not the
+snapshot's content hash: one identifies the delivered bytes, the other identifies
+the normalized content.
+
+**An uploaded snapshot says how it arrived.** The converter emits
+`snapshot.administrative_upload` instead of the local-fixture diagnostic, and that
+diagnostic is part of the hashed content, so an uploaded snapshot is never
+mistaken for the committed development conversion of the same document. The
+converter is renamed `DocxSnapshotConverter`, since a class called "Local" now
+reads production uploads.
+
+A frozen pipeline accepts no upload: an upload is an acquisition (ADR-034). The
+endpoint is SuperAdmin-only, antiforgery-protected, and bounded at 8 MB against
+documents that are tens of kilobytes.
+
+### Consequences
+
+- **An administrator uploads the anatomy document once and both programs get it.**
+  Four sources, two documents, two uploads per semester.
+- The English anatomy sources exist but reach nobody yet: Grade 2 English is still
+  absent from the supported-profile schema (ADR-079), so its revisions publish to
+  an empty audience. That is the same state Grade 2 Turkish was in before ADR-079,
+  and it is now the only thing between an English student and their dissection
+  sessions — along with the current-year practice fixture ADR-048 requires.
+- `G2-ANATOMY-AUTUMN` remains the Turkish source's identifier while its English
+  counterpart is `-EN`, which does not match the `G2-TR-*`/`G2-EN-*` house style.
+  Renaming would rewrite the committed snapshot fixtures and goldens that carry the
+  identifier, and stable evidence identifiers are worth more than symmetry.
+- The upload endpoint has no UI. An administrator uses it over the API until the
+  admin surface is built.
+- A refactor of the poller made the parse tail shared between the fetched and the
+  uploaded path. Its first version reused the freshly acquired document even when
+  the store reported the content unchanged; an existing test caught it. The parse
+  must read the stored snapshot, because that is the evidence the parse run is
+  keyed to.
+- `ScheduleSourceStore` now also copies `SupportedAudienceSelectors` when reseeding
+  the catalog. It never did, so an edited cohort allowlist applied to a fresh
+  database and silently not to a running one.
+
+---

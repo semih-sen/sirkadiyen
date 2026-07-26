@@ -21,6 +21,40 @@ service-account credential and always uses the least-privilege
 configuration binds exactly one of those credential modes. Credentials remain
 outside source control.
 
+## Administrative acquisition
+
+Some documents are handed out rather than published. They are catalogued under
+the `administrativeUpload` transport, name themselves
+`urn:sirkadiyen:upload:{sourceId}` because they have no location (ADR-079), and
+are acquired by a SuperAdmin uploading the file:
+
+```text
+POST /api/sources/{sourceId}/document   multipart form field "file"
+GET  /api/sources/{sourceId}/document/uploads
+```
+
+The endpoint converts and stores; it does not parse. The worker then finds the
+stored snapshot on its next cycle and runs the same parse, validation and
+publication path as a polled source, so an uploaded document is subject to every
+rule a fetched one is. Re-entering that path each cycle is safe because a parse
+run is keyed by snapshot, profile and profile version.
+
+**One upload can serve several sources.** Sources whose document is literally the
+same file declare a shared `sharedDocumentGroup`, and an upload to any member
+becomes a separate immutable snapshot for every member (ADR-080). The Grade 2
+anatomy group list is the case: one document, one upload, and a Turkish and an
+English revision, because a canonical record reaches a student only when its
+program language matches theirs.
+
+Each upload appends a `source_document_uploads` row per target recording who
+uploaded, the file name as submitted, the byte count, the SHA-256 of the bytes,
+and whether the content was new. A row is written even when the content matched
+what the source already held, because that is what explains why no revision
+followed.
+
+The pipeline freeze applies: a frozen pipeline accepts no upload, since an upload
+is an acquisition (ADR-034).
+
 ## Polling and parser orchestration
 
 The worker now loads and seeds the versioned source catalog, lists

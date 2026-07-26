@@ -26,6 +26,27 @@ public sealed class ScheduleSourceStore(SirkadiyenDbContext dbContext) : ISchedu
             source => source.SourceId == sourceId,
             cancellationToken);
 
+    public async Task<IReadOnlyList<ScheduleSource>> ListSharingDocumentAsync(
+        SourceId sourceId,
+        CancellationToken cancellationToken)
+    {
+        ScheduleSource? source = await FindAsync(sourceId, cancellationToken);
+        if (source is null)
+        {
+            return [];
+        }
+
+        if (source.SharedDocumentGroup is not { } group)
+        {
+            return [source];
+        }
+
+        return await dbContext.ScheduleSources
+            .Where(candidate => candidate.SharedDocumentGroup == group)
+            .OrderBy(candidate => candidate.SourceId)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<int> UpsertAsync(
         IReadOnlyCollection<ScheduleSource> sources,
         CancellationToken cancellationToken)
@@ -72,5 +93,11 @@ public sealed class ScheduleSourceStore(SirkadiyenDbContext dbContext) : ISchedu
         [nameof(ScheduleSource.ClassYear)] = source.ClassYear,
         [nameof(ScheduleSource.ProgramLanguage)] = source.ProgramLanguage,
         [nameof(ScheduleSource.TimeZoneId)] = source.TimeZoneId,
+
+        // The declared cohorts and the shared-document group are catalog-owned
+        // too. Omitting them here would let an edited allowlist or a corrected
+        // group name apply to a fresh database and silently not to a running one.
+        [nameof(ScheduleSource.SupportedAudienceSelectors)] = source.SupportedAudienceSelectors,
+        [nameof(ScheduleSource.SharedDocumentGroup)] = source.SharedDocumentGroup,
     };
 }

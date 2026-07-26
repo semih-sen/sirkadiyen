@@ -42,10 +42,13 @@ namespace Sirkadiyen.Infrastructure.ScheduleIngestion;
 /// is a property of the source, not a loss in conversion.
 /// </para>
 /// </remarks>
-public sealed class LocalDocxSnapshotConverter
+public sealed class DocxSnapshotConverter
 {
     /// <summary>Diagnostic marking a snapshot converted from a local file.</summary>
     public const string LocalFixtureDiagnosticCode = "snapshot.local_docx_fixture";
+
+    /// <summary>Diagnostic marking a snapshot converted from an administrator's upload.</summary>
+    public const string AdministrativeUploadDiagnosticCode = "snapshot.administrative_upload";
 
     /// <summary>Diagnostic stating that worksheet titles were not read from the document.</summary>
     public const string SyntheticTitleDiagnosticCode = "snapshot.docx_synthetic_worksheet_titles";
@@ -68,14 +71,65 @@ public sealed class LocalDocxSnapshotConverter
     /// <summary>Title prefix of a worksheet converted from a run of paragraphs.</summary>
     public const string TextTitlePrefix = "Text ";
 
+    /// <summary>
+    /// Converts a document read from the repository, for fixture development.
+    /// </summary>
     public NormalizedSpreadsheetSnapshot Convert(
         string docxPath,
         AcquireSpreadsheetSnapshotRequest request)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(docxPath);
-        ArgumentNullException.ThrowIfNull(request);
 
         using WordprocessingDocument document = WordprocessingDocument.Open(docxPath, false);
+        return Convert(document, request, LocalFixtureOrigin());
+    }
+
+    /// <summary>
+    /// Converts a document an administrator uploaded for a source that is handed
+    /// out rather than published (ADR-079, ADR-080).
+    /// </summary>
+    /// <remarks>
+    /// The bytes are copied into a seekable stream because the OpenXML reader
+    /// seeks, and because one upload is converted once per source it serves.
+    /// </remarks>
+    public NormalizedSpreadsheetSnapshot ConvertUpload(
+        ReadOnlyMemory<byte> content,
+        AcquireSpreadsheetSnapshotRequest request)
+    {
+        using MemoryStream stream = new(content.Length);
+        stream.Write(content.Span);
+        stream.Position = 0;
+
+        using WordprocessingDocument document = WordprocessingDocument.Open(stream, false);
+        return Convert(document, request, AdministrativeUploadOrigin());
+    }
+
+    private static AcquisitionDiagnostic LocalFixtureOrigin() => new()
+    {
+        Severity = DiagnosticSeverity.Information,
+        Code = LocalFixtureDiagnosticCode,
+        Message = "Snapshot was converted from a local DOCX fixture, not acquired through an API.",
+    };
+
+    /// <summary>
+    /// States how the document arrived, because an uploaded source has no location
+    /// to be traced back to and the snapshot is the only place that can say so.
+    /// </summary>
+    private static AcquisitionDiagnostic AdministrativeUploadOrigin() => new()
+    {
+        Severity = DiagnosticSeverity.Information,
+        Code = AdministrativeUploadDiagnosticCode,
+        Message = "Snapshot was converted from a DOCX an administrator uploaded, not fetched from a "
+            + "published location. The upload audit records who supplied it.",
+    };
+
+    private static NormalizedSpreadsheetSnapshot Convert(
+        WordprocessingDocument document,
+        AcquireSpreadsheetSnapshotRequest request,
+        AcquisitionDiagnostic origin)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
         MainDocumentPart mainPart = document.MainDocumentPart
             ?? throw new InvalidDataException("The DOCX file does not contain a main document part.");
         Body body = mainPart.Document?.Body
@@ -83,12 +137,7 @@ public sealed class LocalDocxSnapshotConverter
 
         List<AcquisitionDiagnostic> diagnostics =
         [
-            new AcquisitionDiagnostic
-            {
-                Severity = DiagnosticSeverity.Information,
-                Code = LocalFixtureDiagnosticCode,
-                Message = "Snapshot was converted from a local DOCX fixture, not acquired through an API.",
-            },
+            origin,
             new AcquisitionDiagnostic
             {
                 Severity = DiagnosticSeverity.Information,

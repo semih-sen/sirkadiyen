@@ -184,8 +184,10 @@ observations about the documents rather than about the conversion.
 - Neither anatomy document states a URL anywhere, and the spring/autumn pair is
   handed out once per semester, so both are catalogued under the
   `administrativeUpload` transport and are acquired by an administrator uploading
-  the file rather than by polling (ADR-079). The vertical-corridor documents are
-  edited by Student Affairs during the year and keep their Drive URLs.
+  the file rather than by polling (ADR-079). Each document is catalogued twice, once
+  per program, and the two entries share a document group so one upload serves both
+  (ADR-080). The vertical-corridor documents are edited by Student Affairs during the
+  year and keep their Drive URLs.
 - **The vertical-corridor grid is mostly unassigned.** Autumn states groups on 12 of
   its 53 dated rows and spring on 30 of 52, because the faculty schedules them as the
   year goes on. A dated row with no groups is the document's normal state, not a defect.

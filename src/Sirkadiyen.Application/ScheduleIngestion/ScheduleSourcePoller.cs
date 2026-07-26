@@ -5,6 +5,7 @@ using Sirkadiyen.Application.SchedulePublication;
 using Sirkadiyen.Contracts.Parsing;
 using Sirkadiyen.Contracts.Serialization;
 using Sirkadiyen.Contracts.Spreadsheets;
+using Sirkadiyen.Domain.ScheduleIngestion;
 using Sirkadiyen.Domain.ScheduleParsing;
 using Sirkadiyen.Domain.SchedulePublication;
 using Sirkadiyen.Domain.ScheduleSources;
@@ -34,18 +35,13 @@ public sealed class ScheduleSourcePoller(
     {
         ArgumentNullException.ThrowIfNull(source);
 
-        // An uploaded source is not unsupported, it is simply not fetchable: it
-        // has no location, and its snapshot arrives through the administration
-        // flow instead (ADR-079). Saying so keeps an operator from reading a
-        // permanent state as a missing transport implementation.
+        // An uploaded source is not fetchable: it has no location, and its
+        // evidence arrives through the administration flow instead (ADR-079). What
+        // remains is the rest of the pipeline, which is the same as for any other
+        // source, so this cycle continues from the snapshot already stored.
         if (source.Transport is ScheduleSourceTransport.AdministrativeUpload)
         {
-            return new ScheduleSourcePollResult
-            {
-                SourceId = source.SourceId,
-                Outcome = ScheduleSourcePollOutcome.AwaitingAdministrativeUpload,
-                SnapshotChanged = false,
-            };
+            return await PollUploadedSourceAsync(source, cancellationToken);
         }
 
         if (source.Transport is not ScheduleSourceTransport.GoogleSheets
@@ -97,17 +93,75 @@ public sealed class ScheduleSourcePoller(
             return Frozen(source.SourceId, stored.Changed);
         }
 
-        NormalizedSpreadsheetSnapshot snapshotForParsing = stored.Changed
-            ? snapshot
-            : JsonSerializer.Deserialize<NormalizedSpreadsheetSnapshot>(
-                stored.Snapshot.RequirePayload(),
-                JsonOptions)
-                ?? throw new InvalidDataException(
-                    "The stored immutable snapshot payload is empty.");
+        // The freshly acquired document is reused only when it is the one that was
+        // just stored. When the content was unchanged, the parse must read the
+        // stored snapshot, because that is the evidence the parse run is keyed to.
+        return await ParseStoredSnapshotAsync(
+            source,
+            stored.Snapshot,
+            stored.Changed,
+            acquired: stored.Changed ? snapshot : null,
+            cancellationToken);
+    }
 
+    /// <summary>
+    /// Continues an administratively uploaded source from the evidence already
+    /// stored for it, or reports that none has been supplied yet (ADR-080).
+    /// </summary>
+    /// <remarks>
+    /// The upload endpoint stores the snapshot and stops there, so this is where
+    /// an uploaded document meets the same parse run, validation thresholds and
+    /// publication rules as a fetched one. Re-entering every cycle is safe: a
+    /// parse run is keyed by snapshot, profile and profile version, so the second
+    /// pass reports <see cref="ScheduleSourcePollOutcome.AlreadyParsed"/> instead
+    /// of parsing again.
+    /// </remarks>
+    private async Task<ScheduleSourcePollResult> PollUploadedSourceAsync(
+        ScheduleSource source,
+        CancellationToken cancellationToken)
+    {
+        if ((await operationalFreeze.GetAsync(cancellationToken)).IsFrozen)
+        {
+            return Frozen(source.SourceId, snapshotChanged: false);
+        }
+
+        SourceSnapshot? stored = await snapshotStore.GetLatestAsync(
+            source.SourceId,
+            cancellationToken);
+        if (stored is null)
+        {
+            return new ScheduleSourcePollResult
+            {
+                SourceId = source.SourceId,
+                Outcome = ScheduleSourcePollOutcome.AwaitingAdministrativeUpload,
+                SnapshotChanged = false,
+            };
+        }
+
+        // Nothing was acquired in this cycle; the administrator acquired it when
+        // they uploaded, which is what SnapshotChanged reports about a poll.
+        return await ParseStoredSnapshotAsync(
+            source,
+            stored,
+            snapshotChanged: false,
+            acquired: null,
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// Parses one stored snapshot and validates whatever revision it produces,
+    /// whichever way the snapshot was acquired.
+    /// </summary>
+    private async Task<ScheduleSourcePollResult> ParseStoredSnapshotAsync(
+        ScheduleSource source,
+        SourceSnapshot stored,
+        bool snapshotChanged,
+        NormalizedSpreadsheetSnapshot? acquired,
+        CancellationToken cancellationToken)
+    {
         string correlationId = Guid.CreateVersion7().ToString("N");
         BeginParseRunResult parseRun = await parseResultStore.BeginOrResumeAsync(
-            stored.Snapshot,
+            stored,
             source,
             correlationId,
             timeProvider.GetUtcNow(),
@@ -122,10 +176,19 @@ public sealed class ScheduleSourcePoller(
                 Outcome = parseRun.Status is ParseRunStatus.Running
                     ? ScheduleSourcePollOutcome.ParseAlreadyRunning
                     : ScheduleSourcePollOutcome.AlreadyParsed,
-                SnapshotChanged = stored.Changed,
+                SnapshotChanged = snapshotChanged,
                 ParseRunId = parseRun.ParseRunId,
             };
         }
+
+        // Read after the parse-run decision, so a snapshot that needs no parse is
+        // never blocked by a payload retention already pruned (ADR-044).
+        NormalizedSpreadsheetSnapshot snapshotForParsing = acquired
+            ?? JsonSerializer.Deserialize<NormalizedSpreadsheetSnapshot>(
+                stored.RequirePayload(),
+                JsonOptions)
+                ?? throw new InvalidDataException(
+                    "The stored immutable snapshot payload is empty.");
 
         ParseSnapshotRequest request = CreateParseRequest(
             source,
@@ -156,7 +219,7 @@ public sealed class ScheduleSourcePoller(
                 Outcome = response.Status is ParserResultStatus.Rejected
                     ? ScheduleSourcePollOutcome.ParserRejected
                     : ScheduleSourcePollOutcome.Parsed,
-                SnapshotChanged = stored.Changed,
+                SnapshotChanged = snapshotChanged,
                 ParseRunId = parseRun.ParseRunId,
                 ParseRunStartKind = parseRun.StartKind,
                 RevisionId = revision?.Id,

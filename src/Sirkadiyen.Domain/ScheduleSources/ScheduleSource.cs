@@ -38,7 +38,8 @@ public sealed class ScheduleSource
         string timeZoneId,
         string? externalId = null,
         long? sheetGid = null,
-        IReadOnlyDictionary<string, IReadOnlyList<string>>? supportedAudienceSelectors = null)
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? supportedAudienceSelectors = null,
+        string? sharedDocumentGroup = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceUri);
@@ -64,8 +65,12 @@ public sealed class ScheduleSource
         ExternalId = externalId;
         SheetGid = sheetGid;
         SupportedAudienceSelectors = supportedAudienceSelectors;
+        SharedDocumentGroup = sharedDocumentGroup;
         IsPollingEnabled = true;
     }
+
+    /// <summary>Maximum length of a shared-document group name.</summary>
+    public const int MaximumSharedDocumentGroupLength = 100;
 
     public Guid Id { get; private set; }
 
@@ -109,6 +114,20 @@ public sealed class ScheduleSource
         get;
         private set;
     }
+
+    /// <summary>
+    /// The name shared by every source whose document is literally the same
+    /// file, or <see langword="null"/> when this source has its own document.
+    /// </summary>
+    /// <remarks>
+    /// The Grade 2 anatomy group list is handed to the Turkish and the English
+    /// program as one document, and each program needs its own revision because a
+    /// canonical record matches a student only when its program language matches
+    /// theirs. The group is what lets one administrative upload become a snapshot
+    /// for every source the document serves, instead of asking an administrator
+    /// to upload the identical file once per program (ADR-080).
+    /// </remarks>
+    public string? SharedDocumentGroup { get; private set; }
 
     public bool IsPollingEnabled { get; private set; }
 

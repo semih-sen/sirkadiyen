@@ -72,25 +72,17 @@ public sealed class ScheduleSourcePollerTests
     }
 
     [Fact]
-    public async Task AnAdministrativelyUploadedSourceIsNotPolledAtAll()
+    public async Task AnUploadedSourceWithNoDocumentYetWaitsWithoutAcquiringOrParsing()
     {
-        ScheduleSource source = new(
-            SourceId.Parse("G2-ANATOMY-AUTUMN"),
-            "Uploaded document",
-            ScheduleSourceTransport.AdministrativeUpload,
-            ScheduleDocumentFormat.Docx,
-            "urn:sirkadiyen:upload:G2-ANATOMY-AUTUMN",
-            "grade2_anatomy_autumn_v1",
-            "1.0.0",
-            "2025-2026",
-            2,
-            DomainLanguage.Turkish,
-            "Europe/Istanbul");
+        ScheduleSource source = UploadSource();
         FakeSnapshotAcquirer acquirer = new(Snapshot(Source()));
         FakeParserClient parser = new();
         ScheduleSourcePoller poller = new(
             acquirer,
-            new FakeSnapshotStore(StoredSnapshot(Source(), Snapshot(Source())), changed: true),
+            new FakeSnapshotStore(StoredSnapshot(Source(), Snapshot(Source())), changed: true)
+            {
+                HasLatest = false,
+            },
             parser,
             new FakeParseResultStore(shouldInvokeParser: true),
             ValidationService(),
@@ -105,6 +97,56 @@ public sealed class ScheduleSourcePollerTests
         Assert.Equal(ScheduleSourcePollOutcome.AwaitingAdministrativeUpload, result.Outcome);
         Assert.Equal(0, acquirer.CallCount);
         Assert.Equal(0, parser.CallCount);
+    }
+
+    [Fact]
+    public async Task AnUploadedSourceParsesTheDocumentTheAdministratorSupplied()
+    {
+        ScheduleSource source = UploadSource();
+        FakeSnapshotAcquirer acquirer = new(Snapshot(Source()));
+        FakeParserClient parser = new();
+        ScheduleSourcePoller poller = new(
+            acquirer,
+            new FakeSnapshotStore(StoredSnapshot(source, Snapshot(source)), changed: false),
+            parser,
+            new FakeParseResultStore(shouldInvokeParser: true),
+            ValidationService(),
+            new FakeOperationalFreezeStore(),
+            new ParseRunOptions(),
+            TimeProvider.System);
+
+        ScheduleSourcePollResult result = await poller.PollAsync(source, CancellationToken.None);
+
+        // The upload is the acquisition, so this cycle acquires nothing and still
+        // runs the same parse the fetched sources run.
+        Assert.Equal(ScheduleSourcePollOutcome.Parsed, result.Outcome);
+        Assert.False(result.SnapshotChanged);
+        Assert.Equal(0, acquirer.CallCount);
+        Assert.Equal(1, parser.CallCount);
+        Assert.Equal(
+            "grade2_anatomy_autumn_v1",
+            parser.LastRequest!.ParserProfile.Name);
+    }
+
+    [Fact]
+    public async Task AFreezeStopsAnUploadedSourceBeforeItsStoredDocumentIsParsed()
+    {
+        ScheduleSource source = UploadSource();
+        FakeParseResultStore parseStore = new(shouldInvokeParser: true);
+        ScheduleSourcePoller poller = new(
+            new FakeSnapshotAcquirer(Snapshot(Source())),
+            new FakeSnapshotStore(StoredSnapshot(source, Snapshot(source)), changed: false),
+            new FakeParserClient(),
+            parseStore,
+            ValidationService(),
+            new FakeOperationalFreezeStore { IsFrozen = true },
+            new ParseRunOptions(),
+            TimeProvider.System);
+
+        ScheduleSourcePollResult result = await poller.PollAsync(source, CancellationToken.None);
+
+        Assert.Equal(ScheduleSourcePollOutcome.Frozen, result.Outcome);
+        Assert.Equal(0, parseStore.BeginCallCount);
     }
 
     [Fact]
@@ -231,6 +273,20 @@ public sealed class ScheduleSourcePollerTests
         "spreadsheet-1",
         1);
 
+    /// <summary>A source whose document is uploaded rather than published (ADR-079).</summary>
+    private static ScheduleSource UploadSource() => new(
+        SourceId.Parse("G2-ANATOMY-AUTUMN"),
+        "Uploaded document",
+        ScheduleSourceTransport.AdministrativeUpload,
+        ScheduleDocumentFormat.Docx,
+        "urn:sirkadiyen:upload:G2-ANATOMY-AUTUMN",
+        "grade2_anatomy_autumn_v1",
+        "1.0.0",
+        "2025-2026",
+        2,
+        DomainLanguage.Turkish,
+        "Europe/Istanbul");
+
     private static NormalizedSpreadsheetSnapshot Snapshot(ScheduleSource source) => new()
     {
         ContractVersion = SpreadsheetContractVersions.V1,
@@ -312,6 +368,9 @@ public sealed class ScheduleSourcePollerTests
     private sealed class FakeSnapshotStore(SourceSnapshot snapshot, bool changed)
         : ISourceSnapshotStore
     {
+        /// <summary>Whether the source already holds evidence, as an upload source may not.</summary>
+        public bool HasLatest { get; init; } = true;
+
         public Task<StoreSnapshotResult> StoreIfChangedAsync(
             SourceId sourceId,
             NormalizedSpreadsheetSnapshot acquired,
@@ -323,7 +382,8 @@ public sealed class ScheduleSourcePollerTests
 
         public Task<SourceSnapshot?> GetLatestAsync(
             SourceId sourceId,
-            CancellationToken cancellationToken) => Task.FromResult<SourceSnapshot?>(snapshot);
+            CancellationToken cancellationToken) =>
+            Task.FromResult(HasLatest ? snapshot : null);
     }
 
     private sealed class FakeParserClient : IScheduleParserClient

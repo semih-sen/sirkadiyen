@@ -211,10 +211,11 @@ student's Google Calendar authorization.
 Collected `.xlsx` fixtures are read with `DocumentFormat.OpenXml` 3.5.1. The
 local converter is development-only and emits an explicit fixture diagnostic.
 Production Google Drive and HTTP transports still require acquisition adapters;
-after download, they may reuse the format conversion boundary. So does the
-administrative upload path: two sources are catalogued under that transport
-(ADR-079), but the endpoint that receives a file and stores it as an immutable
-snapshot does not exist yet, so their snapshots still come from the tool.
+after download, they may reuse the format conversion boundary. The administrative
+upload path is implemented (ADR-080): `DocxSnapshotConverter.ConvertUpload` reads
+the uploaded bytes with the same OpenXML reader, marks the snapshot
+`snapshot.administrative_upload`, and the API stores it. Only DOCX is accepted,
+because only DOCX sources are handed out.
 
 ### Google Calendar API
 

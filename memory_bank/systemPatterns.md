@@ -164,6 +164,18 @@ names itself `urn:sirkadiyen:upload:{sourceId}`; every other transport requires
 an absolute HTTPS URI, and the catalog enforces the one that matches the
 transport rather than a single rule for all of them (ADR-079).
 
+An upload acquires and stops. The worker owns parsing, validation and
+publication for an uploaded source exactly as it does for a polled one, so the
+upload endpoint is not a second way into the schedule — it only decides what the
+source contains, which is what a poll decides for a fetched source.
+
+One document may serve several sources. Sources whose document is literally the
+same file share a `sharedDocumentGroup`, and one upload becomes a separate
+immutable snapshot for each of them (ADR-080). This is how a document handed to
+two programs reaches both: audience matching compares a record's program language
+with the student's, so each program needs its own source, snapshot and revision,
+and the sharing belongs at acquisition rather than in the audience rule.
+
 ## 5. Snapshot pattern
 
 A source snapshot is immutable and includes:

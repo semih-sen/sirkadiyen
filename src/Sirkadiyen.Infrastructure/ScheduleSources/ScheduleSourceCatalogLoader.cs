@@ -91,6 +91,93 @@ public sealed class ScheduleSourceCatalogLoader
 
             ValidateSupportedAudienceSelectors(source);
         }
+
+        ValidateSharedDocumentGroups(catalog);
+    }
+
+    /// <summary>
+    /// Rejects a shared-document group that would make one upload do the wrong
+    /// thing (ADR-080).
+    /// </summary>
+    /// <remarks>
+    /// A group exists so a single administrative upload becomes evidence for every
+    /// source the document serves. Three ways of getting that wrong are refused
+    /// here rather than discovered in production:
+    /// <list type="bullet">
+    /// <item>A group on a fetched source. Each fetched source acquires its own
+    /// copy from its own URL, so a group there would claim a sharing the pipeline
+    /// does not perform.</item>
+    /// <item>A group of one. That is what a mistyped group name looks like, and it
+    /// silently reduces the fan-out to the source the administrator happened to
+    /// upload to.</item>
+    /// <item>Two members serving the same class year and program language. One
+    /// upload would then produce two revisions for one audience, and every lesson
+    /// in the document would reach those students twice.</item>
+    /// </list>
+    /// Members must also agree on document format, since one file is converted by
+    /// one reader.
+    /// </remarks>
+    private static void ValidateSharedDocumentGroups(ScheduleSourceCatalog catalog)
+    {
+        Dictionary<string, List<ScheduleSourceDefinition>> groups = new(StringComparer.Ordinal);
+        foreach (ScheduleSourceDefinition source in catalog.Sources)
+        {
+            if (source.SharedDocumentGroup is not { } group)
+            {
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(group))
+            {
+                throw new InvalidDataException(
+                    $"Source '{source.SourceId}' declares a blank shared document group.");
+            }
+
+            if (source.Transport is not ScheduleSourceTransport.AdministrativeUpload)
+            {
+                throw new InvalidDataException(
+                    $"Source '{source.SourceId}' declares shared document group '{group}' but is "
+                    + "not administratively uploaded; a fetched source acquires its own copy.");
+            }
+
+            if (!groups.TryGetValue(group, out List<ScheduleSourceDefinition>? members))
+            {
+                members = [];
+                groups[group] = members;
+            }
+
+            members.Add(source);
+        }
+
+        foreach ((string group, List<ScheduleSourceDefinition> members) in groups)
+        {
+            if (members.Count < 2)
+            {
+                throw new InvalidDataException(
+                    $"Shared document group '{group}' has one member, '{members[0].SourceId}'. A "
+                    + "group of one is a mistyped group name, not a shared document.");
+            }
+
+            ScheduleDocumentFormat format = members[0].DocumentFormat;
+            HashSet<(int ClassYear, ProgramLanguage Language)> audiences = [];
+            foreach (ScheduleSourceDefinition member in members)
+            {
+                if (member.DocumentFormat != format)
+                {
+                    throw new InvalidDataException(
+                        $"Shared document group '{group}' mixes document formats; one file cannot "
+                        + $"be both {format} and {member.DocumentFormat}.");
+                }
+
+                if (!audiences.Add((member.ClassYear, member.ProgramLanguage)))
+                {
+                    throw new InvalidDataException(
+                        $"Shared document group '{group}' has two sources for class year "
+                        + $"{member.ClassYear} {member.ProgramLanguage}, which would publish the "
+                        + "same document to that audience twice.");
+                }
+            }
+        }
     }
 
     /// <summary>

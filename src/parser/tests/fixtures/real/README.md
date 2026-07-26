@@ -46,8 +46,15 @@ All four are in `config/schedule-sources.json`, so all four regenerate through
 the ordinary `--source-id` form above. The anatomy pair is catalogued under the
 `administrativeUpload` transport (ADR-079): the document has no URL, so the
 entry names itself with a URN and an administrator uploads the file each
-semester. The catalog entry is what makes the fixture reproducible; it does not
-mean the worker can fetch the document.
+semester through `POST /api/sources/{sourceId}/document` (ADR-080).
+
+Each anatomy document is catalogued twice, once per program, and one upload
+serves both. These fixtures cover only the Turkish source: the English
+counterpart converts the same bytes and differs only in the source identity it
+carries. Note that a snapshot produced by an upload is deliberately **not**
+identical to one of these — its acquisition diagnostic says it was uploaded
+rather than converted from a fixture, and that diagnostic is part of the hashed
+content.
 
 Use `--document` only for a file the catalog does not describe yet:
 
