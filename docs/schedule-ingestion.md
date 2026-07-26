@@ -104,6 +104,20 @@ snapshot again and increments its attempt count instead of creating duplicate
 snapshot or parse-run rows. Parser responses must echo every contract identifier
 exactly before they are persisted.
 
+### Independent Calendar-work cadence
+
+The adaptive source-polling interval is not the Calendar job-admission interval
+(ADR-082). After each source cycle the worker retains the absolute next source
+deadline. Between source deadlines it checks for newly queued initial sync,
+incremental dispatch and reconciliation work every
+`SIRKADIYEN_SYNC__CALENDAR_IDLE_CHECK_INTERVAL` (five seconds by default).
+
+These short passes do not acquire sources, invoke the parser, publish revisions,
+calculate diffs or prune snapshots. A quota-yielded Calendar pass uses
+`SIRKADIYEN_SYNC__CALENDAR_CATCH_UP_INTERVAL`, also five seconds by default. If a
+source deadline is closer than either Calendar interval, the worker shortens the
+sleep and preserves that source deadline.
+
 ## Validation
 
 Validation is a separate transaction from parse persistence, so a revision that
@@ -169,8 +183,8 @@ records who decided and why in `ApprovedBy` and `ApprovalReason`. Approval moves
 the revision to `Validated` and nothing further, so an approved revision goes
 live through exactly the same publication transaction as one that was never held.
 
-There is no administration frontend yet, so this runs over the API under the
-authenticated `SuperAdmin` policy:
+The `/admin` revision-review module uses these endpoints under the authenticated
+`SuperAdmin` policy:
 
 ```text
 GET  /api/revisions?state=ReviewRequired   the review queue
@@ -308,12 +322,14 @@ snapshot must still be persisted immutably whenever the hash is new.
 
 Production ingestion still needs:
 
-1. Google Drive and HTTP acquisition adapters plus DOCX conversion;
-2. single-use licensing and student profiles;
-3. Google Calendar authorization;
-4. affected-user resolution and the Google Calendar adapter, which consume
-   `Ready` and `Released` diffs;
-5. authenticated freeze/unfreeze mutation and an administration frontend.
+1. Google Drive and HTTP acquisition adapters; downloaded DOCX sources can reuse
+   the implemented normalized DOCX conversion boundary;
+2. current-year fixtures and parser profiles for the unsupported Grade 1, Grade 2
+   English, Grade 3 and weekly-amphitheatre source families;
+3. operator views for source status, snapshot evidence, parser warnings and held
+   diff release;
+4. production health checks, metrics, structured logging and alerts for acquisition
+   and parsing workflows.
 
 ## Local XLSX fixture conversion
 

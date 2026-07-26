@@ -429,10 +429,11 @@ its six revisions cannot be produced at runtime. The English anatomy revisions p
 an empty audience until Grade 2 English enters the supported-profile schema, which needs a
 current-year English practice fixture; the committed one is from 2024-2025.
 
-Calendar backlog scheduling is complete through ADR-070. Ordinary 100-operation
-quota yields no longer wait for the adaptive source polling interval: the worker
-continues initial sync, incremental dispatch, and reconciliation after a configurable
-five-second Calendar-only delay, without re-polling schedule sources.
+Calendar scheduling is complete through ADR-082. Ordinary 100-operation quota yields
+and work queued after an otherwise empty pass no longer wait for the adaptive source
+polling interval: the worker checks initial sync, incremental dispatch, and
+reconciliation after a configurable five-second Calendar-only delay, without
+re-polling schedule sources or drifting the retained source deadline.
 
 Grade 1 annual/practice source ownership is corrected through ADR-071. Bare
 `UYGULAMA`/`PRACTICE` annual slot placeholders are excluded, while named practice
@@ -474,5 +475,6 @@ amended). The shared key is gone; approval and release derive the actor from the
 verified session.
 
 The Google source credential is resolved; a service account is configured.
-Drive/HTTP acquisition adapters, DOCX conversion and the remaining 17 parser
-profiles are still required.
+Drive/HTTP acquisition adapters and the remaining source fixtures/parser profiles
+are still required. DOCX conversion and administrative DOCX acquisition are
+implemented; downloaded DOCX sources still need a transport adapter.

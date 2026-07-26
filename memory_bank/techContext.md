@@ -66,11 +66,17 @@ every request. A general role-management system is deferred.
 
 ### Background processing
 
-Selected (ADR-037):
+Selected for the durable job-processing phase (ADR-037):
 
 - Hangfire
 - PostgreSQL-backed durable storage
 - transactional outbox between domain commits and job dispatch
+
+The current worker does not host Hangfire yet. It is a `BackgroundService` whose
+durable workflow state lives in PostgreSQL. Source acquisition follows the adaptive
+Istanbul-time deadline, while Calendar work is scanned independently on the
+configurable catch-up/idle intervals (ADR-070, ADR-082). The short Calendar scans do
+not poll or parse sources.
 
 Redis may be used for:
 

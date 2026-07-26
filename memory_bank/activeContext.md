@@ -29,7 +29,9 @@ orphaned app-created calendar, and a PostgreSQL advisory fence serializes global
 semantic replay and inventory across worker instances. Intra-diff quota-aware batching is
 implemented too (ADR-065): a large dispatchable diff yields after a configured number of
 per-user mutations and resumes from the converged ledger without treating quota yield as a
-failure.
+failure. Calendar job admission is now independent from adaptive source polling
+(ADR-082): newly queued initial sync, diff dispatch and reconciliation work is found
+within the five-second idle-check interval even when the next source poll is an hour away.
 
 The Google Sheets path now runs end to end from catalog seeding to a stored
 diff: adaptive polling, immutable snapshot storage, strict parser HTTP calls,
@@ -105,6 +107,11 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 - Scheduler regressions cover an idle worker discovering new Calendar work promptly,
   preserving a nearer source deadline, an overdue source deadline, and rejecting an
   invalid idle interval.
+- Documentation debt was reconciled with the implemented system: README no longer lists
+  profiles, Calendar sync, DOCX conversion or the frontend as absent; the ingestion guide
+  now documents the independent Calendar cadence and only actual remaining integrations;
+  `progress.md` and `techContext.md` distinguish the current PostgreSQL-scanning worker
+  from the still-planned Hangfire/outbox phase.
 
 ## Previous administrative upload UI session
 
@@ -1666,6 +1673,9 @@ dimension can be added with evidence.
   incremental dispatch, in-progress initial sync, or in-progress reconciliation now
   schedules another Calendar-only pass after five seconds. Source polling, publication,
   diff calculation, and snapshot retention are skipped during those catch-up passes.
+- ADR-082 later closes the remaining admission gap: a Calendar request created after
+  an empty pass is found by the independent idle check instead of waiting for the next
+  adaptive source poll.
 - The 100-mutation safety bound and durable-ledger replanning remain unchanged.
 - Verification: 325 Infrastructure unit tests passed; the full Release solution build,
   `dotnet format --verify-no-changes`, and `git diff --check` passed.

@@ -3207,6 +3207,7 @@ snapshots after restart rather than reusing the held 1.1.0 runs.
 **Implements:** Calendar-only catch-up cycles, configurable
 `SIRKADIYEN_SYNC:CALENDAR_CATCH_UP_INTERVAL`, worker scheduling regressions
 **Amends:** ADR-058, ADR-060, ADR-065
+**Amended by:** ADR-082, which also admits work created after an empty pass
 
 ### Context
 

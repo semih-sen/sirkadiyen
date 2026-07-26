@@ -82,14 +82,13 @@ The .NET 10 solution foundation is initialized with the following projects:
 The API exposes `GET /health`, Google-only sign-in, a backend-managed secure
 cookie session, and SuperAdmin-protected revision/diff operations. Beyond that:
 
-- The .NET ingestion layer acquires a Google Sheets v4 response and normalizes
-  values, formulas, formatting, merges, and hidden dimensions into the versioned
-  snapshot contract. A typed catalog records the 18 confirmed mixed-transport
-  sources and the source context each one needs.
-- The Python parser implements two profiles against real snapshots:
-  `grade1_yearly_v1` for both Grade 1 annual sources and `grade1_practice_v1`
-  for the Grade 1 Turkish rotation matrix, both with golden-file regression
-  cover.
+- The .NET ingestion layer acquires Google Sheets responses and administratively
+  uploaded DOCX files, normalizing both onto the versioned snapshot contract. A
+  typed catalog records the 22 confirmed mixed-transport sources and the source
+  context each one needs.
+- The Python parser has golden-file-backed profiles for the implemented Grade 1
+  annual/Turkish-practice and Grade 2 annual/Turkish-practice, anatomy and
+  vertical-corridor source families.
 - PostgreSQL holds configured sources, immutable snapshots, parse runs,
   revisions and canonical records, including the unchanged-source short circuit.
   See `docs/database.md`.
@@ -120,9 +119,17 @@ cookie session, and SuperAdmin-protected revision/diff operations. Beyond that:
   is released only by a named operator stating a reason, and never when the hold
   is ambiguity (ADR-042).
 
-Not implemented: Drive/HTTP acquisition, DOCX conversion, calendar
-synchronization, student profiles, Calendar authorization, and the Next.js
-frontend.
+- Student profiles, Calendar authorization, initial synchronization, incremental
+  diff dispatch and non-destructive reconciliation are implemented. Calendar work
+  is admitted independently of the slower source-polling clock, so a newly queued
+  initial sync is picked up within the configured idle-check interval (ADR-082).
+- The Next.js frontend implements Google sign-in and the student onboarding path.
+  Its SuperAdmin panel currently covers the operational freeze, revision review
+  and administrative document upload.
+
+Still open: Google Drive/HTTP acquisition, the remaining source fixtures and parser
+profiles, the rest of the operator surfaces, automated frontend tests, production
+deployment topology, CI, and the planned observability stack.
 
 Published schedule mistakes use forward-fix rather than rollback: correct the
 authoritative source and let polling publish a newer revision (ADR-033).
