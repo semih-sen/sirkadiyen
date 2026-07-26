@@ -1,0 +1,830 @@
+{
+  "fixture": "real/g2-en-practice.snapshot.json",
+  "parserEngineVersion": "0.2.0",
+  "payload": {
+    "candidateCount": 49,
+    "candidateDigests": [
+      "1!R3C3|2025-09-17|13:30-15:20|practice|id:89a2fd0576226252|content:4bf42c86a4373b3e|Fizyoloji",
+      "1!R3C4|2025-09-19|10:30-12:20|practice|id:893222edcfadd8d4|content:53c0555172daa2f8|Fizyoloji",
+      "1!R3C5|2025-09-24|08:30-10:20|practice|id:8034aaf145e181c8|content:b59d2c585cb19749|Fizyoloji",
+      "1!R3C6|2025-09-26|10:30-12:20|practice|id:c390efb549881f1d|content:fd5c2d854a08ad10|Fizyoloji",
+      "1!R4C3|2025-09-17|13:30-15:20|practice|id:793f27a918b07e0b|content:6f44ab3530d67cb3|Histoloji",
+      "1!R4C4|2025-09-19|10:30-12:20|practice|id:efbcd6a79ef84047|content:afb793b5c39bea05|Histoloji",
+      "1!R30C3|2025-10-03|08:30-10:20|practice|id:a283b813090dddf2|content:f94d1d234f623ee9|Fizyoloji 1",
+      "1!R30C4|2025-10-06|14:00-15:50|practice|id:96e0f23910db036d|content:51c3c270c4614b55|Fizyoloji 1",
+      "1!R31C3|2025-10-08|08:30-10:20|practice|id:39caf2781d27bf86|content:a73b1257de2e77d9|Fizyoloji 2",
+      "1!R32C3|2025-10-03|08:30-10:20|practice|id:f840eb0910a299cf|content:03565099238505d5|Histoloji",
+      "1!R32C5|2025-10-21|08:30-10:20|practice|id:8e96ddeecd41e4e8|content:c05ce3a8c8ebb926|Histoloji",
+      "1!R59C3|2025-10-24|10:30-12:20|practice|id:0a35099903860ada|content:1d8978b40e5460b0|Fizyoloji 1",
+      "1!R59C4|2025-11-03|10:30-12:20|practice|id:42cff80f0a73e1f5|content:97c2f8619f65d79f|Fizyoloji 1",
+      "1!R60C3|2025-10-23|08:30-10:20|practice|id:f916988b52e64e4d|content:c2916e8670fe6ad2|Fizyoloji 2",
+      "1!R61C3|2025-10-24|10:30-12:20|practice|id:1cc5dd4f528ad747|content:772ef6e408e225a6|Histoloji",
+      "1!R61C4|2025-11-03|10:30-12:20|practice|id:264f677da6405df8|content:023ea7cbf0dd1f2b|Histoloji",
+      "1!R85C3|2025-11-06|10:30-12:20|practice|id:788195bdd189bd21|content:b70a65414464712d|Histoloji",
+      "1!R85C4|2025-11-10|13:30-15:20|practice|id:4949b5539a9085f4|content:24ff3a55f3f7a5d4|Histoloji",
+      "1!R111C3|2025-12-10|10:30-12:20|practice|id:7091541363d1ee4c|content:6cd8bcf59c9eb7f5|Biyokimya",
+      "1!R111C4|2025-12-12|08:30-10:20|practice|id:8b084ccc5cfd4c05|content:85a5e920c7b6f1c7|Biyokimya",
+      "1!R112C5|2025-12-15|08:30-10:20|exam|id:4eb55a66333b9c65|content:1f00f10b628525ed|Biyokimya Sınavı",
+      "1!R112C6|2025-12-15|10:30-12:20|exam|id:cae7e82cf6ee30d3|content:58596a6a06af2135|Biyokimya Sınavı",
+      "1!R125C4|2026-02-02|13:30-15:20|practice|id:55254fe5bfacaee9|content:45ea1a73b136f854|Biyokimya (1)",
+      "1!R125C5|2026-02-04|13:30-15:20|practice|id:2df0d4b2c53c2129|content:23b7db9c4fcf48f2|Biyokimya (1)",
+      "1!R126C7|2026-02-09|13:30-15:20|exam|id:86adb0da6a1d3603|content:7f5892c3ead189f2|Biyokimya Sınav",
+      "1!R126C8|2026-02-09|13:30-15:20|exam|id:26f70bdae9e62e5d|content:5090677f123b4a88|Biyokimya Sınav",
+      "1!R127C3|2026-01-30|14:00-15:50|practice|id:c9895fd904f3a3a5|content:c597e1523a45a72a|Histoloji (1)",
+      "1!R127C6|2026-02-06|10:30-12:20|practice|id:fcc2f02b6d94ab68|content:487e20352ff90d5b|Histoloji (1)",
+      "1!R149C3|2026-02-27|14:00-15:50|practice|id:aaf0a5a92933f9cf|content:aad11cb325008f1d|Histoloji",
+      "1!R149C4|2026-03-02|13:30-15:20|practice|id:6edd9b4fdbe008e0|content:c5c4ca357ab3dabf|Histoloji",
+      "1!R165C3|2026-03-16|13:30-15:20|practice|id:74e6a75934ed5767|content:d6e472ffbd3e97b6|Fizyoloji",
+      "1!R165C5|2026-03-23|13:30-15:20|practice|id:81abc7ae67f4ef16|content:13240274f17789b4|Fizyoloji",
+      "1!R165C6|2026-03-31|08:30-10:20|practice|id:eee603de27d079bf|content:cdeff8d1bb11956b|Fizyoloji",
+      "1!R165C7|2026-04-03|14:00-15:50|practice|id:ed30c171254e35d8|content:bd742931b012c6a3|Fizyoloji",
+      "1!R165C8|2026-04-16|10:30-12:20|practice|id:e3595029d0032539|content:5cc28e33406cc716|Fizyoloji",
+      "1!R165C9|2026-04-21|10:30-12:20|practice|id:70bdc925257ca69d|content:cfe7ff56095b905f|Fizyoloji",
+      "1!R166C3|2026-04-17|10:30-12:20|practice|id:021ee91365bfa34e|content:1705f79e9e509156|Fizyoloji",
+      "1!R167C3|2026-03-16|13:30-15:20|practice|id:5ea82242e796b4c9|content:9fa30b9233558c6b|Histoloji",
+      "1!R167C4|2026-03-17|10:30-12:20|practice|id:349197523e5ebb1e|content:5b79c924d8388f62|Histoloji",
+      "1!R167C5|2026-03-23|13:30-15:20|practice|id:ef5d5d62ed69531b|content:69641df3df6ca607|Histoloji",
+      "1!R167C7|2026-04-03|14:00-15:50|practice|id:aba4ca55127b721f|content:59d7046016c08ea1|Histoloji",
+      "1!R209C3|2026-05-07|08:30-10:20|practice|id:4fa2b830db9c417c|content:977d7a4433e11bad|Patoloji (2)",
+      "1!R209C8|2026-05-18|13:30-15:20|practice|id:94576509aee4bf25|content:567ed02181c6df9f|Patoloji (2)",
+      "1!R210C4|2026-05-12|10:30-12:20|practice|id:911acee0a1dc9bfe|content:e0140a47532d9acc|Mikrobiyoloji (3)",
+      "1!R210C5|2026-05-14|08:30-10:20|practice|id:b7b8c131fd0289ad|content:8a7df93d2fb5dfde|Mikrobiyoloji (3)",
+      "1!R210C6|2026-05-15|10:30-12:20|practice|id:c85126fad18dedd9|content:5d03475b81296af7|Mikrobiyoloji (3)",
+      "1!R210C7|2026-05-15|14:00-15:50|practice|id:f06030b750234f14|content:85619309fbec8dc3|Mikrobiyoloji (3)",
+      "1!R210C9|2026-05-20|08:30-10:20|practice|id:e1650f804f763f90|content:724bab7ae0bf15b1|Mikrobiyoloji (3)",
+      "1!R210C10|2026-05-22|10:30-12:20|practice|id:6af72bcbb500b2d0|content:91003da9c7153b98|Mikrobiyoloji (3)"
+    ],
+    "confidenceIndicators": [
+      {
+        "candidateId": "1!R3C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R3C4",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R3C5",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R3C6",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R4C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R4C4",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R30C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R30C4",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R31C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R32C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R32C5",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R59C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R59C4",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R60C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R61C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R61C4",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R85C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R85C4",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R111C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R111C4",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R112C5",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R112C6",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R125C4",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R125C5",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R126C7",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R126C8",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R127C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R127C6",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R149C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R149C4",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R165C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R165C5",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R165C6",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R165C7",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R165C8",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R165C9",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R166C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R167C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R167C4",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R167C5",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R167C7",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R209C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R209C8",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R210C4",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R210C5",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R210C6",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R210C7",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R210C9",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R210C10",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      }
+    ],
+    "firstCandidate": {
+      "academicYear": "2025-2026",
+      "audience": {
+        "scope": "selectedGroups",
+        "selectors": [
+          {
+            "dimension": "practiceGroup",
+            "value": "İ1"
+          }
+        ]
+      },
+      "candidateId": "1!R3C3",
+      "classYear": 2,
+      "confidence": 0.9,
+      "contentHash": "sha256:4bf42c86a4373b3e6578bcfff468c51f0f8e87bceac7ae1e18482c7690a19d15",
+      "curriculumBlock": "BLOOD AND IMMUNE SYSTEM 1",
+      "departments": [],
+      "displayTitle": "Fizyoloji",
+      "endLocalTime": "15:20:00",
+      "eventType": "practice",
+      "evidence": [
+        {
+          "extractionRule": "practiceSlots.subjectCell",
+          "range": "A3",
+          "rawText": "Fizyoloji",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        {
+          "extractionRule": "practiceSlots.placeCell",
+          "range": "B3",
+          "rawText": "Fizyoloji Pratik salonu",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        {
+          "extractionRule": "practiceSlots.slotHeader",
+          "range": "C2",
+          "rawText": "1/1\n17 Eylül 2025 Çarşamba\n13:30-15:20",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        {
+          "extractionRule": "practiceSlots.groupCell",
+          "range": "C3",
+          "rawText": "i1",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        }
+      ],
+      "identityComponents": [
+        {
+          "name": "academicYear",
+          "value": "2025-2026"
+        },
+        {
+          "name": "classYear",
+          "value": "2"
+        },
+        {
+          "name": "programLanguage",
+          "value": "english"
+        },
+        {
+          "name": "localDate",
+          "value": "2025-09-17"
+        },
+        {
+          "name": "startLocalTime",
+          "value": "13:30:00"
+        },
+        {
+          "name": "courseIdentity",
+          "value": "fizyoloji"
+        },
+        {
+          "name": "audience",
+          "value": "practiceGroup:İ1"
+        }
+      ],
+      "instructor": null,
+      "isAllDay": false,
+      "localDate": "2025-09-17",
+      "location": "Fizyoloji Pratik salonu",
+      "normalizedCourseIdentity": "fizyoloji",
+      "programLanguage": "english",
+      "stableIdentity": "sha256:89a2fd0576226252180f032d39be17323f419d245cbe36363a01e408fa5d7b92",
+      "startLocalTime": "13:30:00",
+      "status": "scheduled",
+      "timeZoneId": "Europe/Istanbul"
+    },
+    "lastCandidate": {
+      "academicYear": "2025-2026",
+      "audience": {
+        "scope": "selectedGroups",
+        "selectors": [
+          {
+            "dimension": "practiceGroup",
+            "value": "İ2"
+          }
+        ]
+      },
+      "candidateId": "1!R210C10",
+      "classYear": 2,
+      "confidence": 0.9,
+      "contentHash": "sha256:91003da9c7153b98be1b520e40acb96a2be5f3e2998532301c337e88169a95d4",
+      "curriculumBlock": "PATHOLOGY AND INTRODUCTION TO CLINICS",
+      "departments": [],
+      "displayTitle": "Mikrobiyoloji (3)",
+      "endLocalTime": "12:20:00",
+      "eventType": "practice",
+      "evidence": [
+        {
+          "extractionRule": "practiceSlots.subjectCell",
+          "range": "A210",
+          "rawText": "Mikrobiyoloji (3)",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        {
+          "extractionRule": "practiceSlots.placeCell",
+          "range": "B210",
+          "rawText": "Mikrobiyoloji Pratik salonu",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        {
+          "extractionRule": "practiceSlots.slotHeader",
+          "range": "J208",
+          "rawText": "22 Mayıs 2026 Cuma\n10:30-12:20",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        {
+          "extractionRule": "practiceSlots.groupCell",
+          "range": "J210",
+          "rawText": "i2",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        }
+      ],
+      "identityComponents": [
+        {
+          "name": "academicYear",
+          "value": "2025-2026"
+        },
+        {
+          "name": "classYear",
+          "value": "2"
+        },
+        {
+          "name": "programLanguage",
+          "value": "english"
+        },
+        {
+          "name": "localDate",
+          "value": "2026-05-22"
+        },
+        {
+          "name": "startLocalTime",
+          "value": "10:30:00"
+        },
+        {
+          "name": "courseIdentity",
+          "value": "mikrobiyoloji-3"
+        },
+        {
+          "name": "audience",
+          "value": "practiceGroup:İ2"
+        }
+      ],
+      "instructor": null,
+      "isAllDay": false,
+      "localDate": "2026-05-22",
+      "location": "Mikrobiyoloji Pratik salonu",
+      "normalizedCourseIdentity": "mikrobiyoloji-3",
+      "programLanguage": "english",
+      "stableIdentity": "sha256:6af72bcbb500b2d04e7a0d83d02ec1707242982ac5a453f9b1f2c10863681542",
+      "startLocalTime": "10:30:00",
+      "status": "scheduled",
+      "timeZoneId": "Europe/Istanbul"
+    },
+    "metrics": [
+      {
+        "name": "audience.dimension.practiceGroup",
+        "unit": null,
+        "value": 48.0
+      },
+      {
+        "name": "candidates.emitted",
+        "unit": null,
+        "value": 49.0
+      },
+      {
+        "name": "candidates.eventType.exam",
+        "unit": null,
+        "value": 4.0
+      },
+      {
+        "name": "candidates.eventType.practice",
+        "unit": null,
+        "value": 45.0
+      },
+      {
+        "name": "candidates.selfDatedCell",
+        "unit": null,
+        "value": 3.0
+      },
+      {
+        "name": "cells.ignored",
+        "unit": null,
+        "value": 91.0
+      },
+      {
+        "name": "cells.ignored.duplicateStableIdentity",
+        "unit": null,
+        "value": 2.0
+      },
+      {
+        "name": "cells.ignored.groupsAnnouncedElsewhere",
+        "unit": null,
+        "value": 35.0
+      },
+      {
+        "name": "cells.ignored.outOfScopeGroupRotation",
+        "unit": null,
+        "value": 53.0
+      },
+      {
+        "name": "cells.ignored.unresolvedGroupExpression",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "cells.mergeContinuation",
+        "unit": null,
+        "value": 9.0
+      },
+      {
+        "name": "cells.scanned",
+        "unit": null,
+        "value": 149.0
+      },
+      {
+        "name": "dates.rule.monthNameDate",
+        "unit": null,
+        "value": 49.0
+      },
+      {
+        "name": "place.deferredToAnnouncement",
+        "unit": null,
+        "value": 11.0
+      },
+      {
+        "name": "rows.blockHeading",
+        "unit": null,
+        "value": 23.0
+      },
+      {
+        "name": "rows.ignored",
+        "unit": null,
+        "value": 175.0
+      },
+      {
+        "name": "rows.ignored.notAPracticeSubjectRow",
+        "unit": null,
+        "value": 175.0
+      },
+      {
+        "name": "rows.scanned",
+        "unit": null,
+        "value": 244.0
+      },
+      {
+        "name": "rows.slotHeader",
+        "unit": null,
+        "value": 9.0
+      },
+      {
+        "name": "rows.subject",
+        "unit": null,
+        "value": 37.0
+      },
+      {
+        "name": "slots.detected",
+        "unit": null,
+        "value": 39.0
+      },
+      {
+        "name": "subjects.ignored.groupRotation",
+        "unit": null,
+        "value": 5.0
+      },
+      {
+        "name": "subjects.ignored.outOfScope",
+        "unit": null,
+        "value": 2.0
+      },
+      {
+        "name": "worksheets.scanned",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "worksheets.selected",
+        "unit": null,
+        "value": 1.0
+      }
+    ],
+    "parserProfile": {
+      "name": "grade2_practice_v1",
+      "version": "1.2.0"
+    },
+    "responseDigest": "sha256:5174e65826d0c67db2b82c52ed5edaf52d2d5061118a8c2327a5cb54a3e0534e",
+    "snapshotId": "fixture:sha256:26cd36e5dff608a021dfd17745b1bf5a3d07ab3e983b2e563a269749b08fa865",
+    "sourceId": "G2-EN-PRACTICE",
+    "status": "completedWithWarnings",
+    "warnings": [
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "practiceSlots.groupCell",
+          "range": "C5",
+          "rawText": "*",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Cells were ignored because of rule 'groupsAnnouncedElsewhere'. See metric 'cells.ignored.groupsAnnouncedElsewhere' for the total.",
+        "severity": "information"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "practiceSlots.row",
+          "range": "A6:S6",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Rows were ignored because of rule 'notAPracticeSubjectRow'. See metric 'rows.ignored.notAPracticeSubjectRow' for the total.",
+        "severity": "information"
+      },
+      {
+        "candidateId": null,
+        "code": "groupRotationSubjectRow",
+        "evidence": {
+          "extractionRule": "practiceSlots.subjectCell",
+          "range": "A34",
+          "rawText": "Anatomi (13)",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Subject 'Anatomi (13)' is a group rotation this profile defers to its own source (ADR-073); its cells state dates rather than groups, so they are counted as ignored rather than published.",
+        "severity": "information"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "practiceSlots.groupCell",
+          "range": "C34",
+          "rawText": "45902",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Cells were ignored because of rule 'outOfScopeGroupRotation'. See metric 'cells.ignored.outOfScopeGroupRotation' for the total.",
+        "severity": "information"
+      },
+      {
+        "candidateId": null,
+        "code": "groupRotationSubjectRow",
+        "evidence": {
+          "extractionRule": "practiceSlots.subjectCell",
+          "range": "A63",
+          "rawText": "Anatomi (6)",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Subject 'Anatomi (6)' is a group rotation this profile defers to its own source (ADR-073); its cells state dates rather than groups, so they are counted as ignored rather than published.",
+        "severity": "information"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "practiceSlots.groupCell",
+          "range": "C87",
+          "rawText": "i1",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Cell repeats the lesson already published as candidate '1!R85C3', so it was not published again.",
+        "severity": "information"
+      },
+      {
+        "candidateId": null,
+        "code": "groupRotationSubjectRow",
+        "evidence": {
+          "extractionRule": "practiceSlots.subjectCell",
+          "range": "A89",
+          "rawText": "Anatomi (11)",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Subject 'Anatomi (11)' is a group rotation this profile defers to its own source (ADR-073); its cells state dates rather than groups, so they are counted as ignored rather than published.",
+        "severity": "information"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "practiceSlots.groupCell",
+          "range": "G111",
+          "rawText": "TELAFİ",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Cell 'TELAFİ' does not state which groups attend (unrecognizedGroupToken), so no lesson was published for it.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "outOfScopeSubjectRow",
+        "evidence": {
+          "extractionRule": "practiceSlots.subjectCell",
+          "range": "A114",
+          "rawText": "PDÖ",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Subject 'PDÖ' is deliberately not synchronized (ADR-030), so its cells are counted as ignored rather than published.",
+        "severity": "information"
+      },
+      {
+        "candidateId": null,
+        "code": "groupRotationSubjectRow",
+        "evidence": {
+          "extractionRule": "practiceSlots.subjectCell",
+          "range": "A129",
+          "rawText": "Anatomi (6)",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Subject 'Anatomi (6)' is a group rotation this profile defers to its own source (ADR-073); its cells state dates rather than groups, so they are counted as ignored rather than published.",
+        "severity": "information"
+      },
+      {
+        "candidateId": null,
+        "code": "outOfScopeSubjectRow",
+        "evidence": {
+          "extractionRule": "practiceSlots.subjectCell",
+          "range": "A151",
+          "rawText": "PDÖ",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Subject 'PDÖ' is deliberately not synchronized (ADR-030), so its cells are counted as ignored rather than published.",
+        "severity": "information"
+      },
+      {
+        "candidateId": null,
+        "code": "groupRotationSubjectRow",
+        "evidence": {
+          "extractionRule": "practiceSlots.subjectCell",
+          "range": "A169",
+          "rawText": "Anatomi (17)",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Subject 'Anatomi (17)' is a group rotation this profile defers to its own source (ADR-073); its cells state dates rather than groups, so they are counted as ignored rather than published.",
+        "severity": "information"
+      }
+    ]
+  },
+  "subject": "parseResponse"
+}

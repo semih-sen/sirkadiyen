@@ -54,8 +54,9 @@ The incremental dispatcher now consumes every dispatchable diff and resolves the
 affected completed-sync users before applying idempotent Calendar operations.
 The Grade 2 annual program now parses too: one profile, `grade2_yearly_v1`, serves
 the Turkish and the English source, deferring the dissection group rotation to the
-anatomy sources (ADR-073). The Grade 2 Turkish practice table parses through its own
-slot-column reader, `grade2_practice_v1` (ADR-074). **A Word document now converts onto
+anatomy sources (ADR-073). The Grade 2 Turkish and English practice tables parse
+through the shared slot-column reader, `grade2_practice_v1` 1.2.0 (ADR-074,
+ADR-084). **A Word document now converts onto
 the same normalized snapshot contract as a workbook** (ADR-076), and the vertical-corridor
 skill-practice calendar is parsed from it by `grade2_vertical_corridor_v1` (ADR-077), as
 are the anatomy group lists by `grade2_anatomy_{autumn,spring}_v1` (ADR-078). **Every
@@ -72,8 +73,11 @@ vertical-corridor calendars are downloaded over the Drive v3 REST API with the s
 read-only source credential, checked against what Drive states about the file, and
 converted onto the same normalized snapshot a sheet produces — so **every Grade 2 Turkish
 source can now be acquired**. HTTP acquisition for `SHARED-AMPHI`, a workbook converter for
-the Drive-published Grade 3 sources, Grade 2 English
-support, and the remaining operational surfaces still do not exist. The **consumer frontend now
+the Drive-published Grade 3 sources, Grade 2 English onboarding/audience completion,
+and the remaining operational surfaces still do not exist. The English practice
+source itself is implemented and declares `İ1`/`İ2`; onboarding stays closed until
+group-labelled annual rows and the shared vertical-corridor source have safe English
+audience handling (ADR-084). The **consumer frontend now
 has a runnable foundation** (`web/`, ADR-066): Google sign-in, license redemption,
 academic profile, Calendar authorization, and initial-sync progress are wired to
 the existing APIs and gated by authoritative backend onboarding state. The admin
@@ -97,6 +101,35 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- **Implemented the Grade 2 English practice source (ADR-084).** The fixture was
+  classified as 2024-2025 from its filename, but its 39 dated practice slots run from
+  17 September 2025 through 22 May 2026. The only `2024` cell is inside an anatomy row
+  the practice profile already excludes in favour of the anatomy source, so it is not
+  a practice-program date defect.
+- `grade2_practice_v1` is now 1.2.0 and serves both programme languages without
+  mixing their cohorts: Turkish accepts the bounded `A`-`H` grammar, English accepts
+  the independent `İ1`/`İ2` values written as `i1`, `i2`, and `i1+i2`.
+- The slot reader now handles the two complete but compact spellings in the real
+  workbook — `23Aralık 2025` and one date/time written on a single line — by
+  separating stated components, never correcting or inferring a date.
+- The real normalized fixture and golden parse are committed evidence. The English
+  parse publishes 49 candidates (45 practice, four examination), spans
+  2025-09-17 through 2026-05-22, and contains 24 selectors for each of `İ1` and
+  `İ2`. Thirty-five `*` cells remain explicitly deferred, five anatomy rows and
+  two PDÖ rows remain out of scope, and one audience-free `TELAFİ` is refused.
+- **Open risk.** This closes the current-year practice-fixture blocker, not Grade 2
+  English onboarding. The annual workbook embeds `İ1`-`İ5` in lesson titles without
+  canonical audiences, and the shared vertical-corridor documents have only Turkish
+  catalog/parser audience handling. Grade 2 English remains outside schema 1.1 until
+  those paths are made complete; the English anatomy revisions therefore still have
+  no users.
+- 417 Python tests and 546 .NET tests pass with no skips. Ruff format/check, MyPy,
+  `dotnet format --verify-no-changes`, and `git diff --check` are clean. The first
+  targeted .NET run could not build because the running Debug worker held its copied
+  application DLL; the worker was left running and the Release test run passed.
+
+## Previous Drive acquisition session
 
 - **Implemented Google Drive acquisition for the vertical-corridor documents
   (ADR-083).** They were the last Grade 2 Turkish sources with no way to be read: ADR-076
@@ -254,8 +287,9 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
   with the committed development conversion. `LocalDocxSnapshotConverter` is renamed
   `DocxSnapshotConverter`, since it is no longer local-only.
 - **Open risks.** The English anatomy revisions will publish to an empty audience until
-  Grade 2 English enters the supported-profile schema, which still waits on a
-  current-year English practice fixture (ADR-048). There is no admin UI for the
+  Grade 2 English enters the supported-profile schema. ADR-084 later verified the
+  English practice fixture as current-year content; annual and vertical-corridor
+  audience handling are now the remaining blockers. There is no admin UI for the
   endpoint yet. A fan-out interrupted between its targets leaves one source with the
   document and the other without; repeating the upload completes it, and the per-target
   audit rows say which landed.
@@ -294,6 +328,9 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
   program, which states no cohorts, and its practice fixture is from 2024-2025 (ADR-048).
   Admitting it with no selectors would hand an English student a calendar missing every
   practice and dissection session, which reads as complete.
+  **Historical note:** ADR-084 later proved the filename misleading and implemented
+  the current-year practice source; annual and vertical-corridor audience handling now
+  keep onboarding closed.
 - The onboarding form needed no structural change — it renders class years and dimensions
   from `GET /api/profile/options` — but it had been rendering the raw selector keys, so it
   now carries Turkish labels for them.

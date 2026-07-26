@@ -33,7 +33,7 @@ from sirkadiyen_parser.profiles import ParserProfileDefinition, get_profile
 
 PROFILE = ParserProfileDefinition(
     "grade2_practice_v1",
-    "1.1.0",
+    "1.2.0",
     "practice",
     NumericDateOrder.DAY_FIRST,
     ("practiceGroup",),
@@ -121,6 +121,7 @@ def parse(
     worksheets: list[dict[str, Any]],
     *,
     class_year: int = 2,
+    program_language: str = "turkish",
     profile: ParserProfileDefinition = PROFILE,
 ) -> ParseSnapshotResponse:
     request = ParseSnapshotRequest.model_validate(
@@ -131,7 +132,7 @@ def parse(
             "sourceContext": {
                 "academicYear": "2025-2026",
                 "classYear": class_year,
-                "programLanguage": "turkish",
+                "programLanguage": program_language,
                 "timeZoneId": "Europe/Istanbul",
             },
             "snapshot": {
@@ -183,6 +184,48 @@ def test_a_group_cell_becomes_a_candidate_for_that_group() -> None:
     assert [selector.dimension for selector in candidate.audience.selectors] == ["practiceGroup"]
 
 
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("i1", ["İ1"]),
+        ("i2", ["İ2"]),
+        ("i1+i2", ["İ1", "İ2"]),
+    ],
+)
+def test_an_english_group_cell_uses_the_independent_english_practice_groups(
+    value: str,
+    expected: list[str],
+) -> None:
+    response = parse(
+        build(subject_rows=[["Fizyoloji", "Fizyoloji Pratik salonu", value]]),
+        program_language="english",
+    )
+
+    assert [selector.value for selector in response.candidates[0].audience.selectors] == expected
+    assert {selector.dimension for selector in response.candidates[0].audience.selectors} == {
+        "practiceGroup"
+    }
+
+
+def test_an_english_group_token_never_enters_a_turkish_candidate() -> None:
+    response = parse(
+        build(subject_rows=[["Fizyoloji", "Fizyoloji Pratik salonu", "i1"]]),
+    )
+
+    assert response.candidates == []
+    assert metrics(response)["cells.ignored.unsupportedGroupValueShape"] == 1
+
+
+def test_an_english_group_not_declared_by_the_fixture_is_refused() -> None:
+    response = parse(
+        build(subject_rows=[["Fizyoloji", "Fizyoloji Pratik salonu", "i3"]]),
+        program_language="english",
+    )
+
+    assert response.candidates == []
+    assert metrics(response)["cells.ignored.unsupportedGroupValueShape"] == 1
+
+
 def test_the_date_and_time_come_from_the_column_the_cell_sits_in() -> None:
     response = parse(
         build(
@@ -196,6 +239,31 @@ def test_the_date_and_time_come_from_the_column_the_cell_sits_in() -> None:
         (candidate.local_date.isoformat(), candidate.start_local_time)
         for candidate in response.candidates
     ] == [("2025-09-08", time(8, 30)), ("2025-09-09", time(10, 30))]
+
+
+def test_a_compact_day_and_month_are_separated_without_correcting_the_date() -> None:
+    response = parse(
+        build(
+            slots=["23Aralık 2025 Salı\n10:30-12:20"],
+            subject_rows=[["Histoloji", "Histoloji Pratik salonu", "A"]],
+        )
+    )
+
+    assert response.candidates[0].local_date.isoformat() == "2025-12-23"
+
+
+def test_a_date_and_time_on_one_line_are_read_from_their_stated_parts() -> None:
+    response = parse(
+        build(
+            slots=["18 Mayıs 2026 Pazartesi 13:30-15:20"],
+            subject_rows=[["Histoloji", "Histoloji Pratik salonu", "A"]],
+        )
+    )
+
+    candidate = response.candidates[0]
+    assert candidate.local_date.isoformat() == "2026-05-18"
+    assert candidate.start_local_time == time(13, 30)
+    assert candidate.end_local_time == time(15, 20)
 
 
 @pytest.mark.parametrize(

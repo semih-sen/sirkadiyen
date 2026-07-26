@@ -90,7 +90,7 @@ the remaining profiles.
 | `grade1_yearly_v1` | `G1-TR-ANNUAL`, `G1-EN-ANNUAL` | `tests/fixtures/real/g1-{tr,en}-annual.snapshot.json` |
 | `grade1_practice_v1` | `G1-TR-PRACTICE` | `tests/fixtures/real/g1-tr-practice.snapshot.json` |
 | `grade2_yearly_v1` | `G2-TR-ANNUAL`, `G2-EN-ANNUAL` | `tests/fixtures/real/g2-{tr,en}-annual.snapshot.json` |
-| `grade2_practice_v1` | `G2-TR-PRACTICE` | `tests/fixtures/real/g2-tr-practice.snapshot.json` |
+| `grade2_practice_v1` | `G2-TR-PRACTICE`, `G2-EN-PRACTICE` | `tests/fixtures/real/g2-{tr,en}-practice.snapshot.json` |
 | `grade2_vertical_corridor_v1` | `G2-VERTICAL-AUTUMN`, `G2-VERTICAL-SPRING` | `tests/fixtures/real/g2-vertical-{autumn,spring}.snapshot.json` |
 | `grade2_anatomy_autumn_v1`, `grade2_anatomy_spring_v1` | `G2-ANATOMY-{AUTUMN,SPRING}` and their `-EN` counterparts | `tests/fixtures/real/g2-anatomy-{autumn,spring}.snapshot.json` |
 
@@ -124,13 +124,21 @@ whose value it cannot fully read — a makeup marker naming no group publishes
 nothing rather than reaching every student.
 
 `parsers/practice_slots.py` reads the **transpose** of that matrix, which is how
-the Grade 2 practice table is written (ADR-074): a column is a dated slot whose
-header holds a slot label, a date and a time range on separate lines, and a row
-is a practice subject naming its room beside it. A candidate is still a cell.
+both Grade 2 practice tables are written (ADR-074, ADR-084): a column is a dated
+slot whose header holds a slot label, a date and a time range, and a row is a
+practice subject naming its room beside it. The English source has one compact
+day/month spelling and one header with the date and time on a single line; the
+reader separates only those stated parts and does not correct either value. A
+candidate is still a cell.
 Every row of the worksheet is classified exactly once — block heading, slot
 header, subject, or counted as neither — so `rows.scanned` equals the worksheet's
 row count and the topic lists between the tables cannot swallow schedule data
 unexplained.
+
+The common profile chooses the cohort grammar from authoritative source context:
+Turkish accepts the bounded `A`-`H` model and English accepts only the independent
+practice groups `İ1` and `İ2`. A token from one programme is never admitted into
+the other programme's candidates.
 
 It is stricter than the annual profiles in two places, because this is the source
 that decides *which* students receive an event:

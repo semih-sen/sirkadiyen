@@ -41,6 +41,7 @@ from sirkadiyen_parser.contracts.parsing import (
     ParseSnapshotRequest,
     ParseSnapshotResponse,
     ParseSourceContext,
+    ProgramLanguage,
     ScheduleAudienceCandidate,
     ScheduleEventType,
     SourceEvidence,
@@ -55,7 +56,7 @@ from sirkadiyen_parser.normalization.dates import (
     resolve_date_text,
 )
 from sirkadiyen_parser.normalization.grid import ResolvedCell, WorksheetGrid
-from sirkadiyen_parser.normalization.groups import GroupExpression
+from sirkadiyen_parser.normalization.groups import GroupExpression, parse_group_expression
 from sirkadiyen_parser.normalization.text import comparison_key, normalize_text, text_lines
 from sirkadiyen_parser.normalization.times import (
     TimeRangeResolution,
@@ -75,6 +76,7 @@ from sirkadiyen_parser.parsers.cohort_rotation import (
     read_cohort_groups,
 )
 from sirkadiyen_parser.parsers.practice import (
+    DIMENSION_PRACTICE_GROUP,
     OUT_OF_SCOPE_SUBJECT_KEYS,
 )
 from sirkadiyen_parser.parsers.practice import classify_event_type as classify_practice_type
@@ -101,6 +103,18 @@ MAX_HEADING_LENGTH = 60
 #: The slot label that opens a header cell, on its own line.
 _SLOT_LABEL_PATTERN = re.compile(r"^\d+\s*/\s*\d+$")
 
+#: Some source cells keep their date and time on one visual line. Extract only
+#: a trailing range, so a number elsewhere in the title or date cannot become a
+#: time by accident.
+_TRAILING_TIME_RANGE_PATTERN = re.compile(
+    r"(?P<range>\d{1,2}\s*[:.]\s*\d{2}\s*[-–—]\s*\d{1,2}\s*[:.]\s*\d{2})\s*$"
+)
+
+#: The English fixture contains one harmless missing space, ``23Aralık``.
+#: This only separates a leading day number from a month word; it does not
+#: complete or correct either component.
+_COMPACT_DAY_MONTH_PATTERN = re.compile(r"(?<=\d)(?=[^\W\d_])", re.UNICODE)
+
 #: A cell stating that the slot holds no session for this subject.
 _NO_SESSION_PATTERN = re.compile(r"^[-–—]+$")
 
@@ -113,6 +127,14 @@ _ANNOUNCED_ELSEWHERE_PATTERN = re.compile(r"^\*+$")
 DEFERRED_PLACE_KEYS = frozenset({"yayinlanacak", "announced"})
 
 EXAM_KEYS = frozenset({"sinav", "exam"})
+
+#: Grade 2 English writes these as independent practice groups. They are not
+#: subgroups of a separate ``İ`` group; a future supported-profile entry must
+#: therefore ask for one of these values directly.
+ENGLISH_PRACTICE_GROUPS = {
+    "i1": "İ1",
+    "i2": "İ2",
+}
 
 REASON_NOT_A_SUBJECT_ROW = "notAPracticeSubjectRow"
 REASON_SUBJECT_ROW_WITHOUT_SLOTS = "subjectRowOutsideAnySlotTable"
@@ -448,7 +470,18 @@ def _read_slot(
         )
         return None
 
-    time_range = resolve_time_range_text(body[-1])
+    date_parts = list(body[:-1])
+    time_text = body[-1]
+    time_range = resolve_time_range_text(time_text)
+    if not time_range.resolved:
+        inline_match = _TRAILING_TIME_RANGE_PATTERN.search(time_text)
+        if inline_match is not None:
+            date_prefix = time_text[: inline_match.start()].strip()
+            if date_prefix:
+                date_parts.append(date_prefix)
+            time_text = inline_match.group("range")
+            time_range = resolve_time_range_text(time_text)
+
     if not time_range.resolved or time_range.start is None or time_range.end is None:
         _refuse_slot(
             REASON_UNRESOLVED_SLOT_TIME,
@@ -459,8 +492,9 @@ def _read_slot(
         )
         return None
 
-    resolved_date = resolve_date_text(" ".join(body[:-1]), numeric_order=numeric_date_order)
-    refusal = date_refusal(resolved_date, " ".join(body[:-1]))
+    date_text = _COMPACT_DAY_MONTH_PATTERN.sub(" ", " ".join(date_parts))
+    resolved_date = resolve_date_text(date_text, numeric_order=numeric_date_order)
+    refusal = date_refusal(resolved_date, date_text)
     if refusal is not None:
         reason, message = refusal
         _refuse_slot(reason, message, evidence=evidence, diagnostics=diagnostics)
@@ -640,6 +674,7 @@ def _parse_cell(
     self_dated = _read_self_dated_cell(
         lines=text_lines(resolved.display_text or ""),
         numeric_date_order=numeric_date_order,
+        program_language=context.program_language,
     )
     if self_dated is not None:
         if _is_merge_continuation(resolved):
@@ -681,8 +716,10 @@ def _parse_cell(
         )
         return
 
-    expression = read_cohort_groups(text)
-    selectors = cohort_audience_selectors(expression)
+    expression, selectors = _read_practice_audience(
+        text,
+        program_language=context.program_language,
+    )
     if not expression.resolved or selectors is None:
         diagnostics.record_ignored_cell(
             REASON_UNRESOLVED_GROUP if not expression.resolved else REASON_UNSUPPORTED_GROUP_VALUE,
@@ -728,11 +765,53 @@ def _parse_cell(
     )
 
 
+def _read_practice_audience(
+    text: str,
+    *,
+    program_language: ProgramLanguage,
+) -> tuple[GroupExpression, list[AudienceSelector] | None]:
+    """Read the group syntax declared by the source's programme.
+
+    The Turkish and English workbooks share one structural profile, but not one
+    cohort alphabet. Turkish uses the lettered A-H model (including combined
+    runs); English writes independent ``İ1`` and ``İ2`` values. Keeping the
+    choice on authoritative source context prevents an English token in a
+    Turkish/shared document from reaching Turkish calendars.
+    """
+    if program_language is ProgramLanguage.TURKISH:
+        expression = read_cohort_groups(text)
+        return expression, cohort_audience_selectors(expression)
+
+    expression = parse_group_expression(
+        text,
+        dimension=DIMENSION_PRACTICE_GROUP,
+    )
+    if expression.covers_all:
+        return expression, []
+    if not expression.resolved:
+        return expression, None
+
+    selectors: list[AudienceSelector] = []
+    for value in expression.values:
+        canonical = ENGLISH_PRACTICE_GROUPS.get(comparison_key(value))
+        if canonical is None:
+            return expression, None
+        selectors.append(
+            AudienceSelector(
+                dimension=DIMENSION_PRACTICE_GROUP,
+                value=canonical,
+            )
+        )
+
+    return expression, selectors
+
+
 @dataclass(frozen=True, slots=True)
 class _SelfDatedCell:
     """A cell that states its own audience, date and time range."""
 
     expression: GroupExpression
+    selectors: tuple[AudienceSelector, ...]
     resolved_date: DateResolution
     time_range: TimeRangeResolution
 
@@ -741,6 +820,7 @@ def _read_self_dated_cell(
     *,
     lines: Sequence[str],
     numeric_date_order: NumericDateOrder,
+    program_language: ProgramLanguage,
 ) -> _SelfDatedCell | None:
     """Read a cell that carries its own date, or ``None`` when it carries none.
 
@@ -755,8 +835,11 @@ def _read_self_dated_cell(
     if len(lines) < 3:
         return None
 
-    expression = read_cohort_groups(lines[0])
-    if not expression.resolved:
+    expression, selectors = _read_practice_audience(
+        lines[0],
+        program_language=program_language,
+    )
+    if not expression.resolved or selectors is None:
         return None
 
     time_range = resolve_time_range_text(lines[-1])
@@ -766,6 +849,7 @@ def _read_self_dated_cell(
     resolved_date = resolve_date_text(" ".join(lines[1:-1]), numeric_order=numeric_date_order)
     return _SelfDatedCell(
         expression=expression,
+        selectors=tuple(selectors),
         resolved_date=resolved_date,
         time_range=time_range,
     )
@@ -797,19 +881,6 @@ def _publish_self_dated(
         )
         return
 
-    selectors = cohort_audience_selectors(self_dated.expression)
-    if selectors is None:
-        diagnostics.record_ignored_cell(
-            REASON_UNSUPPORTED_GROUP_VALUE,
-            evidence,
-            severity=ParserWarningSeverity.WARNING,
-            message=(
-                f"Cell '{normalize_text(resolved.text)}' names a cohort this profile does "
-                "not model, so no lesson was published for it."
-            ),
-        )
-        return
-
     start = self_dated.time_range.start
     end = self_dated.time_range.end
     if start is None or end is None:  # pragma: no cover - guarded by the reader
@@ -829,7 +900,7 @@ def _publish_self_dated(
             self_dated.time_range.confidence,
             self_dated.expression.confidence,
         ),
-        selectors=selectors,
+        selectors=self_dated.selectors,
         covers_all=self_dated.expression.covers_all,
         cell_row=resolved.row_index,
         cell_column=resolved.column_index,

@@ -125,7 +125,7 @@
 - [x] Second-year Turkish annual (`grade2_yearly_v1`, ADR-073)
 - [x] Second-year Turkish practice (`grade2_practice_v1`, slot-column layout, ADR-074)
 - [x] Second-year English annual (same profile, ADR-073)
-- [ ] Second-year English practice
+- [x] Second-year English practice (`grade2_practice_v1` 1.2.0, ADR-084)
 - [x] Second-year anatomy autumn (`grade2_anatomy_autumn_v1`, ADR-078)
 - [x] Second-year anatomy spring (`grade2_anatomy_spring_v1`, same implementation)
 - [x] Second-year vertical corridor (`grade2_vertical_corridor_v1`, ADR-077)
@@ -356,12 +356,16 @@ session as three consecutive daily slots and the anatomy group list assigns each
 of them — and a **numeric time cell that is not a day fraction** is refused instead of being
 reduced modulo one day, which used to publish an English free-study block from midnight.
 
-The Grade 2 Turkish practice slice is implemented too (ADR-074). `grade2_practice_v1` 1.1.0
-reads the transpose of the Grade 1 rotation table through a new `parsers/practice_slots.py`:
-a column is a dated slot and a row is a practice subject. It publishes 164 candidates for the
-eight `A`-`H` cohorts and is predicted to validate with no findings. It is also the only
-profile that declares a numeric date order — `dayFirst`, read off the annual workbook's
-serial for the same session rather than off the Turkish writing convention (ADR-075).
+The Grade 2 Turkish and English practice slices are implemented (ADR-074, ADR-084).
+`grade2_practice_v1` 1.2.0 reads the transpose of the Grade 1 rotation table through
+`parsers/practice_slots.py`: a column is a dated slot and a row is a practice subject.
+The Turkish source still publishes 164 candidates for the eight `A`-`H` cohorts. The
+English source publishes 49 candidates from 17 September 2025 through 22 May 2026 for
+the independent `İ1`/`İ2` practice groups. Its workbook filename says 2024-2025, but
+the schedule content is 2025-2026; its sole 2024 cell is an anatomy date in a row this
+profile already defers to the anatomy source. The profile is also the only one that
+declares a numeric date order — `dayFirst`, read off the Turkish annual workbook's
+serial for the same session rather than off a writing convention (ADR-075).
 
 DOCX conversion exists (ADR-076). A Word document is converted onto the same normalized
 snapshot contract as a workbook — a table becomes a worksheet, a run of paragraphs between
@@ -394,9 +398,11 @@ published names itself `urn:sirkadiyen:upload:{sourceId}` instead of claiming a 
 and the catalog refuses any other URI for it. With their `anatomyGroup` `1`/`2`/`3`
 declared, Grade 2 Turkish enters the supported-profile schema (version `1.1`) with
 `practiceGroup`, `practiceSubgroup` and the independent `anatomyGroup`, all three required.
-Grade 2 English stays out: its only current-year source states no cohorts and its practice
-fixture is from 2024-2025, so admitting it would hand a student a calendar missing every
-practice and dissection session.
+Grade 2 English still stays out of onboarding, but no longer because its practice
+fixture lacks current-year evidence. The practice source now declares `İ1`/`İ2`.
+Before admission, the group-labelled `İ1`-`İ5` rows in the annual source need safe
+audience handling and the shared vertical-corridor document needs an English source
+path; otherwise the calendar would be over-broad or incomplete (ADR-084).
 
 Administrative acquisition is implemented (ADR-080). A SuperAdmin uploads a handed-out
 document to `POST /api/sources/{sourceId}/document`; it is converted and stored as
@@ -434,10 +440,12 @@ make an unedited re-save look like a change. Drive metadata is therefore not a c
 signal; the converted content hash is. A poll now separates `UnsupportedTransport` from
 `UnsupportedDocumentFormat`, which is what the Drive-published Grade 3 workbooks report.
 
-What Grade 2 still lacks is not a parser, a catalog entry, an audience, or a way in for any
-of its documents. The English anatomy revisions publish to an empty audience until Grade 2
-English enters the supported-profile schema, which needs a current-year English practice
-fixture; the committed one is from 2024-2025.
+Every Grade 2 source now has a parser profile, including the verified English practice
+source. Grade 2 English itself is not yet admitted to the supported-profile schema:
+the annual program embeds `İ1`-`İ5` in titles without canonical audiences, and the
+shared vertical-corridor document has only Turkish catalog entries/parser audience
+handling. The English anatomy revisions therefore still publish to an empty audience
+until those two audience gaps are closed (ADR-084).
 
 Calendar scheduling is complete through ADR-082. Ordinary 100-operation quota yields
 and work queued after an otherwise empty pass no longer wait for the adaptive source

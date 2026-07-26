@@ -1826,6 +1826,8 @@ user.
 **Status:** Accepted
 **Date:** 2026-07-23
 **Implements:** partially in the source catalog
+**Amended by:** ADR-084, which verifies the Grade 2 English practice fixture's
+content as 2025-2026 despite its 2024-2025 filename and confirms `İ1`/`İ2`
 
 ### Context
 
@@ -3554,6 +3556,8 @@ now — so the parser engine version does not move.
 **Date:** 2026-07-25
 **Implements:** `grade2_practice_v1` 1.1.0 for `G2-TR-PRACTICE` and `G2-EN-PRACTICE`
 **Extends:** ADR-051, ADR-074
+**Amended by:** ADR-084, which bumps the same profile to 1.2.0 for the verified
+English fixture while retaining `dayFirst`
 
 ### Context
 
@@ -4390,5 +4394,98 @@ start earning an abstraction.
   code behind it.
 - The failure taxonomy is per-file and typed, so an operator can tell "not shared
   with us" from "moved" from "arrived damaged" without reading a stack trace.
+
+---
+
+## ADR-084: Trust the English practice workbook's schedule content, not its filename
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-26
+**Implements:** `grade2_practice_v1` 1.2.0 for `G2-TR-PRACTICE` and
+`G2-EN-PRACTICE`, the normalized English fixture and its golden parse
+**Amends:** ADR-048, ADR-074, ADR-075, ADR-079
+
+### Context
+
+Grade 2 English was kept outside the supported-profile schema because the only
+committed practice workbook was classified as 2024-2025 from its filename:
+`2024-2025 Term 2 Medicine Program in English PRACTICUM TABLE.xlsx`. ADR-048
+correctly forbids using a prior year's cohort values for the current allowlist.
+The catalog nevertheless points at that file as the 2025-2026 source, so the
+classification needed to be checked against the document rather than repeated.
+
+The worksheet itself tells a different story. It has 39 dated practice slots
+from 17 September 2025 through 22 May 2026, and its block order matches the
+2025-2026 Grade 2 program. A single cell does contain `23.10.2024`, but it is in
+an `Anatomi (6)` row: that row contains dissection dates rather than practice
+audiences and `grade2_practice_v1` already defers it whole to the anatomy
+sources. No dated practice slot is outside 2025-2026.
+
+Running the existing 1.1.0 profile against a normalized snapshot made the real
+implementation gap visible. It published only the three whole-program cells.
+The other 47 group cells are `i1`, `i2`, or once `i1+i2`, while the Turkish
+cohort reader accepts only `A`-`H`. Two otherwise complete slot headers also use
+compact presentation: `23Aralık 2025` has no day/month space, and
+`18 Mayıs 2026 Pazartesi 13:30-15:20` keeps date and time on one line.
+
+### Decision
+
+Treat the workbook as current-year evidence because schedule content, not a
+delivery filename, is the immutable evidence that dates lessons. Keep the
+original file and its original name; renaming it would hide the discrepancy
+rather than document it.
+
+Bump `grade2_practice_v1` from 1.1.0 to 1.2.0. The two workbooks share the same
+slot-column structure and therefore keep one profile, but audience grammar is
+selected from authoritative source context:
+
+- Turkish accepts the bounded lettered `A`-`H` model, including the combined
+  runs the source writes.
+- English accepts only the independent practice-group values `İ1` and `İ2`,
+  canonicalizing the source spellings `i1` and `i2`. They are `practiceGroup`
+  values, not children of a synthetic `İ` group.
+- A cohort token belonging to one program is refused under the other program,
+  so source-language context cannot leak a lesson across audiences.
+
+The slot reader accepts the two compact forms by separating only text the cell
+already states: it inserts a boundary between a day number and an immediately
+following month word, and extracts a time range only when it is the trailing
+component of a line. It does not correct a year, infer a missing component, or
+weaken the weekday-contradiction refusal.
+
+Declare `practiceGroup: [İ1, İ2]` on `G2-EN-PRACTICE`, add its deterministic
+normalized snapshot and golden parse, and retain `dayFirst` from ADR-075. The
+version bump forces retained Turkish and English snapshots to reparse; the
+Turkish candidate set does not change.
+
+Do **not** add Grade 2 English to the supported-profile schema in this change.
+The practice source is now sound, but two audience paths remain unsafe:
+
+- the English annual workbook embeds `İ1`-`İ5` in lesson titles while
+  `grade2_yearly_v1` currently emits no group selector for them;
+- the shared vertical-corridor documents contain English cohort entries, but
+  only Turkish catalog entries and Turkish cohort parsing currently publish
+  from them.
+
+Opening onboarding before both are resolved would label an over-broad or
+incomplete calendar as synchronized.
+
+### Consequences
+
+- The English practice fixture publishes 49 candidates: 45 practices and four
+  examinations, dated 2025-09-17 through 2026-05-22. Group-specific candidates
+  carry 24 `İ1` and 24 `İ2` selectors; three candidates cover the whole English
+  program.
+- All 39 slot headers are read. The compact cells are regression-tested, and
+  no weekday contradiction or out-of-academic-year practice slot is hidden.
+- Thirty-five `*` cells remain deferred to the vertical-corridor source, five
+  anatomy rows remain deferred to anatomy, two PDÖ rows remain out of scope, and
+  one bare `TELAFİ` remains refused because it names no audience. These are
+  explicit diagnostics, not missing parser coverage.
+- Grade 2 English practice is parser-complete, but Grade 2 English onboarding
+  remains deliberately unavailable. English anatomy revisions still have no
+  users until the annual and vertical-corridor audience gaps are closed.
+- No database migration and no parser contract or engine-version change. The
+  source catalog reseed updates the profile version and selector allowlist.
 
 ---

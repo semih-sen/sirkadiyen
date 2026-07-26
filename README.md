@@ -87,8 +87,10 @@ cookie session, and SuperAdmin-protected revision/diff operations. Beyond that:
   typed catalog records the 22 confirmed mixed-transport sources and the source
   context each one needs.
 - The Python parser has golden-file-backed profiles for the implemented Grade 1
-  annual/Turkish-practice and Grade 2 annual/Turkish-practice, anatomy and
-  vertical-corridor source families.
+  annual/Turkish-practice and Grade 2 annual/Turkish-and-English-practice,
+  anatomy and vertical-corridor source families. The Grade 2 English practice
+  workbook is verified as 2025-2026 content despite its misleading filename
+  (ADR-084).
 - PostgreSQL holds configured sources, immutable snapshots, parse runs,
   revisions and canonical records, including the unchanged-source short circuit.
   See `docs/database.md`.

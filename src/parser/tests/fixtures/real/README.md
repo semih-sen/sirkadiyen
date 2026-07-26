@@ -24,6 +24,7 @@ dotnet run --project tools/Sirkadiyen.SnapshotTool -- `
 | `g1-tr-practice.snapshot.json` | `G1-TR-PRACTICE` | rotation matrix, not yet parsed by any profile |
 | `g2-tr-annual.snapshot.json` | `G2-TR-ANNUAL` | one worksheet `DÖNEM 2`; 119 bare `UYGULAMA` placeholders that defer to the practice program, 159 dissection rotation rows, one backwards time range |
 | `g2-tr-practice.snapshot.json` | `G2-TR-PRACTICE` | slot-column rotation: nine curriculum blocks, 15 slot-header rows, topic lists between them, four slot dates whose year is a year out, a whole-cohort session written into a merged run of cells |
+| `g2-en-practice.snapshot.json` | `G2-EN-PRACTICE` | the original workbook filename says 2024-2025, but its 39 dated practice slots run from September 2025 through May 2026; groups are `İ1`/`İ2`, and the lone 2024 value is in an anatomy row this profile defers to the anatomy source |
 | `g2-en-annual.snapshot.json` | `G2-EN-ANNUAL` | English headers, `lunch break` rows with an empty term and date cell, a bare `9` in an `hh:mm` start-time cell, practice groups written inside titles (`İ1`-`İ5`) |
 
 ## Converted from Word documents

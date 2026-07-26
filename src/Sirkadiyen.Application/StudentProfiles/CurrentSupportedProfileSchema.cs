@@ -11,10 +11,12 @@ namespace Sirkadiyen.Application.StudentProfiles;
 /// at academic-year rollover, which is a deployment anyway (ADR-055).
 /// <para>
 /// Only cohorts confirmed by a committed, current-year fixture appear here
-/// (ADR-048). Grade 1 anatomy, Grade 2 English and Grade 3 selectors are
-/// deliberately absent until their sources are captured and their profiles
-/// implemented; adding them here without evidence would let a student select a
-/// cohort nothing publishes.
+/// (ADR-048). Grade 1 anatomy and Grade 3 selectors are deliberately absent
+/// until their sources are captured and their profiles implemented. Grade 2
+/// English practice is now evidenced, but that program stays absent until its
+/// annual group-labelled rows and shared vertical-corridor sessions have safe
+/// audience handling (ADR-084); adding it sooner would expose an incomplete or
+/// over-broad calendar as complete.
 /// </para>
 /// </remarks>
 public static class CurrentSupportedProfileSchema

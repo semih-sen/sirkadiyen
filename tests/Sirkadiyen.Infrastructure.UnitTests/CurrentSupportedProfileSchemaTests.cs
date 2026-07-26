@@ -45,9 +45,10 @@ public sealed class CurrentSupportedProfileSchemaTests
     [Fact]
     public void GradeTwoEnglishIsStillAbsent()
     {
-        // Its only current-year source is the annual program, which states no
-        // cohorts; the English practice fixture is from 2024-2025 and ADR-048
-        // forbids promoting a prior year's values into this year's allowlist.
+        // The practice fixture is current-year evidence despite its misleading
+        // filename, but annual rows still embed group labels without audiences
+        // and the shared vertical-corridor document has no English source path.
+        // Onboarding would therefore expose an incomplete/over-broad calendar.
         Assert.Null(Schema.FindProgram(2, ProgramLanguage.English));
     }
 

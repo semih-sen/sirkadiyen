@@ -59,8 +59,8 @@ and the requested week before producing enrichment candidates.
 - Grade 3 English annual, bedside, and faculty-practice fixtures are missing.
 - Grade 3 bedside fixtures currently exist only as DOCX references; raw Google
   Sheets snapshots are still needed.
-- The Grade 2 English practice fixture is from academic year 2024-2025 while the
-  other primary fixtures are mostly 2025-2026.
+- The Grade 2 English practice workbook's **filename** says 2024-2025, but its
+  schedule content is the 2025-2026 academic year (ADR-084).
 
 ## Confirmed Grade 1 and Grade 2 special-program rules
 
@@ -138,6 +138,29 @@ Read from the committed `Uygulama Tablosu` workbook while implementing
   block's own 3-16 October range (ADR-075).
 - The room-and-telephone lookup tables at the end of the worksheet
   (`Dikey Koridor II Laboratuarı`) are not schedule data.
+
+## Grade 2 English practice reading rules (confirmed 2026-07-26)
+
+Read from the committed `PRACTICUM TABLE` workbook with
+`grade2_practice_v1` 1.2.0 (ADR-084).
+
+- The workbook is misnamed `2024-2025`; all 39 dated practice slots run from
+  17 September 2025 through 22 May 2026. The one `23.10.2024` cell is in an
+  `Anatomi (6)` row whose values are dissection dates, not practice audiences;
+  that whole row is deliberately deferred to the anatomy source.
+- It is the same slot-column layout as the Turkish workbook: a column is a
+  dated slot and a row is a subject. Its practice groups are independent values
+  `İ1` and `İ2`, written as `i1`, `i2`, and once as `i1+i2`.
+- One header writes `23Aralık 2025` without a space and one writes
+  `18 Mayıs 2026 Pazartesi 13:30-15:20` on one line. Both state complete,
+  self-consistent values; the parser separates their components without
+  correcting a date.
+- The profile publishes 49 candidates from 17 September 2025 through 22 May
+  2026: 45 practices and four examinations. Three are whole-program sessions;
+  the group-specific candidates contain 24 `İ1` and 24 `İ2` selectors.
+- Thirty-five `*` cells still defer to the shared vertical-corridor document,
+  five anatomy rows defer to the anatomy sources, two PDÖ rows remain out of
+  scope, and a bare `TELAFİ` names no audience and is refused.
 
 ## Grade 2 DOCX reading rules (confirmed 2026-07-25)
 

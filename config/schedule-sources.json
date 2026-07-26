@@ -102,7 +102,7 @@
       "externalId": "1dyCMtRRN9gVkQxdgZU9aeYzMYPc6tyxk680HboAEzlU",
       "sheetGid": 77218153,
       "parserProfile": "grade2_practice_v1",
-      "parserProfileVersion": "1.1.0",
+      "parserProfileVersion": "1.2.0",
       "academicYear": "2025-2026",
       "classYear": 2,
       "programLanguage": "turkish",
@@ -260,13 +260,16 @@
       "externalId": "1YPWACCifZGY5-7IJ5_Yzzya4aqubziKN5LlnMx1ST_8",
       "sheetGid": 1629561847,
       "parserProfile": "grade2_practice_v1",
-      "parserProfileVersion": "1.1.0",
+      "parserProfileVersion": "1.2.0",
       "academicYear": "2025-2026",
       "classYear": 2,
       "programLanguage": "english",
       "timeZoneId": "Europe/Istanbul",
+      "supportedAudienceSelectors": {
+        "practiceGroup": ["İ1", "İ2"]
+      },
       "fixturePath": "sheets/donem-2-ing/xlsx/2024-2025 Term 2 Medicine Program in English PRACTICUM TABLE.xlsx",
-      "notes": "Committed fixture is from 2024-2025; capture a current snapshot before publication."
+      "notes": "The original filename says 2024-2025, but the worksheet's 39 dated practice slots run from September 2025 through May 2026 and state groups İ1/İ2. One 2024 value exists only in the anatomy row that this profile explicitly defers to the anatomy source (ADR-084)."
     },
     {
       "sourceId": "G3-TR-A-ANNUAL",

@@ -32,7 +32,7 @@ _IMPLEMENTATIONS: dict[tuple[str, str], ParserImplementation] = {
     # the Grade 1 one, so it has its own implementation (ADR-074). Only the
     # Turkish source is registered: the committed English fixture is from the
     # previous academic year.
-    ("grade2_practice_v1", "1.1.0"): parse_practice_slot_snapshot,
+    ("grade2_practice_v1", "1.2.0"): parse_practice_slot_snapshot,
     # The skill-practice calendar the annual and practice profiles both defer to.
     # It is published as a Word document and reaches the parser on the same
     # normalized snapshot contract as a workbook (ADR-076, ADR-077).

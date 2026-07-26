@@ -45,6 +45,15 @@ public sealed class ScheduleSourceCatalogTests
         Assert.Equal(
             ["A", "B", "C", "D", "E", "F", "G", "H"],
             grade2TurkishPractice.SupportedAudienceSelectors!["practiceGroup"]);
+        Assert.Equal("1.2.0", grade2TurkishPractice.ParserProfileVersion);
+
+        ScheduleSourceDefinition grade2EnglishPractice = Assert.Single(
+            catalog.Sources,
+            source => source.SourceId == "G2-EN-PRACTICE");
+        Assert.Equal(
+            ["İ1", "İ2"],
+            grade2EnglishPractice.SupportedAudienceSelectors!["practiceGroup"]);
+        Assert.Equal("1.2.0", grade2EnglishPractice.ParserProfileVersion);
 
         ScheduleSourceDefinition vertical = Assert.Single(
             catalog.Sources,

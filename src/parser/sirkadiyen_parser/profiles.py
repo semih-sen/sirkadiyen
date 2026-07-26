@@ -87,9 +87,13 @@ _PROFILES = (
     # the academic year and the block's own 3-16 October range. The declaration
     # is therefore read off a second source rather than off a writing convention
     # (ADR-075).
+    # 1.2.0 verifies the English workbook as current-year content despite its
+    # misleading filename, admits its independent İ1/İ2 practice groups, and
+    # reads the two compact slot-header spellings it actually contains
+    # (ADR-084).
     ParserProfileDefinition(
         "grade2_practice_v1",
-        "1.1.0",
+        "1.2.0",
         "practice",
         NumericDateOrder.DAY_FIRST,
         ("practiceGroup",),

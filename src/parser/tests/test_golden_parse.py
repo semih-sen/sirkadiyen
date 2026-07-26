@@ -78,6 +78,13 @@ CASES = (
         "turkish",
         "parse/g2-tr-practice.json",
     ),
+    (
+        "grade2_practice_v1",
+        "real/g2-en-practice.snapshot.json",
+        2,
+        "english",
+        "parse/g2-en-practice.json",
+    ),
     # Both semesters, because the same programme is written as one 60-row table
     # in autumn and as seven tables in spring, and only spring uses subgroups.
     (
