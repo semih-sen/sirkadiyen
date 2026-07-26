@@ -91,6 +91,23 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
 
+- **Separated idle Calendar admission from the adaptive source-polling delay
+  (ADR-082).** The worker previously used the short Calendar-only interval only when
+  the immediately preceding pass returned `InProgress`/`PartiallyDispatched`. If that
+  pass was empty and a student requested initial sync during the following weekend
+  delay, the request waited up to one hour or required a worker restart.
+- The worker now retains the next source-poll deadline while checking for newly queued
+  initial sync, diff dispatch and reconciliation work every
+  `SIRKADIYEN_SYNC__CALENDAR_IDLE_CHECK_INTERVAL` (five seconds by default). These
+  checks do not poll sources, publish revisions, calculate diffs or prune snapshots.
+  A source deadline that arrives sooner shortens the sleep, so adaptive polling does
+  not drift.
+- Scheduler regressions cover an idle worker discovering new Calendar work promptly,
+  preserving a nearer source deadline, an overdue source deadline, and rejecting an
+  invalid idle interval.
+
+## Previous administrative upload UI session
+
 - **Gave administrative acquisition a UI, so the anatomy documents can be uploaded from
   the browser (ADR-081).** `/admin` now has a document-upload module: pick a source, pick
   a `.docx`, upload. The session cookie and the antiforgery token the browser already

@@ -230,6 +230,9 @@ WorkerOptions workerOptions = new()
     CalendarCatchUpInterval = ParseDuration(
         builder.Configuration["SIRKADIYEN_SYNC:CALENDAR_CATCH_UP_INTERVAL"],
         TimeSpan.FromSeconds(5)),
+    CalendarIdleCheckInterval = ParseDuration(
+        builder.Configuration["SIRKADIYEN_SYNC:CALENDAR_IDLE_CHECK_INTERVAL"],
+        TimeSpan.FromSeconds(5)),
 };
 workerOptions.Validate();
 builder.Services.AddSingleton(workerOptions);

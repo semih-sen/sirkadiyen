@@ -11,6 +11,13 @@ internal sealed record WorkerOptions
     /// </summary>
     public TimeSpan CalendarCatchUpInterval { get; init; } = TimeSpan.FromSeconds(5);
 
+    /// <summary>
+    /// Maximum time an idle worker waits before checking for Calendar work that was queued
+    /// after its previous pass. Source polling keeps its own adaptive deadline and is not
+    /// repeated on these idle checks.
+    /// </summary>
+    public TimeSpan CalendarIdleCheckInterval { get; init; } = TimeSpan.FromSeconds(5);
+
     public void Validate()
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(SourceCatalogPath);
@@ -18,6 +25,12 @@ internal sealed record WorkerOptions
         {
             throw new InvalidOperationException(
                 "The Calendar catch-up interval must be positive.");
+        }
+
+        if (CalendarIdleCheckInterval <= TimeSpan.Zero)
+        {
+            throw new InvalidOperationException(
+                "The Calendar idle-check interval must be positive.");
         }
     }
 }

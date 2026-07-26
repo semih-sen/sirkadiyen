@@ -1,4 +1,3 @@
-using Sirkadiyen.Application.ScheduleIngestion;
 using Sirkadiyen.Worker;
 using Xunit;
 
@@ -13,12 +12,11 @@ public sealed class WorkerCycleSchedulerTests
     public void GetNext_WhenCalendarWorkYielded_UsesShortCatchUpWithoutSourcePolling()
     {
         WorkerOptions options = CreateWorkerOptions();
-        AdaptivePollingIntervalPolicy polling = CreatePollingPolicy();
 
         WorkerCycleSchedule result = WorkerCycleScheduler.GetNext(
             calendarCatchUpRequired: true,
+            nextSourcePollAt: Saturday.AddHours(1),
             options,
-            polling,
             Saturday);
 
         Assert.False(result.PollScheduleSources);
@@ -26,31 +24,68 @@ public sealed class WorkerCycleSchedulerTests
     }
 
     [Fact]
-    public void GetNext_WhenCalendarBacklogIsDrained_UsesOrdinarySourcePollingPolicy()
+    public void GetNext_WhenCalendarBacklogIsDrained_ChecksForNewCalendarWorkPromptly()
     {
         WorkerOptions options = CreateWorkerOptions();
-        AdaptivePollingIntervalPolicy polling = CreatePollingPolicy();
 
         WorkerCycleSchedule result = WorkerCycleScheduler.GetNext(
             calendarCatchUpRequired: false,
+            nextSourcePollAt: Saturday.AddHours(1),
             options,
-            polling,
+            Saturday);
+
+        Assert.False(result.PollScheduleSources);
+        Assert.Equal(TimeSpan.FromSeconds(5), result.Delay);
+    }
+
+    [Fact]
+    public void GetNext_WhenSourcePollIsDueBeforeIdleCheck_PreservesSourceDeadline()
+    {
+        WorkerOptions options = CreateWorkerOptions();
+
+        WorkerCycleSchedule result = WorkerCycleScheduler.GetNext(
+            calendarCatchUpRequired: false,
+            nextSourcePollAt: Saturday.AddSeconds(3),
+            options,
             Saturday);
 
         Assert.True(result.PollScheduleSources);
-        Assert.Equal(TimeSpan.FromHours(1), result.Delay);
+        Assert.Equal(TimeSpan.FromSeconds(3), result.Delay);
+    }
+
+    [Fact]
+    public void GetNext_WhenSourcePollIsOverdue_StartsItWithoutDelay()
+    {
+        WorkerOptions options = CreateWorkerOptions();
+
+        WorkerCycleSchedule result = WorkerCycleScheduler.GetNext(
+            calendarCatchUpRequired: false,
+            nextSourcePollAt: Saturday.AddSeconds(-1),
+            options,
+            Saturday);
+
+        Assert.True(result.PollScheduleSources);
+        Assert.Equal(TimeSpan.Zero, result.Delay);
+    }
+
+    [Fact]
+    public void Validate_WhenCalendarIdleCheckIsNotPositive_RejectsConfiguration()
+    {
+        WorkerOptions options = CreateWorkerOptions() with
+        {
+            CalendarIdleCheckInterval = TimeSpan.Zero,
+        };
+
+        InvalidOperationException exception = Assert.Throws<InvalidOperationException>(
+            options.Validate);
+
+        Assert.Contains("idle-check interval", exception.Message, StringComparison.Ordinal);
     }
 
     private static WorkerOptions CreateWorkerOptions() => new()
     {
         SourceCatalogPath = "schedule-sources.json",
         CalendarCatchUpInterval = TimeSpan.FromSeconds(5),
+        CalendarIdleCheckInterval = TimeSpan.FromSeconds(5),
     };
-
-    private static AdaptivePollingIntervalPolicy CreatePollingPolicy() => new(
-        new AdaptivePollingOptions
-        {
-            TimeZoneId = "Europe/Istanbul",
-            WeekendInterval = TimeSpan.FromHours(1),
-        });
 }

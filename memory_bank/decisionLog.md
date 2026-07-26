@@ -4220,3 +4220,48 @@ makes it a real duplication rather than a dormant one.
 - The deferred audience question is recorded as an open risk, not as done.
 
 ---
+
+## ADR-082: Check for newly queued Calendar work independently of source polling
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-26
+**Implements:** a configurable idle Calendar-queue check, retained adaptive source
+deadline, and worker scheduling regressions
+**Amends:** ADR-070
+
+### Context
+
+ADR-070 resumed Calendar work promptly after a pass explicitly returned
+`InProgress` or `PartiallyDispatched`. It did not cover work created after an empty
+pass. If a student requested initial synchronization while the worker was sleeping
+on the adaptive source interval, no in-process signal interrupted that delay. On a
+weekend the new request therefore stayed `InProgress` for up to one hour; restarting
+the worker only appeared to fix it because startup begins with a full pass.
+
+Polling every source every few seconds would hide the latency by creating unnecessary
+Google Sheets traffic and parser work. Raising Calendar mutation budgets would not
+help, because the missed request had not been admitted at all.
+
+### Decision
+
+The worker retains an absolute next-source-poll deadline after every source cycle.
+Between those deadlines it checks the database for initial sync, incremental dispatch
+and reconciliation work on
+`SIRKADIYEN_SYNC:CALENDAR_IDLE_CHECK_INTERVAL`, five seconds by default. An ordinary
+quota yield continues to use `CALENDAR_CATCH_UP_INTERVAL`.
+
+An idle Calendar check is Calendar-only: it does not acquire sources, publish
+revisions, calculate diffs or prune snapshots. When the retained source deadline is
+closer than the selected Calendar interval, the worker sleeps only until that deadline
+and the next pass includes source polling.
+
+### Consequences
+
+- A sync request created just after an empty pass is admitted within the idle-check
+  interval without restarting the worker.
+- Weekend source polling remains hourly; the shorter loop adds database queue scans,
+  not source downloads or parser calls.
+- Source deadlines do not drift behind repeated Calendar-only cycles.
+- Deployment requires only a worker restart; there is no database migration.
+
+---

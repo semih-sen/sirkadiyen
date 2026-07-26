@@ -717,6 +717,13 @@ Weekday 21:00-24:00            45 minutes
 The exact boundaries and durations may be changed through validated worker
 configuration. A configuration change must not create overlapping polling runs.
 
+Source polling and Calendar-queue admission use independent clocks (ADR-082). After
+each source poll the worker retains the next adaptive source deadline, but it checks
+for newly queued initial sync, diff dispatch and reconciliation work on a short idle
+interval. Those Calendar-only checks never acquire or parse a source. The next check
+is shortened when necessary to preserve the source deadline, so responsiveness does
+not turn into extra source traffic or polling drift.
+
 ## 24. Global operational freeze pattern
 
 A runtime-readable, audited global freeze gates every mutating pipeline boundary

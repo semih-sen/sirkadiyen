@@ -189,6 +189,8 @@
 - [x] Add mocked adapter tests
 - [x] Add quota-aware batching (initial-sync event budget, diffs-per-cycle admission,
   and ledger-resumable per-diff Calendar mutation budget; ADR-065)
+- [x] Admit newly queued Calendar work independently of the adaptive source-polling
+  delay, including an initial-sync request created while the worker is idle (ADR-082)
 
 ## Phase 10: Administration and operations
 

@@ -43,6 +43,7 @@ internal sealed class Worker(
         await SeedSourceCatalogAsync(stoppingToken);
 
         bool pollScheduleSources = true;
+        DateTimeOffset nextSourcePollAt = timeProvider.GetUtcNow();
         while (!stoppingToken.IsCancellationRequested)
         {
             if (pollScheduleSources)
@@ -50,6 +51,10 @@ internal sealed class Worker(
                 await PollAllSourcesAsync(stoppingToken);
                 await PublishValidatedRevisionsAsync(stoppingToken);
                 await CalculatePendingDiffsAsync(stoppingToken);
+
+                DateTimeOffset intervalSelectedAt = timeProvider.GetUtcNow();
+                nextSourcePollAt =
+                    intervalSelectedAt + intervalPolicy.GetInterval(intervalSelectedAt);
             }
 
             bool calendarCatchUpRequired =
@@ -64,23 +69,31 @@ internal sealed class Worker(
 
             WorkerCycleSchedule next = WorkerCycleScheduler.GetNext(
                 calendarCatchUpRequired,
+                nextSourcePollAt,
                 options,
-                intervalPolicy,
                 timeProvider.GetUtcNow());
             pollScheduleSources = next.PollScheduleSources;
 
-            if (!next.PollScheduleSources)
+            if (calendarCatchUpRequired && !next.PollScheduleSources)
             {
                 logger.LogInformation(
                     "Calendar work remains after an ordinary mutation-budget yield. "
                     + "Catch-up resumes in {CatchUpInterval} without polling schedule sources.",
                     next.Delay);
             }
-            else
+            else if (next.PollScheduleSources)
             {
                 logger.LogInformation(
-                    "Schedule polling cycle completed. Next cycle starts in {PollingInterval}.",
+                    "Next source polling cycle starts in {PollingInterval}.",
                     next.Delay);
+            }
+            else
+            {
+                logger.LogDebug(
+                    "Calendar queue is idle. It will be checked again in {IdleCheckInterval}; "
+                    + "the next source poll remains due at {NextSourcePollAt}.",
+                    next.Delay,
+                    nextSourcePollAt);
             }
 
             await Task.Delay(next.Delay, timeProvider, stoppingToken);
