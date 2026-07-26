@@ -69,8 +69,11 @@ programs. Drive and HTTP acquisition for the vertical-corridor documents, Grade 
 support, and the remaining operational surfaces still do not exist. The **consumer frontend now
 has a runnable foundation** (`web/`, ADR-066): Google sign-in, license redemption,
 academic profile, Calendar authorization, and initial-sync progress are wired to
-the existing APIs and gated by authoritative backend onboarding state. Admin
-surfaces and richer UI are still absent.
+the existing APIs and gated by authoritative backend onboarding state. The admin
+panel now covers the operational freeze, the revision review queue and
+administrative document upload (ADR-081); the remaining operator surfaces — source
+status, diff release, license administration, audit inspection — and a real
+component system are still absent, as are automated frontend tests.
 
 The source credential is resolved: a Google service account is configured and the
 worker can reach the real Sheets API.
@@ -87,6 +90,66 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- **Gave administrative acquisition a UI, so the anatomy documents can be uploaded from
+  the browser (ADR-081).** `/admin` now has a document-upload module: pick a source, pick
+  a `.docx`, upload. The session cookie and the antiforgery token the browser already
+  holds are what authorize it, which is the answer to "the API needs a cookie and a CSRF
+  token I cannot reproduce by hand" — the alternative was weakening the cookie rules
+  ADR-052 deliberately set.
+- **The catalog says which sources accept an upload, not the frontend.** New
+  `GET /api/sources/uploadable` projects the entries whose transport is
+  `AdministrativeUpload`, ordered by identifier. It carries the display name, academic
+  year, class year, program language, expected document format and `sharedDocumentGroup`,
+  so the panel can name the other sources one upload will serve **before** the fan-out.
+  It omits the poll timestamps on purpose: an upload source is never polled, so they are
+  permanently null and would read as "never acquired".
+- **The panel reports acquisition, never publication.** Success renders one line per
+  target with its `Stored`/`Unchanged` outcome and says the worker parses it on its next
+  cycle under the same rules as a polled source. An upload whose every target is
+  `Unchanged` says so explicitly, because otherwise "no revision followed" is
+  indistinguishable from a failure.
+- Client-side checks mirror the server's without replacing them: `.docx` only, non-empty,
+  8 MB. The endpoint still decides; the UI renders its problem detail and maps 409 to the
+  freeze and 403 to a missing SuperAdmin role. The audit trail is reloaded after a failed
+  upload too, so an interrupted fan-out shows which targets landed.
+- The typed client now sends a `FormData` body as-is (no JSON `Content-Type`, so the
+  browser writes the boundary), and the CSRF header plus its stale-token retry apply to
+  the upload like any other mutating call. **Tailwind was not added**: the panel reuses
+  the existing hand-written `globals.css` classes.
+- **Fixed the antiforgery failure the first real upload hit (ADR-081 amendment).** An
+  antiforgery request token is bound to the claims-based user it was issued to, and the
+  client cached the one minted for `POST /api/auth/google` — issued while still
+  anonymous. Every JSON endpoint hid this, because its 400 is the failure the client
+  already retries once with a fresh token; the upload cannot, since its token is
+  validated while binding `IFormFile`, which throws (a 500 in Development, a bare 400 in
+  Production). Sign-in now discards the cached token as logout already did, and a
+  multipart request always takes a freshly issued one.
+- **The Grade 2 anatomy program is shared between the Turkish and English tracks**
+  (confirmed with the faculty owner), with the same `1`/`2`/`3` groups. The four catalog
+  entries differ only in program language and exist solely because
+  `CalendarAudienceResolver` matches on `record.ProgramLanguage == profile.ProgramLanguage`.
+  Decision: **the entries stay and the operator surface stops showing them** — the panel
+  groups by `sharedDocumentGroup`, so one document is one option naming every program it
+  covers, and it merges every member's audit trail, which is what makes ADR-080's
+  interrupted fan-out visible.
+- **Open risks.** The API must be restarted before the new route exists; until then the
+  panel reports that no source accepts an upload. There is still no frontend test runner,
+  so the component is unverified automatically — only the projection and its ordering are
+  unit-tested. Grade 2 English remains outside the supported-profile schema, so an
+  English anatomy revision still publishes to an empty audience (ADR-079). **The shared
+  anatomy program is still modelled as two per-program sources**; the faithful model is
+  one source whose records apply to both programs, which needs a shared-audience concept
+  in the resolver, the read store, the overlap rule and a `ProgramLanguage` migration.
+  Deferred deliberately, and it must be revisited when Grade 2 English enters the schema
+  (ADR-048) — that is when a dormant duplication becomes a real one.
+- 5 API tests (up from 2), 375 Infrastructure and 6 Contracts .NET tests pass. Release
+  build has no warnings, `dotnet format --verify-no-changes` is clean, and the frontend
+  typechecks and builds (10 routes). PostgreSQL and Python tests were not run: no
+  persistence, migration or parser code changed. `npm run lint` remains unusable — the
+  project has no ESLint configuration and the script prompts to create one.
+
+## Previous administrative acquisition session
 
 - **Built administrative acquisition, so a handed-out document can finally become a
   snapshot (ADR-080).** `POST /api/sources/{sourceId}/document` converts an uploaded

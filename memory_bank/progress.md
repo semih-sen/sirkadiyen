@@ -194,6 +194,8 @@
 
 - [x] Implement audited global freeze core and pipeline gates (ADR-034, ADR-043)
 - [x] Add authenticated freeze/unfreeze administration surface
+- [x] Administrative document acquisition surface (endpoint ADR-080, `/admin` UI and
+  `GET /api/sources/uploadable` ADR-081)
 - [~] License administration (create/revoke/manual activation complete; listing and audit inspection pending)
 - [ ] Source status dashboard
 - [ ] Snapshot inspection
@@ -220,8 +222,10 @@
 - [x] Initial-sync start and progress polling UI
 - [x] Onboarding route gating by authoritative backend state
 - [x] SuperAdmin routed to admin panel instead of student onboarding (ADR-067)
-- [~] Admin/operator interfaces (minimal `/admin`: operational-freeze control and
-  SuperAdmin self-activation; source/revision/diff/license/audit surfaces pending)
+- [~] Admin/operator interfaces (`/admin`: operational-freeze control, SuperAdmin
+  self-activation, revision review queue, and administrative document upload — ADR-081;
+  source status, diff release, license and audit surfaces pending)
+- [x] Administrative document upload UI, driven by `GET /api/sources/uploadable` (ADR-081)
 - [ ] Component system / design system
 - [ ] Automated frontend tests
 - [ ] Production deployment topology and reverse-proxy config
@@ -401,6 +405,22 @@ anatomy pair gained English counterparts, and one upload now produces a Turkish 
 English snapshot from a single file. Every upload is audited per target with the uploader,
 the file name, the byte count and the digest of the bytes.
 
+That upload now has an operator surface (ADR-081). `/admin` carries a document-upload
+module driven by `GET /api/sources/uploadable`, which projects the catalog entries whose
+transport is `administrativeUpload` — so the frontend asks which sources accept a document
+rather than restating a list that changes at rollover. The panel groups those entries by
+`sharedDocumentGroup`, so **one handed-out document is one choice** naming every program it
+covers, reports each target's `Stored`/`Unchanged` outcome, merges every member's upload
+audit trail so an interrupted fan-out is visible, and says the document was stored as
+evidence rather than published: parsing, validation and publication remain the worker's
+next cycle and the review thresholds' decision.
+
+The Grade 2 anatomy program is shared between the Turkish and English tracks, with the same
+`1`/`2`/`3` groups. It is still modelled as one source per program because
+`CalendarAudienceResolver` matches a record to a student only when the program languages are
+equal; the faithful single-source model is deferred until Grade 2 English enters the
+supported-profile schema (ADR-081 amendment).
+
 What Grade 2 still lacks is not a parser, a catalog entry, an audience, or a way in for
 the anatomy documents. The vertical-corridor pair still has no Drive download, so two of
 its six revisions cannot be produced at runtime. The English anatomy revisions publish to
@@ -434,8 +454,11 @@ onboarding state. Local development is same-origin behind an HTTPS proxy edge
 (`next.config.mjs` proxies `/api/*` to Kestrel), so the hardened `Secure`/`__Host-`/`SameSite`
 cookies are exercised unchanged and no backend CORS or cookie relaxation was introduced. The
 only external step for local OAuth testing is adding `https://localhost:3000` to the OAuth
-client's Authorized JavaScript origins. Still open on the frontend: a component/design system,
-automated tests, the admin/operator interfaces, and the production reverse-proxy topology.
+client's Authorized JavaScript origins. The admin panel covers the operational freeze, the
+revision review queue and administrative document upload. Still open on the frontend: a
+component/design system, automated tests, the remaining operator surfaces (source status,
+diff release, license administration, audit inspection), and the production reverse-proxy
+topology.
 
 There is deliberately no rollback (ADR-033). A bad publication is corrected at
 the authoritative source and reaches calendars as a newer forward-fix revision.

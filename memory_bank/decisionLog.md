@@ -4051,3 +4051,172 @@ documents that are tens of kilobytes.
   database and silently not to a running one.
 
 ---
+
+## ADR-081: The upload surface asks the catalog which sources accept a document
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-26
+**Implements:** `GET /api/sources/uploadable`, the `/admin` document-upload module,
+and multipart support in the frontend API client
+**Extends:** ADR-080 (administrative acquisition), ADR-066 (the frontend foundation)
+
+### Context
+
+ADR-080 left the upload endpoint with no UI, so the only way to acquire a
+handed-out document was an API client. That path is worse than inconvenient: the
+session is an HTTP-only `__Host-` cookie with antiforgery (ADR-023), so driving it
+by hand means reproducing a cookie and a double-submit token the browser already
+holds. An operator who cannot authenticate ends up looking for a way to weaken the
+cookie rules, which is exactly what ADR-052 warned against. The browser is the
+authenticated client; the admin panel is where the upload belongs.
+
+The UI needs to know which sources accept an upload. That is catalog knowledge:
+four sources today, all Grade 2 anatomy, and it changes at academic-year rollover
+and whenever a new handed-out document is catalogued. Restating it in the frontend
+would be a second copy of server-owned configuration, and the copy that drifts is
+the one that attaches the wrong evidence to a source.
+
+### Decision
+
+**The server answers which sources are uploadable.** `GET /api/sources/uploadable`
+returns the catalog entries whose transport is `AdministrativeUpload`, ordered by
+identifier so the rendered list does not depend on catalog order. It is a
+projection, not a new store or a new abstraction: the same SuperAdmin group, the
+same `IScheduleSourceStore.ListAsync`. The transport decides, not the polling flag,
+because an upload source is never polling-enabled.
+
+**The projection carries what the operator must know before uploading**, and
+nothing that would be a false claim. It carries the display name, academic year,
+class year, program language, the expected document format, and the
+`sharedDocumentGroup` — so the panel can say "this document also serves
+`G2-ANATOMY-AUTUMN-EN`" before the fan-out happens rather than after. It
+deliberately omits the poll timestamps: an upload source is never polled, so
+`LastPolledAtUtc` and `LastChangedAtUtc` are permanently null and rendering them
+would read as "never acquired" for a source uploaded this morning. The upload
+history endpoint is the answer to when a document last landed.
+
+**The panel reports acquisition, not publication.** A successful upload renders
+one line per target with its `Stored`/`Unchanged` outcome and says the worker will
+parse it on its next cycle under the same rules as a polled source. An upload whose
+every target is `Unchanged` says so explicitly, because "no revision followed" is
+otherwise indistinguishable from a failure. This is AI_GUIDELINE §16: never claim
+synchronization succeeded before backend confirmation, and the backend has
+confirmed storage only.
+
+**The client-side checks mirror the server's and do not replace them.** The file
+picker accepts `.docx`, and the extension, emptiness and 8 MB bound are checked
+before the request so a rejected document is not uploaded first. The endpoint
+enforces all three regardless; the UI renders the reported problem detail, and maps
+409 to the freeze ("lift it and upload the same document again") and 403 to the
+missing SuperAdmin role.
+
+**Multipart goes through the existing typed client.** `request` sends a `FormData`
+body as-is and skips its JSON `Content-Type`, so the browser writes the boundary
+itself, and the CSRF header plus its one stale-token retry apply to the upload
+exactly as they do to every other mutating call.
+
+**Tailwind was not introduced.** The frontend styles with a small hand-written
+system in `globals.css`; adding a CSS framework for one panel is the speculative
+dependency §4 refuses. The module reuses `card`, `status-row`, `muted`, `error` and
+`button.primary`.
+
+### Consequences
+
+- **The anatomy documents are uploadable from the browser**, with the session the
+  browser already holds. No manual cookie or CSRF handling.
+- The catalog stays the single source of truth for what is uploadable. A new
+  handed-out source appears in the panel by being catalogued, with no frontend
+  change.
+- One more admin read endpoint exists. It is SuperAdmin-only like the rest of the
+  group, and it exposes no snapshot content — only what the catalog already
+  declares about a source.
+- The API must be restarted for the new route to exist; a running instance answers
+  404 and the panel then reports that no source accepts an upload.
+- Frontend behaviour is still untested automatically (no frontend test runner
+  exists). The projection and its ordering are unit-tested in
+  `Sirkadiyen.Api.UnitTests`; the component is not.
+- The interrupted-fan-out risk from ADR-080 is unchanged, but now visible: the
+  panel reloads the per-target audit trail after a failure too, so which targets
+  landed is on screen rather than in the database.
+
+---
+
+## ADR-081 amendment: the antiforgery token is identity-bound, and the shared anatomy program stays two sources for now
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-26
+**Amends:** ADR-081 (the upload surface), and defers a question against ADR-080
+
+### The upload failed with an antiforgery error, and the cause was not the upload
+
+The first real upload returned "An error occurred while processing your request."
+The backend log named it exactly: *the provided antiforgery token was meant for a
+different claims-based user than the current user*.
+
+An antiforgery request token binds the claims-based user it was issued to. The
+frontend client cached one token for the whole page lifetime, and the first token
+of a page is the one minted for `POST /api/auth/google` — issued while the caller
+is still **anonymous**. After sign-in that token belongs to nobody, so every later
+mutation sends a token minted for a different user.
+
+This had been invisible because every other mutating endpoint takes JSON: the
+failure comes back as a 400 the client already retries once with a fresh token, so
+the stale token was silently corrected on first use. The upload endpoint cannot do
+that. Its token is validated while binding `IFormFile`, which throws
+`BadHttpRequestException` instead of returning a problem this client could
+recognize — and in Development `ThrowOnBadRequest` turns that into a 500 with a
+generic body. The endpoint that most needs the retry is the one endpoint the retry
+cannot reach.
+
+**Two fixes, at the cause and at the shape.** The cached token is discarded on the
+identity transition that invalidates it: a successful sign-in clears it, as logout
+already did. And a multipart request always takes a freshly issued token rather
+than a cached one, because its antiforgery failure is the one that is not
+gracefully recoverable. An upload is rare, so one extra same-origin GET is the
+cheap side of that trade.
+
+The generic 500 shape is Development-only; in Production the same failure is a bare
+400, which the existing retry would have absorbed. That is worse, not better: it
+would have hidden a stale-token bug behind a silent retry in production while
+failing loudly only on the developer's machine.
+
+### The Grade 2 anatomy program is shared between the programs
+
+Confirmed with the faculty owner: the anatomy dissection program is **one program**
+serving the Turkish and English tracks, with the same `1`/`2`/`3` groups. The four
+catalog entries are not a claim otherwise — they differ only in program language,
+and they exist because `CalendarAudienceResolver` matches a record to a student
+only on `record.ProgramLanguage == profile.ProgramLanguage`, so a Turkish-sourced
+record can never reach an English student.
+
+**Decision: the two entries per document stay, and the operator surface stops
+showing them.** The upload panel groups by `sharedDocumentGroup`, so one document
+is one option — "Dönem 2 · Türkçe + İngilizce · anatomi salon grup saatleri güz" —
+and it names the sources one upload will serve. It also merges the audit trail of
+every member, which is what makes ADR-080's interrupted fan-out visible: one member
+holding the document and the other not now shows on screen.
+
+The alternative — one source whose records apply to both programs — is the model
+that matches the fact, and it is deliberately deferred rather than rejected. It
+needs a shared-audience concept on the source and the canonical record, the
+resolver, the published-records read store, the audience-overlap rule, a migration
+for the `ProgramLanguage` column and its check constraint, and a stable-identity and
+content-hash review. That is the code that decides who gets which events, and
+nothing is currently lost by waiting: Grade 2 English is not in the
+supported-profile schema (ADR-079), so both -EN revisions publish to an empty
+audience either way.
+
+**Revisit when Grade 2 English is admitted**, which ADR-048 gates on a current-year
+English practice fixture. Admitting English while the duplication stands is what
+makes it a real duplication rather than a dormant one.
+
+### Consequences
+
+- Any future identity transition in the client must discard the cached antiforgery
+  token. Sign-in and logout are the two that exist.
+- A shared document is one choice in the panel and still several sources in the
+  catalog. The label states every program it covers, so the operator is not asked
+  to know the fan-out rule.
+- The deferred audience question is recorded as an open risk, not as done.
+
+---

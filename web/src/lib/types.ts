@@ -199,6 +199,51 @@ export interface ScheduleRevisionDetail {
   publishedAtUtc?: string | null;
 }
 
+// Administrative acquisition (SuperAdmin): GET /api/sources/uploadable,
+// POST /api/sources/{sourceId}/document, GET /api/sources/{sourceId}/document/uploads
+// (ADR-079, ADR-080).
+export type ScheduleDocumentFormat = 'GoogleSheet' | 'Xlsx' | 'Docx' | string;
+
+/** A source whose document is handed out, so an administrator uploads it. */
+export interface UploadableSourceView {
+  sourceId: string;
+  displayName: string;
+  academicYear: string;
+  classYear: number;
+  programLanguage: ProgramLanguage;
+  documentFormat: ScheduleDocumentFormat;
+  /** Set when the same file serves several sources; one upload serves them all. */
+  sharedDocumentGroup?: string | null;
+}
+
+/** Whether the upload became a new snapshot or normalized to content already held. */
+export type SourceDocumentUploadOutcome = 'Stored' | 'Unchanged' | string;
+
+export interface SourceDocumentUploadTarget {
+  sourceId: string;
+  classYear: number;
+  programLanguage: ProgramLanguage;
+  outcome: SourceDocumentUploadOutcome;
+  snapshotId: string;
+}
+
+export interface SourceDocumentUploadResponse {
+  /** The digest of the uploaded bytes, which identifies the file itself. */
+  contentSha256: string;
+  /** What happened for every source the document serves. */
+  targets: SourceDocumentUploadTarget[];
+}
+
+export interface SourceDocumentUploadAuditEntry {
+  sourceId: string;
+  uploadedBy: string;
+  fileName: string;
+  byteCount: number;
+  contentSha256: string;
+  outcome: SourceDocumentUploadOutcome;
+  uploadedAtUtc: string;
+}
+
 export interface ApproveRevisionResponse {
   revisionId: string;
   approved: boolean;

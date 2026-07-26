@@ -29,6 +29,7 @@ the `administrativeUpload` transport, name themselves
 are acquired by a SuperAdmin uploading the file:
 
 ```text
+GET  /api/sources/uploadable
 POST /api/sources/{sourceId}/document   multipart form field "file"
 GET  /api/sources/{sourceId}/document/uploads
 ```
@@ -54,6 +55,26 @@ followed.
 
 The pipeline freeze applies: a frozen pipeline accepts no upload, since an upload
 is an acquisition (ADR-034).
+
+**The administrator uploads from `/admin`** rather than over the raw API (ADR-081).
+`GET /api/sources/uploadable` projects the sources whose transport is
+`administrativeUpload`, so the UI asks the server-owned catalog which sources accept
+a document instead of restating a list that changes at academic-year rollover. It
+also carries each source's `sharedDocumentGroup` and expected document format. The
+panel groups by that shared group, so **one handed-out document is one choice**
+naming every program it covers, and it merges every member's audit trail so an
+interrupted fan-out is visible. The upload response reports one outcome per target,
+and the panel says the document was stored as evidence — not that a schedule was
+published, which is still the worker's next cycle and the review thresholds'
+decision.
+
+A browser upload carries the session cookie and the antiforgery token from
+`GET /api/auth/csrf`. Note that an antiforgery request token is bound to the
+claims-based user it was issued to, so a token minted before sign-in is refused
+afterwards, and this endpoint validates it while binding `IFormFile` — which throws
+rather than returning a problem a client can retry. The frontend therefore discards
+its cached token on sign-in and takes a fresh one for every multipart request
+(ADR-081 amendment).
 
 ## Polling and parser orchestration
 

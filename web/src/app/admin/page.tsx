@@ -6,6 +6,7 @@ import { useSession } from '@/components/SessionProvider';
 import { activateUser, getFreeze, logout, setFreeze, ApiError } from '@/lib/api';
 import { ROUTES, routeForOnboardingState } from '@/lib/onboarding';
 import { RevisionReview } from '@/components/RevisionReview';
+import { SourceDocumentUpload } from '@/components/SourceDocumentUpload';
 import type { OperationalFreezeSnapshot } from '@/lib/types';
 
 function AdminPanel() {
@@ -132,6 +133,9 @@ function AdminPanel() {
       ) : (
         <p className="muted">Yükleniyor…</p>
       )}
+
+      {/* Pipeline order: acquisition first, then what publication review does with it. */}
+      <SourceDocumentUpload />
 
       <RevisionReview />
 

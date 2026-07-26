@@ -3,6 +3,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Antiforgery;
 using Sirkadiyen.Api.Identity;
 using Sirkadiyen.Application.ScheduleIngestion;
+using Sirkadiyen.Application.ScheduleSources;
 using Sirkadiyen.Domain.ScheduleIngestion;
 using Sirkadiyen.Domain.ScheduleSources;
 
@@ -24,6 +25,13 @@ public static class SourceDocumentEndpoints
             .RequireAuthorization(AuthorizationPolicies.SuperAdmin)
             .WithTags("Schedule Sources");
 
+        sources.MapGet("/uploadable", ListUploadableAsync)
+            .WithSummary("Returns the sources that are acquired by administrative upload.")
+            .WithDescription(
+                "The catalog is server-owned and changes at academic-year rollover, so the "
+                + "administration UI asks which sources accept an upload rather than "
+                + "restating the list.");
+
         sources.MapPost("/{sourceId}/document", UploadAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
             .WithSummary("Uploads the document for an administratively acquired source.")
@@ -36,6 +44,19 @@ public static class SourceDocumentEndpoints
             .WithSummary("Returns the recent upload history for one source.");
 
         return builder;
+    }
+
+    private static async Task<IResult> ListUploadableAsync(
+        IScheduleSourceStore sourceStore,
+        CancellationToken cancellationToken)
+    {
+        // An upload source is never polling-enabled (ADR-079), so the whole
+        // catalog is read and the transport decides, not the polling flag.
+        IReadOnlyList<ScheduleSource> catalog = await sourceStore.ListAsync(
+            onlyPollingEnabled: false,
+            cancellationToken);
+
+        return Results.Ok(UploadableSourceView.SelectUploadable(catalog));
     }
 
     private static async Task<IResult> UploadAsync(
@@ -131,6 +152,71 @@ public static class SourceDocumentEndpoints
             cancellationToken);
 
         return Results.Ok(uploads.Select(UploadAuditEntry.From));
+    }
+}
+
+/// <summary>
+/// A source an administrator may upload a document for.
+/// </summary>
+/// <remarks>
+/// It carries the shared-document group so the caller can say which other sources
+/// one upload will serve (ADR-080), and the expected document format so it can
+/// refuse a file the endpoint would refuse anyway. It deliberately carries no poll
+/// timestamps: an upload source is never polled, so those are always absent and
+/// the upload history is the audit endpoint's answer.
+/// </remarks>
+public sealed record UploadableSourceView
+{
+    public required string SourceId { get; init; }
+
+    public required string DisplayName { get; init; }
+
+    public required string AcademicYear { get; init; }
+
+    public required int ClassYear { get; init; }
+
+    public required ProgramLanguage ProgramLanguage { get; init; }
+
+    public required ScheduleDocumentFormat DocumentFormat { get; init; }
+
+    /// <summary>
+    /// The group of sources served by literally the same file, or
+    /// <see langword="null"/> when this source has its own document.
+    /// </summary>
+    public string? SharedDocumentGroup { get; init; }
+
+    /// <summary>
+    /// The administratively acquired sources of a catalog, ordered by identifier so
+    /// the list a UI renders does not depend on catalog order.
+    /// </summary>
+    public static IReadOnlyList<UploadableSourceView> SelectUploadable(
+        IReadOnlyList<ScheduleSource> catalog)
+    {
+        ArgumentNullException.ThrowIfNull(catalog);
+
+        return
+        [
+            .. catalog
+                .Where(source => source.Transport is ScheduleSourceTransport.AdministrativeUpload)
+                .OrderBy(source => source.SourceId.Value, StringComparer.Ordinal)
+                .Select(From),
+        ];
+    }
+
+    public static UploadableSourceView From(ScheduleSource source)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+
+        return new UploadableSourceView
+        {
+            SourceId = source.SourceId.Value,
+            DisplayName = source.DisplayName,
+            AcademicYear = source.AcademicYear,
+            ClassYear = source.ClassYear,
+            ProgramLanguage = source.ProgramLanguage,
+            DocumentFormat = source.DocumentFormat,
+            SharedDocumentGroup = source.SharedDocumentGroup,
+        };
     }
 }
 

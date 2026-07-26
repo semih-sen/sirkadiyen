@@ -24,8 +24,11 @@ import type {
   RedeemLicenseResponse,
   SaveStudentProfileRequest,
   SaveStudentProfileResponse,
+  SourceDocumentUploadAuditEntry,
+  SourceDocumentUploadResponse,
   StudentProfileView,
   SupportedProfileOptions,
+  UploadableSourceView,
 } from './types';
 
 export class ApiError extends Error {
@@ -45,6 +48,14 @@ interface CsrfToken {
   requestToken: string;
 }
 
+/**
+ * The last issued antiforgery token.
+ *
+ * It is bound to the claims-based user it was issued for, so it survives only as
+ * long as the identity does: a token minted while anonymous is refused once a
+ * session exists ("meant for a different claims-based user"). Every identity
+ * transition must therefore discard it — see signInWithGoogle and logout.
+ */
 let cachedCsrf: CsrfToken | null = null;
 
 async function fetchCsrfToken(): Promise<CsrfToken> {
@@ -84,6 +95,11 @@ type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
 interface RequestOptions {
   method?: Method;
+  /**
+   * JSON-serialized, unless it is a FormData: a multipart body is sent as-is so
+   * the browser writes the Content-Type with its own boundary. Setting that header
+   * by hand produces a boundary-less type the backend cannot read the file from.
+   */
   body?: unknown;
   /** Treat 204/205 as a valid empty result rather than a parse target. */
   allowEmpty?: boolean;
@@ -98,9 +114,11 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const method = options.method ?? 'GET';
   const mutating = method !== 'GET';
 
+  const multipart = options.body instanceof FormData;
+
   const send = async (csrf: CsrfToken | null): Promise<Response> => {
     const headers: Record<string, string> = { Accept: 'application/json' };
-    if (options.body !== undefined) {
+    if (options.body !== undefined && !multipart) {
       headers['Content-Type'] = 'application/json';
     }
     if (csrf) {
@@ -110,11 +128,21 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       method,
       credentials: 'include',
       headers,
-      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      body:
+        options.body === undefined
+          ? undefined
+          : multipart
+            ? (options.body as FormData)
+            : JSON.stringify(options.body),
     });
   };
 
-  let response = await send(mutating ? await getCsrfToken() : null);
+  // A multipart request always takes a freshly issued token. Its antiforgery
+  // failure is not recoverable the way a JSON one is: the token is validated while
+  // binding IFormFile, which throws instead of returning a problem this client
+  // could recognize and retry (in Development that surfaces as a 500). Uploads are
+  // rare, so one extra same-origin GET is the cheap side of that trade.
+  let response = await send(mutating ? await getCsrfToken(multipart) : null);
 
   if (mutating && response.status === 400) {
     // Possibly a stale antiforgery token; refresh once and retry.
@@ -160,8 +188,16 @@ export async function getMe(): Promise<CurrentUser | null> {
   }
 }
 
-export function signInWithGoogle(credential: string): Promise<CurrentUser> {
-  return request<CurrentUser>('/api/auth/google', { method: 'POST', body: { credential } });
+export async function signInWithGoogle(credential: string): Promise<CurrentUser> {
+  const user = await request<CurrentUser>('/api/auth/google', {
+    method: 'POST',
+    body: { credential },
+  });
+  // The token that authorized this very request was issued to the anonymous user.
+  // The session now belongs to a real one, so keeping it would send every later
+  // mutation a token minted for someone else.
+  cachedCsrf = null;
+  return user;
 }
 
 export async function logout(): Promise<void> {
@@ -280,4 +316,42 @@ export function approveRevision(
     method: 'POST',
     body: { approvalReason },
   });
+}
+
+// ---- Administrative acquisition (SuperAdmin) ------------------------------
+// A source whose document is handed out rather than published is acquired by an
+// administrator uploading the file (ADR-079, ADR-080). The upload only acquires:
+// the worker parses, validates and publishes it on its next cycle under the same
+// rules as a polled source, so the UI must not report a published schedule.
+
+/** The sources that accept an upload, as the server-owned catalog declares them. */
+export function listUploadableSources(): Promise<UploadableSourceView[]> {
+  return request<UploadableSourceView[]>('/api/sources/uploadable');
+}
+
+/**
+ * Uploads the document for one source. Every source served by literally the same
+ * file gets its own snapshot from these bytes, so the response reports one target
+ * per source rather than a single outcome.
+ */
+export function uploadSourceDocument(
+  sourceId: string,
+  file: File,
+): Promise<SourceDocumentUploadResponse> {
+  const form = new FormData();
+  // The field name the endpoint binds its IFormFile from.
+  form.append('file', file, file.name);
+  return request<SourceDocumentUploadResponse>(
+    `/api/sources/${encodeURIComponent(sourceId)}/document`,
+    { method: 'POST', body: form },
+  );
+}
+
+/** The recent upload audit trail for one source, newest first. */
+export function listSourceDocumentUploads(
+  sourceId: string,
+): Promise<SourceDocumentUploadAuditEntry[]> {
+  return request<SourceDocumentUploadAuditEntry[]>(
+    `/api/sources/${encodeURIComponent(sourceId)}/document/uploads`,
+  );
 }
