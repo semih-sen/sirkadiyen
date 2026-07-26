@@ -6,7 +6,7 @@ namespace Sirkadiyen.Infrastructure.UnitTests;
 
 public sealed class GoogleSheetsServiceFactoryTests
 {
-    private readonly GoogleSheetsServiceFactory _factory = new();
+    private readonly GoogleSheetsServiceFactory _factory = new(new GoogleSourceCredentialFactory());
 
     [Fact]
     public void CreateBuildsReadOnlyServiceFromRefreshTokenWithoutNetworkAccess()

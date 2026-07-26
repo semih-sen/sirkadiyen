@@ -209,15 +209,24 @@ snapshot mapper.
 Unattended source polling supports exactly one credential mode: an OAuth client
 ID/secret plus an offline refresh token, or a service-account credential file.
 A client ID and client secret alone cannot authorize background polling. Source
-access uses only the read-only spreadsheets scope and is independent from each
-student's Google Calendar authorization.
+access uses the read-only spreadsheets and Drive scopes on one credential
+(ADR-083) and is independent from each student's Google Calendar authorization. A
+refresh token issued before Drive acquisition existed carries the Sheets scope
+alone and must be re-issued.
 
 ### Spreadsheet files
 
 Collected `.xlsx` fixtures are read with `DocumentFormat.OpenXml` 3.5.1. The
 local converter is development-only and emits an explicit fixture diagnostic.
-Production Google Drive and HTTP transports still require acquisition adapters;
-after download, they may reuse the format conversion boundary. The administrative
+Google Drive acquisition is implemented (ADR-083): `GoogleDriveHttpClient` reads
+the Drive v3 REST API with the shared source credential, and
+`DriveDocumentAcquirer` hands the downloaded bytes to
+`DocxSnapshotConverter.ConvertDownload`, which marks the snapshot
+`snapshot.google_drive_download` and states nothing volatile about the file,
+because acquisition diagnostics are part of the content hash. Only DOCX converts,
+so the Drive-published Grade 3 workbooks are reported as an unsupported document
+format rather than an unsupported transport. The HTTP transport still has no
+adapter. The administrative
 upload path is implemented (ADR-080): `DocxSnapshotConverter.ConvertUpload` reads
 the uploaded bytes with the same OpenXML reader, marks the snapshot
 `snapshot.administrative_upload`, and the API stores it. Only DOCX is accepted,

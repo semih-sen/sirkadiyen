@@ -28,6 +28,7 @@ public sealed class ScheduleSourcePollerTests
         FakeParseResultStore resultStore = new(shouldInvokeParser: true);
         ScheduleSourcePoller poller = new(
             acquirer,
+            new FakeDriveDocumentAcquirer(),
             snapshotStore,
             parserClient,
             resultStore,
@@ -56,6 +57,7 @@ public sealed class ScheduleSourcePollerTests
         FakeParserClient parserClient = new() { Exception = new HttpRequestException("offline") };
         ScheduleSourcePoller poller = new(
             new FakeSnapshotAcquirer(snapshot),
+            new FakeDriveDocumentAcquirer(),
             new FakeSnapshotStore(StoredSnapshot(source, snapshot), changed: true),
             parserClient,
             resultStore,
@@ -79,6 +81,7 @@ public sealed class ScheduleSourcePollerTests
         FakeParserClient parser = new();
         ScheduleSourcePoller poller = new(
             acquirer,
+            new FakeDriveDocumentAcquirer(),
             new FakeSnapshotStore(StoredSnapshot(Source(), Snapshot(Source())), changed: true)
             {
                 HasLatest = false,
@@ -107,6 +110,7 @@ public sealed class ScheduleSourcePollerTests
         FakeParserClient parser = new();
         ScheduleSourcePoller poller = new(
             acquirer,
+            new FakeDriveDocumentAcquirer(),
             new FakeSnapshotStore(StoredSnapshot(source, Snapshot(source)), changed: false),
             parser,
             new FakeParseResultStore(shouldInvokeParser: true),
@@ -135,6 +139,7 @@ public sealed class ScheduleSourcePollerTests
         FakeParseResultStore parseStore = new(shouldInvokeParser: true);
         ScheduleSourcePoller poller = new(
             new FakeSnapshotAcquirer(Snapshot(Source())),
+            new FakeDriveDocumentAcquirer(),
             new FakeSnapshotStore(StoredSnapshot(source, Snapshot(source)), changed: false),
             new FakeParserClient(),
             parseStore,
@@ -152,22 +157,16 @@ public sealed class ScheduleSourcePollerTests
     [Fact]
     public async Task UnsupportedTransportNeverAcquiresOrParses()
     {
-        ScheduleSource source = new(
-            SourceId.Parse("G3-FILE"),
-            "File source",
-            ScheduleSourceTransport.GoogleDriveFile,
-            ScheduleDocumentFormat.Xlsx,
-            "https://example.invalid/source.xlsx",
-            "grade3_yearly_v1",
-            "1.0.0",
-            "2025-2026",
-            3,
-            DomainLanguage.Turkish,
-            "Europe/Istanbul");
+        ScheduleSource source = FileSource(
+            "SHARED-AMPHI",
+            ScheduleSourceTransport.HttpFile,
+            ScheduleDocumentFormat.Xlsx);
         FakeSnapshotAcquirer acquirer = new(Snapshot(Source()));
+        FakeDriveDocumentAcquirer driveAcquirer = new();
         FakeParserClient parser = new();
         ScheduleSourcePoller poller = new(
             acquirer,
+            driveAcquirer,
             new FakeSnapshotStore(StoredSnapshot(Source(), Snapshot(Source())), changed: true),
             parser,
             new FakeParseResultStore(shouldInvokeParser: true),
@@ -178,9 +177,144 @@ public sealed class ScheduleSourcePollerTests
 
         ScheduleSourcePollResult result = await poller.PollAsync(source, CancellationToken.None);
 
+        // Nothing can fetch an HTTP-published file yet, which is a different gap
+        // from a fetchable file that nothing can read.
         Assert.Equal(ScheduleSourcePollOutcome.UnsupportedTransport, result.Outcome);
         Assert.Equal(0, acquirer.CallCount);
+        Assert.Equal(0, driveAcquirer.CallCount);
         Assert.Equal(0, parser.CallCount);
+    }
+
+    [Fact]
+    public async Task ADriveFileInAFormatNothingReadsIsNeverDownloaded()
+    {
+        ScheduleSource source = FileSource(
+            "G3-TR-A-ANNUAL",
+            ScheduleSourceTransport.GoogleDriveFile,
+            ScheduleDocumentFormat.Xlsx);
+        FakeDriveDocumentAcquirer driveAcquirer = new();
+        FakeParserClient parser = new();
+        ScheduleSourcePoller poller = new(
+            new FakeSnapshotAcquirer(Snapshot(Source())),
+            driveAcquirer,
+            new FakeSnapshotStore(StoredSnapshot(Source(), Snapshot(Source())), changed: true),
+            parser,
+            new FakeParseResultStore(shouldInvokeParser: true),
+            ValidationService(),
+            new FakeOperationalFreezeStore(),
+            new ParseRunOptions(),
+            TimeProvider.System);
+
+        ScheduleSourcePollResult result = await poller.PollAsync(source, CancellationToken.None);
+
+        // The transport works; the workbook has no converter and no profile. The
+        // outcome says which of the two is missing, and nothing is downloaded for
+        // a document nothing could interpret.
+        Assert.Equal(ScheduleSourcePollOutcome.UnsupportedDocumentFormat, result.Outcome);
+        Assert.Equal(0, driveAcquirer.CallCount);
+        Assert.Equal(0, parser.CallCount);
+    }
+
+    [Fact]
+    public async Task ADriveDocumentIsDownloadedAndParsedLikeAnyOtherSource()
+    {
+        ScheduleSource source = FileSource(
+            "G2-VERTICAL-AUTUMN",
+            ScheduleSourceTransport.GoogleDriveFile,
+            ScheduleDocumentFormat.Docx);
+        NormalizedSpreadsheetSnapshot snapshot = Snapshot(source);
+        FakeSnapshotAcquirer sheetsAcquirer = new(snapshot);
+        FakeDriveDocumentAcquirer driveAcquirer = new(snapshot);
+        FakeParserClient parser = new();
+        ScheduleSourcePoller poller = new(
+            sheetsAcquirer,
+            driveAcquirer,
+            new FakeSnapshotStore(StoredSnapshot(source, snapshot), changed: true),
+            parser,
+            new FakeParseResultStore(shouldInvokeParser: true),
+            ValidationService(),
+            new FakeOperationalFreezeStore(),
+            new ParseRunOptions(),
+            TimeProvider.System);
+
+        ScheduleSourcePollResult result = await poller.PollAsync(source, CancellationToken.None);
+
+        Assert.Equal(ScheduleSourcePollOutcome.Parsed, result.Outcome);
+        Assert.True(result.SnapshotChanged);
+        Assert.Equal(1, driveAcquirer.CallCount);
+
+        // Addressed by the Drive file identifier the catalog stores, not by the
+        // URL a person opens.
+        Assert.Equal("drive-file-1", driveAcquirer.LastRequest!.SpreadsheetId);
+        Assert.Equal(ScheduleDocumentFormat.Docx, driveAcquirer.LastFormat);
+
+        // The sheet adapter is never involved, and the parser receives the same
+        // normalized snapshot a sheet would have produced.
+        Assert.Equal(0, sheetsAcquirer.CallCount);
+        Assert.Equal(1, parser.CallCount);
+        Assert.Equal("grade2_vertical_corridor_v1", parser.LastRequest!.ParserProfile.Name);
+    }
+
+    [Fact]
+    public async Task AFreezeStopsADriveDocumentBeforeItIsDownloaded()
+    {
+        ScheduleSource source = FileSource(
+            "G2-VERTICAL-SPRING",
+            ScheduleSourceTransport.GoogleDriveFile,
+            ScheduleDocumentFormat.Docx);
+        FakeDriveDocumentAcquirer driveAcquirer = new(Snapshot(source));
+        ScheduleSourcePoller poller = new(
+            new FakeSnapshotAcquirer(Snapshot(source)),
+            driveAcquirer,
+            new FakeSnapshotStore(StoredSnapshot(source, Snapshot(source)), changed: true),
+            new FakeParserClient(),
+            new FakeParseResultStore(shouldInvokeParser: true),
+            ValidationService(),
+            new FakeOperationalFreezeStore(isFrozen: true),
+            new ParseRunOptions(),
+            TimeProvider.System);
+
+        ScheduleSourcePollResult result = await poller.PollAsync(source, CancellationToken.None);
+
+        // A freeze means no source is acquired, whichever transport would have
+        // done the acquiring (ADR-034).
+        Assert.Equal(ScheduleSourcePollOutcome.Frozen, result.Outcome);
+        Assert.Equal(0, driveAcquirer.CallCount);
+    }
+
+    [Fact]
+    public async Task ADriveSourceWithNoFileIdentifierIsRefusedRatherThanGuessedAt()
+    {
+        ScheduleSource source = new(
+            SourceId.Parse("G2-VERTICAL-AUTUMN"),
+            "Vertical corridor autumn",
+            ScheduleSourceTransport.GoogleDriveFile,
+            ScheduleDocumentFormat.Docx,
+            "https://drive.google.com/file/d/example/view",
+            "grade2_vertical_corridor_v1",
+            "1.0.0",
+            "2025-2026",
+            2,
+            DomainLanguage.Turkish,
+            "Europe/Istanbul");
+        FakeDriveDocumentAcquirer driveAcquirer = new();
+        ScheduleSourcePoller poller = new(
+            new FakeSnapshotAcquirer(Snapshot(Source())),
+            driveAcquirer,
+            new FakeSnapshotStore(StoredSnapshot(Source(), Snapshot(Source())), changed: true),
+            new FakeParserClient(),
+            new FakeParseResultStore(shouldInvokeParser: true),
+            ValidationService(),
+            new FakeOperationalFreezeStore(),
+            new ParseRunOptions(),
+            TimeProvider.System);
+
+        // The URL is for a person to open and the identifier is what the API
+        // reads. Deriving one from the other would be inventing provenance.
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => poller.PollAsync(source, CancellationToken.None));
+
+        Assert.Equal(0, driveAcquirer.CallCount);
     }
 
     [Fact]
@@ -191,6 +325,7 @@ public sealed class ScheduleSourcePollerTests
         FakeParseResultStore parseStore = new(shouldInvokeParser: true);
         ScheduleSourcePoller poller = new(
             acquirer,
+            new FakeDriveDocumentAcquirer(),
             new FakeSnapshotStore(StoredSnapshot(source, Snapshot(source)), changed: true),
             new FakeParserClient(),
             parseStore,
@@ -213,6 +348,7 @@ public sealed class ScheduleSourcePollerTests
         FakeSnapshotAcquirer acquirer = new(Snapshot(source));
         ScheduleSourcePoller poller = new(
             acquirer,
+            new FakeDriveDocumentAcquirer(),
             new FakeSnapshotStore(StoredSnapshot(source, Snapshot(source)), changed: true),
             new FakeParserClient(),
             new FakeParseResultStore(shouldInvokeParser: true),
@@ -242,6 +378,7 @@ public sealed class ScheduleSourcePollerTests
         FakeParseResultStore parseStore = new(shouldInvokeParser: true);
         ScheduleSourcePoller poller = new(
             acquirer,
+            new FakeDriveDocumentAcquirer(),
             new FakeSnapshotStore(StoredSnapshot(source, Snapshot(source)), changed: true),
             new FakeParserClient(),
             parseStore,
@@ -272,6 +409,26 @@ public sealed class ScheduleSourcePollerTests
         "Europe/Istanbul",
         "spreadsheet-1",
         1);
+
+    /// <summary>A source published as a file, addressed by its external ID.</summary>
+    private static ScheduleSource FileSource(
+        string sourceId,
+        ScheduleSourceTransport transport,
+        ScheduleDocumentFormat format) => new(
+            SourceId.Parse(sourceId),
+            $"File source {sourceId}",
+            transport,
+            format,
+            "https://example.invalid/source",
+            format is ScheduleDocumentFormat.Docx
+                ? "grade2_vertical_corridor_v1"
+                : "grade3_yearly_v1",
+            "1.0.0",
+            "2025-2026",
+            2,
+            DomainLanguage.Turkish,
+            "Europe/Istanbul",
+            "drive-file-1");
 
     /// <summary>A source whose document is uploaded rather than published (ADR-079).</summary>
     private static ScheduleSource UploadSource() => new(
@@ -358,6 +515,36 @@ public sealed class ScheduleSourcePollerTests
             CallCount++;
             OnAcquire?.Invoke();
             return Task.FromResult(snapshot with
+            {
+                SnapshotId = request.SnapshotId,
+                AcquiredAtUtc = request.AcquiredAtUtc,
+            });
+        }
+    }
+
+    private sealed class FakeDriveDocumentAcquirer(NormalizedSpreadsheetSnapshot? snapshot = null)
+        : IDriveDocumentAcquirer
+    {
+        public int CallCount { get; private set; }
+
+        public AcquireSpreadsheetSnapshotRequest? LastRequest { get; private set; }
+
+        public ScheduleDocumentFormat? LastFormat { get; private set; }
+
+        /// <summary>Mirrors the real acquirer: DOCX is read, other formats are not.</summary>
+        public bool CanAcquire(ScheduleDocumentFormat format) =>
+            format is ScheduleDocumentFormat.Docx;
+
+        public Task<NormalizedSpreadsheetSnapshot> AcquireAsync(
+            ScheduleDocumentFormat format,
+            AcquireSpreadsheetSnapshotRequest request,
+            CancellationToken cancellationToken)
+        {
+            CallCount++;
+            LastRequest = request;
+            LastFormat = format;
+            return Task.FromResult((snapshot
+                ?? throw new InvalidOperationException("This acquirer was not expected to run.")) with
             {
                 SnapshotId = request.SnapshotId,
                 AcquiredAtUtc = request.AcquiredAtUtc,

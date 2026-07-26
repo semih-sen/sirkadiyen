@@ -50,6 +50,9 @@ public sealed class DocxSnapshotConverter
     /// <summary>Diagnostic marking a snapshot converted from an administrator's upload.</summary>
     public const string AdministrativeUploadDiagnosticCode = "snapshot.administrative_upload";
 
+    /// <summary>Diagnostic marking a snapshot converted from a Google Drive download.</summary>
+    public const string GoogleDriveDownloadDiagnosticCode = "snapshot.google_drive_download";
+
     /// <summary>Diagnostic stating that worksheet titles were not read from the document.</summary>
     public const string SyntheticTitleDiagnosticCode = "snapshot.docx_synthetic_worksheet_titles";
 
@@ -88,20 +91,35 @@ public sealed class DocxSnapshotConverter
     /// Converts a document an administrator uploaded for a source that is handed
     /// out rather than published (ADR-079, ADR-080).
     /// </summary>
-    /// <remarks>
-    /// The bytes are copied into a seekable stream because the OpenXML reader
-    /// seeks, and because one upload is converted once per source it serves.
-    /// </remarks>
     public NormalizedSpreadsheetSnapshot ConvertUpload(
         ReadOnlyMemory<byte> content,
-        AcquireSpreadsheetSnapshotRequest request)
+        AcquireSpreadsheetSnapshotRequest request) =>
+        ConvertBytes(content, request, AdministrativeUploadOrigin());
+
+    /// <summary>
+    /// Converts a document downloaded from the location the catalog publishes for
+    /// its source (ADR-083).
+    /// </summary>
+    public NormalizedSpreadsheetSnapshot ConvertDownload(
+        ReadOnlyMemory<byte> content,
+        AcquireSpreadsheetSnapshotRequest request) =>
+        ConvertBytes(content, request, GoogleDriveDownloadOrigin());
+
+    /// <remarks>
+    /// The bytes are copied into a seekable stream because the OpenXML reader
+    /// seeks, and because one document is converted once per source it serves.
+    /// </remarks>
+    private static NormalizedSpreadsheetSnapshot ConvertBytes(
+        ReadOnlyMemory<byte> content,
+        AcquireSpreadsheetSnapshotRequest request,
+        AcquisitionDiagnostic origin)
     {
         using MemoryStream stream = new(content.Length);
         stream.Write(content.Span);
         stream.Position = 0;
 
         using WordprocessingDocument document = WordprocessingDocument.Open(stream, false);
-        return Convert(document, request, AdministrativeUploadOrigin());
+        return Convert(document, request, origin);
     }
 
     private static AcquisitionDiagnostic LocalFixtureOrigin() => new()
@@ -121,6 +139,25 @@ public sealed class DocxSnapshotConverter
         Code = AdministrativeUploadDiagnosticCode,
         Message = "Snapshot was converted from a DOCX an administrator uploaded, not fetched from a "
             + "published location. The upload audit records who supplied it.",
+    };
+
+    /// <summary>
+    /// States how the document arrived, and deliberately states nothing else
+    /// about it.
+    /// </summary>
+    /// <remarks>
+    /// The diagnostics are part of the snapshot's content hash. A modification
+    /// time, a file name or a digest here would differ between two downloads of
+    /// an unchanged document, and every poll would store a new snapshot, parse it
+    /// and produce a revision that changes nothing (ADR-083).
+    /// </remarks>
+    private static AcquisitionDiagnostic GoogleDriveDownloadOrigin() => new()
+    {
+        Severity = DiagnosticSeverity.Information,
+        Code = GoogleDriveDownloadDiagnosticCode,
+        Message = "Snapshot was converted from a DOCX downloaded from Google Drive. The Drive file "
+            + "identifier is the snapshot's own spreadsheet ID; what the file was called and when "
+            + "it changed belong to the acquisition log, not to the content.",
     };
 
     private static NormalizedSpreadsheetSnapshot Convert(

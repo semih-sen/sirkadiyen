@@ -157,6 +157,17 @@ selects a transport adapter (`GoogleSheets`, `GoogleDriveFile`, `HttpFile`, or
 `Docx`) produces the versioned normalized snapshot. Parser profiles depend only
 on the snapshot contract, never on the acquisition transport.
 
+Because they are separate, so are their gaps. A poll reports
+`UnsupportedTransport` when nothing can fetch the document from where it is
+published, and `UnsupportedDocumentFormat` when it can be fetched but nothing can
+read the format it is published in (ADR-083). Both mean nothing was read, and
+they need different work.
+
+A fetched source is addressed by its identifier, never by its URL. The catalog's
+`sourceUri` is what a person opens; `externalId` is the spreadsheet or Drive file
+ID the API reads, and a source that has no identifier is refused rather than
+having one derived from its link.
+
 `AdministrativeUpload` is the push case: the document is handed out rather than
 published, so it is never polled and its snapshot arrives from an audited
 administrative action instead of a fetch. Such a source has no location, so it

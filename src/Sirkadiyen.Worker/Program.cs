@@ -255,6 +255,13 @@ builder.Services.AddSingleton<SheetsService>(services =>
     services.GetRequiredService<GoogleSheetsServiceFactory>().Create(googleOptions));
 builder.Services.AddSingleton<GoogleSheetsSnapshotMapper>();
 builder.Services.AddScoped<ISpreadsheetSnapshotAcquirer, GoogleSheetsSnapshotAcquirer>();
+
+// The Drive-published documents: downloaded over the Drive v3 REST API with the
+// same source credential the Sheets adapter uses, then converted onto the
+// normalized snapshot contract (ADR-083).
+builder.Services.AddSirkadiyenGoogleDriveClient(googleOptions);
+builder.Services.AddSingleton<DocxSnapshotConverter>();
+builder.Services.AddScoped<IDriveDocumentAcquirer, DriveDocumentAcquirer>();
 builder.Services.AddScoped<ScheduleSourcePoller>();
 builder.Services.AddSirkadiyenPersistence(connectionString);
 builder.Services.AddSirkadiyenParserClient(

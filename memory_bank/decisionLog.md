@@ -4266,3 +4266,129 @@ and the next pass includes source polling.
 - Deployment requires only a worker restart; there is no database migration.
 
 ---
+
+## ADR-083: A Drive document is fetched by identifier and trusted only after it is checked
+
+**Status:** Accepted and implemented
+**Date:** 2026-07-26
+**Implements:** `IGoogleDriveFileClient` and `GoogleDriveHttpClient`,
+`IDriveDocumentAcquirer` and `DriveDocumentAcquirer`,
+`GoogleSourceCredentialFactory`, `DocxSnapshotConverter.ConvertDownload`, the
+`GoogleDriveFile` branch of `ScheduleSourcePoller`, and the
+`UnsupportedDocumentFormat` poll outcome
+**Extends:** ADR-014 (normalized snapshot contract), ADR-015 (transport is not
+format), ADR-034 (freeze before acquisition), ADR-076 (DOCX conversion), ADR-077
+(the vertical-corridor profile), ADR-079 (a transport states what it can do)
+
+### Context
+
+The two vertical-corridor calendars are the last Grade 2 Turkish sources with no
+way to be read. ADR-076 converted them and committed the fixtures; ADR-077 wrote
+the profile that parses them, 12 candidates from autumn and 30 from spring. What
+was missing was acquisition: `ScheduleSourcePoller` answered
+`UnsupportedTransport` for anything that was not Google Sheets, so a profile that
+works ran against nothing.
+
+They differ from the anatomy documents in the way that decides the mechanism.
+The anatomy group lists are handed out once a semester and never edited, which is
+why ADR-079 gave them an upload. Student Affairs edits the vertical-corridor
+calendars during the year, and both are published at a Drive URL the catalog has
+recorded since the inventory. A document that changes and has a location must be
+re-acquired, not uploaded again by hand each time it changes.
+
+### Decision
+
+Read Drive over its v3 REST API with an ordinary typed `HttpClient`, not the
+`Google.Apis.Drive.v3` client library. The pipeline needs two calls; the library
+would add a package, a service object and a second way of holding the credential
+to reach them. `Google.Apis.Auth` is already referenced and is kept, because
+minting and refreshing an access token is the part worth not writing.
+
+**One credential for every fetched source, scoped read-only to Sheets and
+Drive.** A program may be a sheet this year and a Drive file the next, and two
+grants would be two things to keep alive and two ways for polling to half-work.
+`drive.readonly` covers everything the credential can see; Drive has no narrower
+scope that can download somebody else's shared file, so service-account mode is
+the least-privilege mode in practice — the account sees exactly what was shared
+with it.
+
+**The token is attached by a delegating handler.** It is never held by, passed
+to, or formatted by the client that builds the request, so there is no code path
+along which it could reach a log line or an exception message.
+
+**Metadata first, then content.** The metadata call is not a courtesy; it is what
+makes the download trustworthy. It answers whether the file is in the trash,
+whether it is the format the catalog declared, and how long the bytes should be.
+An acquisition is refused — never converted into a snapshot — when:
+
+- the file is **trashed**. Drive keeps serving its last content indefinitely, so
+  reading it would let a document nobody publishes any more keep feeding
+  calendars;
+- its **MIME type is not the one the document format implies**. A calendar
+  someone converted into a Google Doc cannot be downloaded at all, and saying so
+  is more useful than a 403 that reads like a permission problem;
+- it is **larger than 8 MB**, the bound the upload path already applies. Checked
+  against the declared length and again against every chunk, so a response that
+  declares no length cannot make the host read without limit;
+- the bytes do not match the **length or digest** Drive stated;
+- the payload is **not an Office container**, which is what a sign-in or error
+  page served with a success status looks like.
+
+Everything else stays the ordinary HTTP error the next poll retries. The refusals
+are the cases that need a person, and each message says what that person has to
+do. Google's error body is not repeated into any of them: it can name the file,
+its owner and the authenticated principal.
+
+**The snapshot records that it was downloaded, and nothing else about the file.**
+Acquisition diagnostics are part of the content hash. A file name, a modification
+time or a digest recorded as provenance would differ between two downloads of an
+unedited document, and the pipeline would store a snapshot, run a parse and
+produce a revision every poll, each changing nothing. For the same reason Drive
+metadata is **not** used as a change signal at all, which answers a question open
+since the inventory: the converted content hash is the better signal, because it
+ignores a re-save that altered no text, and `modifiedTime` does not.
+
+**A missing transport and a missing reader are separate outcomes.** The poller
+gains `UnsupportedDocumentFormat` beside `UnsupportedTransport`. The Grade 3
+workbooks are on this same transport and are now downloadable, but nothing
+converts a workbook from bytes and no profile reads them; calling that an
+unsupported transport would point the next reader at work that is already done.
+This follows ADR-079's precedent, where `AwaitingAdministrativeUpload` replaced a
+technically true but misleading `UnsupportedTransport`.
+
+The poller branches on transport with two named dependencies rather than a
+registry of adapters. Two are legible; the HTTP transport is where a third would
+start earning an abstraction.
+
+### Consequences
+
+- **The two vertical-corridor sources become live once the worker restarts with a
+  Drive-scoped credential.** They are polling-enabled, their profile is
+  implemented, and the snapshots they produce go through the same parse,
+  validation thresholds and publication rules as any other source. This is the
+  intended effect and it is not a quiet one: Grade 2 Turkish students can onboard
+  (ADR-079), so these revisions have an audience, and nine dated rows that
+  contradict their own weekday are refused by the profile (ADR-077).
+- **The credential needs Drive access before this works.** In service-account
+  mode, which is what is configured, the account asserts its own scopes and needs
+  no re-consent — but the Drive API must be enabled on its Cloud project, and the
+  two documents must be shared with the account's address. In refresh-token mode
+  the grant is fixed when it is issued, so a Sheets-only token gets a 403 for
+  every Drive file until it is re-issued with both scopes. Either way it surfaces
+  as an access-denied acquisition naming the missing scope, not as a missing file.
+- The first real acquisition stores a snapshot whose content hash differs from
+  the committed fixture's, because the origin diagnostic differs. That is
+  correct — they are different acquisitions of the same document — and the golden
+  parse tests are unaffected, since they parse the fixture.
+- A Drive source is addressed by `externalId`. A source without one is refused
+  rather than having an identifier derived from its `sourceUri`, which is the
+  link a person opens.
+- `GoogleSheetsServiceFactory` no longer builds its own credential. The Sheets
+  adapter is otherwise untouched and its behaviour is unchanged.
+- No database migration, no parser change, no contract version change. The
+  transport was already in the catalog and in the enum; what was missing was the
+  code behind it.
+- The failure taxonomy is per-file and typed, so an operator can tell "not shared
+  with us" from "moved" from "arrived damaged" without reading a stack trace.
+
+---

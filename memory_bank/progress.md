@@ -77,6 +77,7 @@
 - [ ] Document every source
 - [x] Add confirmed mixed-transport source catalog
 - [x] Implement Google Sheets client
+- [x] Implement Google Drive client (Drive v3 REST download, verified, DOCX only — ADR-083)
 - [x] Implement value acquisition
 - [x] Implement merge and metadata acquisition
 - [x] Implement normalized snapshot contract
@@ -235,7 +236,7 @@
 ## Current next action
 
 The schedule pipeline now runs from polling to a stored semantic diff. The
-completed Google Sheets path is:
+completed path, for a source published as a sheet or as a Drive document, is:
 
 ```text
 list polling-enabled sources
@@ -366,12 +367,11 @@ DOCX conversion exists (ADR-076). A Word document is converted onto the same nor
 snapshot contract as a workbook — a table becomes a worksheet, a run of paragraphs between
 tables becomes a single-column worksheet, and merges and line structure survive — so a
 parser profile never learns which format its source was published in. The four Grade 2
-Word documents are converted and committed as fixtures. **Converting is not acquiring:**
-`ScheduleSourcePoller` still answers `UnsupportedTransport` for a DOCX source. The two
-families need different transports, which is why they are separate work: the anatomy
-documents are handed out once a semester and unchanged afterwards, which suits an
-administrative upload, while Student Affairs edits the vertical-corridor documents during
-the year.
+Word documents are converted and committed as fixtures. The two families needed different
+transports, which is why they were separate work: the anatomy documents are handed out once
+a semester and unchanged afterwards, which suits an administrative upload, while Student
+Affairs edits the vertical-corridor documents during the year, which needs a re-read. Both
+transports now exist (ADR-080, ADR-083).
 
 The vertical-corridor slice is implemented (ADR-077). `grade2_vertical_corridor_v1` 1.0.0
 reads both Word documents and publishes 42 sessions that previously reached no calendar,
@@ -423,11 +423,21 @@ The Grade 2 anatomy program is shared between the Turkish and English tracks, wi
 equal; the faithful single-source model is deferred until Grade 2 English enters the
 supported-profile schema (ADR-081 amendment).
 
-What Grade 2 still lacks is not a parser, a catalog entry, an audience, or a way in for
-the anatomy documents. The vertical-corridor pair still has no Drive download, so two of
-its six revisions cannot be produced at runtime. The English anatomy revisions publish to
-an empty audience until Grade 2 English enters the supported-profile schema, which needs a
-current-year English practice fixture; the committed one is from 2024-2025.
+Google Drive acquisition is implemented (ADR-083), which gives **every Grade 2 Turkish
+source a way to be acquired**. `GoogleDriveHttpClient` downloads a catalogued Drive file
+over the Drive v3 REST API with the shared read-only source credential, and refuses one
+that is trashed, is not the declared format, exceeds the 8 MB bound, or does not match the
+length, digest or container Drive stated for it, rather than converting a bad acquisition
+into a snapshot. The snapshot records only that it was downloaded: acquisition diagnostics
+are part of the content hash, so a name or a modification time recorded as provenance would
+make an unedited re-save look like a change. Drive metadata is therefore not a change
+signal; the converted content hash is. A poll now separates `UnsupportedTransport` from
+`UnsupportedDocumentFormat`, which is what the Drive-published Grade 3 workbooks report.
+
+What Grade 2 still lacks is not a parser, a catalog entry, an audience, or a way in for any
+of its documents. The English anatomy revisions publish to an empty audience until Grade 2
+English enters the supported-profile schema, which needs a current-year English practice
+fixture; the committed one is from 2024-2025.
 
 Calendar scheduling is complete through ADR-082. Ordinary 100-operation quota yields
 and work queued after an otherwise empty pass no longer wait for the adaptive source
@@ -474,7 +484,10 @@ The initial operator model is implemented: one Google-verified SuperAdmin,
 amended). The shared key is gone; approval and release derive the actor from the
 verified session.
 
-The Google source credential is resolved; a service account is configured.
-Drive/HTTP acquisition adapters and the remaining source fixtures/parser profiles
-are still required. DOCX conversion and administrative DOCX acquisition are
-implemented; downloaded DOCX sources still need a transport adapter.
+The Google source credential is resolved; a service account is configured. It now
+carries the Drive read-only scope beside the Sheets one, so the Cloud project needs
+the Drive API enabled and the vertical-corridor documents shared with the account
+(ADR-083). An HTTP acquisition adapter, a workbook converter for the Drive-published
+Grade 3 sources, and the remaining source fixtures/parser profiles are still required.
+DOCX conversion, administrative DOCX acquisition and Drive DOCX acquisition are
+implemented.

@@ -15,11 +15,48 @@ deterministic and avoids generating domain metadata inside infrastructure code.
 - delegates the API response to `GoogleSheetsSnapshotMapper`;
 - expects an authenticated `SheetsService` to be supplied by composition.
 
-`GoogleSheetsServiceFactory` supports either an offline OAuth refresh token or a
-service-account credential and always uses the least-privilege
-`https://www.googleapis.com/auth/spreadsheets.readonly` scope. Worker
-configuration binds exactly one of those credential modes. Credentials remain
-outside source control.
+`GoogleSourceCredentialFactory` builds the one unattended credential every
+fetched source is read with, from either an offline OAuth refresh token or a
+service-account file, scoped read-only to Sheets and Drive. Worker configuration
+binds exactly one of those credential modes. Credentials remain outside source
+control. See [Google source authentication](google-source-authentication.md).
+
+## Google Drive acquisition
+
+Sources catalogued under the `googleDriveFile` transport are downloaded over the
+Drive v3 REST API by `GoogleDriveHttpClient` and converted by
+`DriveDocumentAcquirer` (ADR-083). The Drive file identifier is the catalog's
+`externalId`; the `sourceUri` is the link a person opens and is never parsed for
+one.
+
+Two calls per acquisition, in this order:
+
+1. **metadata** — `GET files/{id}?fields=id,name,mimeType,size,md5Checksum,modifiedTime,trashed`,
+   which decides whether the file is read at all;
+2. **content** — `GET files/{id}?alt=media`, read under a bound of 8 MB that is
+   applied to the declared length and again to every chunk, so a response that
+   declares no length cannot make the host read without limit.
+
+An acquisition is refused, rather than converted into a snapshot, when the file
+is in the trash (its content is frozen and it is no longer published), is not the
+MIME type the catalog's document format implies (a document converted into a
+Google editor format cannot be downloaded at all), is larger than the bound, does
+not match the length or digest Drive stated for it, or is not an Office container
+— which is what a sign-in or error page served with a success status looks like.
+Each refusal names what a person has to do. Everything else stays an ordinary
+HTTP error for the next poll to retry.
+
+Only DOCX is converted. The Grade 3 workbooks share the transport and are
+reported as `UnsupportedDocumentFormat`: their download works, and what they lack
+is a converter and a parser profile. That is a different gap from
+`UnsupportedTransport`, which is what `SHARED-AMPHI` still reports.
+
+The snapshot records only that it was downloaded from Drive. The file name, its
+modification time and its digest are deliberately absent, because acquisition
+diagnostics are part of the content hash: recording any of them would make a
+re-saved but unedited document look like a change, and produce a revision that
+changes nothing. Drive metadata is therefore not used as a change signal at all —
+the converted content hash is, and it ignores edits that alter no text.
 
 ## Administrative acquisition
 
@@ -322,8 +359,9 @@ snapshot must still be persisted immutably whenever the hash is new.
 
 Production ingestion still needs:
 
-1. Google Drive and HTTP acquisition adapters; downloaded DOCX sources can reuse
-   the implemented normalized DOCX conversion boundary;
+1. an HTTP acquisition adapter for `SHARED-AMPHI`, whose dated URL must also be
+   advanced by source discovery, and a workbook converter for the Drive-published
+   Grade 3 sources, whose transport is implemented;
 2. current-year fixtures and parser profiles for the unsupported Grade 1, Grade 2
    English, Grade 3 and weekly-amphitheatre source families;
 3. operator views for source status, snapshot evidence, parser warnings and held

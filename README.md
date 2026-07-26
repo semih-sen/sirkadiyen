@@ -127,9 +127,15 @@ cookie session, and SuperAdmin-protected revision/diff operations. Beyond that:
   Its SuperAdmin panel currently covers the operational freeze, revision review
   and administrative document upload.
 
-Still open: Google Drive/HTTP acquisition, the remaining source fixtures and parser
-profiles, the rest of the operator surfaces, automated frontend tests, production
-deployment topology, CI, and the planned observability stack.
+- Google Drive acquisition is implemented (ADR-083): the vertical-corridor Word
+  documents are downloaded over the Drive v3 REST API with the shared read-only
+  source credential, verified against what Drive states about the file, and
+  converted onto the same normalized snapshot a sheet produces.
+
+Still open: HTTP acquisition and a workbook converter for the Drive-published
+Grade 3 sources, the remaining source fixtures and parser profiles, the rest of
+the operator surfaces, automated frontend tests, production deployment topology,
+CI, and the planned observability stack.
 
 Published schedule mistakes use forward-fix rather than rollback: correct the
 authoritative source and let polling publish a newer revision (ADR-033).

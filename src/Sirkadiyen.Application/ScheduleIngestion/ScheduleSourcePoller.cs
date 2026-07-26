@@ -19,6 +19,7 @@ namespace Sirkadiyen.Application.ScheduleIngestion;
 /// </summary>
 public sealed class ScheduleSourcePoller(
     ISpreadsheetSnapshotAcquirer snapshotAcquirer,
+    IDriveDocumentAcquirer driveDocumentAcquirer,
     ISourceSnapshotStore snapshotStore,
     IScheduleParserClient parserClient,
     IScheduleParseResultStore parseResultStore,
@@ -44,21 +45,23 @@ public sealed class ScheduleSourcePoller(
             return await PollUploadedSourceAsync(source, cancellationToken);
         }
 
-        if (source.Transport is not ScheduleSourceTransport.GoogleSheets
-            || source.DocumentFormat is not ScheduleDocumentFormat.GoogleSheet)
+        if (DescribeUnreadable(source) is ScheduleSourcePollOutcome unreadable)
         {
             return new ScheduleSourcePollResult
             {
                 SourceId = source.SourceId,
-                Outcome = ScheduleSourcePollOutcome.UnsupportedTransport,
+                Outcome = unreadable,
                 SnapshotChanged = false,
             };
         }
 
         if (string.IsNullOrWhiteSpace(source.ExternalId))
         {
+            // Both fetched transports address their document by identifier rather
+            // than by the catalog's human-facing URL, so neither can be read
+            // without one.
             throw new InvalidOperationException(
-                $"Google Sheets source '{source.SourceId}' has no spreadsheet ID.");
+                $"{source.Transport} source '{source.SourceId}' has no external document ID.");
         }
 
         // This read happens immediately before the external acquisition. If the
@@ -70,15 +73,29 @@ public sealed class ScheduleSourcePoller(
         }
 
         DateTimeOffset acquiredAtUtc = timeProvider.GetUtcNow();
-        NormalizedSpreadsheetSnapshot snapshot = await snapshotAcquirer.AcquireAsync(
-            new AcquireSpreadsheetSnapshotRequest
-            {
-                SourceId = source.SourceId.Value,
-                SnapshotId = Guid.CreateVersion7().ToString("N"),
-                SpreadsheetId = source.ExternalId,
-                AcquiredAtUtc = acquiredAtUtc,
-            },
-            cancellationToken);
+        AcquireSpreadsheetSnapshotRequest acquisition = new()
+        {
+            SourceId = source.SourceId.Value,
+            SnapshotId = Guid.CreateVersion7().ToString("N"),
+            SpreadsheetId = source.ExternalId,
+            AcquiredAtUtc = acquiredAtUtc,
+        };
+        NormalizedSpreadsheetSnapshot snapshot = source.Transport switch
+        {
+            ScheduleSourceTransport.GoogleSheets =>
+                await snapshotAcquirer.AcquireAsync(acquisition, cancellationToken),
+
+            // A Drive document is downloaded and converted, and joins the pipeline
+            // as the same normalized snapshot a sheet produces (ADR-083).
+            ScheduleSourceTransport.GoogleDriveFile =>
+                await driveDocumentAcquirer.AcquireAsync(
+                    source.DocumentFormat,
+                    acquisition,
+                    cancellationToken),
+
+            _ => throw new InvalidOperationException(
+                $"Transport '{source.Transport}' reached acquisition without an adapter."),
+        };
 
         StoreSnapshotResult stored = await snapshotStore.StoreIfChangedAsync(
             source.SourceId,
@@ -103,6 +120,32 @@ public sealed class ScheduleSourcePoller(
             acquired: stored.Changed ? snapshot : null,
             cancellationToken);
     }
+
+    /// <summary>
+    /// Why this source cannot be acquired at all, or <see langword="null"/> when
+    /// it can be.
+    /// </summary>
+    /// <remarks>
+    /// A missing transport and a missing document reader are separate answers,
+    /// because they need different work. `SHARED-AMPHI` waits on an HTTP adapter
+    /// that does not exist; the Grade 3 Drive workbooks wait on a converter and a
+    /// parser profile, and their transport is already implemented.
+    /// </remarks>
+    private ScheduleSourcePollOutcome? DescribeUnreadable(ScheduleSource source) =>
+        source.Transport switch
+        {
+            ScheduleSourceTransport.GoogleSheets =>
+                source.DocumentFormat is ScheduleDocumentFormat.GoogleSheet
+                    ? null
+                    : ScheduleSourcePollOutcome.UnsupportedDocumentFormat,
+
+            ScheduleSourceTransport.GoogleDriveFile =>
+                driveDocumentAcquirer.CanAcquire(source.DocumentFormat)
+                    ? null
+                    : ScheduleSourcePollOutcome.UnsupportedDocumentFormat,
+
+            _ => ScheduleSourcePollOutcome.UnsupportedTransport,
+        };
 
     /// <summary>
     /// Continues an administratively uploaded source from the evidence already
@@ -312,7 +355,15 @@ public sealed record ScheduleSourcePollResult
 public enum ScheduleSourcePollOutcome
 {
     Frozen,
+
+    /// <summary>Nothing can fetch this source's document from where it is published.</summary>
     UnsupportedTransport,
+
+    /// <summary>
+    /// The document can be fetched, but nothing can read the format it is
+    /// published in.
+    /// </summary>
+    UnsupportedDocumentFormat,
 
     /// <summary>The source is uploaded by an administrator and has nothing to poll.</summary>
     AwaitingAdministrativeUpload,

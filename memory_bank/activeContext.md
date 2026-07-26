@@ -67,7 +67,12 @@ location (ADR-079). **A Grade 2 Turkish student can now onboard**, with `practic
 implemented** (ADR-080): an administrator uploads a handed-out document over the API, one
 upload serves every source that document serves, and the worker parses it under the same
 rules as a polled source — so the anatomy pair can now produce real revisions for both
-programs. Drive and HTTP acquisition for the vertical-corridor documents, Grade 2 English
+programs. **Google Drive acquisition is implemented too** (ADR-083): the two
+vertical-corridor calendars are downloaded over the Drive v3 REST API with the shared
+read-only source credential, checked against what Drive states about the file, and
+converted onto the same normalized snapshot a sheet produces — so **every Grade 2 Turkish
+source can now be acquired**. HTTP acquisition for `SHARED-AMPHI`, a workbook converter for
+the Drive-published Grade 3 sources, Grade 2 English
 support, and the remaining operational surfaces still do not exist. The **consumer frontend now
 has a runnable foundation** (`web/`, ADR-066): Google sign-in, license redemption,
 academic profile, Calendar authorization, and initial-sync progress are wired to
@@ -92,6 +97,51 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- **Implemented Google Drive acquisition for the vertical-corridor documents
+  (ADR-083).** They were the last Grade 2 Turkish sources with no way to be read: ADR-076
+  converted them and ADR-077 wrote the profile that parses them, but the poller answered
+  `UnsupportedTransport` for anything that was not Google Sheets, so a working profile ran
+  against nothing. Unlike the anatomy documents, these are edited by Student Affairs during
+  the year and have a published location, which is why they are fetched rather than
+  uploaded.
+- **A typed `HttpClient` against the Drive v3 REST API, not the Drive client library.**
+  Two calls are needed; the library would add a package, a service object and a second way
+  of holding the credential to reach them. `Google.Apis.Auth` is kept for minting and
+  refreshing the token, which is the part worth not writing.
+- **One credential for every fetched source**, read-only over Sheets and Drive
+  (`GoogleSourceCredentialFactory`). The access token is attached by a delegating handler,
+  so it is never held by the client that builds the request and cannot reach a log line.
+- **Metadata first, then content, and the download is trusted only after it is checked.**
+  A trashed file, a document converted into a Google Doc, a payload over 8 MB, bytes that
+  do not match the stated length or digest, and anything that is not an Office container
+  are each refused with a message naming what a person has to do. Everything else stays an
+  ordinary HTTP error the next poll retries. Google's error body is never repeated into a
+  message: it can name the file, its owner and the principal.
+- **The snapshot states that it was downloaded and nothing else about the file.**
+  Acquisition diagnostics are part of the content hash, so recording a name, a
+  modification time or a digest would make an unedited re-save look like a change and
+  produce a revision that changes nothing every poll. For the same reason Drive metadata is
+  not used as a change signal at all — an open question since the inventory, now closed:
+  the converted content hash is better, because it ignores edits that alter no text.
+- **A missing transport and a missing reader are now separate poll outcomes.** The Grade 3
+  workbooks share this transport and are downloadable, but nothing converts a workbook from
+  bytes, so they report `UnsupportedDocumentFormat`; `SHARED-AMPHI` still reports
+  `UnsupportedTransport`. Following ADR-079's precedent, both mean "nothing was read" and
+  they need different work.
+- Covered by 24 new tests: the client's happy path and each refusal, the acquirer against
+  the real autumn document, the guarantee that a re-download of an unchanged document
+  hashes the same, and the poller's Drive branch including the freeze and a source with no
+  file identifier.
+- **Open risks.** The two sources are polling-enabled, so **they go live on the next worker
+  restart** and their revisions have an audience now that Grade 2 Turkish can onboard;
+  validation thresholds are the only gate. The configured service account needs the Drive
+  API enabled on its Cloud project and needs both documents shared with it, or every
+  acquisition is refused as access denied. The first real acquisition stores a snapshot
+  whose hash differs from the committed fixture's, because the origin diagnostic differs —
+  correct, and harmless to the golden parse tests, which parse the fixture.
+
+## Previous independent Calendar-admission session
 
 - **Separated idle Calendar admission from the adaptive source-polling delay
   (ADR-082).** The worker previously used the short Calendar-only interval only when
