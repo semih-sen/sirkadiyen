@@ -5,6 +5,7 @@ import { OnboardingGate } from '@/components/OnboardingGate';
 import { useSession } from '@/components/SessionProvider';
 import { logout } from '@/lib/api';
 import { ROUTES } from '@/lib/onboarding';
+import { AuthShell, Banner, Brand } from '@/components/ui';
 
 function Suspended() {
   const router = useRouter();
@@ -17,17 +18,27 @@ function Suspended() {
   }
 
   return (
-    <div className="card">
-      <div className="brand">Sirkadiyen</div>
-      <h1>Hesap askıya alındı</h1>
-      <p className="muted">
-        Lisansın iptal edilmiş görünüyor, bu yüzden senkronizasyon durduruldu. Yardım için yöneticiyle
-        iletişime geç.
+    <AuthShell>
+      <Brand />
+      <h1 style={{ marginTop: 18 }}>Hesap askıya alındı</h1>
+      <p className="muted" style={{ marginTop: 8 }}>
+        Lisansın iptal edilmiş görünüyor, bu yüzden senkronizasyon durduruldu. Takvimine daha önce
+        yazılan etkinlikler korunur.
       </p>
-      <button className="link" type="button" onClick={onSignOut}>
-        Çıkış yap
-      </button>
-    </div>
+
+      <div style={{ marginTop: 16 }}>
+        <Banner tone="danger">
+          Bu terminal bir durumdur. Yeniden etkinleştirme için yöneticiyle iletişime geç —
+          arayüzden yeniden deneme yapılmaz.
+        </Banner>
+      </div>
+
+      <p style={{ marginTop: 20 }}>
+        <button className="btn btn-tertiary btn-sm" type="button" onClick={onSignOut}>
+          Çıkış yap
+        </button>
+      </p>
+    </AuthShell>
   );
 }
 

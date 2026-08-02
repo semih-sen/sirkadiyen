@@ -303,7 +303,7 @@ export function SourceDocumentUpload() {
 
   return (
     <div>
-      <h2 style={{ fontSize: 16, margin: '26px 0 8px' }}>Belge yükleme (elden verilen kaynaklar)</h2>
+      <h2 style={{ fontSize: 18, margin: '0 0 8px' }}>Belge yükleme (elden verilen kaynaklar)</h2>
       <p className="muted" style={{ marginBottom: 0 }}>
         Yayınlanmayan, elden dağıtılan belgeler yalnızca buradan alınır. Yükleme belgeyi
         değiştirilemez kanıt olarak saklar; ayrıştırma, doğrulama ve yayınlama worker’ın

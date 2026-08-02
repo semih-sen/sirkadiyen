@@ -1,11 +1,13 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/SessionProvider';
 import { signInWithGoogle, ApiError } from '@/lib/api';
 import { renderGoogleSignInButton } from '@/lib/google';
 import { routeForUser } from '@/lib/onboarding';
+import { AuthShell, Brand, ImplNote } from '@/components/ui';
 
 const AUTH_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_AUTH_CLIENT_ID ?? '';
 
@@ -28,7 +30,7 @@ export default function SignInPage() {
       return;
     }
     if (!AUTH_CLIENT_ID) {
-      setError('NEXT_PUBLIC_GOOGLE_AUTH_CLIENT_ID is not configured.');
+      setError('NEXT_PUBLIC_GOOGLE_AUTH_CLIENT_ID yapılandırılmamış.');
       return;
     }
 
@@ -59,18 +61,45 @@ export default function SignInPage() {
   }, [loading, user, router, setUser]);
 
   return (
-    <div className="card">
-      <div className="brand">Sirkadiyen</div>
-      <h1>Giriş yap</h1>
-      <p className="muted">
+    <AuthShell>
+      <Brand />
+      <h1 style={{ marginTop: 18 }}>Giriş yap</h1>
+      <p className="muted" style={{ marginTop: 8 }}>
         Devam etmek için Google hesabınla giriş yap. Şifre kullanılmaz; hesabını yalnızca Google
-        doğrular.
+        doğrular. Takvim izni ayrı bir adımda istenir.
       </p>
 
-      <div ref={buttonRef} style={{ minHeight: 44, display: busy ? 'none' : 'block' }} />
-      {busy && <p className="muted">Oturum başlatılıyor…</p>}
+      <div style={{ marginTop: 24, minHeight: 52 }}>
+        <div ref={buttonRef} style={{ display: busy ? 'none' : 'block' }} />
+        {busy && (
+          <p className="muted" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span className="spinner" aria-hidden="true" /> Oturum başlatılıyor…
+          </p>
+        )}
+      </div>
 
-      {error && <div className="error">{error}</div>}
-    </div>
+      {error && (
+        <div className="error" role="alert" aria-live="polite">
+          {error}
+        </div>
+      )}
+
+      <p className="muted" style={{ marginTop: 24, fontSize: 13 }}>
+        Devam ederek{' '}
+        <Link href="/gizlilik" style={{ color: 'var(--fg)', fontWeight: 600 }}>
+          Gizlilik Politikası
+        </Link>{' '}
+        ve{' '}
+        <Link href="/kosullar" style={{ color: 'var(--fg)', fontWeight: 600 }}>
+          Kullanım Koşulları
+        </Link>
+        ’nı kabul etmiş olursun.
+      </p>
+
+      <ImplNote>
+        Kimlik: <code>POST /api/auth/google</code> (GIS ID token), <code>GET /api/auth/me</code>.
+        Yetkilendirme arka uçta zorlanır (AI_GUIDELINE §6).
+      </ImplNote>
+    </AuthShell>
   );
 }

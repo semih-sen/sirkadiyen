@@ -144,7 +144,7 @@ export function RevisionReview() {
 
   return (
     <div>
-      <h2 style={{ fontSize: 16, margin: '26px 0 8px' }}>İnceleme bekleyen revizyonlar</h2>
+      <h2 style={{ fontSize: 18, margin: '0 0 8px' }}>İnceleme bekleyen revizyonlar</h2>
       {revisions === null && !error && <p className="muted">Yükleniyor…</p>}
       {revisions !== null && revisions.length === 0 && (
         <p className="muted">İnceleme bekleyen revizyon yok.</p>

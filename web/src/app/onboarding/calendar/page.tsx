@@ -7,12 +7,26 @@ import { useSession } from '@/components/SessionProvider';
 import { authorizeCalendar, getCalendarAuthorizationOptions, ApiError } from '@/lib/api';
 import { requestCalendarAuthorizationCode } from '@/lib/google';
 import { routeForOnboardingState } from '@/lib/onboarding';
+import { AuthShell, Banner, Brand, ImplNote, Stepper } from '@/components/ui';
+
+const CAN_ACCESS = [
+  'Yalnızca kendi oluşturduğu “Sirkadiyen Ders Programı” takvimi',
+  'Bu takvimde etkinlik oluşturma, güncelleme, kaldırma',
+  'Google hesap kimliğini doğrulama amaçlı okuma',
+];
+const CANNOT_ACCESS = [
+  'Mevcut kişisel veya iş takvimlerin',
+  'Diğer takvimlerdeki etkinliklerin',
+  'Gmail, Drive veya başka bir Google servisi',
+];
 
 function CalendarAuthorization() {
   const router = useRouter();
-  const { refresh } = useSession();
+  const { user, refresh } = useSession();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const needsReauth = user?.onboardingState === 'ActionRequired';
 
   async function onAuthorize() {
     setBusy(true);
@@ -36,26 +50,73 @@ function CalendarAuthorization() {
   }
 
   return (
-    <div className="card">
-      <div className="brand">Sirkadiyen</div>
-      <div className="steps">
-        <div className="step done" />
-        <div className="step done" />
-        <div className="step current" />
-        <div className="step" />
+    <AuthShell wide>
+      <Brand />
+      <div style={{ margin: '20px 0 24px' }}>
+        <Stepper activeIndex={2} />
       </div>
+
       <h1>Takvim izni</h1>
-      <p className="muted">
-        Sirkadiyen yalnızca kendi oluşturduğu takvime erişir; ana takvimine dokunmaz. Ders
-        programını buraya yazabilmek için izin ver.
+      <p className="muted" style={{ marginTop: 8 }}>
+        Sirkadiyen hesabında ayrı bir takvim oluşturur; ana takvimine dokunmaz. Yetki verildikten
+        sonra takvimi senkronizasyon sırasında sunucu oluşturur.
       </p>
 
-      <button className="primary" type="button" onClick={onAuthorize} disabled={busy}>
-        {busy ? 'Google açılıyor…' : 'Google ile izin ver'}
+      {needsReauth && (
+        <div style={{ marginTop: 16 }}>
+          <Banner tone="warning">
+            Google erişimi iptal edilmiş görünüyor. Senkronizasyonun sürmesi için yeniden
+            yetkilendir.
+          </Banner>
+        </div>
+      )}
+
+      <div
+        style={{
+          display: 'grid',
+          gap: 16,
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          margin: '20px 0',
+        }}
+      >
+        <div className="card card-content">
+          <h4>✅ Erişebildiği</h4>
+          <ul style={{ listStyle: 'none', margin: '12px 0 0', padding: 0, display: 'grid', gap: 8, fontSize: 14 }}>
+            {CAN_ACCESS.map((item) => (
+              <li key={item} style={{ color: 'var(--fg-ink)' }}>
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="card card-content">
+          <h4>🚫 Erişemediği</h4>
+          <ul style={{ listStyle: 'none', margin: '12px 0 0', padding: 0, display: 'grid', gap: 8, fontSize: 14 }}>
+            {CANNOT_ACCESS.map((item) => (
+              <li key={item} className="muted">
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <button className="btn btn-primary btn-block" type="button" onClick={onAuthorize} disabled={busy}>
+        {busy ? 'Google açılıyor…' : needsReauth ? 'Yeniden yetkilendir' : 'Google ile izin ver'}
       </button>
 
-      {error && <div className="error">{error}</div>}
-    </div>
+      {error && (
+        <div className="error" role="alert" aria-live="polite">
+          {error}
+        </div>
+      )}
+
+      <ImplNote>
+        <code>GET/POST /api/calendar/authorization</code> popup kod akışı; yalnızca{' '}
+        <code>calendar.app.created</code> kapsamı istenir (ADR-057). Takvime yazan taraf .NET
+        Worker’dır.
+      </ImplNote>
+    </AuthShell>
   );
 }
 

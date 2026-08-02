@@ -102,6 +102,37 @@ Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
 
+- **Migrated the `web-design/` HTML/CSS/JS prototype into the Next.js app (`web/`).**
+  The prototype's Wise-inspired design system is now production CSS in
+  `web/src/app/globals.css` (light theme, brand tokens, four OKLch semantic roles,
+  two densities: student 22px radius / admin 8-16px), replacing the earlier dark
+  skeleton. Shared building blocks live in `web/src/components/ui.tsx`
+  (`Brand`, `SiteNav`, `SiteFooter`, `StudentTopbar`, `AuthShell`, `Stepper`,
+  `Banner`, `ImplNote`) and `web/src/components/{AdminShell,LegalDocument}.tsx`.
+- **Wired flows were re-skinned, not rewritten:** sign-in, the four onboarding
+  steps, suspended, dashboard and `/admin` keep their existing authoritative-backend
+  integration (onboarding state, CSRF client, freeze, revision review, document
+  upload, self-activation). New public/legal pages added at `/` (landing),
+  `/gizlilik`, `/kosullar`, `/iletisim`. Turkish app-route slugs from the plan
+  (`/kurulum`, `/panel`, `/yonetim/*`) were **not** adopted — renaming live routes
+  is out of scope for a re-skin, so `src/lib/onboarding.ts` `ROUTES` is unchanged.
+- **No fabricated data.** Screens with no backend (finance, users, bulk-event,
+  user-warning, server, access-logs, source dashboard; dashboard's upcoming-lessons
+  /changes/history/notifications; contact submit) are shown as explicit "Yakında"
+  placeholders or omitted, never with invented metrics (plan constraint K8). The
+  admin sidebar renders those IA entries as disabled "Yakında" items (no dead
+  links). The sync screen still shows %100 only on a backend `Completed`.
+- **Every unconnected route/module is inventoried in `web/GAPS.md`**, split into
+  "no endpoint", "endpoint exists / UI not built" (held-diff release, license
+  create/revoke — cheapest next steps), and "contract gap" (sync per-stage
+  counters, license expiry/trial detail).
+- **Verified:** `npm run typecheck` clean and `npm run build` succeeds (13 app
+  routes). No backend, `.NET` or Python code changed. Automated frontend tests are
+  still absent (no runner configured). Fonts (Manrope/Inter) load via a runtime
+  stylesheet link, so the build has no font-fetch step.
+
+## Previous Grade 2 English practice session
+
 - **Implemented the Grade 2 English practice source (ADR-084).** The fixture was
   classified as 2024-2025 from its filename, but its 39 dated practice slots run from
   17 September 2025 through 22 May 2026. The only `2024` cell is inside an anatomy row

@@ -7,6 +7,17 @@ import { OnboardingGate } from '@/components/OnboardingGate';
 import { useSession } from '@/components/SessionProvider';
 import { redeemLicense, logout, ApiError } from '@/lib/api';
 import { routeForOnboardingState } from '@/lib/onboarding';
+import { AuthShell, Brand, ImplNote, Stepper } from '@/components/ui';
+
+/** Auto-format toward SRK-XXXXX-XXXXX (ported from prototype bindLicenseInput). */
+function formatLicense(raw: string): string {
+  const cleaned = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const body = cleaned.replace(/^SRK/, '').slice(0, 10);
+  let formatted = 'SRK';
+  if (body.length > 0) formatted += '-' + body.slice(0, 5);
+  if (body.length > 5) formatted += '-' + body.slice(5, 10);
+  return formatted;
+}
 
 function LicenseForm() {
   const router = useRouter();
@@ -25,6 +36,8 @@ function LicenseForm() {
       router.replace(routeForOnboardingState(me?.onboardingState ?? result.onboarding.state));
     } catch (err) {
       setBusy(false);
+      // K3: never retain a plaintext code after a failure — clear the field.
+      setCode('');
       setError(
         err instanceof ApiError
           ? err.message
@@ -40,43 +53,58 @@ function LicenseForm() {
   }
 
   return (
-    <div className="card">
-      <div className="brand">Sirkadiyen</div>
-      <div className="steps">
-        <div className="step current" />
-        <div className="step" />
-        <div className="step" />
-        <div className="step" />
+    <AuthShell>
+      <Brand />
+      <div style={{ margin: '20px 0 24px' }}>
+        <Stepper activeIndex={0} />
       </div>
+
       <h1>Lisans kodu</h1>
-      <p className="muted">
+      <p className="muted" style={{ marginTop: 8 }}>
         Hesabını etkinleştirmek için sana verilen tek kullanımlık lisans kodunu gir.
       </p>
 
-      <form onSubmit={onSubmit}>
-        <label htmlFor="code">Lisans kodu</label>
-        <input
-          id="code"
-          value={code}
-          onChange={(event) => setCode(event.target.value)}
-          placeholder="SRK-XXXXX-XXXXX"
-          autoComplete="off"
-          spellCheck={false}
-          required
-        />
-        <button className="primary" type="submit" disabled={busy || code.trim().length === 0}>
+      <form onSubmit={onSubmit} style={{ marginTop: 24 }}>
+        <div className="field">
+          <label htmlFor="code">Lisans kodu</label>
+          <input
+            id="code"
+            className="text-input license-input"
+            value={code}
+            onChange={(event) => setCode(formatLicense(event.target.value))}
+            placeholder="SRK-XXXXX-XXXXX"
+            autoComplete="off"
+            spellCheck={false}
+            aria-invalid={error ? true : undefined}
+            required
+          />
+          <p className="field-hint">Kod büyük harfe çevrilir ve tireler otomatik eklenir.</p>
+        </div>
+        <button
+          className="btn btn-primary btn-block"
+          type="submit"
+          disabled={busy || code.trim().length < 4}
+        >
           {busy ? 'Doğrulanıyor…' : 'Etkinleştir'}
         </button>
       </form>
 
-      {error && <div className="error">{error}</div>}
+      {error && (
+        <div className="error" role="alert" aria-live="polite">
+          {error}
+        </div>
+      )}
 
       <p style={{ marginTop: 20 }}>
-        <button className="link" type="button" onClick={onSignOut}>
+        <button className="btn btn-tertiary btn-sm" type="button" onClick={onSignOut}>
           Çıkış yap
         </button>
       </p>
-    </div>
+
+      <ImplNote>
+        <code>POST /api/licenses/redeem</code>. Düz metin kod geçmişi tutulmaz (AI_GUIDELINE §7).
+      </ImplNote>
+    </AuthShell>
   );
 }
 

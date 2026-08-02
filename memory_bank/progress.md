@@ -229,7 +229,11 @@
   self-activation, revision review queue, and administrative document upload — ADR-081;
   source status, diff release, license and audit surfaces pending)
 - [x] Administrative document upload UI, driven by `GET /api/sources/uploadable` (ADR-081)
-- [ ] Component system / design system
+- [x] Component system / design system (ported the Wise-inspired prototype design
+  system into `web/src/app/globals.css` + shared `web/src/components/ui.tsx`; light
+  theme, tokens, two densities; Tailwind deliberately not added)
+- [x] Public + legal surface (landing `/`, `/gizlilik`, `/kosullar`, `/iletisim`)
+  and re-skinned onboarding/dashboard/admin against the design system
 - [ ] Automated frontend tests
 - [ ] Production deployment topology and reverse-proxy config
 

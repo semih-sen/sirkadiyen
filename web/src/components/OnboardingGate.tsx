@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useSession } from '@/components/SessionProvider';
 import { ROUTES, routeForOnboardingState } from '@/lib/onboarding';
 import type { OnboardingState } from '@/lib/types';
+import { AuthShell } from '@/components/ui';
 
 /**
  * Guards an onboarding step. Redirects to sign-in when there is no session, and
@@ -37,9 +38,9 @@ export function OnboardingGate({
 
   if (loading || !user || !allow.includes(user.onboardingState)) {
     return (
-      <div className="card">
-        <p className="muted">Yükleniyor…</p>
-      </div>
+      <AuthShell>
+        <p className="loading-note">Yükleniyor…</p>
+      </AuthShell>
     );
   }
 

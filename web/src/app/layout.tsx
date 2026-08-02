@@ -4,17 +4,27 @@ import { SessionProvider } from '@/components/SessionProvider';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Sirkadiyen',
-  description: 'Akademik ders programı senkronizasyonu',
+  title: 'Sirkadiyen — Akademik takvim eşitleme',
+  description:
+    'Fakültenin resmî ders programını okur, akademik grubuna göre kişiselleştirir ve Google Takvim’inde ayrı bir takvimde güncel tutar.',
 };
 
+// Manrope (display) + Inter (body) are loaded via a runtime stylesheet link with a
+// system-ui fallback stack in globals.css, so the build has no font-fetch step and
+// text stays readable before the webfont arrives.
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="tr">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Manrope:wght@400;700&display=swap"
+        />
+      </head>
       <body>
-        <SessionProvider>
-          <div className="shell">{children}</div>
-        </SessionProvider>
+        <SessionProvider>{children}</SessionProvider>
       </body>
     </html>
   );
