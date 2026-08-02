@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "student-dashboard.html",
+  "entry": "student-dashboard.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-08-02T15:07:06.394Z",
+  "updatedAt": "2026-08-02T15:07:06.394Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}

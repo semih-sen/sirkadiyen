@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Sunucu İzleme — Sirkadiyen Yönetim</title>
+<link rel="stylesheet" href="assets/sirkadiyen.css" />
+<style>
+  .comp-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  @media (max-width: 1100px) { .comp-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 640px) { .comp-grid { grid-template-columns: repeat(2, 1fr); } }
+  .comp-card { border: 1px solid var(--border); border-radius: var(--radius-control); padding: 14px; background: var(--canvas); text-align:center; }
+  .comp-card .dot-lg { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-bottom: 8px; }
+  .meter-row { display: grid; grid-template-columns: 110px 1fr 50px; gap: 12px; align-items: center; margin-top: 12px; font-size: 13.5px; }
+  .meter-track { height: 8px; border-radius: 999px; background: var(--surface); overflow: hidden; }
+  .meter-fill { height: 100%; border-radius: 999px; }
+</style>
+</head>
+<body>
+<div class="banner-freeze" id="freeze-banner" hidden role="alert">🧊 Sistem dondurulmuş.</div>
+<div class="admin-shell">
+  <aside class="admin-sidebar" id="admin-sidebar-mount"></aside>
+  <div class="admin-main">
+    <div class="admin-topbar" id="admin-topbar-mount"></div>
+    <div class="admin-content">
+
+      <div class="cluster" style="justify-content:space-between;">
+        <div>
+          <h1 style="font-size:22px;">Sunucu ve servis izleme</h1>
+          <p class="muted" style="font-size:13.5px;margin-top:4px;">Tüm değerler prototip verisidir; gerçek üretim ölçümü değildir.</p>
+        </div>
+        <select class="select-input" style="max-width:160px;" id="range-select">
+          <option>Son 1 saat</option><option selected>Son 24 saat</option><option>Son 7 gün</option>
+        </select>
+      </div>
+
+      <div id="top-banner" style="margin-top:16px;"></div>
+
+      <div class="card card-content" style="margin-top:16px;">
+        <h3 style="font-size:15px;">Bileşen durumu</h3>
+        <div class="comp-grid" style="margin-top:14px;" id="comp-grid"></div>
+      </div>
+
+      <div class="grid grid-2" style="margin-top:16px;">
+        <div class="card card-content">
+          <h3 style="font-size:15px;">Kaynak kullanımı</h3>
+          <div class="meter-row"><span>CPU</span><div class="meter-track"><div class="meter-fill" id="m-cpu" style="width:38%;background:#0b6b69;"></div></div><span id="v-cpu">38%</span></div>
+          <div class="meter-row"><span>RAM</span><div class="meter-track"><div class="meter-fill" id="m-ram" style="width:61%;background:#0b6b69;"></div></div><span id="v-ram">61%</span></div>
+          <div class="meter-row"><span>Disk</span><div class="meter-track"><div class="meter-fill" id="m-disk" style="width:44%;background:#0b6b69;"></div></div><span id="v-disk">44%</span></div>
+          <div class="hr"></div>
+          <div class="summary-row"><span class="muted">Çalışma süresi</span><strong id="v-uptime">18 gün 4 saat</strong></div>
+          <div class="summary-row"><span class="muted">Son yeniden başlatma</span><strong id="v-restart">14 Tem 2026, 03:12</strong></div>
+        </div>
+        <div class="card card-content">
+          <h3 style="font-size:15px;">Gecikme ve hata oranı</h3>
+          <div class="summary-row"><span class="muted">Kuyruk derinliği</span><strong id="v-queue">62 iş</strong></div>
+          <div class="summary-row"><span class="muted">Senkronizasyon gecikmesi</span><strong id="v-latency">4 dk 20 sn</strong></div>
+          <div class="summary-row"><span class="muted">Son hata oranı</span><strong id="v-error">%1.8</strong></div>
+          <div class="summary-row"><span class="muted">Google API hata oranı</span><strong id="v-google-error">%0.4</strong></div>
+          <div class="banner banner-warning" style="margin-top:14px;font-size:13px;" id="threshold-banner" hidden><span class="banner-icon">⚠</span><div>Kuyruk derinliği eşik değerin (50) üzerinde.</div></div>
+        </div>
+      </div>
+
+      <div class="impl-note" style="margin-top:16px;">ℹ️ Uygulama notu: Bu ekranın API/Worker/Parser/PostgreSQL/Redis metrikleri bugün backend'de mevcut değil — hedef arayüz olarak tasarlanmıştır. Tüm sayılar <code>PROTOTİP VERİSİ</code>.</div>
+    </div>
+  </div>
+</div>
+
+<script src="assets/prototype.js"></script>
+<script>
+SRK.mountAdminShell("server");
+
+var COMPONENTS = ["API", "Worker", "Parser", "PostgreSQL", "Redis"];
+var STATE_CONFIG = {
+  "varsayilan": { banner: null, comp: ["healthy","healthy","healthy","healthy","healthy"] },
+  "veri-yok": { banner: {type:"info", title:"Veri yok.", body:"Bu zaman aralığı için ölçüm kaydı bulunamadı."}, comp: ["nodata","nodata","nodata","nodata","nodata"] },
+  "veri-gecikmeli": { banner: {type:"warning", title:"Veriler gecikmeli.", body:"Son ölçümler 6 dakika önce alınmış; canlı değer olmayabilir."}, comp: ["healthy","healthy","stale","healthy","stale"] },
+  "bilinmiyor": { banner: {type:"warning", title:"Bazı bileşenlerin durumu bilinmiyor.", body:"İzleme ajanından yanıt alınamadı — bu \"sağlıklı\" anlamına gelmez."}, comp: ["unknown","healthy","unknown","healthy","healthy"] },
+  "bozulmus": { banner: {type:"warning", title:"Servis bozulmuş durumda (degraded).", body:"Worker gecikmeli çalışıyor; senkronizasyonlar normalden yavaş tamamlanıyor."}, comp: ["healthy","degraded","healthy","healthy","degraded"] },
+  "tam-kesinti": { banner: {type:"danger", title:"Tam kesinti.", body:"API'ye erişilemiyor. Tüm öğrenci ve yönetici işlemleri etkileniyor."}, comp: ["down","down","down","unknown","down"] }
+};
+var STATUS_META = {
+  healthy: { label: "Sağlıklı", color: "var(--success)", badgeClass: "badge-success" },
+  degraded: { label: "Bozulmuş", color: "var(--warning)", badgeClass: "badge-warning" },
+  down: { label: "Kesinti", color: "var(--danger)", badgeClass: "badge-danger" },
+  unknown: { label: "Bilinmiyor", color: "var(--ink-70)", badgeClass: "badge-neutral" },
+  nodata: { label: "Veri yok", color: "var(--ink-70)", badgeClass: "badge-neutral" },
+  stale: { label: "Gecikmeli", color: "var(--warning)", badgeClass: "badge-warning" }
+};
+
+var state = SRK.qs("state", "varsayilan");
+var cfg = STATE_CONFIG[state] || STATE_CONFIG["varsayilan"];
+
+var grid = document.getElementById("comp-grid");
+COMPONENTS.forEach(function (name, i) {
+  var meta = STATUS_META[cfg.comp[i]];
+  var div = document.createElement("div");
+  div.className = "comp-card";
+  div.innerHTML = '<span class="dot-lg" style="background:' + meta.color + ';"></span><div style="font-weight:700;font-size:13.5px;">' + name + '</div><span class="badge ' + meta.badgeClass + '" style="margin-top:8px;">' + meta.label + '</span>';
+  grid.appendChild(div);
+});
+
+if (cfg.banner) {
+  var cls = { warning: "banner-warning", danger: "banner-danger", info: "banner-info" }[cfg.banner.type];
+  var icon = { warning: "⚠", danger: "⛔", info: "ℹ" }[cfg.banner.type];
+  document.getElementById("top-banner").innerHTML = '<div class="banner ' + cls + '" role="alert"><span class="banner-icon">' + icon + '</span><div><strong>' + cfg.banner.title + '</strong> ' + cfg.banner.body + '</div></div>';
+}
+if (state === "bozulmus") document.getElementById("threshold-banner").hidden = false;
+</script>
+</body>
+</html>

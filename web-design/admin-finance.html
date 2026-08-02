@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Finans — Sirkadiyen Yönetim</title>
+<link rel="stylesheet" href="assets/sirkadiyen.css" />
+<style>
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 16px 0; }
+  .toolbar .text-input, .toolbar .select-input { max-width: 190px; }
+  .dist-step { max-width: 640px; }
+  .cat-bar-row { display: grid; grid-template-columns: 140px 1fr 60px; gap: 10px; align-items: center; font-size: 13px; margin-top: 8px; }
+  .cat-bar-track { height: 10px; border-radius: 999px; background: var(--surface); overflow: hidden; }
+  .cat-bar-fill { height: 100%; border-radius: 999px; background: var(--fg); }
+</style>
+</head>
+<body>
+<div class="banner-freeze" id="freeze-banner" hidden role="alert">🧊 Sistem dondurulmuş.</div>
+<div class="admin-shell">
+  <aside class="admin-sidebar" id="admin-sidebar-mount"></aside>
+  <div class="admin-main">
+    <div class="admin-topbar" id="admin-topbar-mount"></div>
+    <div class="admin-content">
+
+      <div class="cluster" style="justify-content:space-between;">
+        <div>
+          <h1 style="font-size:22px;">Finans</h1>
+          <p class="muted" style="font-size:13.5px;margin-top:4px;">Gelir, gider ve kâr dağıtımı — ürün prototipi.</p>
+        </div>
+      </div>
+      <div class="banner banner-info" style="margin-top:14px;"><span class="banner-icon">ℹ</span><div><strong>Prototip verisi.</strong> Bu ekran muhasebe, vergi veya hukuki uyumluluk sağlamaz.</div></div>
+
+      <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);gap:14px;margin-top:18px;">
+        <div class="stat-card"><div class="label">Aylık gelir</div><div class="num">₺184.500</div></div>
+        <div class="stat-card"><div class="label">Aylık gider</div><div class="num">₺136.300</div></div>
+        <div class="stat-card"><div class="label">Net sonuç</div><div class="num" style="color:var(--success);">₺48.200</div></div>
+        <div class="stat-card"><div class="label">Nakit bakiyesi</div><div class="num">₺612.900</div></div>
+      </div>
+
+      <div class="charts-grid" style="display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-top:20px;">
+        <div class="chart-card" style="border:1px solid var(--border);border-radius:var(--radius-card);padding:18px;">
+          <div class="cluster" style="justify-content:space-between;"><h3 style="font-size:15px;">Aylık gelir – gider (son 6 ay)</h3><span class="proto-data-tag">prototip</span></div>
+          <svg viewBox="0 0 560 170" style="margin-top:12px;width:100%;height:auto;" role="img" aria-label="Son 6 ayda gelir gider karşılaştırması">
+            <g>
+              <rect x="20" y="60" width="20" height="90" fill="#0b6b69"/><rect x="44" y="90" width="20" height="60" fill="#8db7b4"/>
+              <rect x="110" y="50" width="20" height="100" fill="#0b6b69"/><rect x="134" y="85" width="20" height="65" fill="#8db7b4"/>
+              <rect x="200" y="45" width="20" height="105" fill="#0b6b69"/><rect x="224" y="95" width="20" height="55" fill="#8db7b4"/>
+              <rect x="290" y="55" width="20" height="95" fill="#0b6b69"/><rect x="314" y="80" width="20" height="70" fill="#8db7b4"/>
+              <rect x="380" y="35" width="20" height="115" fill="#0b6b69"/><rect x="404" y="88" width="20" height="62" fill="#8db7b4"/>
+              <rect x="470" y="30" width="20" height="120" fill="#0b6b69"/><rect x="494" y="92" width="20" height="58" fill="#8db7b4"/>
+            </g>
+          </svg>
+          <div class="chart-legend"><span><span class="dot" style="background:#0b6b69;"></span>Gelir</span><span><span class="dot" style="background:#8db7b4;"></span>Gider</span></div>
+        </div>
+        <div class="chart-card" style="border:1px solid var(--border);border-radius:var(--radius-card);padding:18px;">
+          <h3 style="font-size:15px;">Kategori dağılımı — gelir</h3>
+          <div class="cat-bar-row"><span>Lisans geliri</span><div class="cat-bar-track"><div class="cat-bar-fill" style="width:78%;"></div></div><span>78%</span></div>
+          <div class="cat-bar-row"><span>Sponsorluk</span><div class="cat-bar-track"><div class="cat-bar-fill" style="width:14%;background:#f2765b;"></div></div><span>14%</span></div>
+          <div class="cat-bar-row"><span>Bağış</span><div class="cat-bar-track"><div class="cat-bar-fill" style="width:6%;background:#8db7b4;"></div></div><span>6%</span></div>
+          <div class="cat-bar-row"><span>Diğer</span><div class="cat-bar-track"><div class="cat-bar-fill" style="width:2%;background:var(--border);"></div></div><span>2%</span></div>
+        </div>
+      </div>
+
+      <!-- İŞLEM TABLOSU -->
+      <div class="card card-content" style="margin-top:20px;">
+        <div class="cluster" style="justify-content:space-between;">
+          <h3 style="font-size:15px;">İşlemler</h3>
+          <div class="cluster" style="gap:8px;">
+            <button class="btn btn-secondary btn-sm" id="open-income-modal" type="button">+ Gelir ekle</button>
+            <button class="btn btn-secondary btn-sm" id="open-expense-modal" type="button">+ Gider ekle</button>
+            <button class="btn btn-tertiary btn-sm" type="button">Dışa aktar</button>
+          </div>
+        </div>
+        <div class="toolbar">
+          <input class="text-input" id="search-input" placeholder="İşlem ara…" />
+          <select class="select-input" id="filter-type" data-filter-key="type"><option value="all">Tüm türler</option><option value="gelir">Gelir</option><option value="gider">Gider</option></select>
+          <select class="select-input" id="filter-cat" data-filter-key="cat"><option value="all">Tüm kategoriler</option><option value="lisans">Lisans geliri</option><option value="sunucu">Sunucular</option><option value="pazarlama">Pazarlama</option></select>
+          <input class="text-input" type="date" style="max-width:150px;" />
+        </div>
+        <div class="table-wrap">
+          <table class="data-table data-table--stack" id="tx-table">
+            <thead><tr><th>Tarih</th><th>Açıklama</th><th>Kategori</th><th>Tür</th><th>Tutar</th><th>Belge</th></tr></thead>
+            <tbody>
+              <tr data-type="gelir" data-cat="lisans"><td data-label="Tarih">1 Ağu 2026</td><td data-label="Açıklama">Dönem 2 lisans satışları</td><td data-label="Kategori">Kullanıcı lisans geliri</td><td data-label="Tür"><span class="badge badge-success">Gelir</span></td><td data-label="Tutar" class="num">₺142.000</td><td data-label="Belge"><a href="#" style="color:var(--fg);" onclick="return false;">Fiş #2201</a></td></tr>
+              <tr data-type="gider" data-cat="sunucu"><td data-label="Tarih">1 Ağu 2026</td><td data-label="Açıklama">Bulut sunucu faturası</td><td data-label="Kategori">Sunucular</td><td data-label="Tür"><span class="badge badge-danger">Gider</span></td><td data-label="Tutar" class="num">₺18.400</td><td data-label="Belge"><a href="#" style="color:var(--fg);" onclick="return false;">Fatura #A102</a></td></tr>
+              <tr data-type="gider" data-cat="pazarlama"><td data-label="Tarih">29 Tem 2026</td><td data-label="Açıklama">Sosyal medya reklamı</td><td data-label="Kategori">Pazarlama</td><td data-label="Tür"><span class="badge badge-danger">Gider</span></td><td data-label="Tutar" class="num">₺6.200</td><td data-label="Belge">—</td></tr>
+              <tr data-type="gelir" data-cat="lisans"><td data-label="Tarih">28 Tem 2026</td><td data-label="Açıklama">Sponsorluk ödemesi</td><td data-label="Kategori">Sponsorluklar</td><td data-label="Tür"><span class="badge badge-success">Gelir</span></td><td data-label="Tutar" class="num">₺25.000</td><td data-label="Belge"><a href="#" style="color:var(--fg);" onclick="return false;">Sözleşme #S-11</a></td></tr>
+              <tr hidden data-empty-row><td colspan="6" style="text-align:center;padding:20px;">Eşleşen işlem bulunamadı.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- KÂR DAĞITIM HESAPLAYICISI -->
+      <div class="card card-content" style="margin-top:20px;">
+        <h3 style="font-size:15px;">Kâr dağıtım hesaplayıcısı</h3>
+        <ul class="wizard-steps" style="margin-top:14px;" id="dist-steps">
+          <li data-w="hesapla">1. Hesapla</li>
+          <li data-w="inceleme">2. Ön inceleme</li>
+          <li data-w="tamamlandi">3. Sonuç</li>
+        </ul>
+
+        <div class="dist-step" data-dist-step="hesapla" hidden>
+          <div class="audience-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:0 20px;">
+            <div class="field"><label>Dağıtılacak net kâr</label><input class="text-input" value="₺48.200" /></div>
+            <div class="field"><label>Ortak sayısı</label><input class="text-input" value="3" /></div>
+          </div>
+          <div class="table-wrap" style="margin-top:8px;">
+            <table class="data-table">
+              <thead><tr><th>Ortak</th><th>Pay</th><th>Tutar</th></tr></thead>
+              <tbody>
+                <tr><td>S. Şen</td><td>%50</td><td class="num">₺24.100</td></tr>
+                <tr><td>A. Demir</td><td>%30</td><td class="num">₺14.460</td></tr>
+                <tr><td>Rezerv fon</td><td>%20</td><td class="num">₺9.640</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="cluster" style="justify-content:flex-end;margin-top:12px;"><button class="btn btn-primary" onclick="setDist('inceleme')">Ön incelemeye geç</button></div>
+        </div>
+
+        <div class="dist-step" data-dist-step="inceleme" hidden>
+          <div class="banner banner-warning"><span class="banner-icon">⚠</span><div><strong>Bu işlem geri alınamaz.</strong> Onayladıktan sonra dağıtım kaydı finansal geçmişe yazılır.</div></div>
+          <div class="cluster" style="justify-content:space-between;margin-top:14px;">
+            <a class="btn btn-tertiary" onclick="setDist('hesapla')">← Geri</a>
+            <button class="btn btn-danger" id="open-dist-modal">Güçlü onaya geç</button>
+          </div>
+        </div>
+
+        <div class="dist-step" data-dist-step="tamamlandi" hidden>
+          <div class="banner" style="background:var(--success-bg);border:1px solid var(--success-border);"><span class="banner-icon">✓</span><div>Dağıtım kaydedildi — ₺48.200, 3 ortak arasında.</div></div>
+          <p class="muted" style="font-size:13px;margin-top:10px;">Onaylayan: S. Şen · Az önce</p>
+        </div>
+
+        <div class="hr"></div>
+        <h4 style="font-size:14px;">Dağıtım geçmişi</h4>
+        <div class="table-wrap" style="margin-top:10px;">
+          <table class="data-table">
+            <thead><tr><th>Tarih</th><th>Tutar</th><th>Onaylayan</th><th>Not</th></tr></thead>
+            <tbody>
+              <tr><td>1 Tem 2026</td><td class="num">₺41.900</td><td>S. Şen</td><td>Haziran ayı dağıtımı</td></tr>
+              <tr><td>1 Haz 2026</td><td class="num">₺37.250</td><td>S. Şen</td><td>Mayıs ayı dağıtımı</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- GELİR EKLE MODAL -->
+<div class="modal-overlay" id="income-modal" hidden role="dialog" aria-modal="true" aria-labelledby="income-title">
+  <div class="modal">
+    <h3 id="income-title">Gelir ekle</h3>
+    <div class="field" style="margin-top:14px;"><label>Kategori</label><select class="select-input"><option>Kullanıcı lisans geliri</option><option>Sponsorluklar</option><option>Bağışlar</option><option>Diğer gelir</option></select></div>
+    <div class="field"><label>Tutar</label><input class="text-input" placeholder="₺0,00" /></div>
+    <div class="field"><label>Tarih</label><input class="text-input" type="date" /></div>
+    <div class="field"><label>Belge / fiş referansı <span class="muted" style="font-weight:400;">(opsiyonel)</span></label><input class="text-input" type="file" /></div>
+    <div class="cluster" style="justify-content:flex-end;gap:10px;margin-top:14px;">
+      <button class="btn btn-tertiary" data-close-modal type="button">Vazgeç</button>
+      <button class="btn btn-primary" data-close-modal type="button">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- GİDER EKLE MODAL -->
+<div class="modal-overlay" id="expense-modal" hidden role="dialog" aria-modal="true" aria-labelledby="expense-title">
+  <div class="modal">
+    <h3 id="expense-title">Gider ekle</h3>
+    <div class="field" style="margin-top:14px;"><label>Kategori</label><select class="select-input"><option>Sunucular</option><option>Alan adları</option><option>Dış servisler</option><option>Yazılım lisansları</option><option>Pazarlama</option><option>Operasyonel giderler</option><option>Diğer giderler</option></select></div>
+    <div class="field"><label>Tutar</label><input class="text-input" placeholder="₺0,00" /></div>
+    <div class="field"><label>Tarih</label><input class="text-input" type="date" /></div>
+    <div class="field"><label>Belge / fatura referansı <span class="muted" style="font-weight:400;">(opsiyonel)</span></label><input class="text-input" type="file" /></div>
+    <div class="cluster" style="justify-content:flex-end;gap:10px;margin-top:14px;">
+      <button class="btn btn-tertiary" data-close-modal type="button">Vazgeç</button>
+      <button class="btn btn-primary" data-close-modal type="button">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- KÂR DAĞITIM GÜÇLÜ ONAY -->
+<div class="modal-overlay" id="dist-modal" hidden role="dialog" aria-modal="true" aria-labelledby="dist-title">
+  <div class="modal">
+    <div class="modal-danger-figure">₺48.200</div>
+    <h3 id="dist-title">3 ortak arasında dağıtılacak</h3>
+    <p class="muted" style="margin-top:10px;">Bu işlem geri alınamaz. Kaydı, kim tarafından ve ne zaman değiştirildiği bilgisiyle denetim geçmişine yazılır.</p>
+    <div class="confirm-type-row"><span>Onaylamak için tutarı yaz:</span></div>
+    <input class="text-input mono" id="dist-confirm-input" placeholder="48200" />
+    <div class="cluster" style="justify-content:flex-end;gap:10px;margin-top:20px;">
+      <button class="btn btn-tertiary" data-close-modal type="button">Vazgeç</button>
+      <button class="btn btn-danger" id="dist-confirm-btn" disabled type="button">Dağıtımı onayla</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/prototype.js"></script>
+<script>
+  SRK.mountAdminShell("finance");
+  SRK.bindTable("tx-table", { searchInputId: "search-input", filterSelectIds: ["filter-type", "filter-cat"] });
+  SRK.bindModal("#open-income-modal", "income-modal");
+  SRK.bindModal("#open-expense-modal", "expense-modal");
+  SRK.bindModal("#open-dist-modal", "dist-modal");
+  SRK.bindStrongConfirm("dist-confirm-input", "48200", "dist-confirm-btn");
+
+  function setDist(step) {
+    document.querySelectorAll("[data-dist-step]").forEach(function (el) { el.hidden = el.getAttribute("data-dist-step") !== step; });
+    var order = ["hesapla", "inceleme", "tamamlandi"];
+    var idx = order.indexOf(step);
+    document.querySelectorAll("#dist-steps li").forEach(function (li) {
+      var i = order.indexOf(li.getAttribute("data-w"));
+      li.setAttribute("data-status", i < idx ? "done" : i === idx ? "current" : "");
+    });
+  }
+  setDist("hesapla");
+  document.getElementById("dist-confirm-btn").addEventListener("click", function () {
+    document.getElementById("dist-modal").hidden = true;
+    setDist("tamamlandi");
+  });
+</script>
+</body>
+</html>

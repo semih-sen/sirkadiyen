@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "admin-access-logs.html",
+  "entry": "admin-access-logs.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-08-02T15:01:26.304Z",
+  "updatedAt": "2026-08-02T15:01:26.304Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}

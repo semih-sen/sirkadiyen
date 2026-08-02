@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Toplu Takvim Etkinliği — Sirkadiyen Yönetim</title>
+<link rel="stylesheet" href="assets/sirkadiyen.css" />
+<style>
+  .wiz-content { max-width: 760px; }
+  .audience-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+  @media (max-width: 620px) { .audience-grid { grid-template-columns: 1fr; } }
+  .exclude-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+  .exclude-row:last-child { border-bottom: none; }
+  .big-count { font-family: var(--font-display); font-size: 48px; font-weight: 700; color: var(--fg); }
+  .event-preview-card { border: 1.5px solid var(--fg); border-radius: var(--radius-control); padding: 16px; background: color-mix(in oklab, var(--fg) 6%, white); }
+  [data-wiz-step] { }
+</style>
+</head>
+<body>
+<div class="banner-freeze" id="freeze-banner" hidden role="alert">🧊 Sistem dondurulmuş — toplu etkinlik gönderimi askıda.</div>
+<div class="admin-shell">
+  <aside class="admin-sidebar" id="admin-sidebar-mount"></aside>
+  <div class="admin-main">
+    <div class="admin-topbar" id="admin-topbar-mount"></div>
+    <div class="admin-content">
+      <h1 style="font-size:22px;">Toplu takvim etkinliği oluştur</h1>
+      <p class="muted" style="font-size:13.5px;margin-top:4px;">Bu bir "gönder" değil, bir <strong>dağıtım işlemidir</strong> — seçilen kitlenin takvimlerine yazılır.</p>
+
+      <ul class="wizard-steps" style="margin-top:20px;" id="wiz-steps">
+        <li data-w="kitle">1. Kitle</li>
+        <li data-w="detay">2. Etkinlik detayları</li>
+        <li data-w="tahmin">3. Tahmini alıcı</li>
+        <li data-w="inceleme">4. Dahil/hariç incele</li>
+        <li data-w="onizleme">5. Önizleme</li>
+        <li data-w="izleme">6–7. Onay + izleme</li>
+      </ul>
+
+      <div class="wiz-content">
+
+        <!-- 1. KİTLE SEÇ -->
+        <section data-wiz-step="kitle" hidden>
+          <div class="card card-content">
+            <h3 style="font-size:15px;">Hedef kitleyi tanımla</h3>
+            <div class="audience-grid" style="margin-top:14px;">
+              <div class="field"><label>Akademik yıl</label><select class="select-input"><option>2025–2026</option></select></div>
+              <div class="field"><label>Dönem</label><select class="select-input"><option>Dönem 2</option><option>Dönem 1</option><option>Tümü</option></select></div>
+              <div class="field"><label>Program dili</label><select class="select-input"><option>Türkçe</option><option>İngilizce</option><option>Tümü</option></select></div>
+              <div class="field"><label>Müfredat grubu</label><select class="select-input"><option>Tümü</option><option>A Grubu</option></select></div>
+              <div class="field"><label>Uygulama grubu</label><select class="select-input"><option>Tümü</option><option>Grup 1</option></select></div>
+              <div class="field"><label>Uygulama alt grubu</label><select class="select-input"><option>Tümü</option></select></div>
+              <div class="field"><label>Anatomi grubu</label><select class="select-input"><option>Tümü</option></select></div>
+              <div class="field"><label>Hesap durumu</label><select class="select-input"><option>Yalnızca aktif</option><option>Tümü</option></select></div>
+              <div class="field"><label>Lisans durumu</label><select class="select-input"><option>Aktif + deneme</option><option>Yalnızca aktif</option></select></div>
+              <div class="field"><label>Senkronizasyon uygunluğu</label><select class="select-input"><option>Yalnızca yetkili takvimi olanlar</option><option>Tümü</option></select></div>
+            </div>
+            <div class="cluster" style="justify-content:flex-end;margin-top:8px;"><button class="btn btn-primary" onclick="location.href='admin-bulk-event.html?w=detay'">Devam et</button></div>
+          </div>
+        </section>
+
+        <!-- 2. ETKİNLİK DETAYLARI -->
+        <section data-wiz-step="detay" hidden>
+          <div class="card card-content">
+            <h3 style="font-size:15px;">Etkinlik detayları</h3>
+            <div class="field" style="margin-top:14px;"><label>Başlık</label><input class="text-input" value="Dönem 2 Vize Programı Hatırlatması" /></div>
+            <div class="field"><label>Açıklama</label><textarea class="text-input">Vize sınav programın Sirkadiyen üzerinden takvimine eklendi. Güncel programı panelinden kontrol edebilirsin.</textarea></div>
+            <div class="audience-grid">
+              <div class="field"><label>Tarih</label><input class="text-input" type="date" value="2026-08-10" /></div>
+              <div class="field"><label>Konum</label><input class="text-input" value="Amfi 1" /></div>
+            </div>
+            <div class="checkbox-row"><input type="checkbox" id="all-day" /><label for="all-day" style="margin:0;font-weight:600;">Tüm gün etkinliği</label></div>
+            <div class="audience-grid">
+              <div class="field"><label>Başlangıç saati</label><input class="text-input" type="time" value="09:00" /></div>
+              <div class="field"><label>Bitiş saati</label><input class="text-input" type="time" value="09:30" /></div>
+            </div>
+            <div class="audience-grid">
+              <div class="field"><label>Kategori / renk</label><select class="select-input"><option>Bilgilendirme (mavi)</option><option>Uyarı (turuncu)</option></select></div>
+              <div class="field"><label>Hatırlatıcı</label><select class="select-input"><option>30 dakika önce</option><option>1 gün önce</option><option>Yok</option></select></div>
+            </div>
+            <div class="field"><label>Dahili yönetici notu <span class="muted" style="font-weight:400;">(öğrenciye görünmez)</span></label><textarea class="text-input">Fakülte duyurusu 3 Ağustos'ta yayınlandı, bu hatırlatma onun takvim karşılığıdır.</textarea></div>
+            <div class="field"><label>Güncelleme / iptal stratejisi</label><select class="select-input"><option>Kaynak değişirse mevcut etkinliği güncelle</option><option>Değişiklikte yeni etkinlik oluşturma, yalnızca uyar</option></select></div>
+            <div class="cluster" style="justify-content:space-between;margin-top:8px;">
+              <a class="btn btn-tertiary" href="admin-bulk-event.html?w=kitle">← Geri</a>
+              <button class="btn btn-primary" onclick="location.href='admin-bulk-event.html?w=tahmin'">Devam et</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 3. TAHMİNİ ALICI -->
+        <section data-wiz-step="tahmin" hidden>
+          <div class="card card-content" style="text-align:center;">
+            <p class="muted">Seçilen kitleye göre tahmini alıcı sayısı</p>
+            <div class="big-count">214</div>
+            <p class="muted" style="margin-top:8px;">Dönem 2 · Türkçe program · Aktif + deneme lisans · Yetkili takvim</p>
+            <div class="cluster" style="justify-content:center;gap:10px;margin-top:20px;">
+              <a class="btn btn-tertiary" href="admin-bulk-event.html?w=detay">← Geri</a>
+              <button class="btn btn-primary" onclick="location.href='admin-bulk-event.html?w=inceleme'">Dahil/hariç listesini incele</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 4. DAHİL / HARİÇ İNCELE -->
+        <section data-wiz-step="inceleme" hidden>
+          <div class="grid grid-2">
+            <div class="card card-content">
+              <h3 style="font-size:15px;">Dahil edilen kitle özeti</h3>
+              <p class="muted" style="font-size:13.5px;margin-top:8px;">214 kullanıcı · Dönem 2 · Türkçe program · aktif/deneme lisans · takvimi yetkili</p>
+            </div>
+            <div class="card card-content">
+              <h3 style="font-size:15px;">Hariç bırakılanlar ve gerekçeleri</h3>
+              <div style="margin-top:10px;">
+                <div class="exclude-row"><span>18 kullanıcı</span><span class="muted">Takvim bağlı değil</span></div>
+                <div class="exclude-row"><span>7 kullanıcı</span><span class="muted">Lisans yok / süresi dolmuş</span></div>
+                <div class="exclude-row"><span>4 kullanıcı</span><span class="muted">Senkronizasyon tamamlanmamış</span></div>
+                <div class="exclude-row"><span>2 kullanıcı</span><span class="muted">Google yetkisi iptal edilmiş</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="banner banner-info" style="margin-top:16px;"><span class="banner-icon">ℹ</span><div><strong>Yinelenme önleme:</strong> Kampanya anahtarı <span class="mono">bulk_2026w32_d2tr</span> — aynı anahtarla ikinci gönderim denenirse, zaten teslim edilmiş kullanıcılar atlanır.</div></div>
+          <div class="cluster" style="justify-content:space-between;margin-top:16px;">
+            <a class="btn btn-tertiary" href="admin-bulk-event.html?w=tahmin">← Geri</a>
+            <button class="btn btn-primary" onclick="location.href='admin-bulk-event.html?w=onizleme'">Önizlemeye geç</button>
+          </div>
+        </section>
+
+        <!-- 5. ÖNİZLEME -->
+        <section data-wiz-step="onizleme" hidden>
+          <div class="card card-content">
+            <h3 style="font-size:15px;">Takvim etkinliği önizlemesi</h3>
+            <p class="muted" style="font-size:13px;margin-top:4px;">214 kullanıcının "Sirkadiyen Ders Programı" takvimine tam olarak bu şekilde eklenecek:</p>
+            <div class="event-preview-card" style="margin-top:14px;">
+              <strong style="font-family:var(--font-display);font-size:16px;">Dönem 2 Vize Programı Hatırlatması</strong>
+              <p class="muted" style="font-size:13.5px;margin-top:6px;">10 Ağu 2026 · 09:00–09:30 · Amfi 1</p>
+              <p style="font-size:13.5px;margin-top:8px;">Vize sınav programın Sirkadiyen üzerinden takvimine eklendi. Güncel programı panelinden kontrol edebilirsin.</p>
+              <span class="badge badge-info" style="margin-top:10px;">Hatırlatıcı: 30 dk önce</span>
+            </div>
+            <div class="cluster" style="justify-content:space-between;margin-top:20px;">
+              <a class="btn btn-tertiary" href="admin-bulk-event.html?w=inceleme">← Geri</a>
+              <button class="btn btn-danger" id="open-confirm-modal">Onaya geç</button>
+            </div>
+          </div>
+        </section>
+
+        <!-- 6-7. ONAY + İZLEME -->
+        <section data-wiz-step="izleme" hidden>
+          <div class="card card-content">
+            <div class="cluster" style="justify-content:space-between;">
+              <h3 style="font-size:15px;">Teslim ilerlemesi</h3>
+              <span class="badge badge-info">Kuyrukta işleniyor</span>
+            </div>
+            <div class="counter-grid" style="margin-top:14px;">
+              <div class="counter-box"><div class="num">142</div><div class="muted" style="font-size:12.5px;">Oluşturuldu</div></div>
+              <div class="counter-box"><div class="num">6</div><div class="muted" style="font-size:12.5px;">Atlandı (yinelenme)</div></div>
+              <div class="counter-box"><div class="num">2</div><div class="muted" style="font-size:12.5px;">Başarısız</div></div>
+              <div class="counter-box"><div class="num">64</div><div class="muted" style="font-size:12.5px;">Bekliyor</div></div>
+            </div>
+            <div class="progress-track" style="margin-top:16px;"><div class="progress-fill" style="width:66%;"></div></div>
+            <p class="muted" style="font-size:13px;margin-top:8px;">Kampanya anahtarı: <span class="mono">bulk_2026w32_d2tr</span> · Başlatan: S. Şen · 14:52</p>
+            <div class="cluster" style="gap:10px;margin-top:16px;">
+              <button class="btn btn-secondary btn-sm" type="button">Güncelle</button>
+              <button class="btn btn-danger-outline btn-sm" type="button">İptal et</button>
+            </div>
+          </div>
+          <div class="card card-content" style="margin-top:16px;">
+            <h3 style="font-size:15px;">Denetim geçmişi</h3>
+            <p class="muted" style="font-size:13px;margin-top:8px;">14:52 — S. Şen, 214 alıcı için toplu etkinlik oluşturdu ve onayladı ("vize hatırlatması, fakülte duyurusuna dayanıyor").</p>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="confirm-modal" hidden role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+  <div class="modal">
+    <div class="modal-danger-figure">214</div>
+    <h3 id="confirm-title">kullanıcının takvimine etkinlik eklenecek</h3>
+    <p class="muted" style="margin-top:10px;">Bu işlem geri alınamaz bir dağıtımdır. Onayladıktan sonra teslim kuyruğa alınır ve durdurulamaz; yalnızca sonradan güncellenebilir veya iptal edilebilir.</p>
+    <div class="confirm-type-row"><span>Onaylamak için alıcı sayısını yaz:</span></div>
+    <input class="text-input mono" id="confirm-count-input" placeholder="214" />
+    <div class="cluster" style="justify-content:flex-end;gap:10px;margin-top:20px;">
+      <button class="btn btn-tertiary" data-close-modal type="button">Vazgeç</button>
+      <button class="btn btn-danger" id="confirm-btn" disabled type="button" onclick="location.href='admin-bulk-event.html?w=izleme'">Kuyruğa al</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/prototype.js"></script>
+<script>
+  SRK.mountAdminShell("bulk-event");
+  var w = SRK.qs("w", "kitle");
+  document.querySelectorAll("[data-wiz-step]").forEach(function (el) { el.hidden = el.getAttribute("data-wiz-step") !== w; });
+  var order = ["kitle","detay","tahmin","inceleme","onizleme","izleme"];
+  var idx = order.indexOf(w);
+  document.querySelectorAll("#wiz-steps li").forEach(function (li) {
+    var i = order.indexOf(li.getAttribute("data-w"));
+    li.setAttribute("data-status", i < idx ? "done" : i === idx ? "current" : "");
+  });
+  SRK.bindModal("#open-confirm-modal", "confirm-modal");
+  SRK.bindStrongConfirm("confirm-count-input", "214", "confirm-btn");
+</script>
+</body>
+</html>

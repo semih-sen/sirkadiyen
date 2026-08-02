@@ -30,3 +30,4 @@ appsettings.Development.local.json
 .DS_Store
 Thumbs.db
 service_account_refresh_token.json
+web-design/.file-versions/

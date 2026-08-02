@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ekran dizini — Sirkadiyen prototip</title>
+<link rel="stylesheet" href="assets/sirkadiyen.css" />
+<style>
+  .launcher-wrap { padding: 44px 0 80px; }
+  .screen-card { border: 1px solid var(--border); border-radius: var(--radius-card); padding: 22px; background: var(--canvas); margin-bottom: 18px; }
+  .variant-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .variant-list a { font-size: 12.5px; font-weight: 600; padding: 6px 12px; border-radius: 999px; background: var(--surface); color: var(--ink-70); text-decoration: none; border: 1px solid var(--border); }
+  .variant-list a:hover { color: var(--fg); border-color: var(--fg); }
+  .group-title { margin-top: 44px; margin-bottom: 16px; }
+</style>
+</head>
+<body>
+<header class="site-nav">
+  <div class="container site-nav__row">
+    <a class="brand" href="index.html"><span class="brand__mark">S</span> Sirkadiyen — Prototip Dizini</a>
+    <div class="nav-actions"><span class="badge badge-proto">Design mode</span></div>
+  </div>
+</header>
+
+<main class="launcher-wrap">
+  <div class="container">
+    <span class="eyebrow">Ekran ve durum dizini</span>
+    <h1 style="margin-top:10px;">Sirkadiyen prototipi</h1>
+    <p class="lede" style="margin-top:12px;">Her ekranın tüm adreslenebilir durum varyantları burada listeleniyor. Ürün yüzeyinde demo kontrolü yok — her durum tek tıkla incelenebilir.</p>
+
+    <!-- PUBLIC -->
+    <h2 class="group-title">Genel erişim sayfaları</h2>
+    <div class="screen-card">
+      <h3 style="font-size:16px;">Ana sayfa <span class="muted" style="font-weight:400;font-size:13px;">landing.html</span></h3>
+      <p class="muted" style="font-size:13.5px;margin-top:4px;">Hero, değer önermesi, nasıl çalışır, kapsam, güvenlik, yorumlar, SSS, footer.</p>
+      <div class="variant-list"><a href="landing.html">Varsayılan</a></div>
+    </div>
+    <div class="screen-card">
+      <h3 style="font-size:16px;">Gizlilik Politikası <span class="muted" style="font-weight:400;font-size:13px;">privacy-policy.html</span></h3>
+      <div class="variant-list"><a href="privacy-policy.html">Varsayılan</a></div>
+    </div>
+    <div class="screen-card">
+      <h3 style="font-size:16px;">Kullanım Koşulları <span class="muted" style="font-weight:400;font-size:13px;">terms-of-service.html</span></h3>
+      <div class="variant-list"><a href="terms-of-service.html">Varsayılan</a></div>
+    </div>
+    <div class="screen-card">
+      <h3 style="font-size:16px;">İletişim <span class="muted" style="font-weight:400;font-size:13px;">contact.html</span></h3>
+      <div class="variant-list">
+        <a href="contact.html">Boş form</a>
+        <a href="contact.html?kategori=lisans">Ön dolu — lisans</a>
+        <a href="contact.html?state=servis-hatasi">Servis hatası (gönderirken)</a>
+      </div>
+    </div>
+
+    <!-- KİMLİK -->
+    <h2 class="group-title">Kimlik</h2>
+    <div class="screen-card">
+      <h3 style="font-size:16px;">Google ile giriş <span class="muted" style="font-weight:400;font-size:13px;">sign-in.html</span></h3>
+      <div class="variant-list">
+        <a href="sign-in.html?state=varsayilan">Varsayılan</a>
+        <a href="sign-in.html?state=yukleniyor">Yükleniyor</a>
+        <a href="sign-in.html?state=basarisiz">Kimlik doğrulama başarısız</a>
+        <a href="sign-in.html?state=askida">Hesap askıya alınmış</a>
+        <a href="sign-in.html?state=oturum-sona-erdi">Oturum süresi doldu</a>
+      </div>
+    </div>
+
+    <!-- ONBOARDING -->
+    <h2 class="group-title">Onboarding — kurulum</h2>
+    <div class="screen-card">
+      <h3 style="font-size:16px;">Adım 1 — Lisans etkinleştirme <span class="muted" style="font-weight:400;font-size:13px;">onboarding.html?step=lisans</span></h3>
+      <div class="variant-list">
+        <a href="onboarding.html?step=lisans&state=bos">Boş</a>
+        <a href="onboarding.html?step=lisans&state=bicim-hatali">Biçim hatalı</a>
+        <a href="onboarding.html?step=lisans&state=dogrulaniyor">Doğrulanıyor</a>
+        <a href="onboarding.html?step=lisans&state=gecerli">Geçerli</a>
+        <a href="onboarding.html?step=lisans&state=suresi-dolmus">Süresi dolmuş</a>
+        <a href="onboarding.html?step=lisans&state=zaten-kullanilmis">Zaten kullanılmış</a>
+        <a href="onboarding.html?step=lisans&state=iptal-edilmis">İptal edilmiş</a>
+        <a href="onboarding.html?step=lisans&state=bulunamadi">Bulunamadı</a>
+        <a href="onboarding.html?step=lisans&state=rate-limited">Deneme sınırı aşıldı</a>
+      </div>
+    </div>
+    <div class="screen-card">
+      <h3 style="font-size:16px;">Adım 2 — Akademik profil <span class="muted" style="font-weight:400;font-size:13px;">onboarding.html?step=profil</span></h3>
+      <div class="variant-list">
+        <a href="onboarding.html?step=profil&state=yukleniyor">Yükleniyor</a>
+        <a href="onboarding.html?step=profil&state=hazir">Hazır</a>
+        <a href="onboarding.html?step=profil&state=alan-hatasi">Alan doğrulama hatası</a>
+        <a href="onboarding.html?step=profil&state=desteklenmeyen-kombinasyon">Desteklenmeyen kombinasyon</a>
+        <a href="onboarding.html?step=profil&state=kaydediliyor">Kaydediliyor</a>
+        <a href="onboarding.html?step=profil&state=kayitli">Kayıtlı</a>
+      </div>
+    </div>
+    <div class="screen-card">
+      <h3 style="font-size:16px;">Adım 3 — Google Calendar yetkilendirme <span class="muted" style="font-weight:400;font-size:13px;">onboarding.html?step=takvim</span></h3>
+      <div class="variant-list">
+        <a href="onboarding.html?step=takvim&state=izin-bekleniyor">İzin bekleniyor</a>
+        <a href="onboarding.html?step=takvim&state=popup-acik">Popup açık</a>
+        <a href="onboarding.html?step=takvim&state=izin-reddedildi">İzin reddedildi</a>
+        <a href="onboarding.html?step=takvim&state=eksik-kapsam">Eksik kapsam verildi</a>
+        <a href="onboarding.html?step=takvim&state=iptal-edilmis">İzin iptal edilmiş</a>
+        <a href="onboarding.html?step=takvim&state=yetkili">Yetkili</a>
+        <a href="onboarding.html?step=takvim&state=eylem-gerekli">ActionRequired</a>
+      </div>
+    </div>
+    <div class="screen-card">
+      <h3 style="font-size:16px;">Adım 4–5 ve uç durumlar</h3>
+      <div class="variant-list">
+        <a href="onboarding.html?step=senkron">Adım 4 — Senkrona devir</a>
+        <a href="onboarding.html?step=tamamlandi">Adım 5 — Tamamlandı</a>
+        <a href="onboarding.html?step=askida">Suspended (terminal)</a>
+      </div>
+    </div>
+    <div class="screen-card">
+      <h3 style="font-size:16px;">Senkronizasyon ilerlemesi <span class="muted" style="font-weight:400;font-size:13px;">sync-progress.html</span></h3>
+      <div class="variant-list">
+        <a href="sync-progress.html?state=kuyrukta">Kuyrukta</a>
+        <a href="sync-progress.html?state=devam-ediyor">Devam ediyor (canlı)</a>
+        <a href="sync-progress.html?state=tamamlandi">Tamamlandı</a>
+        <a href="sync-progress.html?state=uyarilarla-tamamlandi">Uyarılarla tamamlandı</a>
+        <a href="sync-progress.html?state=gecici-basarisiz">Geçici başarısız</a>
+        <a href="sync-progress.html?state=kalici-basarisiz">Kalıcı başarısız</a>
+        <a href="sync-progress.html?state=yetki-iptal">Google yetkisi iptal</a>
+        <a href="sync-progress.html?state=revizyon-incelemede">Revizyon incelemede</a>
+        <a href="sync-progress.html?state=desteklenmeyen-profil">Desteklenmeyen profil</a>
+        <a href="sync-progress.html?state=eylem-gerekli">Eylem gerekli</a>
+      </div>
+    </div>
+
+    <!-- ÖĞRENCİ -->
+    <h2 class="group-title">Öğrenci paneli</h2>
+    <div class="screen-card">
+      <h3 style="font-size:16px;">Panelim <span class="muted" style="font-weight:400;font-size:13px;">student-dashboard.html</span></h3>
+      <div class="variant-list">
+        <a href="student-dashboard.html?saglik=iyi">Sağlıklı</a>
+        <a href="student-dashboard.html?saglik=uyari">Uyarılı</a>
+      </div>
+    </div>
+
+    <!-- ADMIN -->
+    <h2 class="group-title">SuperAdmin uygulaması</h2>
+    <div class="screen-card">
+      <h3 style="font-size:16px;">Genel bakış <span class="muted" style="font-weight:400;font-size:13px;">admin-dashboard.html</span></h3>
+      <div class="variant-list"><a href="admin-dashboard.html">Varsayılan</a><a href="admin-dashboard.html?freeze=1">Sistem dondurulmuş</a></div>
+    </div>
+    <div class="screen-card">
+      <h3 style="font-size:16px;">Finans <span class="muted" style="font-weight:400;font-size:13px;">admin-finance.html</span></h3>
+      <div class="variant-list"><a href="admin-finance.html">Varsayılan</a></div>
+    </div>
+    <div class="screen-card">
+      <h3 style="font-size:16px;">Kullanıcılar <span class="muted" style="font-weight:400;font-size:13px;">admin-users.html</span></h3>
+      <div class="variant-list"><a href="admin-users.html">Liste + detay çekmecesi</a></div>
+    </div>
+    <div class="screen-card">
+      <h3 style="font-size:16px;">Toplu takvim etkinliği <span class="muted" style="font-weight:400;font-size:13px;">admin-bulk-event.html</span></h3>
+      <div class="variant-list">
+        <a href="admin-bulk-event.html?w=kitle">1. Kitle</a>
+        <a href="admin-bulk-event.html?w=detay">2. Detaylar</a>
+        <a href="admin-bulk-event.html?w=tahmin">3. Tahmin</a>
+        <a href="admin-bulk-event.html?w=inceleme">4. Dahil/hariç</a>
+        <a href="admin-bulk-event.html?w=onizleme">5. Önizleme + onay</a>
+        <a href="admin-bulk-event.html?w=izleme">6–7. İzleme</a>
+      </div>
+    </div>
+    <div class="screen-card">
+      <h3 style="font-size:16px;">Tek kullanıcı uyarısı <span class="muted" style="font-weight:400;font-size:13px;">admin-user-warning.html</span></h3>
+      <div class="variant-list">
+        <a href="admin-user-warning.html?w=kullanici">1. Kullanıcı seç</a>
+        <a href="admin-user-warning.html?w=uygunluk">2. Uygunluk</a>
+        <a href="admin-user-warning.html?w=sablon">3–4. Şablon</a>
+        <a href="admin-user-warning.html?w=onizleme">5–6. Önizleme + onay</a>
+        <a href="admin-user-warning.html?w=izleme">7. İzleme</a>
+      </div>
+    </div>
+    <div class="screen-card">
+      <h3 style="font-size:16px;">Kaynaklar & senkronizasyon <span class="muted" style="font-weight:400;font-size:13px;">admin-sources.html</span></h3>
+      <div class="variant-list"><a href="admin-sources.html">Varsayılan</a></div>
+    </div>
+    <div class="screen-card">
+      <h3 style="font-size:16px;">Sunucu izleme <span class="muted" style="font-weight:400;font-size:13px;">admin-server.html</span></h3>
+      <div class="variant-list">
+        <a href="admin-server.html?state=varsayilan">Sağlıklı</a>
+        <a href="admin-server.html?state=veri-yok">Veri yok</a>
+        <a href="admin-server.html?state=veri-gecikmeli">Veri gecikmeli</a>
+        <a href="admin-server.html?state=bilinmiyor">Bileşen bilinmiyor</a>
+        <a href="admin-server.html?state=bozulmus">Hizmet bozulmuş</a>
+        <a href="admin-server.html?state=tam-kesinti">Tam kesinti</a>
+      </div>
+    </div>
+    <div class="screen-card">
+      <h3 style="font-size:16px;">Erişim kayıtları <span class="muted" style="font-weight:400;font-size:13px;">admin-access-logs.html</span></h3>
+      <div class="variant-list"><a href="admin-access-logs.html">Varsayılan (maskeli)</a></div>
+    </div>
+
+    <div class="impl-note" style="margin-top:36px;">ℹ️ Bu bir Open Design prototipidir; üretim koduna bağlı değildir. Kabul kriterleri için <code>sirkadiyen-design-plan.md</code> §9'a bakın.</div>
+  </div>
+</main>
+</body>
+</html>

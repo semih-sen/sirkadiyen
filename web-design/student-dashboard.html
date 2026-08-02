@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Panelim — Sirkadiyen</title>
+<link rel="stylesheet" href="assets/sirkadiyen.css" />
+<style>
+  .dash-wrap { padding: 32px 0 80px; }
+  .health-strip { display: flex; align-items: center; gap: 16px; padding: 18px 22px; border-radius: var(--radius-card); }
+  .health-strip.ok { background: var(--success-bg); border: 1px solid var(--success-border); }
+  .health-strip.warn { background: var(--warning-bg); border: 1px solid var(--warning-border); }
+  .health-dot { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 20px; flex: none; }
+  .health-strip.ok .health-dot { background: var(--success); color: #fff; }
+  .health-strip.warn .health-dot { background: var(--warning); color: color-mix(in oklab, var(--warning) 25%, black 75%); }
+  .dash-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-top: 24px; align-items: start; }
+  @media (max-width: 940px) { .dash-grid { grid-template-columns: 1fr; } }
+  .lesson-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .lesson-row:last-child { border-bottom: none; }
+  .lesson-time { font-family: var(--font-mono); font-size: 13px; color: var(--fg); font-weight: 700; min-width: 92px; }
+  .change-row { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .change-row:last-child { border-bottom: none; }
+  .change-icon { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--surface); display: grid; place-items: center; font-size: 13px; }
+  .module-card { margin-bottom: 20px; }
+  .coming-soon { opacity: .7; }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">İçeriğe geç</a>
+<header class="student-topbar">
+  <div class="container">
+    <a class="brand" href="landing.html"><span class="brand__mark">S</span> Sirkadiyen</a>
+    <div class="cluster" style="gap:14px;">
+      <span class="muted" style="font-size:13.5px;">Elif Demir · Dönem 2</span>
+      <button class="btn btn-tertiary btn-sm">Çıkış yap</button>
+    </div>
+  </div>
+</header>
+
+<main id="main" class="dash-wrap">
+  <div class="container">
+
+    <!-- 1. SENKRONİZASYON SAĞLIĞI -->
+    <div class="health-strip ok" id="health-strip" role="status">
+      <div class="health-dot" id="health-dot">✓</div>
+      <div style="flex:1;">
+        <strong id="health-title">Takvimin güncel.</strong>
+        <p class="muted" style="margin-top:2px;font-size:13.5px;" id="health-sub">Son başarılı senkronizasyon: bugün 07:12 (Europe/Istanbul).</p>
+      </div>
+      <a class="btn btn-secondary btn-sm" href="sync-progress.html?state=tamamlandi">Geçmişi gör</a>
+    </div>
+
+    <div class="dash-grid">
+      <div>
+        <!-- 2. SIRADAKİ DERSLER -->
+        <div class="card card-content module-card">
+          <h3 style="font-size:16px;">Sıradaki dersler</h3>
+          <div style="margin-top:10px;">
+            <div class="lesson-row"><span class="lesson-time">Yarın 09:00</span><span style="flex:1;padding:0 12px;">Nöroanatomi — Amfi 3</span><span class="muted" style="font-size:13px;">Dr. Aydın</span></div>
+            <div class="lesson-row"><span class="lesson-time">Yarın 11:00</span><span style="flex:1;padding:0 12px;">Histoloji Laboratuvarı — Lab 2</span><span class="muted" style="font-size:13px;">Dr. Kaya</span></div>
+            <div class="lesson-row"><span class="lesson-time">Çar 13:00</span><span style="flex:1;padding:0 12px;">Biyokimya — Amfi 1</span><span class="muted" style="font-size:13px;">Dr. Şahin</span></div>
+            <div class="lesson-row"><span class="lesson-time">Per 09:00</span><span style="flex:1;padding:0 12px;">Fizyoloji Semineri — Seminer Odası</span><span class="muted" style="font-size:13px;">Dr. Yıldız</span></div>
+          </div>
+        </div>
+
+        <!-- 3. SON PROGRAM DEĞİŞİKLİKLERİ -->
+        <div class="card card-content module-card">
+          <h3 style="font-size:16px;">Son program değişiklikleri</h3>
+          <div style="margin-top:10px;">
+            <div class="change-row"><span class="change-icon">↻</span><div><strong style="font-size:14px;">Histoloji Laboratuvarı saati değişti</strong><p class="muted" style="font-size:13px;margin-top:2px;">10:00 → 11:00 · dün uygulandı</p></div></div>
+            <div class="change-row"><span class="change-icon">＋</span><div><strong style="font-size:14px;">Yeni seminer eklendi</strong><p class="muted" style="font-size:13px;margin-top:2px;">Fizyoloji Semineri · 2 gün önce uygulandı</p></div></div>
+            <div class="change-row"><span class="change-icon">✕</span><div><strong style="font-size:14px;">Bir ders iptal edildi</strong><p class="muted" style="font-size:13px;margin-top:2px;">Patoloji Uygulaması (Salı) · 3 gün önce uygulandı</p></div></div>
+          </div>
+        </div>
+
+        <!-- 7. SENKRONİZASYON GEÇMİŞİ -->
+        <div class="card card-content module-card">
+          <h3 style="font-size:16px;">Senkronizasyon geçmişi</h3>
+          <div class="table-wrap" style="margin-top:14px;border:none;">
+            <table class="data-table">
+              <thead><tr><th>Zaman</th><th>Tetikleyici</th><th>Sonuç</th><th>Değişiklik</th></tr></thead>
+              <tbody>
+                <tr><td>Bugün 07:12</td><td>Otomatik</td><td><span class="badge badge-success">Tamamlandı</span></td><td class="num">+2 / ~1</td></tr>
+                <tr><td>Dün 07:10</td><td>Otomatik</td><td><span class="badge badge-success">Tamamlandı</span></td><td class="num">+0 / ~1</td></tr>
+                <tr><td>2 gün önce 07:09</td><td>Otomatik</td><td><span class="badge badge-warning">Uyarılarla</span></td><td class="num">+1 / ~0</td></tr>
+                <tr><td>5 gün önce 22:41</td><td>Manuel (onarım)</td><td><span class="badge badge-success">Tamamlandı</span></td><td class="num">+0 / ~3</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 8. ONARIM / MUTABAKAT -->
+        <div class="card card-content module-card">
+          <h3 style="font-size:16px;">Bir sorun mu var?</h3>
+          <p class="muted" style="margin-top:8px;font-size:14px;">Takviminde eksik veya hatalı bir ders görüyorsan onarım talebi oluşturabilirsin. Sistem kaynak veriyle takvimini yeniden karşılaştırır.</p>
+          <div class="banner banner-info" style="margin-top:14px;font-size:13px;"><span class="banner-icon">ℹ</span><div>Bu, denetlenen bir işlemdir — talebin zaman damgası ve sonucu kaydedilir.</div></div>
+          <button class="btn btn-secondary" style="margin-top:14px;">Onarım talebi oluştur</button>
+        </div>
+      </div>
+
+      <div>
+        <!-- 5. LİSANS DURUMU -->
+        <div class="card card-content module-card">
+          <h3 style="font-size:15px;">Lisans durumu</h3>
+          <div class="cluster" style="justify-content:space-between;margin-top:12px;">
+            <span class="badge badge-info">Deneme lisansı</span><strong style="font-family:var(--font-mono);">14 gün kaldı</strong>
+          </div>
+          <p class="muted" style="margin-top:10px;font-size:13px;">Deneme süren dolduğunda senkronizasyon duracak. Kalıcı lisansa geçmek için destek ekibiyle iletişime geç.</p>
+          <a class="btn btn-tertiary btn-sm" style="margin-top:8px;padding-left:0;" href="contact.html?kategori=lisans">Lisans hakkında bilgi al →</a>
+        </div>
+
+        <!-- 6. TAKVİM BAĞLANTISI -->
+        <div class="card card-content module-card">
+          <h3 style="font-size:15px;">Google Calendar bağlantısı</h3>
+          <div class="cluster" style="justify-content:space-between;margin-top:12px;">
+            <span class="badge badge-success">Yetkili</span>
+          </div>
+          <a class="btn btn-secondary btn-sm" style="margin-top:12px;" href="#" onclick="return false;">Yönetilen takvimi aç ↗</a>
+        </div>
+
+        <!-- 4. AKADEMİK PROFİL ÖZETİ -->
+        <div class="card card-content module-card">
+          <h3 style="font-size:15px;">Akademik profil</h3>
+          <div style="margin-top:10px;font-size:13.5px;" class="stack">
+            <div class="summary-row"><span class="muted">Dönem</span><strong>2</strong></div>
+            <div class="summary-row"><span class="muted">Program dili</span><strong>Türkçe</strong></div>
+            <div class="summary-row"><span class="muted">Uygulama grubu</span><strong>Grup 1</strong></div>
+            <div class="summary-row"><span class="muted">Anatomi grubu</span><strong>Grup 2</strong></div>
+          </div>
+          <a class="btn btn-tertiary btn-sm" style="margin-top:8px;padding-left:0;" href="onboarding.html?step=profil">Profili düzenle →</a>
+        </div>
+
+        <!-- 9. BİLDİRİMLER -->
+        <div class="card card-content module-card">
+          <h3 style="font-size:15px;">Bildirimler</h3>
+          <div style="margin-top:10px;font-size:13px;" class="stack">
+            <div class="change-row" style="padding:8px 0;"><span class="change-icon">✉</span><div><strong style="font-size:13.5px;">Program güncellendi</strong><p class="muted" style="font-size:12.5px;">E-posta · dün</p></div></div>
+            <div class="change-row" style="padding:8px 0;"><span class="change-icon">📅</span><div><strong style="font-size:13.5px;">Deneme süren yakında bitiyor</strong><p class="muted" style="font-size:12.5px;">Takvim hatırlatıcısı · 2 gün önce</p></div></div>
+          </div>
+        </div>
+
+        <!-- 10. MAKALE / PODCAST -->
+        <div class="card card-content module-card coming-soon">
+          <h3 style="font-size:15px;">Makaleler ve podcast'ler</h3>
+          <p class="muted" style="margin-top:8px;font-size:13px;">Çalışma teknikleri ve fakülte hayatı üzerine içerikler.</p>
+          <span class="badge badge-neutral" style="margin-top:10px;">Yakında</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="assets/prototype.js"></script>
+<script>
+  var h = SRK.qs("saglik", "iyi");
+  if (h === "uyari") {
+    var strip = document.getElementById("health-strip");
+    strip.className = "health-strip warn";
+    document.getElementById("health-dot").textContent = "⚠";
+    document.getElementById("health-title").textContent = "Son senkronizasyonda uyarılar oluştu.";
+    document.getElementById("health-sub").textContent = "3 ders için konum bilgisi eksikti. Takvim yine de güncellendi — ayrıntılar geçmişte.";
+  }
+</script>
+</body>
+</html>

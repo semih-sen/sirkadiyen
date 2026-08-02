@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tek Kullanıcı Takvim Uyarısı — Sirkadiyen Yönetim</title>
+<link rel="stylesheet" href="assets/sirkadiyen.css" />
+<style>
+  .wiz-content { max-width: 720px; }
+  .template-option { border: 1.5px solid var(--border); border-radius: var(--radius-control); padding: 14px; margin-bottom: 10px; cursor: pointer; }
+  .template-option.selected { border-color: var(--fg); background: color-mix(in oklab, var(--fg) 6%, white); }
+</style>
+</head>
+<body>
+<div class="banner-freeze" id="freeze-banner" hidden role="alert">🧊 Sistem dondurulmuş.</div>
+<div class="admin-shell">
+  <aside class="admin-sidebar" id="admin-sidebar-mount"></aside>
+  <div class="admin-main">
+    <div class="admin-topbar" id="admin-topbar-mount"></div>
+    <div class="admin-content">
+      <h1 style="font-size:22px;">Tek kullanıcı takvim uyarısı</h1>
+      <p class="muted" style="font-size:13.5px;margin-top:4px;">Örnek kullanım: denemesi bitmek üzere olan bir kullanıcıya hatırlatıcı ekleme.</p>
+
+      <ul class="wizard-steps" style="margin-top:20px;" id="wiz-steps">
+        <li data-w="kullanici">1. Kullanıcı seç</li>
+        <li data-w="uygunluk">2. Uygunluğu incele</li>
+        <li data-w="sablon">3–4. Şablon + zamanlama</li>
+        <li data-w="onizleme">5–6. Önizleme + onay</li>
+        <li data-w="izleme">7. İzleme</li>
+      </ul>
+
+      <div class="wiz-content">
+
+        <section data-wiz-step="kullanici" hidden>
+          <div class="card card-content">
+            <h3 style="font-size:15px;">Kullanıcı seç</h3>
+            <div class="field" style="margin-top:14px;"><label>Ad, e-posta veya öğrenci no</label><input class="text-input" value="Ayşe Yıldız" /></div>
+            <div class="card card-content" style="margin-top:8px;">
+              <div class="cluster" style="justify-content:space-between;">
+                <div><strong>Ayşe Yıldız</strong><p class="muted" style="font-size:13px;">ayse.yildiz@ogr.iuc.edu.tr · Dönem 2</p></div>
+                <span class="badge badge-info">Deneme — 2 gün kaldı</span>
+              </div>
+            </div>
+            <div class="cluster" style="justify-content:flex-end;margin-top:14px;"><button class="btn btn-primary" onclick="location.href='admin-user-warning.html?w=uygunluk'">Devam et</button></div>
+          </div>
+        </section>
+
+        <section data-wiz-step="uygunluk" hidden>
+          <div class="card card-content">
+            <h3 style="font-size:15px;">Lisans ve takvim uygunluğu</h3>
+            <div class="summary-row"><span class="muted">Lisans durumu</span><strong style="color:var(--warning);">Deneme — 2 gün kaldı</strong></div>
+            <div class="summary-row"><span class="muted">Takvim bağlantısı</span><strong style="color:var(--success);">Yetkili</strong></div>
+            <div class="summary-row"><span class="muted">Son senkronizasyon</span><strong>Bugün 07:12</strong></div>
+            <div class="banner banner-success" style="background:var(--success-bg);border:1px solid var(--success-border);margin-top:14px;"><span class="banner-icon">✓</span><div>Bu kullanıcıya takvim uyarısı gönderilebilir.</div></div>
+            <div class="cluster" style="justify-content:space-between;margin-top:14px;">
+              <a class="btn btn-tertiary" href="admin-user-warning.html?w=kullanici">← Geri</a>
+              <button class="btn btn-primary" onclick="location.href='admin-user-warning.html?w=sablon'">Devam et</button>
+            </div>
+          </div>
+        </section>
+
+        <section data-wiz-step="sablon" hidden>
+          <div class="card card-content">
+            <h3 style="font-size:15px;">Mesaj şablonu ve zamanlama</h3>
+            <div style="margin-top:14px;">
+              <div class="template-option selected" data-template>
+                <strong>Deneme süresi bitiyor</strong>
+                <p class="muted" style="font-size:13px;margin-top:4px;">"Deneme lisansın 2 gün içinde sona eriyor. Senkronizasyonun kesintisiz devam etmesi için lisansını yenile."</p>
+              </div>
+              <div class="template-option" data-template>
+                <strong>Yeniden yetkilendirme gerekli</strong>
+                <p class="muted" style="font-size:13px;margin-top:4px;">"Google Takvim yetkin iptal edilmiş görünüyor. Senkronizasyonun devam etmesi için yeniden yetkilendir."</p>
+              </div>
+              <div class="template-option" data-template>
+                <strong>Profil eksik</strong>
+                <p class="muted" style="font-size:13px;margin-top:4px;">"Akademik profilinde eksik bilgi var. Lütfen profilini tamamla."</p>
+              </div>
+            </div>
+            <div class="field" style="margin-top:14px;"><label>Mesajı düzenle</label><textarea class="text-input">Deneme lisansın 2 gün içinde sona eriyor. Senkronizasyonun kesintisiz devam etmesi için lisansını yenile.</textarea></div>
+            <div class="audience-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:0 20px;">
+              <div class="field"><label>Tarih</label><input class="text-input" type="date" value="2026-08-03" /></div>
+              <div class="field"><label>Hatırlatıcı</label><select class="select-input"><option>Aynı gün, 09:00</option><option>1 gün önce</option></select></div>
+            </div>
+            <div class="cluster" style="justify-content:space-between;margin-top:8px;">
+              <a class="btn btn-tertiary" href="admin-user-warning.html?w=uygunluk">← Geri</a>
+              <button class="btn btn-primary" onclick="location.href='admin-user-warning.html?w=onizleme'">Devam et</button>
+            </div>
+          </div>
+        </section>
+
+        <section data-wiz-step="onizleme" hidden>
+          <div class="card card-content">
+            <h3 style="font-size:15px;">Takvim etkinliği önizlemesi</h3>
+            <div class="event-preview-card" style="margin-top:14px;border:1.5px solid var(--fg);border-radius:var(--radius-control);padding:16px;background:color-mix(in oklab, var(--fg) 6%, white);">
+              <strong style="font-family:var(--font-display);">Sirkadiyen: Deneme lisansın bitiyor</strong>
+              <p class="muted" style="font-size:13.5px;margin-top:6px;">3 Ağu 2026 · Tüm gün · Ayşe Yıldız'ın takvimine eklenecek</p>
+              <p style="font-size:13.5px;margin-top:8px;">Deneme lisansın 2 gün içinde sona eriyor. Senkronizasyonun kesintisiz devam etmesi için lisansını yenile.</p>
+            </div>
+            <div class="banner banner-info" style="margin-top:14px;"><span class="banner-icon">ℹ</span><div><strong>Uyarı anahtarı:</strong> <span class="mono">warn_ayseyildiz_trial_20260803</span> — bu anahtarla ikinci gönderim "zaten teslim edildi" olarak işaretlenir, yeni etkinlik oluşturmaz.</div></div>
+            <div class="cluster" style="justify-content:space-between;margin-top:16px;">
+              <a class="btn btn-tertiary" href="admin-user-warning.html?w=sablon">← Geri</a>
+              <button class="btn btn-danger" id="open-confirm-modal">Onaya geç</button>
+            </div>
+          </div>
+        </section>
+
+        <section data-wiz-step="izleme" hidden>
+          <div class="card card-content">
+            <div class="cluster" style="justify-content:space-between;">
+              <h3 style="font-size:15px;">Teslim sonucu</h3>
+              <span class="badge badge-success">Teslim edildi</span>
+            </div>
+            <div class="summary-row"><span class="muted">Uyarı anahtarı</span><strong class="mono">warn_ayseyildiz_trial_20260803</strong></div>
+            <div class="summary-row"><span class="muted">Teslim zamanı</span><strong>Az önce</strong></div>
+            <div class="summary-row"><span class="muted">Onaylayan</span><strong>S. Şen</strong></div>
+            <div class="cluster" style="gap:10px;margin-top:16px;">
+              <button class="btn btn-secondary btn-sm" type="button">Güncelle</button>
+              <button class="btn btn-danger-outline btn-sm" type="button">İptal et</button>
+            </div>
+          </div>
+          <div class="card card-content" style="margin-top:16px;">
+            <h3 style="font-size:15px;">Denetim kaydı</h3>
+            <p class="muted" style="font-size:13px;margin-top:8px;">Az önce — S. Şen, Ayşe Yıldız'a "deneme süresi bitiyor" uyarı etkinliği gönderdi.</p>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="confirm-modal" hidden role="dialog" aria-modal="true" aria-labelledby="confirm-title">
+  <div class="modal">
+    <h3 id="confirm-title">Ayşe Yıldız'ın takvimine uyarı eklenecek</h3>
+    <p class="muted" style="margin-top:10px;">Bu, tekil ama geri alınamaz bir yazma işlemidir. Onaylarsan takvim etkinliği oluşturulur.</p>
+    <div class="confirm-type-row"><span>Onaylamak için kullanıcının e-postasını yaz:</span></div>
+    <input class="text-input mono" id="confirm-input" placeholder="ayse.yildiz@ogr.iuc.edu.tr" />
+    <div class="cluster" style="justify-content:flex-end;gap:10px;margin-top:20px;">
+      <button class="btn btn-tertiary" data-close-modal type="button">Vazgeç</button>
+      <button class="btn btn-danger" id="confirm-btn" disabled type="button" onclick="location.href='admin-user-warning.html?w=izleme'">Onayla ve gönder</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/prototype.js"></script>
+<script>
+  SRK.mountAdminShell("user-warning");
+  var w = SRK.qs("w", "kullanici");
+  document.querySelectorAll("[data-wiz-step]").forEach(function (el) { el.hidden = el.getAttribute("data-wiz-step") !== w; });
+  var order = ["kullanici","uygunluk","sablon","onizleme","izleme"];
+  var idx = order.indexOf(w);
+  document.querySelectorAll("#wiz-steps li").forEach(function (li) {
+    var i = order.indexOf(li.getAttribute("data-w"));
+    li.setAttribute("data-status", i < idx ? "done" : i === idx ? "current" : "");
+  });
+  document.querySelectorAll("[data-template]").forEach(function (el) {
+    el.addEventListener("click", function () {
+      document.querySelectorAll("[data-template]").forEach(function (o) { o.classList.remove("selected"); });
+      el.classList.add("selected");
+    });
+  });
+  SRK.bindModal("#open-confirm-modal", "confirm-modal");
+  SRK.bindStrongConfirm("confirm-input", "ayse.yildiz@ogr.iuc.edu.tr", "confirm-btn");
+</script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Google ile giriş yap — Sirkadiyen</title>
+<link rel="stylesheet" href="assets/sirkadiyen.css" />
+<style>
+  .signin-wrap { min-height: calc(100vh - 76px); display: grid; place-items: center; padding: 40px 20px; }
+  .signin-card { width: 100%; max-width: 440px; }
+  .signin-card .card { text-align: center; }
+  .state-banner { margin-bottom: 20px; text-align: left; }
+  .why-google { text-align: left; background: var(--surface); border-radius: var(--radius-control); padding: 16px 18px; margin-top: 22px; font-size: 13.5px; color: var(--ink-70); }
+  .legal-line { margin-top: 22px; font-size: 12.5px; color: var(--ink-70); }
+  .legal-line a { color: var(--fg); font-weight: 600; text-decoration: none; }
+  [data-state-panel] { }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">İçeriğe geç</a>
+<header class="site-nav">
+  <div class="container site-nav__row">
+    <a class="brand" href="landing.html"><span class="brand__mark">S</span> Sirkadiyen</a>
+    <div class="nav-actions"><a class="btn btn-tertiary" href="landing.html">← Ana sayfa</a></div>
+  </div>
+</header>
+
+<main id="main" class="signin-wrap">
+  <div class="signin-card">
+
+    <!-- Askıya alınmış hesap: en baskın olduğu için üstte -->
+    <div data-state-panel="askida" hidden class="banner banner-danger state-banner" role="alert">
+      <span class="banner-icon">⛔</span>
+      <div><strong>Hesabın askıya alındı.</strong> Nedeni ve itiraz yolu için destek ekibiyle iletişime geçmen gerekiyor. Yeniden giriş denemesi hesabı açmaz.</div>
+    </div>
+
+    <!-- Oturum süresi doldu -->
+    <div data-state-panel="oturum-sona-erdi" hidden class="banner banner-warning state-banner" role="status">
+      <span class="banner-icon">⏱</span>
+      <div><strong>Oturumun süresi doldu.</strong> Güvenliğin için tekrar giriş yapman gerekiyor. Verilerin kaybolmadı.</div>
+    </div>
+
+    <!-- Kimlik doğrulama başarısız -->
+    <div data-state-panel="basarisiz" hidden class="banner banner-danger state-banner" role="alert" aria-live="polite">
+      <span class="banner-icon">⚠</span>
+      <div><strong>Google ile giriş tamamlanamadı.</strong> İzin penceresi kapatılmış veya bir ağ sorunu oluşmuş olabilir. Tekrar deneyebilirsin.</div>
+    </div>
+
+    <div class="card" style="padding:40px 32px;">
+      <div class="brand__mark" style="margin:0 auto 18px;width:48px;height:48px;font-size:20px;">S</div>
+      <h1 style="font-size:26px;">Sirkadiyen'e giriş yap</h1>
+      <p class="muted" style="margin-top:10px;">Fakülte e-postanla ilişkili Google hesabınla devam et.</p>
+
+      <div style="margin-top:26px;">
+        <button class="google-btn" id="google-signin-btn" type="button" aria-describedby="signin-help">
+          <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.9 32.7 29.4 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.7-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 16 18.9 13 24 13c3.1 0 5.8 1.1 8 3l5.7-5.7C34.6 6.1 29.6 4 24 4 16 4 9.1 8.5 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.4 0 10.3-2.1 14-5.5l-6.5-5.4C29.6 34.9 27 36 24 36c-5.4 0-9.9-3.3-11.4-8l-6.6 5.1C9 39.5 15.9 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.7 2.1-2.1 3.9-3.9 5.1l6.5 5.4C41.5 35.9 44 30.7 44 24c0-1.3-.1-2.7-.4-3.5z"/></svg>
+          Google ile devam et
+        </button>
+        <p id="signin-help" class="sr-only">Google hesap seçim penceresi açılacaktır.</p>
+      </div>
+
+      <!-- Yükleniyor -->
+      <div data-state-panel="yukleniyor" hidden style="margin-top:20px;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--ink-70);font-size:14px;" aria-live="polite">
+        <span class="spinner" aria-hidden="true"></span> Google ile bağlantı doğrulanıyor…
+      </div>
+
+      <div class="why-google">
+        <strong style="color:var(--fg-ink);">Neden Google?</strong> Sirkadiyen kimliğini Google üzerinden doğrular ve ilerleyen bir adımda, ayrı bir izinle, kendi oluşturduğu takvimi senin hesabına ekler. <strong>Takvim izni bu ekranda istenmez</strong> — kurulumun ayrı bir adımında, ne için kullanılacağı açıklanarak istenir.
+      </div>
+
+      <p class="legal-line">Devam ederek <a href="terms-of-service.html">Kullanım Koşulları</a>'nı ve <a href="privacy-policy.html">Gizlilik Politikası</a>'nı kabul etmiş olursun.</p>
+    </div>
+
+    <p class="muted" style="text-align:center;margin-top:18px;font-size:13.5px;">Lisans kodun mu var? <a href="onboarding.html?step=lisans" style="color:var(--fg);font-weight:600;">Doğrudan etkinleştirmeye geç</a></p>
+  </div>
+</main>
+
+<script src="assets/prototype.js"></script>
+<script>
+  SRK.applyStatePanels("state", "varsayilan");
+  document.getElementById("google-signin-btn").addEventListener("click", function () {
+    var state = SRK.qs("state", "varsayilan");
+    if (state === "yukleniyor" || state === "varsayilan") {
+      location.href = "onboarding.html";
+    }
+  });
+</script>
+</body>
+</html>

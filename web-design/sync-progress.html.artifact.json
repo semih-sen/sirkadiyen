@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "sync-progress.html",
+  "entry": "sync-progress.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-08-02T14:56:04.165Z",
+  "updatedAt": "2026-08-02T14:56:04.165Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}

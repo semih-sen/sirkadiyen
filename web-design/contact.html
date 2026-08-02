@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>İletişim — Sirkadiyen</title>
+<link rel="stylesheet" href="assets/sirkadiyen.css" />
+<style>
+  .contact-wrap { padding: 48px 0 80px; }
+  .contact-grid { display: grid; grid-template-columns: 1.3fr 0.9fr; gap: 40px; align-items: start; }
+  @media (max-width: 860px) { .contact-grid { grid-template-columns: 1fr; } }
+  .info-row { display: flex; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .info-row:last-child { border-bottom: none; }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">İçeriğe geç</a>
+<header class="site-nav">
+  <div class="container site-nav__row">
+    <a class="brand" href="landing.html"><span class="brand__mark">S</span> Sirkadiyen</a>
+    <div class="nav-actions"><a class="btn btn-tertiary" href="landing.html">← Ana sayfa</a></div>
+  </div>
+</header>
+
+<main id="main" class="contact-wrap">
+  <div class="container">
+    <span class="eyebrow">İletişim</span>
+    <h1 style="margin-top:10px;">Destek ekibiyle iletişime geç</h1>
+    <p class="lede" style="margin-top:12px;">Lisans, senkronizasyon veya profil ile ilgili bir sorunun mu var? Aşağıdaki formu doldur, en kısa sürede dönüş yapalım.</p>
+
+    <div class="contact-grid" style="margin-top:36px;">
+      <div class="card card-content">
+        <div id="success-panel" hidden class="stack" style="align-items:flex-start;gap:14px;">
+          <div style="width:48px;height:48px;border-radius:50%;background:var(--success-bg);color:var(--success);display:grid;place-items:center;font-size:22px;">✓</div>
+          <h3>Talebin alındı</h3>
+          <p class="muted">Destek ekibimiz genellikle 1–2 iş günü içinde e-posta ile dönüş yapıyor. Talep numaran: <strong class="mono">SRK-DSK-48213</strong></p>
+          <a class="btn btn-secondary" href="landing.html">Ana sayfaya dön</a>
+        </div>
+
+        <div id="service-error-panel" hidden class="banner banner-danger" style="margin-bottom:18px;" role="alert">
+          <span class="banner-icon">⚠</span><div><strong>Gönderim başarısız oldu.</strong> Sunucuya ulaşılamadı. Lütfen birkaç dakika sonra tekrar dene.</div>
+        </div>
+
+        <form id="contact-form">
+          <div class="field">
+            <label for="c-category">Talep kategorisi</label>
+            <select class="select-input" id="c-category" required>
+              <option value="">Seçiniz…</option>
+              <option value="lisans">Lisans / etkinleştirme</option>
+              <option value="senkron">Takvim senkronizasyonu</option>
+              <option value="profil">Akademik profil / grup</option>
+              <option value="hata">Program hatası</option>
+              <option value="gizlilik">Gizlilik / veri talebi</option>
+              <option value="diger">Diğer</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="c-subject">Konu</label>
+            <input class="text-input" id="c-subject" required aria-describedby="" />
+            <p class="field-error" data-error-for="c-subject" hidden>Konu alanı zorunludur.</p>
+          </div>
+          <div class="field">
+            <label for="c-desc">Açıklama</label>
+            <textarea class="text-input" id="c-desc" required placeholder="Sorunu mümkün olduğunca ayrıntılı anlat…"></textarea>
+            <p class="field-error" data-error-for="c-desc" hidden>Açıklama alanı zorunludur.</p>
+          </div>
+          <div class="field-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px;">
+            <div class="field">
+              <label for="c-student-no">Öğrenci numarası <span class="muted" style="font-weight:400;">(opsiyonel)</span></label>
+              <input class="text-input mono" id="c-student-no" inputmode="numeric" maxlength="10" />
+            </div>
+            <div class="field">
+              <label for="c-email">E-posta</label>
+              <input class="text-input" id="c-email" type="email" required />
+              <p class="field-error" data-error-for="c-email" hidden>Geçerli bir e-posta adresi gir.</p>
+            </div>
+          </div>
+          <button class="btn btn-primary btn-block" type="submit">Talebi gönder</button>
+        </form>
+      </div>
+
+      <div>
+        <div class="card card-content" style="margin-bottom:20px;">
+          <h3 style="font-size:16px;">Doğrudan iletişim</h3>
+          <div class="info-row"><span>✉</span><div><strong>E-posta</strong><p class="muted" style="font-size:13.5px;">destek@sirkadiyen.app</p></div></div>
+          <div class="info-row"><span>⏱</span><div><strong>Beklenen yanıt süresi</strong><p class="muted" style="font-size:13.5px;">1–2 iş günü içinde</p></div></div>
+        </div>
+        <div class="card card-content">
+          <h3 style="font-size:16px;">Önce buraya bakmak ister misin?</h3>
+          <p class="muted" style="margin-top:8px;font-size:13.5px;">Sık karşılaşılan sorunların çoğu SSS bölümünde yanıtlanıyor.</p>
+          <a class="btn btn-secondary btn-sm" style="margin-top:12px;" href="landing.html#sss">SSS'ye git</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-bottom">
+    <span>© <span data-year></span> Sirkadiyen</span>
+    <span><a href="privacy-policy.html" style="color:var(--fg);">Gizlilik Politikası</a> · <a href="terms-of-service.html" style="color:var(--fg);">Kullanım Koşulları</a></span>
+  </div>
+</footer>
+
+<script src="assets/prototype.js"></script>
+<script>
+  var cat = SRK.qs("kategori", "");
+  if (cat) document.getElementById("c-category").value = cat;
+  SRK.bindFormDemo("contact-form", { successId: "success-panel", serviceErrorId: "service-error-panel", simulateServiceError: true });
+</script>
+</body>
+</html>

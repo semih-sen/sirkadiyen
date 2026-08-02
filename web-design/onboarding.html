@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kurulum — Sirkadiyen</title>
+<link rel="stylesheet" href="assets/sirkadiyen.css" />
+<style>
+  .onboarding-wrap { padding: 36px 0 80px; }
+  .stepper-shell { margin-bottom: 8px; }
+  .step-titles { display: flex; margin-top: 8px; }
+  .step-titles li { flex: 1; list-style: none; font-size: 13px; }
+  .step-content { max-width: 640px; margin: 40px auto 0; }
+  .step-content.wide { max-width: 860px; }
+  [data-step-panel] { }
+  .two-col-table { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 620px) { .two-col-table { grid-template-columns: 1fr; } }
+  .cal-cap-card { border-radius: var(--radius-control); padding: 16px; }
+  .cal-cap-card.yes { background: var(--success-bg); border: 1px solid var(--success-border); }
+  .cal-cap-card.no { background: var(--surface); border: 1px solid var(--border); }
+  .terminal-card { max-width: 480px; margin: 60px auto; text-align: center; }
+  .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+  @media (max-width: 560px) { .field-grid { grid-template-columns: 1fr; } }
+  .summary-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .summary-row:last-child { border-bottom: none; }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">İçeriğe geç</a>
+<header class="student-topbar">
+  <div class="container">
+    <a class="brand" href="landing.html"><span class="brand__mark">S</span> Sirkadiyen</a>
+    <button class="btn btn-tertiary btn-sm" type="button">Çıkış yap</button>
+  </div>
+</header>
+
+<main id="main" class="onboarding-wrap">
+  <div class="container" style="max-width:860px;">
+
+    <!-- ASKIYA ALINMIŞ HESAP: stepper'ı tamamen değiştirir -->
+    <div id="step-panel-askida" data-step-panel="askida" hidden>
+      <div class="terminal-card card">
+        <div style="width:56px;height:56px;border-radius:50%;background:var(--danger-bg);color:var(--danger);display:grid;place-items:center;margin:0 auto 18px;font-size:26px;">⛔</div>
+        <h2>Hesabın askıya alındı</h2>
+        <p class="muted" style="margin-top:12px;">Kurulum işlemine devam edemezsin. Bu karar bir yönetici tarafından, gerekçesiyle birlikte kaydedilmiştir. İtiraz etmek veya nedenini öğrenmek için destek ekibiyle iletişime geç.</p>
+        <a class="btn btn-primary" style="margin-top:22px;" href="contact.html?kategori=lisans">Destek ile iletişime geç</a>
+      </div>
+    </div>
+
+    <div id="onboarding-normal">
+      <div class="resume-banner" role="status">
+        <span aria-hidden="true">↻</span>
+        <span>Kurulumun <strong id="resume-step-label">1. adımından</strong> devam ediyorsun. Önceki adımlar sunucuda kayıtlı — tarayıcıyı kapatıp dönsen bile kaldığın yerden devam edersin.</span>
+      </div>
+
+      <nav aria-label="Kurulum adımları" class="stepper-shell">
+        <ol class="stepper" id="stepper-list">
+          <li data-step="lisans"><span class="step-num">1</span>Lisans</li>
+          <li data-step="profil"><span class="step-num">2</span>Profil</li>
+          <li data-step="takvim"><span class="step-num">3</span>Takvim izni</li>
+          <li data-step="senkron"><span class="step-num">4</span>Senkronizasyon</li>
+          <li data-step="tamamlandi"><span class="step-num">5</span>Hazır</li>
+        </ol>
+      </nav>
+
+      <!-- ================= ADIM 1: LİSANS ================= -->
+      <section id="step-panel-lisans" data-step-panel="lisans" hidden class="step-content">
+        <h2>Lisans kodunu etkinleştir</h2>
+        <p class="muted" style="margin-top:8px;">Fakülteden veya Sirkadiyen ekibinden aldığın kodu gir. Kod yalnızca oluşturulduğu anda tam olarak gösterilir; burada geçmişi tutulmaz.</p>
+
+        <div class="card card-content" style="margin-top:24px;">
+          <div class="field">
+            <label for="license-code">Lisans kodu</label>
+            <input class="text-input mono" id="license-code" placeholder="SRK-XXXXX-XXXXX" autocomplete="off" spellcheck="false" aria-describedby="license-hint" />
+            <p class="field-hint" id="license-hint">Büyük/küçük harf ve tireler otomatik düzenlenir. Yapıştırabilirsin.</p>
+          </div>
+
+          <div data-state-panel="bicim-hatali" hidden class="banner banner-danger" role="alert"><span class="banner-icon">⚠</span><div><strong>Kod biçimi hatalı.</strong> Beklenen biçim: SRK-XXXXX-XXXXX (10 karakter).</div></div>
+          <div data-state-panel="dogrulaniyor" hidden class="banner banner-info" role="status"><span class="spinner"></span><div>Kod doğrulanıyor…</div></div>
+          <div data-state-panel="gecerli" hidden class="banner" style="background:var(--success-bg);border:1px solid var(--success-border);" role="status"><span class="banner-icon">✓</span><div><strong>Kod geçerli.</strong> Devam edebilirsin.</div></div>
+          <div data-state-panel="suresi-dolmus" hidden class="banner banner-warning" role="alert"><span class="banner-icon">⏱</span><div><strong>Bu kodun süresi dolmuş.</strong> Yeni bir kod için destek ekibiyle iletişime geç.</div></div>
+          <div data-state-panel="zaten-kullanilmis" hidden class="banner banner-warning" role="alert"><span class="banner-icon">ℹ</span><div><strong>Bu kod zaten kullanılmış.</strong> Bir kod yalnızca bir kez etkinleştirilebilir. Farklı bir kodun varsa onu deneyebilirsin.</div></div>
+          <div data-state-panel="iptal-edilmis" hidden class="banner banner-danger" role="alert"><span class="banner-icon">⛔</span><div><strong>Bu kod iptal edilmiş.</strong> Nedeni hakkında bilgi almak için destek ekibiyle iletişime geç.</div></div>
+          <div data-state-panel="bulunamadi" hidden class="banner banner-danger" role="alert"><span class="banner-icon">✕</span><div><strong>Kod bulunamadı.</strong> Yazım hatası olabilir mi? Kontrol edip tekrar dene.</div></div>
+          <div data-state-panel="rate-limited" hidden class="banner banner-warning" role="alert"><span class="banner-icon">🛑</span><div><strong>Çok fazla deneme yapıldı.</strong> Güvenlik nedeniyle birkaç dakika bekleyip tekrar dene.</div></div>
+
+          <div class="cluster" style="justify-content:space-between;margin-top:20px;">
+            <span class="muted" style="font-size:13px;">Kod bulamıyor musun? <a href="contact.html?kategori=lisans" style="color:var(--fg);font-weight:600;">Destek al</a></span>
+            <button class="btn btn-primary" type="button" onclick="location.href='onboarding.html?step=profil'">Devam et</button>
+          </div>
+        </div>
+        <div class="impl-note">ℹ️ Uygulama notu: <code>POST /api/licenses/redeem</code>. Durumlar API'nin döndürdüğü sonuç koduyla birebir eşleşir; düz metin kod istemci tarafında saklanmaz.</div>
+      </section>
+
+      <!-- ================= ADIM 2: PROFİL ================= -->
+      <section id="step-panel-profil" data-step-panel="profil" hidden class="step-content wide">
+        <h2>Akademik profilini tamamla</h2>
+        <p class="muted" style="margin-top:8px;">Alanlar seçtiğin programa göre değişir; uygulanmayan boyutlar hiç görünmez.</p>
+
+        <div data-state-panel="yukleniyor" hidden class="card card-content" style="margin-top:24px;">
+          <div class="stack" style="gap:14px;">
+            <div class="skeleton" style="height:46px;"></div>
+            <div class="skeleton" style="height:46px;"></div>
+            <div class="skeleton" style="height:46px;width:60%;"></div>
+          </div>
+        </div>
+
+        <div data-state-panel="hazir,alan-hatasi,desteklenmeyen-kombinasyon,kaydediliyor,kayitli" hidden class="card card-content" style="margin-top:24px;">
+          <div data-state-panel="desteklenmeyen-kombinasyon" hidden class="banner banner-warning" style="margin-bottom:20px;" role="alert"><span class="banner-icon">⚠</span><div><strong>Bu boyut kombinasyonu şu anda desteklenmiyor.</strong> Dönem 3 kaynak entegrasyonu hazırlık aşamasında. Profilini kaydedebilirsin; destek verildiğinde otomatik senkronize olur.</div></div>
+          <div data-state-panel="kayitli" hidden class="banner" style="background:var(--success-bg);border:1px solid var(--success-border);margin-bottom:20px;" role="status"><span class="banner-icon">✓</span><div>Profilin kaydedildi.</div></div>
+
+          <form id="profile-form">
+            <div class="field-grid">
+              <div class="field">
+                <label for="f-year">Akademik yıl</label>
+                <select class="select-input" id="f-year"><option>2025–2026</option><option>2024–2025</option></select>
+              </div>
+              <div class="field">
+                <label for="f-class">Dönem (sınıf yılı)</label>
+                <select class="select-input" id="f-class"><option>Dönem 1</option><option selected>Dönem 2</option><option>Dönem 3</option></select>
+              </div>
+              <div class="field">
+                <label for="f-lang">Program dili</label>
+                <select class="select-input" id="f-lang"><option>Türkçe</option><option>İngilizce</option></select>
+              </div>
+              <div class="field">
+                <label for="f-curriculum">Müfredat grubu</label>
+                <select class="select-input" id="f-curriculum"><option>A Grubu</option><option>B Grubu</option><option>C Grubu</option></select>
+              </div>
+              <div class="field" id="practice-group-wrap">
+                <label for="f-practice">Uygulama grubu</label>
+                <select class="select-input" id="f-practice">
+                  <option value="">Seçiniz…</option>
+                  <option value="pg1">Uygulama Grubu 1</option>
+                  <option value="pg2">Uygulama Grubu 2</option>
+                </select>
+              </div>
+              <div class="field" id="practice-subgroup-wrap" hidden>
+                <label for="f-practice-sub">Uygulama alt grubu</label>
+                <select class="select-input" id="f-practice-sub"><option>Alt Grup 1A</option><option>Alt Grup 1B</option></select>
+                <p class="field-hint">Yalnızca üst uygulama grubu seçildiğinde görünür.</p>
+              </div>
+              <div class="field">
+                <label for="f-anatomy">Anatomi grubu</label>
+                <select class="select-input" id="f-anatomy"><option>Anatomi Grup 1</option><option>Anatomi Grup 2</option></select>
+              </div>
+              <div class="field">
+                <label for="f-corridor">Dikey koridor grubu</label>
+                <select class="select-input" id="f-corridor"><option>Koridor 1</option><option>Koridor 2</option></select>
+              </div>
+              <div class="field">
+                <label for="f-bedside">Hasta başı grubu</label>
+                <select class="select-input" id="f-bedside"><option>Grup A</option><option>Grup B</option></select>
+              </div>
+              <div class="field">
+                <label for="f-faculty-group">Öğretim üyesi uygulama grubu</label>
+                <select class="select-input" id="f-faculty-group"><option>Dr. Aydın grubu</option><option>Dr. Kaya grubu</option></select>
+              </div>
+              <div class="field" style="grid-column:1/-1;max-width:260px;">
+                <label for="f-student-no">Öğrenci numarası</label>
+                <input class="text-input mono" id="f-student-no" inputmode="numeric" maxlength="10" placeholder="0123456789" required aria-describedby="student-no-hint" />
+                <p class="field-hint" id="student-no-hint">10 haneli, yalnızca rakam. Baştaki sıfır korunur.</p>
+                <p class="field-error" data-error-for="f-student-no" hidden>Öğrenci numarası 10 haneli olmalı ve seçilen programla tutarlı olmalı.</p>
+              </div>
+            </div>
+            <div class="cluster" style="justify-content:space-between;margin-top:12px;">
+              <a class="btn btn-tertiary" href="onboarding.html?step=lisans">← Geri</a>
+              <button class="btn btn-primary" type="button" onclick="location.href='onboarding.html?step=takvim'">Profili kaydet ve devam et</button>
+            </div>
+          </form>
+        </div>
+        <div class="impl-note">ℹ️ Uygulama notu: Alanlar <code>GET /api/profile/options</code> şemasından üretilir, <code>GET/PUT /api/profile</code> ile kaydedilir. Seçilmeyen boyutlar DOM'a hiç eklenmez.</div>
+      </section>
+
+      <!-- ================= ADIM 3: TAKVİM İZNİ ================= -->
+      <section id="step-panel-takvim" data-step-panel="takvim" hidden class="step-content wide">
+        <h2>Google Calendar yetkilendirmesi</h2>
+        <p class="muted" style="margin-top:8px;">Sirkadiyen, kendi oluşturduğu ayrı bir takvime yazma izni ister. Mevcut takvimlerine erişmez.</p>
+
+        <div data-state-panel="eylem-gerekli" hidden class="banner banner-warning" style="margin:20px 0;" role="alert">
+          <span class="banner-icon">⚠</span>
+          <div><strong>Eylem gerekli:</strong> Hesabında senkronizasyonun devam edebilmesi için Google takvim yetkisinin yeniden onaylanması gerekiyor.</div>
+        </div>
+
+        <div class="card card-content" style="margin-top:16px;">
+          <div class="two-col-table">
+            <div class="cal-cap-card yes">
+              <h4>✅ Erişebilir</h4>
+              <ul class="cap-list" style="margin-top:10px;">
+                <li class="cap-yes"><span class="cap-dot">✓</span> Yalnızca "Sirkadiyen Ders Programı" takvimi</li>
+                <li class="cap-yes"><span class="cap-dot">✓</span> Bu takvimde etkinlik oluşturma/güncelleme</li>
+              </ul>
+            </div>
+            <div class="cal-cap-card no">
+              <h4>🚫 Erişemez</h4>
+              <ul class="cap-list" style="margin-top:10px;">
+                <li class="cap-no"><span class="cap-dot">✕</span> Mevcut kişisel/iş takvimlerin</li>
+                <li class="cap-no"><span class="cap-dot">✕</span> Diğer Google servisleri</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="banner banner-info" style="margin-top:20px;">
+            <span class="banner-icon">💡</span>
+            <div><strong>Neden ayrı bir takvim?</strong> Böylece istediğin an kapatabilir, renklendirebilir ve kişisel planlarınla karıştırmadan yönetebilirsin.</div>
+          </div>
+
+          <div data-state-panel="izin-bekleniyor" hidden style="margin-top:24px;text-align:center;">
+            <button class="btn btn-primary" type="button" id="grant-cal-btn">Google Takvim iznini ver</button>
+          </div>
+          <div data-state-panel="popup-acik" hidden style="margin-top:24px;text-align:center;color:var(--ink-70);"><span class="spinner"></span> İzin penceresi açık — lütfen tamamla…</div>
+          <div data-state-panel="izin-reddedildi" hidden class="banner banner-danger" style="margin-top:20px;" role="alert"><span class="banner-icon">✕</span><div><strong>İzin reddedildi.</strong> Devam edebilmek için Google Takvim iznini kabul etmen gerekiyor.</div></div>
+          <div data-state-panel="eksik-kapsam" hidden class="banner banner-warning" style="margin-top:20px;" role="alert"><span class="banner-icon">⚠</span><div><strong>Eksik yetki kapsamı verildi.</strong> Google, istenen izinlerin yalnızca bir kısmını onayladı. Lütfen izni tekrar ver.</div></div>
+          <div data-state-panel="iptal-edilmis" hidden class="banner banner-danger" style="margin-top:20px;" role="alert"><span class="banner-icon">⛔</span><div><strong>Yetki iptal edilmiş (yeniden yetkilendirme gerekli).</strong> Google hesap ayarlarından erişim geri alınmış görünüyor.</div></div>
+          <div data-state-panel="yetkili" hidden class="banner" style="background:var(--success-bg);border:1px solid var(--success-border);margin-top:20px;" role="status"><span class="banner-icon">✓</span><div><strong>Yetki verildi.</strong> Takvimi senkronizasyon sırasında sunucu oluşturacak.</div></div>
+
+          <div class="cluster" style="justify-content:space-between;margin-top:24px;" data-state-panel="izin-reddedildi,eksik-kapsam,iptal-edilmis,yetkili">
+            <a class="btn btn-tertiary" href="onboarding.html?step=profil">← Geri</a>
+            <div class="cluster" style="gap:10px;">
+              <button class="btn btn-secondary" type="button" onclick="location.href='onboarding.html?step=takvim&state=popup-acik'">Tekrar dene</button>
+              <button class="btn btn-primary" type="button" onclick="location.href='onboarding.html?step=senkron'">Devam et</button>
+            </div>
+          </div>
+        </div>
+        <div class="impl-note">ℹ️ Uygulama notu: <code>GET /api/calendar/authorization/options</code>, <code>GET/POST /api/calendar/authorization</code> — popup kod akışı. Frontend takvimi doğrudan değiştirmez.</div>
+      </section>
+
+      <!-- ================= ADIM 4: İLK SENKRONİZASYON (devir) ================= -->
+      <section id="step-panel-senkron" data-step-panel="senkron" hidden class="step-content">
+        <h2>İlk senkronizasyona hazırsın</h2>
+        <p class="muted" style="margin-top:8px;">Sunucu; fakülte programını okuyacak, senin gruplarına göre kişiselleştirecek ve özel takvimini oluşturacak. Bu işlem birkaç dakika sürebilir.</p>
+        <div class="card card-content" style="margin-top:24px;text-align:center;">
+          <p style="font-weight:700;">Bu adım geri alınamaz bir yazma işlemi başlatır: takvimine etkinlikler eklenecek.</p>
+          <a class="btn btn-primary" style="margin-top:18px;" href="sync-progress.html">İlk senkronizasyonu başlat</a>
+        </div>
+        <div class="impl-note">ℹ️ Uygulama notu: <code>GET/POST /api/calendar/sync</code>. İlerleme ayrı ekranda (<code>sync-progress.html</code>) worker durumundan okunur.</div>
+      </section>
+
+      <!-- ================= ADIM 5: TAMAMLANDI ================= -->
+      <section id="step-panel-tamamlandi" data-step-panel="tamamlandi" hidden class="step-content">
+        <div style="text-align:center;">
+          <div style="width:56px;height:56px;border-radius:50%;background:var(--success-bg);color:var(--success);display:grid;place-items:center;margin:0 auto 18px;font-size:26px;">✓</div>
+          <h2>Kurulum tamamlandı</h2>
+          <p class="muted" style="margin-top:8px;">Takvimin hazır. Program değiştiğinde otomatik güncellenecek.</p>
+        </div>
+        <div class="card card-content" style="margin-top:24px;">
+          <div class="summary-row"><span class="muted">Takvim adı</span><strong>Sirkadiyen Ders Programı</strong></div>
+          <div class="summary-row"><span class="muted">Oluşturulan etkinlik</span><strong>128</strong></div>
+          <div class="summary-row"><span class="muted">Tarih aralığı</span><strong>15 Eyl 2025 – 30 Oca 2026</strong></div>
+          <div class="summary-row"><span class="muted">Son güncelleme</span><strong>Az önce</strong></div>
+        </div>
+        <div class="cluster" style="justify-content:center;gap:12px;margin-top:24px;">
+          <a class="btn btn-secondary" href="#" onclick="return false;">Takvimimi aç ↗</a>
+          <a class="btn btn-primary" href="student-dashboard.html">Panele git</a>
+        </div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<script src="assets/prototype.js"></script>
+<script>
+  var stepOrder = ["lisans", "profil", "takvim", "senkron", "tamamlandi"];
+  var stepLabels = { lisans: "1. adımından", profil: "2. adımından", takvim: "3. adımından", senkron: "4. adımından", tamamlandi: "5. adımından" };
+  var defaultStateByStep = { lisans: "bos", profil: "hazir", takvim: "izin-bekleniyor", senkron: "", tamamlandi: "" };
+  var step = SRK.qs("step", "lisans");
+
+  if (step === "askida") {
+    document.getElementById("onboarding-normal").hidden = true;
+    document.getElementById("step-panel-askida").hidden = false;
+  } else {
+    document.querySelectorAll("[data-step-panel]").forEach(function (el) {
+      el.hidden = el.getAttribute("data-step-panel") !== step;
+    });
+    document.getElementById("resume-step-label").textContent = stepLabels[step] || stepLabels.lisans;
+    var idx = stepOrder.indexOf(step);
+    document.querySelectorAll("#stepper-list li").forEach(function (li) {
+      var liIdx = stepOrder.indexOf(li.getAttribute("data-step"));
+      li.setAttribute("data-status", liIdx < idx ? "done" : liIdx === idx ? "current" : "upcoming");
+    });
+    SRK.applyStatePanels("state", defaultStateByStep[step] || "");
+  }
+
+  SRK.bindLicenseInput("license-code");
+  SRK.bindDependentSelect("f-practice", "practice-subgroup-wrap");
+
+  var grantBtn = document.getElementById("grant-cal-btn");
+  if (grantBtn) grantBtn.addEventListener("click", function () { location.href = "onboarding.html?step=takvim&state=popup-acik"; });
+</script>
+</body>
+</html>

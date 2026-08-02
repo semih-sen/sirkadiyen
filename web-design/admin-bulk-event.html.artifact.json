@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "admin-bulk-event.html",
+  "entry": "admin-bulk-event.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-08-02T15:02:56.340Z",
+  "updatedAt": "2026-08-02T15:02:56.340Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}

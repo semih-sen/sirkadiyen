@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "kind": "html",
+  "title": "privacy-policy.html",
+  "entry": "privacy-policy.html",
+  "renderer": "html",
+  "status": "complete",
+  "exports": [
+    "html",
+    "pdf",
+    "zip"
+  ],
+  "createdAt": "2026-08-02T14:57:27.172Z",
+  "updatedAt": "2026-08-02T14:57:27.172Z",
+  "metadata": {
+    "inferred": true,
+    "reconciled": true
+  }
+}

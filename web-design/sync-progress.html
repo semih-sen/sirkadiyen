@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Senkronizasyon ilerlemesi — Sirkadiyen</title>
+<link rel="stylesheet" href="assets/sirkadiyen.css" />
+<style>
+  .sync-wrap { padding: 36px 0 80px; }
+  .sync-grid { display: grid; grid-template-columns: 1.3fr 0.9fr; gap: 32px; align-items: start; }
+  @media (max-width: 900px) { .sync-grid { grid-template-columns: 1fr; } }
+  .summary-panel { position: sticky; top: 24px; }
+  .counter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+  .counter-box { background: var(--surface); border-radius: var(--radius-control); padding: 12px 14px; }
+  .counter-box .num { font-family: var(--font-display); font-size: 24px; font-weight: 700; }
+  .ledger-tag { font-size: 10.5px; color: var(--ink-70); background: var(--canvas); border: 1px solid var(--border); padding: 1px 6px; border-radius: 999px; margin-left: 6px; }
+  .progress-track { height: 10px; border-radius: 999px; background: var(--surface); overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--fg); border-radius: 999px; transition: width .5s ease; }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">İçeriğe geç</a>
+<header class="student-topbar">
+  <div class="container">
+    <a class="brand" href="landing.html"><span class="brand__mark">S</span> Sirkadiyen</a>
+    <span class="badge badge-neutral" id="global-state-badge">—</span>
+  </div>
+</header>
+
+<main id="main" class="sync-wrap">
+  <div class="container">
+    <div id="top-banner"></div>
+
+    <div style="margin-top:20px;">
+      <h1 style="font-size:28px;">Senkronizasyon ilerlemesi</h1>
+      <p class="muted" style="margin-top:8px;">Bu ekran gerçek çalışma hattının aşamalarını gösterir. Hiçbir aşama, sunucu onayı gelmeden "tamamlandı" görünmez.</p>
+    </div>
+
+    <div class="sync-grid" style="margin-top:28px;">
+      <div>
+        <ol class="timeline" id="stage-timeline"></ol>
+      </div>
+
+      <aside class="card card-content summary-panel">
+        <h3 style="font-size:16px;">Özet</h3>
+        <div style="margin-top:14px;">
+          <div class="cluster" style="justify-content:space-between;font-size:13px;color:var(--ink-70);">
+            <span>Genel ilerleme</span><span id="percent-label" style="font-weight:700;color:var(--fg-ink);">0%</span>
+          </div>
+          <div class="progress-track" style="margin-top:6px;"><div class="progress-fill" id="progress-fill" style="width:0%;"></div></div>
+        </div>
+        <p class="muted" style="margin-top:14px;font-size:13px;">Mevcut aşama: <strong id="current-stage-label" style="color:var(--fg-ink);">—</strong></p>
+
+        <div class="counter-grid">
+          <div class="counter-box"><div class="num" id="c-created">0</div><div class="muted" style="font-size:12.5px;">Oluşturulan<span class="ledger-tag">defterden</span></div></div>
+          <div class="counter-box"><div class="num" id="c-updated">0</div><div class="muted" style="font-size:12.5px;">Güncellenen<span class="ledger-tag">defterden</span></div></div>
+          <div class="counter-box"><div class="num" id="c-unchanged">0</div><div class="muted" style="font-size:12.5px;">Değişmeyen</div></div>
+          <div class="counter-box"><div class="num" id="c-failed">0</div><div class="muted" style="font-size:12.5px;">Başarısız</div></div>
+        </div>
+
+        <div class="hr"></div>
+        <div class="summary-row" style="border:none;padding:4px 0;"><span class="muted">Geçen süre</span><strong id="elapsed">—</strong></div>
+        <div class="summary-row" style="border:none;padding:4px 0;"><span class="muted">Son güncelleme</span><strong id="last-update">—</strong></div>
+        <div class="summary-row" style="border:none;padding:4px 0;"><span class="muted">Uyarılar</span><strong id="warning-count">0</strong></div>
+
+        <div id="action-buttons" class="stack" style="gap:10px;margin-top:18px;"></div>
+      </aside>
+    </div>
+
+    <div class="impl-note" style="margin-top:28px;">ℹ️ Uygulama notu: İlerleme <code>GET /api/calendar/sync</code> durumundan okunur; sayaçlar <code>UserCalendarEventMapping</code> defterinden gelir — tahmin değildir. Takvime yazma işini <strong>.NET Worker</strong> yapar.</div>
+  </div>
+</main>
+
+<script src="assets/prototype.js"></script>
+<script>
+var STAGES = ["Kuyrukta", "Kaynaklar okunuyor", "Kişisel dersler çözülüyor", "Özel takvim hazırlanıyor", "Etkinlikler oluşturuluyor", "Etkinlikler güncelleniyor", "Doğrulanıyor", "Tamamlandı"];
+var STAGE_META = [
+  "İşin sıraya alınması bekleniyor.",
+  "Fakültenin resmî kaynak sayfaları/dosyaları alınıyor.",
+  "Kaynak veriler senin akademik grubuna göre kişiselleştiriliyor.",
+  "\"Sirkadiyen Ders Programı\" takvimi oluşturuluyor veya yeniden bağlanıyor.",
+  "Yeni dersler için takvim etkinlikleri ekleniyor.",
+  "Değişen dersler için mevcut etkinlikler güncelleniyor.",
+  "Takvim ile kaynak veri karşılaştırılarak doğrulanıyor.",
+  "Senkronizasyon tamamlandı ve doğrulandı."
+];
+
+var CONFIG = {
+  "kuyrukta": {
+    badge: ["Kuyrukta", "badge-neutral"], stageStatus: ["active","pending","pending","pending","pending","pending","pending","pending"],
+    percent: 0, elapsed: "0 sn", lastUpdate: "—", counters: {created:0,updated:0,unchanged:0,failed:0}, warnings: 0,
+    banner: null, actions: []
+  },
+  "devam-ediyor": {
+    badge: ["Devam ediyor", "badge-info"], stageStatus: ["done","done","done","active","pending","pending","pending","pending"],
+    percent: 52, elapsed: "1 dk 42 sn", lastUpdate: "3 sn önce", counters: {created:64,updated:8,unchanged:12,failed:0}, warnings: 0,
+    banner: null, actions: [], live: true
+  },
+  "tamamlandi": {
+    badge: ["Tamamlandı", "badge-success"], stageStatus: ["done","done","done","done","done","done","done","done"],
+    percent: 100, elapsed: "3 dk 12 sn", lastUpdate: "Az önce", counters: {created:118,updated:10,unchanged:0,failed:0}, warnings: 0,
+    banner: {type:"success", title:"Senkronizasyon tamamlandı.", body:"Takvimin güncel. Bir sonraki kaynak değişikliğinde otomatik yeniden başlar."},
+    actions: [{label:"Takvimimi aç ↗", cls:"btn-primary"}, {label:"Panele git", cls:"btn-secondary", href:"student-dashboard.html"}]
+  },
+  "uyarilarla-tamamlandi": {
+    badge: ["Uyarılarla tamamlandı", "badge-warning"], stageStatus: ["done","done","done","done","done","done","done","done"],
+    percent: 100, elapsed: "3 dk 40 sn", lastUpdate: "Az önce", counters: {created:110,updated:6,unchanged:2,failed:0}, warnings: 3,
+    banner: {type:"warning", title:"Tamamlandı, ancak 3 uyarı var.", body:"Birkaç ders için konum bilgisi kaynakta eksikti. Takvim yine de güncellendi."},
+    actions: [{label:"Uyarıları incele", cls:"btn-secondary"}, {label:"Panele git", cls:"btn-primary", href:"student-dashboard.html"}]
+  },
+  "gecici-basarisiz": {
+    badge: ["Geçici olarak başarısız", "badge-warning"], stageStatus: ["done","done","done","done","failed","pending","pending","pending"],
+    percent: 61, elapsed: "2 dk 05 sn", lastUpdate: "40 sn önce", counters: {created:40,updated:0,unchanged:0,failed:6}, warnings: 1,
+    banner: {type:"warning", title:"Geçici bir sorun oluştu.", body:"Google Calendar API'sinden geçici bir hata alındı. Sistem otomatik olarak yeniden deneyecek."},
+    actions: [{label:"Şimdi tekrar dene", cls:"btn-primary"}, {label:"Destek ile iletişime geç", cls:"btn-tertiary", href:"contact.html"}]
+  },
+  "kalici-basarisiz": {
+    badge: ["Kalıcı olarak başarısız", "badge-danger"], stageStatus: ["done","done","done","done","failed","pending","pending","pending"],
+    percent: 58, elapsed: "2 dk 30 sn", lastUpdate: "5 dk önce", counters: {created:38,updated:0,unchanged:0,failed:14},
+    warnings: 1,
+    banner: {type:"danger", title:"Senkronizasyon kalıcı olarak başarısız oldu.", body:"Otomatik yeniden deneme sınırına ulaşıldı. Gerekçe kategorisi: \"kaynak verisi işlenemedi\". Destek ekibinin incelemesi gerekiyor."},
+    actions: [{label:"Destek ile iletişime geç", cls:"btn-primary", href:"contact.html"}]
+  },
+  "yetki-iptal": {
+    badge: ["Google yetkisi iptal edildi", "badge-danger"], stageStatus: ["done","done","done","failed","pending","pending","pending","pending"],
+    percent: 38, elapsed: "48 sn", lastUpdate: "12 sn önce", counters: {created:0,updated:0,unchanged:0,failed:0}, warnings: 0,
+    banner: {type:"danger", title:"Google Takvim yetkisi iptal edilmiş.", body:"Hesabında Sirkadiyen'in takvim erişimi geri alınmış. Devam etmek için yeniden yetkilendirme gerekiyor."},
+    actions: [{label:"Google Takvim'i yeniden yetkilendir", cls:"btn-primary", href:"onboarding.html?step=takvim&state=iptal-edilmis"}]
+  },
+  "revizyon-incelemede": {
+    badge: ["Kaynak revizyonu incelemede", "badge-info"], stageStatus: ["done","done","skipped","pending","pending","pending","pending","pending"],
+    percent: 25, elapsed: "—", lastUpdate: "Bugün 09:14", counters: {created:0,updated:0,unchanged:118,failed:0}, warnings: 0,
+    banner: {type:"info", title:"Takvimin bilerek güncellenmedi.", body:"Kaynak veride beklenmedik bir değişiklik tespit edildi ve insan incelemesine gönderildi. Bu, bir hata değil — yanlış veriyle takvimini güncellememek için bilinçli bir bekleme."},
+    actions: [{label:"İncelemenin ne demek olduğunu öğren", cls:"btn-secondary", href:"contact.html"}]
+  },
+  "desteklenmeyen-profil": {
+    badge: ["Desteklenmeyen akademik profil", "badge-neutral"], stageStatus: ["done","failed","pending","pending","pending","pending","pending","pending"],
+    percent: 12, elapsed: "—", lastUpdate: "2 dk önce", counters: {created:0,updated:0,unchanged:0,failed:0}, warnings: 0,
+    banner: {type:"warning", title:"Profilindeki kombinasyon henüz desteklenmiyor.", body:"Seçtiğin akademik grup kombinasyonu için kaynak eşlemesi tamamlanmadı. Profilini gözden geçirebilirsin."},
+    actions: [{label:"Profili düzenle", cls:"btn-primary", href:"onboarding.html?step=profil&state=desteklenmeyen-kombinasyon"}]
+  },
+  "eylem-gerekli": {
+    badge: ["Eylem gerekli", "badge-warning"], stageStatus: ["done","done","done","done","done","failed","pending","pending"],
+    percent: 70, elapsed: "2 dk 50 sn", lastUpdate: "1 dk önce", counters: {created:96,updated:4,unchanged:0,failed:2}, warnings: 1,
+    banner: {type:"warning", title:"Devam etmek için bir eylem gerekiyor.", body:"Doğrulama sırasında öğrenci numarası ile program dili arasında bir tutarsızlık bulundu. Profilini güncellemen gerekiyor."},
+    actions: [{label:"Profili güncelle", cls:"btn-primary", href:"onboarding.html?step=profil&state=alan-hatasi"}]
+  }
+};
+
+var state = SRK.qs("state", "devam-ediyor");
+var cfg = CONFIG[state] || CONFIG["devam-ediyor"];
+
+document.getElementById("global-state-badge").className = "badge " + cfg.badge[1];
+document.getElementById("global-state-badge").textContent = cfg.badge[0];
+document.getElementById("percent-label").textContent = cfg.percent + "%";
+document.getElementById("progress-fill").style.width = cfg.percent + "%";
+document.getElementById("elapsed").textContent = cfg.elapsed;
+document.getElementById("last-update").textContent = cfg.lastUpdate;
+document.getElementById("warning-count").textContent = cfg.warnings;
+document.getElementById("c-created").textContent = cfg.counters.created;
+document.getElementById("c-updated").textContent = cfg.counters.updated;
+document.getElementById("c-unchanged").textContent = cfg.counters.unchanged;
+document.getElementById("c-failed").textContent = cfg.counters.failed;
+
+var activeIdx = cfg.stageStatus.indexOf("active");
+if (activeIdx === -1) { for (var i = cfg.stageStatus.length - 1; i >= 0; i--) { if (cfg.stageStatus[i] === "done" || cfg.stageStatus[i] === "failed") { activeIdx = i; break; } } }
+document.getElementById("current-stage-label").textContent = STAGES[activeIdx] || STAGES[0];
+
+var timelineEl = document.getElementById("stage-timeline");
+STAGES.forEach(function (name, i) {
+  var li = document.createElement("li");
+  li.setAttribute("data-status", cfg.stageStatus[i]);
+  var statusLabel = { done: "Bitti", active: "Çalışıyor", pending: "Bekliyor", failed: "Başarısız", skipped: "Bilerek bekletiliyor" }[cfg.stageStatus[i]];
+  li.innerHTML = '<div class="stage-title">' + name + ' <span class="badge badge-neutral" style="margin-left:8px;">' + statusLabel + '</span></div>' +
+    '<div class="stage-meta">' + STAGE_META[i] + '</div>';
+  timelineEl.appendChild(li);
+});
+
+var bannerHost = document.getElementById("top-banner");
+if (cfg.banner) {
+  var cls = { success: "banner", warning: "banner-warning", danger: "banner-danger", info: "banner-info" }[cfg.banner.type];
+  var icon = { success: "✓", warning: "⚠", danger: "⛔", info: "ℹ" }[cfg.banner.type];
+  var extraStyle = cfg.banner.type === "success" ? 'style="background:var(--success-bg);border:1px solid var(--success-border);"' : "";
+  bannerHost.innerHTML = '<div class="banner ' + (cfg.banner.type !== "success" ? cls : "") + '" ' + extraStyle + ' role="' + (cfg.banner.type === "danger" || cfg.banner.type === "warning" ? "alert" : "status") + '"><span class="banner-icon">' + icon + '</span><div><strong>' + cfg.banner.title + '</strong> ' + cfg.banner.body + '</div></div>';
+}
+
+var actionsHost = document.getElementById("action-buttons");
+cfg.actions.forEach(function (a) {
+  var btn = document.createElement(a.href ? "a" : "button");
+  btn.className = "btn " + a.cls + " btn-block";
+  btn.textContent = a.label;
+  if (a.href) btn.href = a.href; else btn.setAttribute("type", "button");
+  actionsHost.appendChild(btn);
+});
+if (!cfg.actions.length) {
+  var note = document.createElement("p");
+  note.className = "muted"; note.style.fontSize = "13px";
+  note.textContent = "Bu aşamada bir eylem gerekmiyor — süreç kendiliğinden ilerliyor.";
+  actionsHost.appendChild(note);
+}
+
+if (cfg.live) {
+  SRK.simulateSync({
+    stageSelector: "#stage-timeline li",
+    percentId: "percent-label",
+    interval: 1200,
+    counters: { created: { id: "c-created", target: 118 }, updated: { id: "c-updated", target: 10 } }
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Erişim Kayıtları — Sirkadiyen Yönetim</title>
+<link rel="stylesheet" href="assets/sirkadiyen.css" />
+<style>
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 18px 0; }
+  .toolbar .text-input, .toolbar .select-input { max-width: 210px; }
+  .unmask-cell { display: flex; align-items: center; gap: 8px; }
+</style>
+</head>
+<body>
+<div class="banner-freeze" id="freeze-banner" hidden role="alert">🧊 Sistem dondurulmuş.</div>
+<div class="admin-shell">
+  <aside class="admin-sidebar" id="admin-sidebar-mount"></aside>
+  <div class="admin-main">
+    <div class="admin-topbar" id="admin-topbar-mount"></div>
+    <div class="admin-content">
+      <div class="cluster" style="justify-content:space-between;">
+        <div>
+          <h1 style="font-size:22px;">Kimlik doğrulama ve erişim kayıtları</h1>
+          <p class="muted" style="font-size:13.5px;margin-top:4px;">Bu ekran hassas kişisel veri içerir.</p>
+        </div>
+        <span class="badge badge-danger">Hassas kişisel veri</span>
+      </div>
+
+      <div class="banner banner-info" style="margin-top:16px;">
+        <span class="banner-icon">ℹ</span>
+        <div>Yaklaşık konum bilgisi IP tabanlıdır ve <strong>hatalı olabilir</strong> — kimlik kanıtı olarak kullanılamaz. Kayıtlar 90 gün saklanır, sonrasında anonimleştirilir.</div>
+      </div>
+
+      <div class="toolbar">
+        <input class="text-input" id="search-input" placeholder="Kullanıcı ara…" />
+        <select class="select-input" id="filter-result" data-filter-key="result"><option value="all">Tüm sonuçlar</option><option value="basarili">Başarılı</option><option value="basarisiz">Başarısız</option></select>
+        <select class="select-input" id="filter-device" data-filter-key="device"><option value="all">Tüm cihazlar</option><option value="masaustu">Masaüstü</option><option value="mobil">Mobil</option></select>
+        <input class="text-input" type="date" style="max-width:160px;" />
+        <button class="btn btn-secondary btn-sm" type="button">Dışa aktar</button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table data-table--stack" id="logs-table">
+          <thead><tr><th>Kullanıcı</th><th>Zaman</th><th>IP adresi</th><th>Tarayıcı</th><th>İşletim sistemi</th><th>Cihaz</th><th>Sonuç</th><th>Yaklaşık konum</th></tr></thead>
+          <tbody>
+            <tr data-result="basarili" data-device="masaustu">
+              <td data-label="Kullanıcı">Elif Demir</td><td data-label="Zaman">Bugün 07:10</td>
+              <td data-label="IP" class="unmask-cell mono">85.104.***.*** <button class="btn-icon" style="width:26px;height:26px;" title="Maskeyi kaldır (yetki + gerekçe gerekir)" data-unmask>👁</button></td>
+              <td data-label="Tarayıcı">Chrome 128</td><td data-label="OS">Windows 11</td><td data-label="Cihaz">Masaüstü</td>
+              <td data-label="Sonuç"><span class="badge badge-success">Başarılı</span></td><td data-label="Konum">İstanbul, TR <span class="muted" style="font-size:11px;">(yaklaşık)</span></td>
+            </tr>
+            <tr data-result="basarisiz" data-device="mobil">
+              <td data-label="Kullanıcı">Ayşe Yıldız</td><td data-label="Zaman">Bugün 06:58</td>
+              <td data-label="IP" class="unmask-cell mono">176.88.***.*** <button class="btn-icon" style="width:26px;height:26px;" data-unmask>👁</button></td>
+              <td data-label="Tarayıcı">Safari iOS</td><td data-label="OS">iOS 18</td><td data-label="Cihaz">Mobil</td>
+              <td data-label="Sonuç"><span class="badge badge-danger">Başarısız</span></td><td data-label="Konum">Bilinmiyor</td>
+            </tr>
+            <tr data-result="basarili" data-device="masaustu">
+              <td data-label="Kullanıcı">Mert Kaya</td><td data-label="Zaman">Dün 21:40</td>
+              <td data-label="IP" class="unmask-cell mono">31.223.***.*** <button class="btn-icon" style="width:26px;height:26px;" data-unmask>👁</button></td>
+              <td data-label="Tarayıcı">Edge 126</td><td data-label="OS">Windows 10</td><td data-label="Cihaz">Masaüstü</td>
+              <td data-label="Sonuç"><span class="badge badge-success">Başarılı</span></td><td data-label="Konum">Ankara, TR <span class="muted" style="font-size:11px;">(yaklaşık)</span></td>
+            </tr>
+            <tr hidden data-empty-row><td colspan="8" style="text-align:center;padding:24px;">Eşleşen kayıt bulunamadı.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="unmask-modal" hidden role="dialog" aria-modal="true" aria-labelledby="unmask-title">
+  <div class="modal">
+    <h3 id="unmask-title">IP adresini göster</h3>
+    <p class="muted" style="margin-top:10px;">Bu, ayrı yetki gerektiren ve <strong>denetim kaydına yazılan</strong> bir eylemdir. Görüntüleme, kullanıcı adınla ve zaman damgasıyla kaydedilecek.</p>
+    <div class="field" style="margin-top:16px;">
+      <label for="unmask-reason">Gerekçe (zorunlu)</label>
+      <textarea class="text-input" id="unmask-reason" placeholder="Örn: şüpheli oturum incelemesi — talep #4471"></textarea>
+    </div>
+    <div class="cluster" style="justify-content:flex-end;gap:10px;margin-top:20px;">
+      <button class="btn btn-tertiary" data-close-modal type="button">Vazgeç</button>
+      <button class="btn btn-primary" type="button" id="unmask-confirm">Görüntüle ve kaydet</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/prototype.js"></script>
+<script>
+  SRK.mountAdminShell("access-logs");
+  SRK.bindTable("logs-table", { searchInputId: "search-input", filterSelectIds: ["filter-result", "filter-device"] });
+  var modal = document.getElementById("unmask-modal");
+  var pendingCell = null;
+  document.querySelectorAll("[data-unmask]").forEach(function (btn) {
+    btn.addEventListener("click", function () { pendingCell = btn.parentElement; modal.hidden = false; });
+  });
+  modal.querySelectorAll("[data-close-modal]").forEach(function (b) { b.addEventListener("click", function () { modal.hidden = true; }); });
+  document.getElementById("unmask-confirm").addEventListener("click", function () {
+    if (pendingCell) {
+      pendingCell.firstChild.textContent = "85.104.212.44 ";
+      var tag = document.createElement("span"); tag.className = "badge badge-warning"; tag.style.marginLeft = "6px"; tag.textContent = "Görüntülendi — kayıtlı";
+      pendingCell.appendChild(tag);
+      pendingCell.querySelector("[data-unmask]").remove();
+    }
+    modal.hidden = true;
+  });
+</script>
+</body>
+</html>

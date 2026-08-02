@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kullanıcılar — Sirkadiyen Yönetim</title>
+<link rel="stylesheet" href="assets/sirkadiyen.css" />
+<style>
+  .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin: 18px 0; }
+  .toolbar .text-input { max-width: 260px; }
+  .toolbar .select-input { max-width: 200px; }
+  .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(460px, 100vw); background: var(--canvas); box-shadow: var(--shadow-lg); z-index: 300; overflow-y: auto; padding: 24px; transform: translateX(100%); transition: transform .2s ease; }
+  .drawer.is-open { transform: translateX(0); }
+  .drawer[hidden] { display: block; visibility: hidden; }
+  .drawer-overlay { position: fixed; inset: 0; background: color-mix(in oklab, var(--ink-90) 40%, transparent); z-index: 290; }
+  .drawer-overlay[hidden] { display: none; }
+  .detail-section { padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .detail-section:last-child { border-bottom: none; }
+  .action-list { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+  tr[data-row] { cursor: pointer; }
+</style>
+</head>
+<body>
+<div class="banner-freeze" id="freeze-banner" hidden role="alert">🧊 Sistem dondurulmuş — tüm yazma işlemleri askıda.</div>
+
+<div class="admin-shell">
+  <aside class="admin-sidebar" id="admin-sidebar-mount"></aside>
+  <div class="admin-main">
+    <div class="admin-topbar" id="admin-topbar-mount"></div>
+    <div class="admin-content">
+
+      <div class="cluster" style="justify-content:space-between;">
+        <div>
+          <h1 style="font-size:22px;">Kullanıcılar</h1>
+          <p class="muted" style="font-size:13.5px;margin-top:4px;">1.284 kayıtlı kullanıcı. Satıra tıklayarak detayı incele.</p>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <input class="text-input" id="search-input" placeholder="Ad, e-posta veya öğrenci no ara…" aria-label="Kullanıcı ara" />
+        <select class="select-input" id="filter-lisans" data-filter-key="lisans"><option value="all">Tüm lisans durumları</option><option value="aktif">Aktif</option><option value="deneme">Deneme</option><option value="suresi-dolmus">Süresi dolmuş</option></select>
+        <select class="select-input" id="filter-onboarding" data-filter-key="onboarding"><option value="all">Tüm onboarding durumları</option><option value="active">Active</option><option value="action-required">ActionRequired</option><option value="suspended">Suspended</option></select>
+        <button class="btn btn-secondary btn-sm" type="button">Dışa aktar</button>
+      </div>
+
+      <div class="table-wrap">
+        <table class="data-table data-table--stack" id="users-table">
+          <thead>
+            <tr><th>Ad</th><th>E-posta</th><th>Öğrenci no</th><th>Dönem</th><th>Program dili</th><th>Lisans</th><th>Onboarding</th><th>Son giriş</th><th>Son senkron</th><th>Takvim</th><th>Uyarı</th></tr>
+          </thead>
+          <tbody>
+            <tr data-row data-lisans="deneme" data-onboarding="active"><td data-label="Ad">Elif Demir</td><td data-label="E-posta">elif.demir@ogr.iuc.edu.tr</td><td data-label="Öğrenci no" class="mono">2024012345</td><td data-label="Dönem">Dönem 2</td><td data-label="Program dili">TR</td><td data-label="Lisans"><span class="badge badge-info">Deneme</span></td><td data-label="Onboarding"><span class="badge badge-success">Active</span></td><td data-label="Son giriş">Bugün 07:10</td><td data-label="Son senkron">Bugün 07:12</td><td data-label="Takvim"><span class="badge badge-success">Yetkili</span></td><td data-label="Uyarı">—</td></tr>
+            <tr data-row data-lisans="aktif" data-onboarding="active"><td data-label="Ad">Mert Kaya</td><td data-label="E-posta">mert.kaya@ogr.iuc.edu.tr</td><td data-label="Öğrenci no" class="mono">2023098765</td><td data-label="Dönem">Dönem 1</td><td data-label="Program dili">EN</td><td data-label="Lisans"><span class="badge badge-success">Aktif</span></td><td data-label="Onboarding"><span class="badge badge-success">Active</span></td><td data-label="Son giriş">Dün 21:40</td><td data-label="Son senkron">Dün 22:00</td><td data-label="Takvim"><span class="badge badge-success">Yetkili</span></td><td data-label="Uyarı">—</td></tr>
+            <tr data-row data-lisans="deneme" data-onboarding="action-required"><td data-label="Ad">Ayşe Yıldız</td><td data-label="E-posta">ayse.yildiz@ogr.iuc.edu.tr</td><td data-label="Öğrenci no" class="mono">2024045678</td><td data-label="Dönem">Dönem 2</td><td data-label="Program dili">TR</td><td data-label="Lisans"><span class="badge badge-info">Deneme</span></td><td data-label="Onboarding"><span class="badge badge-warning">ActionRequired</span></td><td data-label="Son giriş">3 gün önce</td><td data-label="Son senkron">Başarısız</td><td data-label="Takvim"><span class="badge badge-danger">İptal edilmiş</span></td><td data-label="Uyarı"><span class="badge badge-warning">Yeniden yetki gerekli</span></td></tr>
+            <tr data-row data-lisans="suresi-dolmus" data-onboarding="suspended"><td data-label="Ad">Barış Şahin</td><td data-label="E-posta">baris.sahin@ogr.iuc.edu.tr</td><td data-label="Öğrenci no" class="mono">2022011223</td><td data-label="Dönem">Dönem 3</td><td data-label="Program dili">TR</td><td data-label="Lisans"><span class="badge badge-danger">Süresi dolmuş</span></td><td data-label="Onboarding"><span class="badge badge-danger">Suspended</span></td><td data-label="Son giriş">14 gün önce</td><td data-label="Son senkron">—</td><td data-label="Takvim"><span class="badge badge-neutral">Bağlı değil</span></td><td data-label="Uyarı"><span class="badge badge-danger">Askıda</span></td></tr>
+            <tr data-row data-lisans="aktif" data-onboarding="active"><td data-label="Ad">Deniz Aydın</td><td data-label="E-posta">deniz.aydin@ogr.iuc.edu.tr</td><td data-label="Öğrenci no" class="mono">2023034567</td><td data-label="Dönem">Dönem 1</td><td data-label="Program dili">TR</td><td data-label="Lisans"><span class="badge badge-success">Aktif</span></td><td data-label="Onboarding"><span class="badge badge-success">Active</span></td><td data-label="Son giriş">Bugün 08:02</td><td data-label="Son senkron">Bugün 08:05</td><td data-label="Takvim"><span class="badge badge-success">Yetkili</span></td><td data-label="Uyarı">—</td></tr>
+            <tr hidden data-empty-row><td colspan="11" style="text-align:center;padding:24px;">Eşleşen kullanıcı bulunamadı.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- KULLANICI DETAY ÇEKMECESİ -->
+<div class="drawer-overlay" id="drawer-overlay" hidden></div>
+<aside class="drawer" id="user-drawer" hidden aria-label="Kullanıcı detayı">
+  <div class="cluster" style="justify-content:space-between;">
+    <h3 style="font-size:17px;">Elif Demir</h3>
+    <button class="btn-icon" data-close-drawer aria-label="Kapat">✕</button>
+  </div>
+  <p class="muted" style="font-size:13.5px;margin-top:4px;">elif.demir@ogr.iuc.edu.tr · Öğrenci no 2024012345</p>
+
+  <div class="detail-section">
+    <h4 style="font-size:13px;color:var(--ink-70);text-transform:uppercase;">Akademik profil</h4>
+    <div class="summary-row"><span class="muted">Dönem</span><strong>2</strong></div>
+    <div class="summary-row"><span class="muted">Program dili</span><strong>Türkçe</strong></div>
+    <div class="summary-row"><span class="muted">Uygulama grubu</span><strong>Grup 1</strong></div>
+  </div>
+
+  <div class="detail-section">
+    <h4 style="font-size:13px;color:var(--ink-70);text-transform:uppercase;">Lisans geçmişi</h4>
+    <div class="summary-row"><span class="muted">Durum</span><strong>Deneme — 14 gün kaldı</strong></div>
+    <div class="summary-row"><span class="muted">Etkinleştirme</span><strong>18 Tem 2026, A. Demir</strong></div>
+  </div>
+
+  <div class="detail-section">
+    <h4 style="font-size:13px;color:var(--ink-70);text-transform:uppercase;">Takvim bağlantı durumu</h4>
+    <div class="summary-row"><span class="muted">Durum</span><strong>Yetkili</strong></div>
+    <div class="summary-row"><span class="muted">Yönetilen etkinlik</span><strong>128</strong></div>
+  </div>
+
+  <div class="detail-section">
+    <h4 style="font-size:13px;color:var(--ink-70);text-transform:uppercase;">Denetim geçmişi</h4>
+    <p class="muted" style="font-size:13px;">18 Tem 2026 — Lisans manuel etkinleştirildi (A. Demir)</p>
+    <p class="muted" style="font-size:13px;">15 Tem 2026 — Hesap oluşturuldu</p>
+  </div>
+
+  <div class="detail-section">
+    <h4 style="font-size:13px;color:var(--ink-70);text-transform:uppercase;">Eylemler</h4>
+    <div class="action-list">
+      <a class="btn btn-secondary btn-sm" href="admin-user-warning.html">Tek kullanıcı uyarısı gönder</a>
+      <button class="btn btn-secondary btn-sm" type="button">Manuel etkinleştirme</button>
+      <button class="btn btn-secondary btn-sm" type="button">Yeniden yetkilendirme iste</button>
+      <button class="btn btn-secondary btn-sm" type="button">Onarım / mutabakat talebi</button>
+      <button class="btn btn-danger-outline btn-sm" type="button" id="open-suspend-modal">Kullanıcıyı askıya al</button>
+    </div>
+  </div>
+</aside>
+
+<!-- ASKIYA ALMA MODALI: riskli işlem deseni -->
+<div class="modal-overlay" id="suspend-modal" hidden role="dialog" aria-modal="true" aria-labelledby="suspend-title">
+  <div class="modal">
+    <h3 id="suspend-title">Kullanıcıyı askıya al</h3>
+    <p class="muted" style="margin-top:10px;">Bu işlem geri alınabilir ama <strong>anında etkilidir</strong>: kullanıcı giriş yapamaz, senkronizasyon durur.</p>
+    <div class="field" style="margin-top:18px;">
+      <label for="suspend-reason">Gerekçe (zorunlu)</label>
+      <textarea class="text-input" id="suspend-reason" required placeholder="Örn: lisans kodu paylaşımı şüphesi"></textarea>
+    </div>
+    <div class="banner banner-warning"><span class="banner-icon">⚠</span><div>Etkilenecek kullanıcı: <strong>Elif Demir (elif.demir@ogr.iuc.edu.tr)</strong></div></div>
+    <div class="confirm-type-row">
+      <span>Onaylamak için kullanıcının e-postasını yaz:</span>
+    </div>
+    <input class="text-input mono" id="suspend-confirm-input" placeholder="elif.demir@ogr.iuc.edu.tr" />
+    <div class="cluster" style="justify-content:flex-end;gap:10px;margin-top:20px;">
+      <button class="btn btn-tertiary" data-close-modal type="button">Vazgeç</button>
+      <button class="btn btn-danger" id="suspend-confirm-btn" disabled type="button">Askıya al ve kaydet</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="suspend-done-toast" hidden role="status" style="align-items:flex-end;justify-content:flex-end;background:transparent;pointer-events:none;">
+  <div class="modal" style="max-width:360px;pointer-events:auto;box-shadow:var(--shadow-lg);">
+    <div class="cluster" style="gap:10px;"><span style="color:var(--success);font-size:20px;">✓</span><strong>Kullanıcı askıya alındı ve denetim kaydına yazıldı.</strong></div>
+  </div>
+</div>
+
+<script src="assets/prototype.js"></script>
+<script>
+  SRK.mountAdminShell("users");
+  SRK.bindTable("users-table", { searchInputId: "search-input", filterSelectIds: ["filter-lisans", "filter-onboarding"] });
+
+  var overlay = document.getElementById("drawer-overlay");
+  var drawer = document.getElementById("user-drawer");
+  document.querySelectorAll("[data-row]").forEach(function (row) {
+    row.addEventListener("click", function () {
+      drawer.hidden = false; overlay.hidden = false;
+      requestAnimationFrame(function () { drawer.classList.add("is-open"); });
+    });
+  });
+  function closeDrawer() { drawer.classList.remove("is-open"); overlay.hidden = true; setTimeout(function(){ drawer.hidden = true; }, 200); }
+  overlay.addEventListener("click", closeDrawer);
+  drawer.querySelectorAll("[data-close-drawer]").forEach(function (b) { b.addEventListener("click", closeDrawer); });
+
+  SRK.bindModal("#open-suspend-modal", "suspend-modal");
+  SRK.bindStrongConfirm("suspend-confirm-input", "elif.demir@ogr.iuc.edu.tr", "suspend-confirm-btn");
+  document.getElementById("suspend-confirm-btn").addEventListener("click", function () {
+    document.getElementById("suspend-modal").hidden = true;
+    var toast = document.getElementById("suspend-done-toast");
+    toast.hidden = false;
+    setTimeout(function () { toast.hidden = true; }, 3200);
+  });
+</script>
+</body>
+</html>

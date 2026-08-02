@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kaynaklar & Senkronizasyon — Sirkadiyen Yönetim</title>
+<link rel="stylesheet" href="assets/sirkadiyen.css" />
+<style>
+  .section-gap { margin-top: 28px; }
+  .source-card { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .source-card:last-child { border-bottom: none; }
+</style>
+</head>
+<body>
+<div class="banner-freeze" id="freeze-banner" hidden role="alert">🧊 Sistem dondurulmuş — kaynak işlemleri askıda.</div>
+<div class="admin-shell">
+  <aside class="admin-sidebar" id="admin-sidebar-mount"></aside>
+  <div class="admin-main">
+    <div class="admin-topbar" id="admin-topbar-mount"></div>
+    <div class="admin-content">
+      <h1 style="font-size:22px;">Kaynaklar ve senkronizasyon operasyonları</h1>
+      <p class="muted" style="font-size:13.5px;margin-top:4px;">Fakülte kaynak durumu, revizyon incelemesi ve diff serbest bırakma.</p>
+
+      <!-- KAYNAK DURUMU -->
+      <div class="card card-content section-gap">
+        <h3 style="font-size:15px;">Kaynak durumu</h3>
+        <div style="margin-top:10px;">
+          <div class="source-card">
+            <div><strong>Dönem 1 — Fakülte portalı (TR/EN)</strong><p class="muted" style="font-size:13px;margin-top:2px;">Son yoklama: 12 dk önce · sonuç: <span class="mono">unchanged</span></p></div>
+            <span class="badge badge-success">Sağlıklı</span>
+          </div>
+          <div class="source-card">
+            <div><strong>Dönem 2 — Fakülte portalı (TR)</strong><p class="muted" style="font-size:13px;margin-top:2px;">Son yoklama: 8 dk önce · sonuç: <span class="mono">changed</span></p></div>
+            <span class="badge badge-warning">İncelemede</span>
+          </div>
+          <div class="source-card">
+            <div><strong>Dönem 2 — Fakülte portalı (EN)</strong><p class="muted" style="font-size:13px;margin-top:2px;">Son yoklama: 3 saat önce · sonuç: <span class="mono">unauthorized</span></p></div>
+            <span class="badge badge-danger">Erişim hatası</span>
+          </div>
+          <div class="source-card">
+            <div><strong>Dönem 3 — Doküman yükleme (hazırlık)</strong><p class="muted" style="font-size:13px;margin-top:2px;">Son yoklama: — · sonuç: <span class="mono">UnsupportedDocumentFormat</span></p></div>
+            <span class="badge badge-neutral">Desteklenmiyor</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SNAPSHOT / PARSER -->
+      <div class="grid grid-2 section-gap">
+        <div class="card card-content">
+          <h3 style="font-size:15px;">Snapshot inceleme</h3>
+          <p class="muted" style="font-size:13px;margin-top:8px;">Son alınan ham kaynak anlık görüntüsü, insan gözüyle karşılaştırma için.</p>
+          <div class="table-wrap" style="margin-top:12px;border:none;">
+            <table class="data-table">
+              <thead><tr><th>Snapshot</th><th>Alınma zamanı</th><th>Boyut</th><th>Durum</th></tr></thead>
+              <tbody>
+                <tr><td class="mono">snap_20260802_0710</td><td>Bugün 07:10</td><td>212 KB</td><td><span class="badge badge-success">Parsed</span></td></tr>
+                <tr><td class="mono">snap_20260801_2200</td><td>Dün 22:00</td><td>209 KB</td><td><span class="badge badge-success">Parsed</span></td></tr>
+                <tr><td class="mono">snap_20260801_0900</td><td>Dün 09:00</td><td>210 KB</td><td><span class="badge badge-warning">ReviewRequired</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="card card-content">
+          <h3 style="font-size:15px;">Parser uyarıları ve metrikleri</h3>
+          <div class="summary-row"><span class="muted">İşlenen satır</span><strong>1.842</strong></div>
+          <div class="summary-row"><span class="muted">Uyarı sayısı</span><strong style="color:var(--warning);">6</strong></div>
+          <div class="summary-row"><span class="muted">Reddedilen kayıt</span><strong style="color:var(--danger);">2</strong></div>
+          <p class="muted" style="font-size:13px;margin-top:10px;">Örnek uyarı: "Satır 412 — konum alanı boş, varsayılan değerle dolduruldu."</p>
+        </div>
+      </div>
+
+      <!-- REVİZYON İNCELEME KUYRUĞU -->
+      <div class="card card-content section-gap" id="revizyonlar">
+        <div class="cluster" style="justify-content:space-between;">
+          <h3 style="font-size:15px;">Revizyon inceleme kuyruğu</h3>
+          <span class="badge badge-info">5 bekliyor</span>
+        </div>
+        <p class="muted" style="font-size:13px;margin-top:6px;">Kaynakta anomali tespit edilen revizyonlar, onaylanana kadar takvime yansımaz.</p>
+        <div class="table-wrap" style="margin-top:14px;">
+          <table class="data-table">
+            <thead><tr><th>Revizyon</th><th>Kaynak</th><th>Bulgu</th><th>Durum</th><th></th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="mono">rev_9f21</td><td>Dönem 2 TR</td><td>Ders sayısı beklenenden %40 az</td><td><span class="badge badge-warning">ReviewRequired</span></td>
+                <td><button class="btn btn-secondary btn-sm" type="button" onclick="document.getElementById('review-modal').hidden=false">İncele</button></td>
+              </tr>
+              <tr>
+                <td class="mono">rev_9f18</td><td>Dönem 1 EN</td><td>Yeni bir ders türü tespit edildi</td><td><span class="badge badge-neutral">Validating</span></td>
+                <td><button class="btn btn-tertiary btn-sm" type="button" disabled>Bekliyor</button></td>
+              </tr>
+              <tr>
+                <td class="mono">rev_9f05</td><td>Dönem 2 TR</td><td>Tarih aralığı geçmişe dönük</td><td><span class="badge badge-danger">Quarantined</span></td>
+                <td><button class="btn btn-secondary btn-sm" type="button" onclick="document.getElementById('review-modal').hidden=false">İncele</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- DIFF SERBEST BIRAKMA -->
+      <div class="card card-content section-gap">
+        <h3 style="font-size:15px;">Tutulan diff'ler</h3>
+        <p class="muted" style="font-size:13px;margin-top:6px;">Belirsizlik nedeniyle tutulan değişiklikler; serbest bırakılana kadar takvime uygulanmaz.</p>
+        <div class="table-wrap" style="margin-top:14px;">
+          <table class="data-table">
+            <thead><tr><th>Diff</th><th>Etkilenen ders</th><th>Neden tutuldu</th><th>Durum</th><th></th></tr></thead>
+            <tbody>
+              <tr><td class="mono">diff_5521</td><td>Nöroanatomi</td><td>Belirsiz konum eşlemesi</td><td><span class="badge badge-warning">Held</span></td><td><button class="btn btn-secondary btn-sm" disabled title="Belirsizlik giderilmeden serbest bırakılamaz">Serbest bırak</button></td></tr>
+              <tr><td class="mono">diff_5498</td><td>Histoloji Lab.</td><td>—</td><td><span class="badge badge-success">Released</span></td><td><button class="btn btn-tertiary btn-sm" disabled>Uygulandı</button></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- DOKÜMAN YÜKLEME -->
+      <div class="card card-content section-gap">
+        <h3 style="font-size:15px;">Yönetsel doküman yükleme</h3>
+        <p class="muted" style="font-size:13px;margin-top:6px;">Fakülteden PDF/Excel olarak gelen program dokümanlarını hedef kaynak(lar)a yükle.</p>
+        <div class="cluster" style="gap:10px;margin-top:14px;">
+          <input class="text-input" type="file" style="max-width:280px;" />
+          <select class="select-input" style="max-width:220px;"><option>Dönem 2 TR — hedef kaynak</option><option>Dönem 3 — hedef kaynak</option></select>
+          <button class="btn btn-primary btn-sm" type="button">Yükle</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="review-modal" hidden role="dialog" aria-modal="true" aria-labelledby="review-title">
+  <div class="modal">
+    <h3 id="review-title">Revizyonu incele — rev_9f21</h3>
+    <p class="muted" style="margin-top:10px;">Kaynakta ders sayısı, önceki revizyona göre %40 azaldı. Bu, eksik veri veya kasıtlı bir program küçültmesi olabilir.</p>
+    <div class="banner banner-warning" style="margin-top:14px;"><span class="banner-icon">⚠</span><div>Onaylarsan bu revizyon takvime yansıtılacak. Reddedersen önceki durum korunur.</div></div>
+    <div class="field" style="margin-top:16px;">
+      <label for="review-reason">Gerekçe (zorunlu)</label>
+      <textarea class="text-input" id="review-reason" placeholder="Örn: fakülteyle telefonda teyit edildi, azalma kasıtlı."></textarea>
+    </div>
+    <div class="cluster" style="justify-content:flex-end;gap:10px;margin-top:20px;">
+      <button class="btn btn-tertiary" data-close-modal type="button">Vazgeç</button>
+      <button class="btn btn-danger-outline" type="button" data-close-modal>Reddet</button>
+      <button class="btn btn-primary" type="button" data-close-modal>Onayla ve yayınla</button>
+    </div>
+  </div>
+</div>
+
+<script src="assets/prototype.js"></script>
+<script>
+  SRK.mountAdminShell("sources");
+  SRK.bindModal("[data-open-review]", "review-modal");
+  document.querySelectorAll('[data-close-modal]').forEach(function(b){ b.addEventListener('click', function(){ document.getElementById('review-modal').hidden = true; }); });
+</script>
+</body>
+</html>
