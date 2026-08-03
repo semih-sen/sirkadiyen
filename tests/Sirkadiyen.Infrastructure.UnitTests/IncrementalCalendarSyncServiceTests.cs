@@ -437,7 +437,8 @@ public sealed class IncrementalCalendarSyncServiceTests
             new FakeTokenProtector(),
             new FakeFreezeStore(Frozen),
             Options,
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(Now),
+            TestDepartmentColors.Create());
 
         public async Task<IncrementalCalendarSyncDiffResult> RunSingleAsync()
         {
@@ -528,6 +529,12 @@ public sealed class IncrementalCalendarSyncServiceTests
         public HashSet<string> DeadTokens { get; } = new(StringComparer.Ordinal);
 
         public bool TransientOnInsert { get; set; }
+
+        public Task EnsureEventLabelAsync(
+            CalendarAccess access,
+            string calendarId,
+            ManagedCalendarEventLabel label,
+            CancellationToken cancellationToken) => Task.CompletedTask;
 
         public Task<CalendarEventInsertOutcome> InsertEventAsync(
             CalendarAccess access,

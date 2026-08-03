@@ -192,6 +192,8 @@
   and ledger-resumable per-diff Calendar mutation budget; ADR-065)
 - [x] Admit newly queued Calendar work independently of the adaptive source-polling
   delay, including an initial-sync request created while the worker is idle (ADR-082)
+- [x] Add the 45-department faculty catalog, admin color defaults, per-user color
+  overrides, audited persistence and inventory-driven recoloring (ADR-086)
 
 ## Phase 10: Administration and operations
 
@@ -199,6 +201,7 @@
 - [x] Add authenticated freeze/unfreeze administration surface
 - [x] Administrative document acquisition surface (endpoint ADR-080, `/admin` UI and
   `GET /api/sources/uploadable` ADR-081)
+- [x] Department color administration surface with required audit reason (ADR-086)
 - [~] License administration (create/revoke/manual activation complete; listing and audit inspection pending)
 - [ ] Source status dashboard
 - [ ] Snapshot inspection
@@ -470,6 +473,13 @@ descriptions label instructor, curriculum block, and department fields. Annual p
 amphitheatre-program lookup instructions from canonical locations, while the Calendar
 policy suppresses legacy copies defensively. Inventory compares event label IDs, so
 existing monochrome events are repairable without direct edits.
+
+ADR-086 makes department colors configurable without making department identity
+client-controlled. A reviewed catalog contains all 45 faculty departments and their
+known Turkish/English variations. The effective color order is personal override,
+administrator default, then system default; both admin and user panels expose it.
+Mutations are audited and mark completed calendars due for ordinary non-destructive
+inventory, which updates label definitions and repairs visible events.
 
 The consumer frontend now has a runnable foundation in `web/` (ADR-066). It is a Next.js App
 Router + TypeScript project that walks a student through the whole onboarding path — Google

@@ -18,7 +18,8 @@ public sealed class CalendarInventoryReconciliationService(
     ICalendarTokenProtector tokenProtector,
     IOperationalFreezeStore freezeStore,
     CalendarInventoryReconciliationOptions options,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    DepartmentColorService departmentColors)
 {
     public async Task<CalendarInventoryRunResult> RunDueAsync(
         CancellationToken cancellationToken)
@@ -215,11 +216,21 @@ public sealed class CalendarInventoryReconciliationService(
             ?? ManagedCalendarEventFactory.DeterministicEventId(
                 target.UserId,
                 record.StableIdentity);
+        IReadOnlyDictionary<string, string> colors =
+            await DepartmentColorPaletteResolver.GetAsync(
+                departmentColors,
+                target.UserId,
+                cancellationToken);
         ManagedCalendarEvent desired =
-            ManagedCalendarEventFactory.ToManagedEvent(target.UserId, record) with
+            ManagedCalendarEventFactory.ToManagedEvent(target.UserId, record, colors) with
             {
                 EventId = eventId,
             };
+        await calendarClient.EnsureEventLabelAsync(
+            access,
+            target.ManagedCalendarId,
+            desired.Label,
+            cancellationToken);
 
         if (selected is null)
         {

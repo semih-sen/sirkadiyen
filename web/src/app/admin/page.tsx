@@ -8,6 +8,7 @@ import { ROUTES, routeForOnboardingState } from '@/lib/onboarding';
 import { RevisionReview } from '@/components/RevisionReview';
 import { SourceDocumentUpload } from '@/components/SourceDocumentUpload';
 import { AdminShell, AdminSectionTitle } from '@/components/AdminShell';
+import { DepartmentColorEditor } from '@/components/DepartmentColorEditor';
 import { AuthShell, Banner, ImplNote } from '@/components/ui';
 import type { OperationalFreezeSnapshot } from '@/lib/types';
 
@@ -186,6 +187,10 @@ function AdminPanel() {
 
         <section className="card">
           <RevisionReview />
+        </section>
+
+        <section className="card">
+          <DepartmentColorEditor mode="admin" />
         </section>
 
         <section className="card">

@@ -180,7 +180,7 @@ public sealed class GoogleCalendarClient : IUserCalendarClient, IDisposable
         ArgumentNullException.ThrowIfNull(calendarEvent);
 
         CalendarService service = ServiceFor(access);
-        await EnsureEventLabelAsync(service, calendarId, calendarEvent.Label, cancellationToken);
+        await EnsureEventLabelCoreAsync(service, calendarId, calendarEvent.Label, cancellationToken);
 
         return await ExecuteAsync(
             async () =>
@@ -215,7 +215,7 @@ public sealed class GoogleCalendarClient : IUserCalendarClient, IDisposable
         ArgumentNullException.ThrowIfNull(calendarEvent);
 
         CalendarService service = ServiceFor(access);
-        await EnsureEventLabelAsync(service, calendarId, calendarEvent.Label, cancellationToken);
+        await EnsureEventLabelCoreAsync(service, calendarId, calendarEvent.Label, cancellationToken);
 
         return await ExecuteAsync(
             async () =>
@@ -291,7 +291,23 @@ public sealed class GoogleCalendarClient : IUserCalendarClient, IDisposable
         flow.Dispose();
     }
 
-    private async Task EnsureEventLabelAsync(
+    public Task EnsureEventLabelAsync(
+        CalendarAccess access,
+        string calendarId,
+        ManagedCalendarEventLabel label,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(access);
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarId);
+        ArgumentNullException.ThrowIfNull(label);
+        return EnsureEventLabelCoreAsync(
+            ServiceFor(access),
+            calendarId,
+            label,
+            cancellationToken);
+    }
+
+    private async Task EnsureEventLabelCoreAsync(
         CalendarService service,
         string calendarId,
         ManagedCalendarEventLabel desired,

@@ -4570,3 +4570,68 @@ dimension only after its assignment source and publication rules are confirmed.
   incomplete calendar complete.
 
 ---
+
+## ADR-086: Department identity is catalogued; its Calendar color is layered and configurable
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-03
+**Amends:** ADR-072
+
+### Context
+
+ADR-072 gave every source-stated department a deterministic Google Calendar label and
+color, but the color policy lived entirely in code. Changing a palette required a
+deployment, and every student received the same presentation even though color is a
+personal readability preference. At the same time, letting clients submit arbitrary
+department names would fragment one department into several labels and make source
+normalization less reliable.
+
+The Faculty's official inventory contains 45 departments: 10 Temel Tıp Bilimleri,
+21 Dahili Tıp Bilimleri and 14 Cerrahi Tıp Bilimleri. Source schedules write several
+of those names with `AD.`, full suffixes, English translations, abbreviations and
+minor spelling variants.
+
+### Decision
+
+Keep department **identity** in a reviewed, code-owned catalog. Each entry has a stable
+slug key, official display name, division, system color and explicit Turkish/English
+aliases. Normalization removes typography and an explicit department suffix, but an
+unknown value is not guessed into a known entry; it retains ADR-072's deterministic
+fallback label and color.
+
+Resolve a known department's effective color in this order:
+
+1. the current user's override;
+2. the SuperAdmin-managed default;
+3. the code-owned system default.
+
+Exam and free-study colors remain product-owned categories rather than departments.
+An integrated session that names several departments remains its own deterministic
+presentation category.
+
+Persist admin defaults and per-user overrides separately. Every mutation creates an
+append-only audit entry; an admin mutation additionally requires a reason. Validate
+department keys against the server catalog and colors as uppercase `#RRGGBB`. The
+browser never defines a new key.
+
+A color mutation is presentation work, not a schedule revision. It marks the affected
+completed calendar (all completed calendars for an admin default) due for the existing
+non-destructive inventory. The worker rebuilds desired events with the effective palette;
+the Calendar adapter updates the calendar-scoped label definition and inventory repairs
+events without creating a semantic diff or deletion authority.
+
+### Consequences
+
+- Administrators can change faculty-wide defaults without redeploying, and users can
+  personalize only their own managed calendar.
+- User choices survive later admin changes because the user layer has precedence;
+  resetting an override reveals the current admin or system default.
+- Stable label IDs do not change when RGB values change, so event identity and ledger
+  mappings are unaffected.
+- The catalog is intentionally version-controlled. Adding/renaming a department or an
+  alias is a reviewed identity change; changing its admin color is ordinary runtime data.
+- Updating a global default can make many calendars immediately due for inventory. The
+  existing bounded inventory worker absorbs that fan-out instead of the API calling
+  Google Calendar synchronously.
+
+---

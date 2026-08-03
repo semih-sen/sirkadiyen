@@ -30,7 +30,8 @@ public sealed class IncrementalCalendarSyncService(
     ICalendarTokenProtector tokenProtector,
     IOperationalFreezeStore freezeStore,
     IncrementalSyncOptions options,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    DepartmentColorService departmentColors)
 {
     public async Task<IncrementalCalendarSyncRunResult> RunPendingAsync(
         CancellationToken cancellationToken)
@@ -481,9 +482,15 @@ public sealed class IncrementalCalendarSyncService(
         DispatchAccumulator accumulator,
         CancellationToken cancellationToken)
     {
+        IReadOnlyDictionary<string, string> colors =
+            await DepartmentColorPaletteResolver.GetAsync(
+                departmentColors,
+                target.UserId,
+                cancellationToken);
         ManagedCalendarEvent calendarEvent = ManagedCalendarEventFactory.ToManagedEvent(
             target.UserId,
-            record);
+            record,
+            colors);
 
         try
         {
@@ -523,8 +530,13 @@ public sealed class IncrementalCalendarSyncService(
         // A mapping reidentified after a secondary match deliberately keeps the Google event id
         // created from its original stable identity. The ledger, not a re-derived id, is therefore
         // the authoritative patch target.
+        IReadOnlyDictionary<string, string> colors =
+            await DepartmentColorPaletteResolver.GetAsync(
+                departmentColors,
+                target.UserId,
+                cancellationToken);
         ManagedCalendarEvent calendarEvent =
-            ManagedCalendarEventFactory.ToManagedEvent(target.UserId, record) with
+            ManagedCalendarEventFactory.ToManagedEvent(target.UserId, record, colors) with
             {
                 EventId = holder.GoogleEventId,
             };

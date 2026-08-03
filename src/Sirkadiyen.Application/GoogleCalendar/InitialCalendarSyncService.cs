@@ -24,7 +24,8 @@ public sealed class InitialCalendarSyncService(
     ICalendarTokenProtector tokenProtector,
     IOperationalFreezeStore freezeStore,
     InitialSyncOptions options,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    DepartmentColorService departmentColors)
 {
     public async Task<InitialCalendarSyncRunResult> RunPendingAsync(CancellationToken cancellationToken)
     {
@@ -226,8 +227,13 @@ public sealed class InitialCalendarSyncService(
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
+        IReadOnlyDictionary<string, string> colors =
+            await DepartmentColorPaletteResolver.GetAsync(
+                departmentColors,
+                userId,
+                cancellationToken);
         ManagedCalendarEvent calendarEvent =
-            ManagedCalendarEventFactory.ToManagedEvent(userId, record);
+            ManagedCalendarEventFactory.ToManagedEvent(userId, record, colors);
 
         // The insert is idempotent on the deterministic event id, so a re-run after a crash
         // between the insert and the mapping write reports AlreadyExists rather than duplicating.

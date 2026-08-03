@@ -164,6 +164,7 @@ builder.Services.AddRateLimiter(options =>
 });
 builder.Services.AddScoped<ScheduleRevisionPublicationService>();
 builder.Services.AddScoped<ScheduleDiffReviewService>();
+builder.Services.AddScoped<DepartmentColorService>();
 
 // Administrative acquisition. The API stores the uploaded evidence; the worker
 // still owns parsing, validation and publication (ADR-080).
@@ -189,6 +190,7 @@ app.MapLicenseEndpoints();
 app.MapStudentProfileEndpoints();
 app.MapCalendarAuthorizationEndpoints();
 app.MapCalendarSyncEndpoints();
+app.MapDepartmentColorEndpoints();
 app.MapOnboardingEndpoints();
 app.MapRevisionEndpoints();
 app.MapSourceDocumentEndpoints();

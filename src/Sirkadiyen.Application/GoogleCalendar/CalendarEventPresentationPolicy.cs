@@ -13,14 +13,6 @@ namespace Sirkadiyen.Application.GoogleCalendar;
 /// </summary>
 public static partial class CalendarEventPresentationPolicy
 {
-    private const string AnatomyKey = "department:anatomi";
-    private const string PhysiologyKey = "department:fizyoloji";
-    private const string BiochemistryKey = "department:tibbi-biyokimya";
-    private const string MedicalBiologyKey = "department:tibbi-biyoloji";
-    private const string HistologyKey = "department:histoloji-ve-embriyoloji";
-    private const string BiophysicsKey = "department:biyofizik";
-    private const string MedicalMicrobiologyKey = "department:tibbi-mikrobiyoloji";
-
     public static string Summary(CanonicalScheduleRecord record)
     {
         ArgumentNullException.ThrowIfNull(record);
@@ -70,7 +62,9 @@ public static partial class CalendarEventPresentationPolicy
                 : record.Location.Trim();
     }
 
-    public static ManagedCalendarEventLabel EventLabel(CanonicalScheduleRecord record)
+    public static ManagedCalendarEventLabel EventLabel(
+        CanonicalScheduleRecord record,
+        IReadOnlyDictionary<string, string>? departmentColors = null)
     {
         ArgumentNullException.ThrowIfNull(record);
 
@@ -79,7 +73,7 @@ public static partial class CalendarEventPresentationPolicy
         {
             Id = DeterministicLabelId(category.Key),
             Name = Truncate(category.Name, 50),
-            BackgroundColor = category.BackgroundColor ?? DerivedColor(category.Key),
+            BackgroundColor = ResolveColor(category, departmentColors),
         };
     }
 
@@ -107,14 +101,14 @@ public static partial class CalendarEventPresentationPolicy
         }
 
         string normalizedTitle = Normalize(record.DisplayTitle);
-        if (TryKnownDepartment(normalizedTitle, out PresentationCategory inferred))
+        if (TryKnownDepartmentFromTitle(record.DisplayTitle, out PresentationCategory inferred))
         {
             return inferred;
         }
 
         if (record.EventType is ScheduleEventType.AnatomyPractice)
         {
-            return KnownDepartment(AnatomyKey);
+            return KnownDepartment("anatomi");
         }
 
         string eventType = record.EventType.ToString();
@@ -128,65 +122,58 @@ public static partial class CalendarEventPresentationPolicy
     {
         string name = CleanDepartmentName(department);
         string normalized = Normalize(name);
-        if (TryKnownDepartment(normalized, out PresentationCategory known))
+        if (DepartmentCatalog.TryResolve(name, out DepartmentDefinition resolved))
         {
-            return known;
+            return KnownDepartment(resolved.Key);
         }
 
         return new($"department:{normalized}", name, null);
     }
 
-    private static bool TryKnownDepartment(
-        string normalized,
+    private static bool TryKnownDepartmentFromTitle(
+        string title,
         out PresentationCategory category)
     {
-        string? key = normalized switch
-        {
-            _ when normalized.Contains("histoloji", StringComparison.Ordinal)
-                || normalized.Contains("embriyoloji", StringComparison.Ordinal)
-                || normalized.Contains("embiriyoloji", StringComparison.Ordinal)
-                || normalized.Contains("histology", StringComparison.Ordinal)
-                || normalized.Contains("embryology", StringComparison.Ordinal) => HistologyKey,
-            _ when normalized.Contains("tibbi biyokimya", StringComparison.Ordinal)
-                || normalized.Contains("medical biochemistry", StringComparison.Ordinal)
-                || normalized.Contains("biyokimya", StringComparison.Ordinal) => BiochemistryKey,
-            _ when normalized.Contains("tibbi biyoloji", StringComparison.Ordinal)
-                || normalized.Contains("medical biology", StringComparison.Ordinal) => MedicalBiologyKey,
-            _ when normalized.Contains("biyofizik", StringComparison.Ordinal)
-                || normalized.Contains("biophysics", StringComparison.Ordinal) => BiophysicsKey,
-            _ when normalized.Contains("mikrobiyoloji", StringComparison.Ordinal)
-                || normalized.Contains("microbiology", StringComparison.Ordinal) =>
-                MedicalMicrobiologyKey,
-            _ when normalized.Contains("fizyoloji", StringComparison.Ordinal)
-                || normalized.Contains("physiology", StringComparison.Ordinal) => PhysiologyKey,
-            _ when normalized.Contains("anatomi", StringComparison.Ordinal)
-                || normalized.Contains("anatomy", StringComparison.Ordinal)
-                || normalized.Contains("diseksiyon", StringComparison.Ordinal)
-                || normalized.Contains("dissection", StringComparison.Ordinal) => AnatomyKey,
-            _ => null,
-        };
-
-        if (key is null)
+        if (!DepartmentCatalog.TryResolveFromTitle(title, out DepartmentDefinition department))
         {
             category = null!;
             return false;
         }
 
-        category = KnownDepartment(key);
+        category = KnownDepartment(department.Key);
         return true;
     }
 
-    private static PresentationCategory KnownDepartment(string key) => key switch
+    private static PresentationCategory KnownDepartment(string departmentKey)
     {
-        AnatomyKey => new(key, "Anatomi AD", "#D50000"),
-        PhysiologyKey => new(key, "Fizyoloji AD", "#1A237E"),
-        BiochemistryKey => new(key, "Tıbbi Biyokimya AD", "#F4511E"),
-        MedicalBiologyKey => new(key, "Tıbbi Biyoloji AD", "#0B8043"),
-        HistologyKey => new(key, "Histoloji ve Embriyoloji AD", "#8E24AA"),
-        BiophysicsKey => new(key, "Biyofizik AD", "#F6BF26"),
-        MedicalMicrobiologyKey => new(key, "Tıbbi Mikrobiyoloji AD", "#E67C73"),
-        _ => throw new ArgumentOutOfRangeException(nameof(key), key, "Unknown department key."),
-    };
+        if (!DepartmentCatalog.TryGet(departmentKey, out DepartmentDefinition department))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(departmentKey),
+                departmentKey,
+                "Unknown department key.");
+        }
+
+        return new(
+            $"department:{department.Key}",
+            $"{department.Name} AD",
+            DepartmentCatalog.DefaultColor(department.Key));
+    }
+
+    private static string ResolveColor(
+        PresentationCategory category,
+        IReadOnlyDictionary<string, string>? departmentColors)
+    {
+        const string prefix = "department:";
+        if (category.Key.StartsWith(prefix, StringComparison.Ordinal)
+            && departmentColors is not null
+            && departmentColors.TryGetValue(category.Key[prefix.Length..], out string? configured))
+        {
+            return configured;
+        }
+
+        return category.BackgroundColor ?? DerivedColor(category.Key);
+    }
 
     private static string EventTypeName(ScheduleEventType eventType) => eventType switch
     {

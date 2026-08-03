@@ -18,7 +18,10 @@ public static class ManagedCalendarEventFactory
     // event-id set (a-v and 0-9), so a hash encoded with it is always a valid id.
     private const string Base32HexAlphabet = "0123456789abcdefghijklmnopqrstuv";
 
-    public static ManagedCalendarEvent ToManagedEvent(Guid userId, CanonicalScheduleRecord record)
+    public static ManagedCalendarEvent ToManagedEvent(
+        Guid userId,
+        CanonicalScheduleRecord record,
+        IReadOnlyDictionary<string, string>? departmentColors = null)
     {
         ArgumentNullException.ThrowIfNull(record);
 
@@ -37,7 +40,7 @@ public static class ManagedCalendarEventFactory
             Summary = CalendarEventPresentationPolicy.Summary(record),
             Description = CalendarEventPresentationPolicy.Description(record),
             Location = CalendarEventPresentationPolicy.Location(record),
-            Label = CalendarEventPresentationPolicy.EventLabel(record),
+            Label = CalendarEventPresentationPolicy.EventLabel(record, departmentColors),
             TimeZoneId = record.TimeZoneId,
             IsAllDay = record.IsAllDay,
             PrivateProperties = privateProperties,

@@ -94,6 +94,7 @@ Can:
 - view sync state
 - request reconciliation
 - update permitted academic profile data
+- personalize department colors in their managed calendar
 - revoke or reconnect Google access
 
 ### Administrator
@@ -109,6 +110,7 @@ Can:
 - inspect synchronization failures
 - inspect audit history
 - manage supported student profile options
+- manage faculty-wide department color defaults
 
 The initial deployment has one Google-authenticated `SuperAdmin`; multi-operator
 role management is deliberately deferred (ADR-045).

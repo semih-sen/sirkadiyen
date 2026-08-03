@@ -891,12 +891,18 @@ fields; they must not embed Google-specific colors or description prose.
 
 For Google Calendar, use calendar-scoped event labels rather than the legacy
 eleven-color palette. A label category has a deterministic UUID and RGB color.
-Explicit product colors win for the named core departments and special event types;
-other source-stated departments receive a stable color derived from their normalized
-name. The adapter reads and merges the calendar's label definitions before writing an
-event, preserving labels it does not own. Inventory equivalence includes the label ID,
-so a presentation-policy change repairs existing managed events without inventing
-deletion authority.
+Department identity comes from the reviewed 45-entry Istanbul Faculty of Medicine
+catalog. Its aliases resolve source spelling, `AD.`/`Anabilim Dalı`, common Turkish
+short forms and known English names to one stable department key. Color is resolved
+separately in this order: user override, administrator default, then the system default.
+Special event-type colors remain product-owned. An unknown source department is never
+guessed into a catalog entry; it keeps the stable color derived from its normalized name.
+
+The adapter reads and merges the calendar's label definitions before writing an event,
+preserving labels it does not own and updating a known label when its RGB value changes.
+A color mutation marks completed managed calendars due for non-destructive inventory;
+inventory equivalence includes the label ID, so existing managed events converge without
+inventing a semantic diff or deletion authority (ADR-086).
 
 Calendar summaries preserve the source-authored display title, including a leading
 lesson sequence marker such as `5-`. Description lines are labeled and ordered as

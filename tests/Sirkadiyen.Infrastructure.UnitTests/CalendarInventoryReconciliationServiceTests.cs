@@ -103,6 +103,31 @@ public sealed class CalendarInventoryReconciliationServiceTests
     }
 
     [Fact]
+    public async Task AChangedColorUpdatesTheCalendarLabelEvenWhenTheEventLabelIdIsCurrent()
+    {
+        Harness harness = new();
+        CanonicalScheduleRecord record = CalendarTestData.Record(
+            stableIdentity: "custom-color",
+            departments: ["ANATOMİ AD."]);
+        harness.Records.Add(record);
+        ManagedCalendarEvent current =
+            ManagedCalendarEventFactory.ToManagedEvent(harness.UserId, record);
+        harness.Mappings.Seed(Mapping(harness.UserId, record, current.EventId));
+        harness.Client.Events.Add(Snapshot(current));
+        harness.Colors = new DepartmentColorService(
+            new FixedDepartmentColorStore("anatomi", "#123456"),
+            TimeProvider.System);
+
+        CalendarInventoryUserResult result = await harness.RunSingleAsync();
+
+        Assert.Equal(CalendarInventoryOutcome.Completed, result.Outcome);
+        Assert.Empty(harness.Client.Patches);
+        ManagedCalendarEventLabel label = Assert.Single(harness.Client.EnsuredLabels);
+        Assert.Equal(current.Label.Id, label.Id);
+        Assert.Equal("#123456", label.BackgroundColor);
+    }
+
+    [Fact]
     public async Task DuplicateAndUnexpectedStateIsReportedButNeverDeleted()
     {
         Harness harness = new();
@@ -245,6 +270,8 @@ public sealed class CalendarInventoryReconciliationServiceTests
 
         public FakeCalendarClient Client { get; } = new();
 
+        public DepartmentColorService Colors { get; set; } = TestDepartmentColors.Create();
+
         public CalendarInventoryReconciliationService Build() => new(
             Targets,
             new FakeScheduleReadStore(Records),
@@ -254,7 +281,8 @@ public sealed class CalendarInventoryReconciliationServiceTests
             new FakeTokenProtector(),
             new FakeFreezeStore(Frozen),
             new CalendarInventoryReconciliationOptions(),
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(Now),
+            Colors);
 
         public async Task<CalendarInventoryUserResult> RunSingleAsync() =>
             Assert.Single((await Build().RunDueAsync(CancellationToken.None)).Users);
@@ -480,6 +508,8 @@ public sealed class CalendarInventoryReconciliationServiceTests
 
         public List<ManagedCalendarEvent> Patches { get; } = [];
 
+        public List<ManagedCalendarEventLabel> EnsuredLabels { get; } = [];
+
         public List<string> Deletes { get; } = [];
 
         public Exception? ListFailure { get; set; }
@@ -508,6 +538,16 @@ public sealed class CalendarInventoryReconciliationServiceTests
 
             Events[index] = Snapshot(calendarEvent);
             return Task.FromResult(CalendarEventPatchOutcome.Patched);
+        }
+
+        public Task EnsureEventLabelAsync(
+            CalendarAccess access,
+            string calendarId,
+            ManagedCalendarEventLabel label,
+            CancellationToken cancellationToken)
+        {
+            EnsuredLabels.Add(label);
+            return Task.CompletedTask;
         }
 
         public Task<CalendarEventInsertOutcome> InsertEventAsync(
@@ -541,6 +581,39 @@ public sealed class CalendarInventoryReconciliationServiceTests
         public Task<IReadOnlyList<string>> FindManagedCalendarIdsAsync(
             CalendarAccess access,
             string descriptionMarker,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+    }
+
+    private sealed class FixedDepartmentColorStore(string key, string color)
+        : IDepartmentColorStore
+    {
+        private static readonly IReadOnlyDictionary<string, string> Empty =
+            new Dictionary<string, string>();
+
+        public Task<IReadOnlyDictionary<string, string>> GetAdminDefaultsAsync(
+            CancellationToken cancellationToken) => Task.FromResult(Empty);
+
+        public Task<IReadOnlyDictionary<string, string>> GetUserOverridesAsync(
+            Guid userId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyDictionary<string, string>>(
+                new Dictionary<string, string> { [key] = color });
+
+        public Task<bool> SetAdminDefaultAsync(
+            string departmentKey,
+            string? value,
+            string actor,
+            string reason,
+            string correlationId,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<bool> SetUserOverrideAsync(
+            Guid userId,
+            string departmentKey,
+            string? value,
+            string correlationId,
+            DateTimeOffset atUtc,
             CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 

@@ -268,7 +268,8 @@ public sealed class InitialCalendarSyncServiceTests
             new FakeTokenProtector(),
             new FakeFreezeStore(frozen: false),
             new InitialSyncOptions(),
-            new FixedTimeProvider(Now)).RunPendingAsync(CancellationToken.None));
+            new FixedTimeProvider(Now),
+            TestDepartmentColors.Create()).RunPendingAsync(CancellationToken.None));
 
         Assert.Equal(InitialCalendarSyncOutcome.ProfileMissing, result.Outcome);
         Assert.Equal(0, client.CalendarsCreated);
@@ -310,7 +311,8 @@ public sealed class InitialCalendarSyncServiceTests
             new FakeTokenProtector(),
             new FakeFreezeStore(frozen),
             options ?? new InitialSyncOptions(),
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(Now),
+            TestDepartmentColors.Create());
 
     private static PendingCalendarSync Pending(string? calendar) => new()
     {
@@ -471,6 +473,12 @@ public sealed class InitialCalendarSyncServiceTests
             CalendarAccess access,
             string calendarId,
             CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task EnsureEventLabelAsync(
+            CalendarAccess access,
+            string calendarId,
+            ManagedCalendarEventLabel label,
+            CancellationToken cancellationToken) => Task.CompletedTask;
 
         public Task<CalendarEventInsertOutcome> InsertEventAsync(
             CalendarAccess access,

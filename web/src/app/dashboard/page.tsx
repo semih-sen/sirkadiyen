@@ -7,6 +7,7 @@ import { useSession } from '@/components/SessionProvider';
 import { getProfile, getSyncStatus, logout } from '@/lib/api';
 import { ROUTES } from '@/lib/onboarding';
 import { Banner, ImplNote, StudentTopbar } from '@/components/ui';
+import { DepartmentColorEditor } from '@/components/DepartmentColorEditor';
 import type { CalendarSyncStatusResponse, StudentProfileView } from '@/lib/types';
 
 const PROGRAM_LABELS: Record<string, string> = { Turkish: 'Türkçe', English: 'İngilizce' };
@@ -116,6 +117,10 @@ function Dashboard() {
                 <button className="btn btn-secondary btn-sm" type="button" disabled aria-disabled="true" style={{ marginTop: 14 }}>
                   Onarım talebi oluştur (arka uç bekleniyor)
                 </button>
+              </section>
+
+              <section className="card card-content">
+                <DepartmentColorEditor mode="user" />
               </section>
             </div>
 

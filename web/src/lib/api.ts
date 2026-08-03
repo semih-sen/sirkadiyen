@@ -12,6 +12,8 @@ import type {
   CalendarSyncResponse,
   CalendarSyncStatusResponse,
   CurrentUser,
+  DepartmentColorMutationResponse,
+  DepartmentColorView,
   GoogleCalendarConnectionView,
   OnboardingSnapshot,
   ApproveRevisionResponse,
@@ -268,6 +270,31 @@ export function startSync(): Promise<CalendarSyncResponse> {
   return request<CalendarSyncResponse>('/api/calendar/sync/', { method: 'POST' });
 }
 
+// ---- Calendar appearance -------------------------------------------------
+
+export function getDepartmentColors(): Promise<DepartmentColorView[]> {
+  return request<DepartmentColorView[]>('/api/calendar/colors/');
+}
+
+export function setDepartmentColor(
+  departmentKey: string,
+  color: string,
+): Promise<DepartmentColorMutationResponse> {
+  return request<DepartmentColorMutationResponse>(
+    `/api/calendar/colors/${encodeURIComponent(departmentKey)}`,
+    { method: 'PUT', body: { color } },
+  );
+}
+
+export function resetDepartmentColor(
+  departmentKey: string,
+): Promise<DepartmentColorMutationResponse> {
+  return request<DepartmentColorMutationResponse>(
+    `/api/calendar/colors/${encodeURIComponent(departmentKey)}`,
+    { method: 'DELETE' },
+  );
+}
+
 // ---- Administration (SuperAdmin) -----------------------------------------
 // These endpoints are enforced by the SuperAdmin policy server-side; the frontend
 // only navigates by the backend-authoritative role (AI_GUIDELINE §6, §16).
@@ -281,6 +308,31 @@ export function setFreeze(isFrozen: boolean, reason: string): Promise<Operationa
     method: 'POST',
     body: { isFrozen, reason },
   });
+}
+
+export function getAdminDepartmentColors(): Promise<DepartmentColorView[]> {
+  return request<DepartmentColorView[]>('/api/admin/calendar-colors/');
+}
+
+export function setAdminDepartmentColor(
+  departmentKey: string,
+  color: string,
+  reason: string,
+): Promise<DepartmentColorMutationResponse> {
+  return request<DepartmentColorMutationResponse>(
+    `/api/admin/calendar-colors/${encodeURIComponent(departmentKey)}`,
+    { method: 'PUT', body: { color, reason } },
+  );
+}
+
+export function resetAdminDepartmentColor(
+  departmentKey: string,
+  reason: string,
+): Promise<DepartmentColorMutationResponse> {
+  return request<DepartmentColorMutationResponse>(
+    `/api/admin/calendar-colors/${encodeURIComponent(departmentKey)}/reset`,
+    { method: 'POST', body: { reason } },
+  );
 }
 
 /**

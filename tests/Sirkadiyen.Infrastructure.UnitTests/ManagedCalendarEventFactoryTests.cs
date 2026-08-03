@@ -80,6 +80,53 @@ public sealed class ManagedCalendarEventFactoryTests
         Assert.True(Guid.TryParse(result.Label.Id, out _));
     }
 
+    [Theory]
+    [InlineData("PHYSIOLOGY DEPARTMENT", "#1A237E")]
+    [InlineData("Biyokimya AD.", "#F4511E")]
+    [InlineData("KBB", null)]
+    public void DepartmentAliasesResolveToTheCanonicalCatalog(
+        string department,
+        string? expectedColor)
+    {
+        ManagedCalendarEvent result = ManagedCalendarEventFactory.ToManagedEvent(
+            UserId,
+            CalendarTestData.Record(departments: [department]));
+
+        Assert.Contains("AD", result.Label.Name, StringComparison.Ordinal);
+        if (expectedColor is not null)
+        {
+            Assert.Equal(expectedColor, result.Label.BackgroundColor);
+        }
+    }
+
+    [Fact]
+    public void AUserPaletteOverridesTheDepartmentDefaultWithoutChangingItsLabelIdentity()
+    {
+        CanonicalScheduleRecord record = CalendarTestData.Record(departments: ["ANATOMİ AD."]);
+        ManagedCalendarEvent defaultEvent =
+            ManagedCalendarEventFactory.ToManagedEvent(UserId, record);
+        ManagedCalendarEvent customized = ManagedCalendarEventFactory.ToManagedEvent(
+            UserId,
+            record,
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["anatomi"] = "#123456",
+            });
+
+        Assert.Equal(defaultEvent.Label.Id, customized.Label.Id);
+        Assert.Equal("#123456", customized.Label.BackgroundColor);
+    }
+
+    [Fact]
+    public void OfficialCatalogContainsAllFortyFiveFacultyDepartments()
+    {
+        Assert.Equal(45, DepartmentCatalog.Departments.Count);
+        Assert.Equal(10, DepartmentCatalog.Departments.Count(item => item.Division == DepartmentDivision.Basic));
+        Assert.Equal(21, DepartmentCatalog.Departments.Count(item => item.Division == DepartmentDivision.Internal));
+        Assert.Equal(14, DepartmentCatalog.Departments.Count(item => item.Division == DepartmentDivision.Surgical));
+        Assert.Equal(45, DepartmentCatalog.Departments.Select(item => item.Key).Distinct().Count());
+    }
+
     [Fact]
     public void OtherDepartmentsReceiveStableDistinctCustomColors()
     {

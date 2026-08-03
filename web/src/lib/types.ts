@@ -129,6 +129,23 @@ export interface CalendarSyncResponse {
   onboarding: OnboardingSnapshot;
 }
 
+export type DepartmentDivision = 'Basic' | 'Internal' | 'Surgical';
+
+export interface DepartmentColorView {
+  key: string;
+  name: string;
+  division: DepartmentDivision;
+  systemDefaultColor: string;
+  adminDefaultColor?: string | null;
+  userColor?: string | null;
+  effectiveColor: string;
+}
+
+export interface DepartmentColorMutationResponse {
+  changed: boolean;
+  calendarRefreshQueued: boolean;
+}
+
 export type LicenseRedemptionOutcome =
   | 'Redeemed'
   | 'AlreadyRedeemedByCurrentUser'

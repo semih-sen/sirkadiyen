@@ -246,6 +246,7 @@ builder.Services.AddSingleton(inventoryOptions);
 builder.Services.AddSirkadiyenDataProtection(dataProtectionKeyRingPath);
 builder.Services.AddSingleton<ICalendarTokenProtector, DataProtectionCalendarTokenProtector>();
 builder.Services.AddSingleton<IUserCalendarClient, GoogleCalendarClient>();
+builder.Services.AddScoped<DepartmentColorService>();
 builder.Services.AddScoped<InitialCalendarSyncService>();
 builder.Services.AddScoped<IncrementalCalendarSyncService>();
 builder.Services.AddScoped<CalendarReconciliationService>();

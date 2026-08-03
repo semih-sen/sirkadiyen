@@ -43,6 +43,16 @@ public interface IUserCalendarClient
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Creates or updates one calendar-scoped event label. Inventory calls this even when
+    /// an event already has the same label id, because its configured RGB color may change.
+    /// </summary>
+    Task EnsureEventLabelAsync(
+        CalendarAccess access,
+        string calendarId,
+        ManagedCalendarEventLabel label,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Inserts one managed event into the calendar. The event carries a client-chosen id,
     /// so a re-insert of the same id is reported as <see cref="CalendarEventInsertOutcome.AlreadyExists"/>
     /// rather than creating a duplicate — the idempotency key the initial sync relies on.

@@ -243,7 +243,8 @@ public sealed class CalendarReconciliationServiceTests
             new FakeTokenProtector(),
             new FakeFreezeStore(Frozen),
             new CalendarReconciliationOptions(),
-            new FixedTimeProvider(Now));
+            new FixedTimeProvider(Now),
+            TestDepartmentColors.Create());
 
         public async Task<CalendarReconciliationUserResult> RunSingleAsync()
         {
@@ -560,6 +561,12 @@ public sealed class CalendarReconciliationServiceTests
         public bool CredentialRejected { get; set; }
 
         public bool TransientFailure { get; set; }
+
+        public Task EnsureEventLabelAsync(
+            CalendarAccess access,
+            string calendarId,
+            ManagedCalendarEventLabel label,
+            CancellationToken cancellationToken) => Task.CompletedTask;
 
         public Task<CalendarEventInsertOutcome> InsertEventAsync(
             CalendarAccess access,

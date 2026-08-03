@@ -1831,3 +1831,25 @@ dimension can be added with evidence.
   instructions. Calendar output also suppresses previously stored copies.
 - Inventory equivalence includes `EventLabelId`, so existing events are patched to the
   new presentation during normal reconciliation.
+
+## Latest implementation session (2026-08-03, dynamic department colors)
+
+- Parser work remains paused while Grade 2 Team Work and Grade 3 audience rules await
+  authoritative information. No parser behavior was guessed in this session.
+- ADR-086 replaces code-only department colors with a three-level policy: personal
+  override, administrator default, then system default. Exams and free-study keep their
+  product-owned colors.
+- The code-owned identity catalog contains the faculty's 45 departments (10 basic,
+  21 internal, 14 surgical) plus reviewed Turkish/English aliases. Aliases affect only
+  presentation identity; unknown source values remain distinct and deterministic.
+- PostgreSQL stores admin defaults, user overrides and append-only audit entries. Admin
+  changes require a reason. A change marks completed calendars due for non-destructive
+  inventory so existing label definitions and events converge on the next worker pass.
+- Authenticated users manage their own colors at `/api/calendar/colors`; SuperAdmin
+  manages defaults at `/api/admin/calendar-colors`. Both dashboard surfaces are wired.
+- Migration `AddDepartmentColorPreferences` adds the new tables and constraints.
+- Verification: solution build, 409 Infrastructure + 6 Contracts + 5 API unit tests,
+  frontend TypeScript typecheck and production build, EF migration SQL generation,
+  `dotnet format --verify-no-changes`, and `git diff --check` pass. PostgreSQL-backed
+  integration tests could not run because Docker Desktop/PostgreSQL was unavailable at
+  `127.0.0.1:15432`; the test fixture failed during initialization, not in an assertion.

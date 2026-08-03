@@ -23,7 +23,8 @@ public sealed class CalendarReconciliationService(
     ICalendarTokenProtector tokenProtector,
     IOperationalFreezeStore freezeStore,
     CalendarReconciliationOptions options,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    DepartmentColorService departmentColors)
 {
     public async Task<CalendarReconciliationRunResult> RunPendingAsync(
         CancellationToken cancellationToken)
@@ -426,9 +427,15 @@ public sealed class CalendarReconciliationService(
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
+        IReadOnlyDictionary<string, string> colors =
+            await DepartmentColorPaletteResolver.GetAsync(
+                departmentColors,
+                connection.UserId,
+                cancellationToken);
         ManagedCalendarEvent calendarEvent = ManagedCalendarEventFactory.ToManagedEvent(
             connection.UserId,
-            record);
+            record,
+            colors);
         await calendarClient.InsertEventAsync(
             access,
             connection.ManagedCalendarId,
@@ -460,8 +467,13 @@ public sealed class CalendarReconciliationService(
     {
         // A secondary match deliberately preserves the old deterministic Google event id while its
         // private stableIdentity marker moves to the current record.
+        IReadOnlyDictionary<string, string> colors =
+            await DepartmentColorPaletteResolver.GetAsync(
+                departmentColors,
+                userId,
+                cancellationToken);
         ManagedCalendarEvent calendarEvent =
-            ManagedCalendarEventFactory.ToManagedEvent(userId, current) with
+            ManagedCalendarEventFactory.ToManagedEvent(userId, current, colors) with
             {
                 EventId = mapping.GoogleEventId,
             };

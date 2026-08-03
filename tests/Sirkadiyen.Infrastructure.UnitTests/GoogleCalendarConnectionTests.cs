@@ -298,6 +298,19 @@ public sealed class GoogleCalendarConnectionTests
             () => connection.CompleteCalendarInventory(Now.AddHours(3)));
     }
 
+    [Fact]
+    public void PresentationChangeMakesACompletedCalendarImmediatelyDueForInventory()
+    {
+        GoogleCalendarConnection connection = CompletedConnection();
+        connection.CompleteCalendarInventory(Now.AddHours(1));
+
+        connection.RequestCalendarPresentationRefresh(Now.AddHours(2));
+
+        Assert.Null(connection.LastCalendarInventoryAtUtc);
+        Assert.Equal(Now.AddHours(2), connection.UpdatedAtUtc);
+        Assert.Equal(GoogleCalendarInitialSyncState.Completed, connection.InitialSyncState);
+    }
+
     private static GoogleCalendarConnection Create(
         Guid? userId = null,
         string protectedRefreshToken = "protected-token",

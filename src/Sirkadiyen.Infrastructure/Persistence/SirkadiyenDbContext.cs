@@ -41,6 +41,15 @@ public sealed class SirkadiyenDbContext(DbContextOptions<SirkadiyenDbContext> op
     public DbSet<UserCalendarEventMapping> UserCalendarEventMappings =>
         Set<UserCalendarEventMapping>();
 
+    public DbSet<DepartmentColorSetting> DepartmentColorSettings =>
+        Set<DepartmentColorSetting>();
+
+    public DbSet<UserDepartmentColorPreference> UserDepartmentColorPreferences =>
+        Set<UserDepartmentColorPreference>();
+
+    public DbSet<DepartmentColorAudit> DepartmentColorAudits =>
+        Set<DepartmentColorAudit>();
+
     public DbSet<ScheduleSource> ScheduleSources => Set<ScheduleSource>();
 
     public DbSet<SourceSnapshot> SourceSnapshots => Set<SourceSnapshot>();

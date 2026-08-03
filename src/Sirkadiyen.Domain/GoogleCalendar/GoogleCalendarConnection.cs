@@ -317,6 +317,22 @@ public sealed class GoogleCalendarConnection
     }
 
     /// <summary>
+    /// Makes the next inventory cycle refresh visible event presentation, without inventing
+    /// a semantic schedule diff. Used after a color preference changes.
+    /// </summary>
+    public void RequestCalendarPresentationRefresh(DateTimeOffset atUtc)
+    {
+        if (InitialSyncState is not GoogleCalendarInitialSyncState.Completed
+            || ManagedCalendarId is null)
+        {
+            return;
+        }
+
+        LastCalendarInventoryAtUtc = null;
+        UpdatedAtUtc = atUtc;
+    }
+
+    /// <summary>
     /// Marks the initial synchronization finished, moving the connection to
     /// <see cref="GoogleCalendarInitialSyncState.Completed"/>.
     /// </summary>
