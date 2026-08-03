@@ -4489,3 +4489,84 @@ incomplete calendar as synchronized.
   source catalog reseed updates the profile version and selector allowlist.
 
 ---
+
+## ADR-085: Use the student number to suggest roster data, while keeping profile groups editable
+
+**Status:** Accepted, not yet implemented
+**Date:** 2026-08-03
+**Amends:** ADR-055, ADR-056, ADR-084
+
+### Context
+
+The faculty's student lists already associate a university student number with
+the student's name, surname, and some cohort assignments. Grade 2 English makes
+the distinction important: students first belong to one of two general groups
+(`İ1`/`İ2`) and independently to one of three general subgroups
+(`i1`/`i2`/`i3`). Some practices use the two-way division and others use the
+three-way division. Team Work uses a separate five-way `i1`-`i5` rotation whose
+assignment source is not yet known.
+
+Requiring a student to retype every value the faculty has already published is
+unnecessary friction, but treating a roster as an unchangeable authority would
+also be unsafe: lists can be stale, incomplete, corrected late, or omit an
+independent rotation. The product must therefore distinguish a roster-derived
+suggestion from the profile the user finally confirms.
+
+### Decision
+
+At the beginning of academic-profile onboarding, the user enters only their
+ten-digit university student number. The backend looks that number up in the
+configured faculty student lists and returns every profile field the matching
+list explicitly states, together with the student's name and surname for visual
+confirmation.
+
+The returned name and surname are ephemeral display data. They are not written
+to the Sirkadiyen database, copied into the student profile, or included in
+application logs. The existing student number remains part of the persisted
+profile under ADR-056.
+
+Roster-derived group values prefill the onboarding form but remain editable.
+The user confirms or changes them before saving, and the confirmed selector
+document is what the backend persists and later uses for audience resolution.
+The backend still validates every submitted key, value, dependency, and
+supported combination against its server-owned profile schema; editability does
+not mean accepting arbitrary selector data.
+
+Any required group that no available student list states is entered by the
+user. Responsibility for confirming those additional or corrected group values
+belongs to the user. The UI must distinguish values suggested from a roster
+from values that still need user input, and must not imply that a successful
+lookup proves the final profile is complete or current.
+
+The student-list lookup is a backend concern, not a schedule-parser concern.
+The Python parser continues to interpret schedule documents and emit audience
+selectors; it does not receive student identities, query rosters, or decide a
+student's assignments.
+
+Grade 2 English models the confirmed divisions as separate selector dimensions:
+one two-way general-group dimension and one three-way general-subgroup
+dimension. They must not be collapsed merely because their source labels differ
+mostly by typography or casing. Team Work will use a third independent selector
+dimension only after its assignment source and publication rules are confirmed.
+
+### Consequences
+
+- Onboarding becomes student-number-first: lookup, review/edit, validation, then
+  persistence.
+- A lookup miss does not invent identity or group data. The UI reports the miss
+  and allows the user to enter supported group values manually.
+- A duplicate or ambiguous student-number match is an error requiring review;
+  the backend does not choose one silently.
+- Name and surname may be shown in the lookup response but are never retained by
+  Sirkadiyen.
+- Roster suggestions are not authorization claims and do not bypass profile
+  validation.
+- Schedule parsing remains deterministic and free of user data. Parsed lesson
+  audiences are matched later against the user-confirmed selectors stored by
+  the backend.
+- Grade 2 English onboarding remains closed until the two-way and three-way
+  audience paths are parser-complete and the unresolved Team Work rotation has
+  a safe product rule; accepting this onboarding interaction does not make an
+  incomplete calendar complete.
+
+---
