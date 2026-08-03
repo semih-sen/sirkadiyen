@@ -2,15 +2,6 @@
 
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { Banner } from '@/components/ui';
-
-// Persistent admin chrome (plan §3.2, §5.9): a fixed sidebar, a top context bar,
-// and a freeze banner that spans every operational screen while the pipeline is
-// frozen — because a frozen system changes the meaning of every action below it.
-//
-// Only "Genel bakış" is a live route today; every other item in the plan's admin
-// IA has no backend yet (see GAPS.md), so it is rendered as a disabled entry with
-// a "Yakında" marker rather than a link that 404s.
 
 export type AdminNavKey =
   | 'dashboard'
@@ -19,6 +10,9 @@ export type AdminNavKey =
   | 'bulk-event'
   | 'user-warning'
   | 'sources'
+  | 'revisions'
+  | 'colors'
+  | 'operations'
   | 'server'
   | 'access-logs';
 
@@ -26,96 +20,54 @@ interface NavItem {
   key: AdminNavKey;
   label: string;
   icon: string;
-  href?: string;
+  href: string;
 }
 
 const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
   {
     label: 'Operasyon',
     items: [
-      { key: 'dashboard', label: 'Genel bakış', icon: '▦', href: '/admin' },
-      { key: 'finance', label: 'Finans', icon: '₺' },
+      { key: 'dashboard', label: 'Genel bakış', icon: '⌂', href: '/admin' },
+      { key: 'finance', label: 'Finans', icon: '₺', href: '/admin/finance' },
     ],
   },
   {
     label: 'Kullanıcı işlemleri',
     items: [
-      { key: 'users', label: 'Kullanıcılar', icon: '◍' },
-      { key: 'bulk-event', label: 'Toplu etkinlik', icon: '▤' },
-      { key: 'user-warning', label: 'Kullanıcı uyarısı', icon: '◭' },
+      { key: 'users', label: 'Kullanıcılar & lisans', icon: '◉', href: '/admin/users' },
+      { key: 'bulk-event', label: 'Toplu etkinlik', icon: '▤', href: '/admin/bulk-event' },
+      { key: 'user-warning', label: 'Kullanıcı uyarısı', icon: '◇', href: '/admin/user-warning' },
     ],
   },
   {
-    label: 'Altyapı',
+    label: 'Akademik veri',
     items: [
-      { key: 'sources', label: 'Kaynaklar & senkron', icon: '⇄' },
-      { key: 'server', label: 'Sunucu', icon: '▣' },
-      { key: 'access-logs', label: 'Erişim kayıtları', icon: '☰' },
+      { key: 'sources', label: 'Kaynaklar', icon: '⇄', href: '/admin/sources' },
+      { key: 'revisions', label: 'Revizyonlar', icon: '✓', href: '/admin/revisions' },
+      { key: 'colors', label: 'Anabilim dalı renkleri', icon: '◐', href: '/admin/colors' },
+    ],
+  },
+  {
+    label: 'Sistem',
+    items: [
+      { key: 'operations', label: 'Operasyon kontrolü', icon: '⚙', href: '/admin/operations' },
+      { key: 'server', label: 'Sunucu', icon: '▣', href: '/admin/server' },
+      { key: 'access-logs', label: 'Erişim kayıtları', icon: '☰', href: '/admin/access-logs' },
     ],
   },
 ];
-
-function NavEntry({ item, active }: { item: NavItem; active: boolean }) {
-  if (!item.href) {
-    return (
-      <li>
-        <span
-          className="admin-nav-disabled"
-          aria-disabled="true"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '10px 12px',
-            borderRadius: 10,
-            color: 'color-mix(in oklab, #fff 40%, transparent)',
-            fontSize: 13.5,
-            fontWeight: 600,
-            cursor: 'not-allowed',
-          }}
-          title="Bu ekran için henüz arka uç yok (GAPS.md)"
-        >
-          <span className="nav-icon" aria-hidden="true">
-            {item.icon}
-          </span>
-          {item.label}
-          <span
-            style={{
-              marginLeft: 'auto',
-              fontSize: 10,
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
-              opacity: 0.7,
-            }}
-          >
-            Yakında
-          </span>
-        </span>
-      </li>
-    );
-  }
-  return (
-    <li>
-      <Link href={item.href} aria-current={active ? 'page' : undefined}>
-        <span className="nav-icon" aria-hidden="true">
-          {item.icon}
-        </span>
-        {item.label}
-      </Link>
-    </li>
-  );
-}
 
 export function AdminShell({
   active,
   operator,
   isFrozen = false,
+  onSignOut,
   children,
 }: {
   active: AdminNavKey;
   operator?: string;
   isFrozen?: boolean;
+  onSignOut?: () => void;
   children: ReactNode;
 }) {
   return (
@@ -129,7 +81,12 @@ export function AdminShell({
             <div className="admin-nav-group-label">{group.label}</div>
             <ul className="admin-nav">
               {group.items.map((item) => (
-                <NavEntry key={item.key} item={item} active={item.key === active} />
+                <li key={item.key}>
+                  <Link href={item.href} aria-current={item.key === active ? 'page' : undefined}>
+                    <span className="nav-icon" aria-hidden="true">{item.icon}</span>
+                    {item.label}
+                  </Link>
+                </li>
               ))}
             </ul>
           </div>
@@ -140,37 +97,46 @@ export function AdminShell({
         <div className="admin-topbar">
           <div className="cluster" style={{ gap: 10 }}>
             <span className="env-chip">⚙ Yönetim paneli</span>
-            {isFrozen ? (
-              <span className="badge badge-warning">Dondurulmuş</span>
-            ) : (
-              <span className="badge badge-success">Çalışıyor</span>
-            )}
+            <span className={`badge ${isFrozen ? 'badge-warning' : 'badge-success'}`}>
+              {isFrozen ? 'Dondurulmuş' : 'Çalışıyor'}
+            </span>
           </div>
-          <div className="cluster" style={{ gap: 14 }}>
-            {operator && (
-              <span className="muted" style={{ fontSize: 13 }}>
-                Operatör: {operator}
-              </span>
-            )}
-            <Link className="btn btn-tertiary btn-sm" href="/">
-              Öğrenci tarafına dön
-            </Link>
+          <div className="cluster" style={{ gap: 10 }}>
+            {operator && <span className="admin-operator">{operator}</span>}
+            <Link className="btn btn-tertiary btn-sm" href="/dashboard">Öğrenci paneli</Link>
+            {onSignOut && <button className="btn btn-tertiary btn-sm" type="button" onClick={onSignOut}>Çıkış</button>}
           </div>
         </div>
-
-        {isFrozen && (
-          <div className="banner-freeze" role="alert">
-            ⚠ Pipeline donduruldu — acquisition, parsing, publication ve calendar işleri beklemede.
-          </div>
-        )}
-
-        <div className="admin-content">{children}</div>
+        {isFrozen && <div className="banner-freeze" role="alert">⚠ Pipeline donduruldu — arka plan işleri beklemede.</div>}
+        <main className="admin-content" id="admin-content">{children}</main>
       </div>
     </div>
   );
 }
 
-/** A section heading used across admin cards. */
+export function AdminPageHeader({
+  eyebrow,
+  title,
+  description,
+  actions,
+}: {
+  eyebrow?: string;
+  title: string;
+  description: string;
+  actions?: ReactNode;
+}) {
+  return (
+    <header className="admin-page-header">
+      <div>
+        {eyebrow && <span className="eyebrow">{eyebrow}</span>}
+        <h1>{title}</h1>
+        <p>{description}</p>
+      </div>
+      {actions && <div className="admin-page-actions">{actions}</div>}
+    </header>
+  );
+}
+
 export function AdminSectionTitle({ children }: { children: ReactNode }) {
   return <h2 style={{ fontSize: 18, margin: '0 0 12px' }}>{children}</h2>;
 }

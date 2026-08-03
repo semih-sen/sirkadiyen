@@ -513,3 +513,9 @@ the Drive API enabled and the vertical-corridor documents shared with the accoun
 Grade 3 sources, and the remaining source fixtures/parser profiles are still required.
 DOCX conversion, administrative DOCX acquisition and Drive DOCX acquisition are
 implemented.
+
+ADR-087 separates the admin information architecture into dedicated routes; the
+overview no longer embeds operational forms. Live source, revision, color, freeze and
+license operations are connected to backend-authoritative APIs, while missing-domain
+routes render honest empty states. The department palette is now searchable,
+filterable, previewable and uses an explicit save action.

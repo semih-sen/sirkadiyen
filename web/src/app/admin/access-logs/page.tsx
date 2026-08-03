@@ -1,0 +1,2 @@
+import { AdminUnavailable } from '@/components/AdminUnavailable';
+export default function Page() { return <AdminUnavailable active="access-logs" title="Erişim kayıtları" description="Kimlik doğrulama olaylarını gizlilik korumalı ve denetlenebilir biçimde inceleme alanı." capabilities={['Maskeli IP ile oturum olayları', 'Kullanıcı ve tarih filtresi', 'Ayrı denetim gerektiren hassas veri erişimi']} />; }

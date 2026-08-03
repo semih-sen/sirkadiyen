@@ -4635,3 +4635,43 @@ events without creating a semantic diff or deletion authority.
   Google Calendar synchronously.
 
 ---
+
+## ADR-087: Admin operations live in dedicated workspaces; overview is orientation only
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-03
+**Amends:** ADR-066, ADR-086
+
+### Context
+
+The first runnable administration page embedded operational freeze, source upload,
+revision approval, department-color editing and SuperAdmin self-activation in one card
+grid. This made the overview increasingly dense and left each workflow too little room
+for context and safety cues.
+
+### Decision
+
+Keep `/admin` as an orientation-only map. Give every navigation item a stable route and
+place each backend-supported operation in its own workspace. A route without an
+authoritative backend renders an explicit capability-oriented empty state; it never
+shows invented metrics or enables a mutation.
+
+Use one shared client-side admin frame for the backend-authoritative SuperAdmin guard,
+freeze-state banner, operator identity and sign-out behavior. Backend authorization
+remains mandatory and is not replaced by this navigation guard.
+
+Treat department colors as a palette-management workflow rather than a dense settings
+list. The editor supports search, medical-division filtering, override filtering,
+calendar-like previews and explicit save/reset controls. Admin changes continue to
+require the server-audited reason defined by ADR-086; changing the browser color picker
+alone performs no mutation.
+
+### Consequences
+
+- An operator can bookmark the correct admin context without losing global freeze visibility.
+- General overview remains scannable as more administration domains are added.
+- Missing backend domains are visible without implying that they work.
+- The shared frame reads freeze state on each route load; a future system-summary endpoint
+  may consolidate this with other overview health data.
+
+---

@@ -12,8 +12,10 @@ import type {
   CalendarSyncResponse,
   CalendarSyncStatusResponse,
   CurrentUser,
+  CreatedLicense,
   DepartmentColorMutationResponse,
   DepartmentColorView,
+  LicenseRevocationResult,
   GoogleCalendarConnectionView,
   OnboardingSnapshot,
   ApproveRevisionResponse,
@@ -342,6 +344,20 @@ export function resetAdminDepartmentColor(
  */
 export function activateUser(userId: string, reason: string): Promise<unknown> {
   return request<unknown>(`/api/admin/users/${userId}/activate`, {
+    method: 'POST',
+    body: { reason },
+  });
+}
+
+export function createLicense(expiresAtUtc: string | null, notes: string | null): Promise<CreatedLicense> {
+  return request<CreatedLicense>('/api/admin/licenses/', {
+    method: 'POST',
+    body: { expiresAtUtc, notes },
+  });
+}
+
+export function revokeLicense(licenseId: string, reason: string): Promise<LicenseRevocationResult> {
+  return request<LicenseRevocationResult>(`/api/admin/licenses/${encodeURIComponent(licenseId)}/revoke`, {
     method: 'POST',
     body: { reason },
   });

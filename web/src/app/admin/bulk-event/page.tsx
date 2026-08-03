@@ -1,0 +1,2 @@
+import { AdminUnavailable } from '@/components/AdminUnavailable';
+export default function Page() { return <AdminUnavailable active="bulk-event" title="Toplu takvim etkinliği" description="Belirli bir akademik kitleye güvenli ve yinelenmeyen etkinlik gönderimi." capabilities={['Akademik hedef kitle çözümleme', 'Gönderim öncesi alıcı tahmini', 'Tekrarsız kampanya anahtarı ve teslimat takibi']} />; }

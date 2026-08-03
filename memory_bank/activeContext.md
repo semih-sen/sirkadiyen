@@ -1853,3 +1853,16 @@ dimension can be added with evidence.
   `dotnet format --verify-no-changes`, and `git diff --check` pass. PostgreSQL-backed
   integration tests could not run because Docker Desktop/PostgreSQL was unavailable at
   `127.0.0.1:15432`; the test fixture failed during initialization, not in an assertion.
+
+## Latest frontend session (2026-08-03, admin workspace split)
+
+- ADR-087 turns `/admin` into an orientation-only overview and gives every admin
+  navigation area a real route. Source upload, revision review, department colors,
+  operational freeze, license creation/revocation and self-activation now live in
+  their own workspaces.
+- Areas whose backend contracts do not exist use explicit empty states; the UI does
+  not invent operational records or metrics.
+- The department-color surface is now a searchable and division-filtered palette
+  studio with aggregate counts, calendar-style previews, explicit save/reset actions,
+  override provenance and a persistent audit-reason field for admin mutations.
+- Verification: frontend TypeScript typecheck and Next.js production build passed.

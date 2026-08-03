@@ -159,6 +159,19 @@ export interface RedeemLicenseResponse {
   onboarding: OnboardingSnapshot;
 }
 
+export interface CreatedLicense {
+  licenseId: string;
+  plaintextCode: string;
+  status: string;
+  expiresAtUtc?: string | null;
+  createdAtUtc: string;
+}
+
+export interface LicenseRevocationResult {
+  outcome: string;
+  affectedUserId?: string | null;
+}
+
 // GET/POST /api/operations/freeze (SuperAdmin only)
 export interface OperationalFreezeSnapshot {
   isFrozen: boolean;

@@ -33,6 +33,8 @@ These screens are connected to real routes and were re-skinned, not stubbed:
 | Admin · document upload | `GET /api/sources/uploadable`, `POST /api/sources/{id}/document`, `GET .../uploads` |
 | Admin · revision review | `GET /api/revisions`, `GET /api/revisions/{id}`, `POST /api/revisions/{id}/approve` |
 | Admin · self-activation | `POST /api/admin/users/{id}/activate` |
+| Admin · department colors | `GET/PUT/POST /api/admin/calendar-colors` |
+| Admin · license create/revoke | `POST /api/admin/licenses`, `POST /api/admin/licenses/{id}/revoke` |
 
 ---
 
@@ -69,9 +71,11 @@ rendered as honest "Yakında" placeholders, not fabricated data:
 
 ## 3. Admin application (`/admin`)
 
-Only **Genel bakış** is a live route. Every other item in the plan's admin IA is
-rendered in the sidebar as a disabled "Yakında" entry (no dead links). The
-following need backend work:
+The admin information architecture now has dedicated routes. **Genel bakış** is
+an orientation screen only; live operations are separated into `/admin/sources`,
+`/admin/revisions`, `/admin/colors`, `/admin/operations`, and `/admin/users`.
+Areas without a backend have explicit, navigable empty-state panels and never
+fabricate records or metrics. The following still need backend work:
 
 ### 3.1 No endpoint (new product surface)
 
@@ -88,7 +92,6 @@ following need backend work:
 | Screen / module | Existing routes | Notes |
 | --- | --- | --- |
 | Diff serbest bırakma (held-diff release) | `GET /api/diffs`, `GET /api/diffs/{id}`, `POST /api/diffs/{id}/release` | Backend live (ADR-042). An ambiguity hold is **not** releasable and must be shown as such. Only the UI is missing. |
-| Lisans oluşturma / iptal | `POST /api/admin/licenses`, `POST /api/admin/licenses/{id}/revoke` | Create/revoke exist. **Plaintext code is shown once at creation only** (AI_GUIDELINE §7); never stored/displayed after. |
 
 ### 3.3 No endpoint (admin data views)
 
