@@ -17,22 +17,22 @@ public static class DepartmentColorEndpoints
             .RequireAuthorization()
             .WithTags("Calendar Colors");
         user.MapGet("/", GetUserColorsAsync)
-            .WithSummary("Returns the current user's effective department colors.");
+            .WithSummary("Returns the current user's effective calendar presentation colors.");
         user.MapPut("/{departmentKey}", SetUserColorAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
-            .WithSummary("Sets one personal department color override.");
+            .WithSummary("Sets one personal calendar presentation color override.");
         user.MapDelete("/{departmentKey}", ResetUserColorAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
-            .WithSummary("Resets one personal department color to the admin/system default.");
+            .WithSummary("Resets one personal calendar presentation color to its default.");
 
         RouteGroupBuilder admin = builder.MapGroup("/api/admin/calendar-colors")
             .RequireAuthorization(AuthorizationPolicies.SuperAdmin)
             .WithTags("Administration");
         admin.MapGet("/", GetAdminColorsAsync)
-            .WithSummary("Returns system and administrator department color defaults.");
+            .WithSummary("Returns system and administrator calendar presentation colors.");
         admin.MapPut("/{departmentKey}", SetAdminColorAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
-            .WithSummary("Sets one audited administrator department color default.");
+            .WithSummary("Sets one audited administrator calendar presentation color.");
         admin.MapPost("/{departmentKey}/reset", ResetAdminColorAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
             .WithSummary("Resets one audited administrator color to the system default.");

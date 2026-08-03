@@ -144,18 +144,71 @@ public sealed class ManagedCalendarEventFactoryTests
     }
 
     [Fact]
-    public void APracticeTitleUsesTheSameLabelAsItsDepartment()
+    public void PracticesUseOneCategoryLabelRegardlessOfTheirDepartment()
     {
-        ManagedCalendarEvent annual = ManagedCalendarEventFactory.ToManagedEvent(
-            UserId,
-            CalendarTestData.Record(departments: ["BİYOFİZİK AD."]));
-        ManagedCalendarEvent practice = ManagedCalendarEventFactory.ToManagedEvent(
+        ManagedCalendarEvent biophysics = ManagedCalendarEventFactory.ToManagedEvent(
             UserId,
             CalendarTestData.Record(
-                displayTitle: "Temel Biyofizik",
-                eventType: ScheduleEventType.Practice));
+                displayTitle: "Biyofizik",
+                eventType: ScheduleEventType.Practice,
+                departments: ["BİYOFİZİK AD."]));
+        ManagedCalendarEvent physiology = ManagedCalendarEventFactory.ToManagedEvent(
+            UserId,
+            CalendarTestData.Record(
+                displayTitle: "Fizyoloji",
+                eventType: ScheduleEventType.Practice,
+                departments: ["FİZYOLOJİ AD."]));
+        ManagedCalendarEvent multidisciplinary = ManagedCalendarEventFactory.ToManagedEvent(
+            UserId,
+            CalendarTestData.Record(
+                displayTitle: "Multidisipliner Beceri",
+                eventType: ScheduleEventType.Practice,
+                departments: ["FİZYOLOJİ AD.", "ANATOMİ AD."]));
 
-        Assert.Equal(annual.Label, practice.Label);
+        Assert.Equal("UYGULAMA - BİYOFİZİK", biophysics.Summary);
+        Assert.Equal("UYGULAMA - FİZYOLOJİ", physiology.Summary);
+        Assert.Equal(biophysics.Label, physiology.Label);
+        Assert.Equal(physiology.Label, multidisciplinary.Label);
+        Assert.Equal("#FF6D00", physiology.Label.BackgroundColor);
+    }
+
+    [Fact]
+    public void DissectionUsesThePracticeColorAndItsDedicatedTitle()
+    {
+        ManagedCalendarEvent dissection = ManagedCalendarEventFactory.ToManagedEvent(
+            UserId,
+            CalendarTestData.Record(
+                displayTitle: "Anatomi (6)",
+                eventType: ScheduleEventType.AnatomyPractice,
+                departments: ["ANATOMİ AD."]));
+
+        Assert.Equal("DİSEKSİYON", dissection.Summary);
+        Assert.Equal("Uygulamalar", dissection.Label.Name);
+        Assert.Equal("#FF6D00", dissection.Label.BackgroundColor);
+    }
+
+    [Fact]
+    public void IntegratedSessionsShareOneConfigurableColorAcrossDepartmentCombinations()
+    {
+        Dictionary<string, string> colors = new(StringComparer.Ordinal)
+        {
+            [CalendarPresentationColorCatalog.IntegratedSessionKey] = "#123456",
+        };
+        ManagedCalendarEvent first = ManagedCalendarEventFactory.ToManagedEvent(
+            UserId,
+            CalendarTestData.Record(
+                eventType: ScheduleEventType.IntegratedSession,
+                departments: ["ANATOMİ AD.", "FİZYOLOJİ AD."]),
+            colors);
+        ManagedCalendarEvent second = ManagedCalendarEventFactory.ToManagedEvent(
+            UserId,
+            CalendarTestData.Record(
+                eventType: ScheduleEventType.IntegratedSession,
+                departments: ["TIBBİ BİYOKİMYA AD.", "TIBBİ BİYOLOJİ AD."]),
+            colors);
+
+        Assert.Equal(first.Label, second.Label);
+        Assert.Equal("#123456", first.Label.BackgroundColor);
     }
 
     [Theory]

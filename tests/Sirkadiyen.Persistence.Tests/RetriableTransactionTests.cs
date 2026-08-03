@@ -89,6 +89,46 @@ public sealed class RetriableTransactionTests(PostgresFixture fixture)
         Assert.Equal(RevisionState.Validated, stored.State);
     }
 
+    [Fact]
+    public async Task DepartmentColorMutationSurvivesTheRetryingExecutionStrategy()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        DepartmentColorStore store = new(context);
+        string departmentKey = $"retry-test-{Guid.NewGuid():N}";
+        string correlationId = $"test-{Guid.NewGuid():N}";
+
+        bool changed = await store.SetAdminDefaultAsync(
+            departmentKey,
+            "#123456",
+            "integration-test",
+            "Prove the color transaction runs inside the retry strategy.",
+            correlationId,
+            Now,
+            Token);
+        bool repeated = await store.SetAdminDefaultAsync(
+            departmentKey,
+            "#123456",
+            "integration-test",
+            "Prove the no-change path also runs inside the retry strategy.",
+            $"{correlationId}-repeat",
+            Now.AddSeconds(1),
+            Token);
+
+        Assert.True(changed);
+        Assert.False(repeated);
+        Assert.Equal(
+            "#123456",
+            await context.DepartmentColorSettings
+                .Where(item => item.DepartmentKey == departmentKey)
+                .Select(item => item.BackgroundColor)
+                .SingleAsync(Token));
+        Assert.Single(
+            await context.DepartmentColorAudits
+                .Where(item => item.CorrelationId == correlationId)
+                .ToListAsync(Token));
+    }
+
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     private static async Task<ScheduleSource> AddSourceAsync(SirkadiyenDbContext context)

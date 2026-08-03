@@ -1866,3 +1866,32 @@ dimension can be added with evidence.
   studio with aggregate counts, calendar-style previews, explicit save/reset actions,
   override provenance and a persistent audit-reason field for admin mutations.
 - Verification: frontend TypeScript typecheck and Next.js production build passed.
+
+## Latest fix (2026-08-03, department-color retry transaction)
+
+- `DepartmentColorStore` opened manual EF transactions outside the configured
+  `NpgsqlRetryingExecutionStrategy`, so the first admin or user color mutation failed
+  before its query executed.
+- Both admin-default and user-override mutations now run through the existing
+  `RetriableTransaction` boundary. The color write, audit append and calendar refresh
+  request remain one atomic, retriable unit.
+- A production-like PostgreSQL regression test covers the mutation and unchanged
+  short-circuit with `EnableRetryOnFailure` enabled.
+- Verification: the new PostgreSQL regression test and all 409 Infrastructure unit
+  tests passed. The first Debug test attempt was blocked by the already-running worker
+  locking its DLLs; the same suite passed from the separate Release output.
+
+## Latest implementation session (2026-08-03, calendar category colors)
+
+- ADR-088 gives every integrated session one stable label/color and every practice,
+  vertical-corridor activity and dissection one stable application label/color.
+- The same audited admin/user/system precedence used for departments now covers the
+  bounded `integrated-session` and `practice` presentation keys. Existing persistence
+  and inventory refresh are reused, so no migration is required.
+- Ordinary practice summaries render as `UYGULAMA - {UPPERCASE SOURCE TITLE}`;
+  anatomy practices render exactly as `DİSEKSİYON`. Canonical records are unchanged.
+- Both admin and user palette studios expose category cards with live previews above
+  the department filters.
+- Verification: 412 Infrastructure, 137 PostgreSQL persistence, 6 Contracts and
+  5 API tests pass (560 total); frontend TypeScript typecheck and Next.js production
+  build, .NET format verification and Git diff checks also pass.

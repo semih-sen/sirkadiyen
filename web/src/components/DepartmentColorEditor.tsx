@@ -39,7 +39,7 @@ export function DepartmentColorEditor({ mode }: { mode: 'admin' | 'user' }) {
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase('tr-TR');
-    return items.filter((item) => {
+    return items.filter((item) => item.kind === 'Department').filter((item) => {
       const customized = mode === 'admin' ? Boolean(item.adminDefaultColor) : Boolean(item.userColor);
       return (division === 'All' || item.division === division)
         && (!onlyCustomized || customized)
@@ -47,6 +47,8 @@ export function DepartmentColorEditor({ mode }: { mode: 'admin' | 'user' }) {
     });
   }, [items, query, division, onlyCustomized, mode]);
 
+  const categories = items.filter((item) => item.kind === 'EventCategory');
+  const departments = items.filter((item) => item.kind === 'Department');
   const customizedCount = items.filter((item) => mode === 'admin' ? item.adminDefaultColor : item.userColor).length;
 
   async function save(item: DepartmentColorView) {
@@ -79,11 +81,11 @@ export function DepartmentColorEditor({ mode }: { mode: 'admin' | 'user' }) {
       <section className="color-studio-hero">
         <div className="color-studio-copy">
           <span className="eyebrow">Renk sistemi</span>
-          <h2>{mode === 'admin' ? 'Fakülte paleti' : 'Kişisel paletim'}</h2>
-          <p>{mode === 'admin' ? 'Her renk, kişisel seçim yapmamış öğrencilerin yönetilen Google Takvim etkinliklerinde kullanılır.' : 'Seçtiğin renk yalnızca senin takviminde fakülte varsayılanının önüne geçer.'}</p>
+          <h2>{mode === 'admin' ? 'Fakülte takvim paleti' : 'Kişisel takvim paletim'}</h2>
+          <p>{mode === 'admin' ? 'Etkinlik kategorilerini ve anabilim dallarını, kişisel seçim yapmamış öğrenciler için yönet.' : 'Etkinlik kategorileri ve anabilim dalları için seçtiğin renkler yalnızca senin takviminde kullanılır.'}</p>
         </div>
         <div className="color-studio-metrics">
-          <div><strong>{items.length || '—'}</strong><span>Anabilim dalı</span></div>
+          <div><strong>{departments.length || '—'}</strong><span>Anabilim dalı</span></div>
           <div><strong>{customizedCount}</strong><span>Özelleştirilmiş</span></div>
           <div><strong>{items.length - customizedCount || '—'}</strong><span>Varsayılan</span></div>
         </div>
@@ -115,6 +117,36 @@ export function DepartmentColorEditor({ mode }: { mode: 'admin' | 'user' }) {
       {notice && <div className="success" role="status">{notice}</div>}
       {!items.length && !error ? <div className="color-loading"><span className="spinner" /> Palet yükleniyor…</div> : (
         <>
+          <section className="calendar-category-colors" aria-labelledby="calendar-category-colors-heading">
+            <div className="color-results-head">
+              <span id="calendar-category-colors-heading">Etkinlik kategorileri</span>
+              <span>Ders ve anabilim dalından bağımsız renkler</span>
+            </div>
+            <div className="department-color-grid department-color-grid--categories">
+              {categories.map((item) => {
+                const color = drafts[item.key] ?? item.effectiveColor;
+                const customized = mode === 'admin' ? Boolean(item.adminDefaultColor) : Boolean(item.userColor);
+                const dirty = color.toUpperCase() !== item.effectiveColor.toUpperCase();
+                return (
+                  <article className="department-color-card category-color-card" key={item.key}>
+                    <div className="department-color-preview" style={{ background: color, color: contrastColor(color) }}>
+                      <span className="department-calendar-date">18</span>
+                      <span><strong>{item.key === 'practice' ? 'UYGULAMA - FİZYOLOJİ' : 'Entegre oturum'}</strong><small>10.30 · Ders</small></span>
+                    </div>
+                    <div className="department-color-body">
+                      <div className="department-color-name"><div><h3>{item.name}</h3><span>{item.description}</span></div><span className={`color-origin ${customized ? 'custom' : ''}`}>{customized ? 'Özel' : 'Varsayılan'}</span></div>
+                      <div className="department-color-controls">
+                        <label className="color-picker-control" style={{ '--swatch': color } as CSSProperties}><input type="color" aria-label={`${item.name} rengi`} value={color} disabled={busyKey === item.key} onChange={(event) => setDrafts((current) => ({ ...current, [item.key]: event.target.value.toUpperCase() }))} /><span>{color.toUpperCase()}</span></label>
+                        <button type="button" className="btn btn-primary btn-sm" disabled={!dirty || busyKey === item.key} onClick={() => void save(item)}>{busyKey === item.key ? '…' : 'Kaydet'}</button>
+                      </div>
+                      <div className="department-color-footer"><span>Sistem <i style={{ background: item.systemDefaultColor }} /> {item.systemDefaultColor}</span><button type="button" disabled={!customized || busyKey === item.key} onClick={() => void reset(item)}>Varsayılana dön</button></div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+          <div className="color-results-head"><span>Anabilim dalları</span><span>Bölüme göre ders renkleri</span></div>
           <div className="color-results-head"><span>{filtered.length} sonuç</span><span>Renk seç → önizle → kaydet</span></div>
           <div className="department-color-grid">
             {filtered.map((item) => {

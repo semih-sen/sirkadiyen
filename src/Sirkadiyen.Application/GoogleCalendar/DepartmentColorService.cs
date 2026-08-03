@@ -68,12 +68,19 @@ public sealed partial class DepartmentColorService(
         IReadOnlyDictionary<string, string> user =
             await store.GetUserOverridesAsync(userId, cancellationToken);
 
-        IReadOnlyDictionary<string, string> effective = DepartmentCatalog.Departments.ToDictionary(
+        Dictionary<string, string> effective = DepartmentCatalog.Departments.ToDictionary(
             item => item.Key,
             item => user.GetValueOrDefault(item.Key)
                 ?? admin.GetValueOrDefault(item.Key)
                 ?? DepartmentCatalog.DefaultColor(item.Key),
             StringComparer.Ordinal);
+        foreach (CalendarPresentationColorDefinition category in CalendarPresentationColorCatalog.Categories)
+        {
+            effective[category.Key] = user.GetValueOrDefault(category.Key)
+                ?? admin.GetValueOrDefault(category.Key)
+                ?? category.SystemDefaultColor;
+        }
+
         effectiveCache[userId] = effective;
         return effective;
     }
@@ -85,7 +92,7 @@ public sealed partial class DepartmentColorService(
         string correlationId,
         CancellationToken cancellationToken)
     {
-        ValidateDepartment(departmentKey);
+        ValidateColorKey(departmentKey);
         return await store.SetUserOverrideAsync(
             userId,
             departmentKey,
@@ -103,7 +110,7 @@ public sealed partial class DepartmentColorService(
         string correlationId,
         CancellationToken cancellationToken)
     {
-        ValidateDepartment(departmentKey);
+        ValidateColorKey(departmentKey);
         if (string.IsNullOrWhiteSpace(reason) || reason.Trim().Length > 1000)
         {
             throw new ArgumentException(
@@ -123,8 +130,26 @@ public sealed partial class DepartmentColorService(
 
     private static IReadOnlyList<DepartmentColorView> Views(
         IReadOnlyDictionary<string, string> admin,
-        IReadOnlyDictionary<string, string> user) =>
-        DepartmentCatalog.Departments.Select(item =>
+        IReadOnlyDictionary<string, string> user)
+    {
+        IEnumerable<DepartmentColorView> categories =
+            CalendarPresentationColorCatalog.Categories.Select(item =>
+            {
+                string? adminColor = admin.GetValueOrDefault(item.Key);
+                string? userColor = user.GetValueOrDefault(item.Key);
+                return new DepartmentColorView
+                {
+                    Key = item.Key,
+                    Name = item.Name,
+                    Kind = CalendarColorKind.EventCategory,
+                    Description = item.Description,
+                    SystemDefaultColor = item.SystemDefaultColor,
+                    AdminDefaultColor = adminColor,
+                    UserColor = userColor,
+                    EffectiveColor = userColor ?? adminColor ?? item.SystemDefaultColor,
+                };
+            });
+        IEnumerable<DepartmentColorView> departments = DepartmentCatalog.Departments.Select(item =>
         {
             string systemColor = DepartmentCatalog.DefaultColor(item.Key);
             string? adminColor = admin.GetValueOrDefault(item.Key);
@@ -133,19 +158,24 @@ public sealed partial class DepartmentColorService(
             {
                 Key = item.Key,
                 Name = item.Name,
+                Kind = CalendarColorKind.Department,
                 Division = item.Division,
                 SystemDefaultColor = systemColor,
                 AdminDefaultColor = adminColor,
                 UserColor = userColor,
                 EffectiveColor = userColor ?? adminColor ?? systemColor,
             };
-        }).ToArray();
+        });
+        return categories.Concat(departments).ToArray();
+    }
 
-    private static void ValidateDepartment(string key)
+    private static void ValidateColorKey(string key)
     {
-        if (string.IsNullOrWhiteSpace(key) || !DepartmentCatalog.TryGet(key, out _))
+        if (string.IsNullOrWhiteSpace(key)
+            || (!DepartmentCatalog.TryGet(key, out _)
+                && !CalendarPresentationColorCatalog.TryGet(key, out _)))
         {
-            throw new ArgumentException("Unknown department key.", nameof(key));
+            throw new ArgumentException("Unknown calendar color key.", nameof(key));
         }
     }
 
@@ -173,11 +203,54 @@ public sealed record DepartmentColorView
 {
     public required string Key { get; init; }
     public required string Name { get; init; }
-    public required DepartmentDivision Division { get; init; }
+    public required CalendarColorKind Kind { get; init; }
+    public DepartmentDivision? Division { get; init; }
+    public string? Description { get; init; }
     public required string SystemDefaultColor { get; init; }
     public string? AdminDefaultColor { get; init; }
     public string? UserColor { get; init; }
     public required string EffectiveColor { get; init; }
+}
+
+public enum CalendarColorKind
+{
+    EventCategory,
+    Department,
+}
+
+public sealed record CalendarPresentationColorDefinition(
+    string Key,
+    string Name,
+    string Description,
+    string SystemDefaultColor);
+
+public static class CalendarPresentationColorCatalog
+{
+    public const string IntegratedSessionKey = "integrated-session";
+    public const string PracticeKey = "practice";
+
+    public static IReadOnlyList<CalendarPresentationColorDefinition> Categories { get; } =
+    [
+        new(
+            IntegratedSessionKey,
+            "Entegre oturumlar",
+            "Birden fazla anabilim dalının birlikte yürüttüğü tüm oturumlar.",
+            "#5E35B1"),
+        new(
+            PracticeKey,
+            "Uygulamalar ve diseksiyonlar",
+            "Dersinden bağımsız olarak tüm uygulama türleri ve diseksiyonlar.",
+            "#FF6D00"),
+    ];
+
+    public static bool TryGet(
+        string key,
+        out CalendarPresentationColorDefinition definition)
+    {
+        definition = Categories.FirstOrDefault(
+            item => StringComparer.Ordinal.Equals(item.Key, key))!;
+        return definition is not null;
+    }
 }
 
 internal static class DepartmentColorPaletteResolver

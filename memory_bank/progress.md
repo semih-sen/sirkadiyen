@@ -519,3 +519,15 @@ overview no longer embeds operational forms. Live source, revision, color, freez
 license operations are connected to backend-authoritative APIs, while missing-domain
 routes render honest empty states. The department palette is now searchable,
 filterable, previewable and uses an explicit save action.
+
+The department-color persistence regression found after the first live admin mutation
+is fixed. Both color scopes use the shared retriable-transaction wrapper required by
+the hosts' Npgsql retry strategy, and a production-like PostgreSQL test prevents the
+manual-transaction failure from returning.
+
+ADR-088 extends the runtime palette to two bounded event categories without a schema
+change. Integrated sessions now share one configurable label/color regardless of their
+department combination. All application types, including vertical-corridor activities
+and dissections, share a configurable attention color; visible titles use the
+`UYGULAMA - ...` and `DİSEKSİYON` presentation rules. The canonical schedule remains
+source-faithful, and ordinary inventory patches existing Calendar events in place.

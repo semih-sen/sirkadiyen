@@ -16,7 +16,14 @@ public static partial class CalendarEventPresentationPolicy
     public static string Summary(CanonicalScheduleRecord record)
     {
         ArgumentNullException.ThrowIfNull(record);
-        return record.DisplayTitle;
+        if (record.EventType is ScheduleEventType.AnatomyPractice)
+        {
+            return "DİSEKSİYON";
+        }
+
+        return IsPractice(record.EventType)
+            ? $"UYGULAMA - {record.DisplayTitle.Trim().ToUpper(new CultureInfo("tr-TR"))}"
+            : record.DisplayTitle;
     }
 
     public static string? Description(CanonicalScheduleRecord record)
@@ -89,26 +96,25 @@ public static partial class CalendarEventPresentationPolicy
             return new("event:free-study", "Serbest çalışma", "#039BE5");
         }
 
+        if (IsPractice(record.EventType))
+        {
+            return new("event:practice", "Uygulamalar", "#FF6D00");
+        }
+
+        if (record.EventType is ScheduleEventType.IntegratedSession
+            || record.Departments.Count > 1)
+        {
+            return new("event:integrated-session", "Entegre oturum", "#5E35B1");
+        }
+
         if (record.Departments.Count == 1)
         {
             return DepartmentCategory(record.Departments[0]);
         }
 
-        if (record.Departments.Count > 1)
-        {
-            string joined = string.Join("|", record.Departments.Select(Normalize));
-            return new($"departments:{joined}", "Entegre oturum", null);
-        }
-
-        string normalizedTitle = Normalize(record.DisplayTitle);
         if (TryKnownDepartmentFromTitle(record.DisplayTitle, out PresentationCategory inferred))
         {
             return inferred;
-        }
-
-        if (record.EventType is ScheduleEventType.AnatomyPractice)
-        {
-            return KnownDepartment("anatomi");
         }
 
         string eventType = record.EventType.ToString();
@@ -164,6 +170,19 @@ public static partial class CalendarEventPresentationPolicy
         PresentationCategory category,
         IReadOnlyDictionary<string, string>? departmentColors)
     {
+        string? categoryColorKey = category.Key switch
+        {
+            "event:integrated-session" => CalendarPresentationColorCatalog.IntegratedSessionKey,
+            "event:practice" => CalendarPresentationColorCatalog.PracticeKey,
+            _ => null,
+        };
+        if (categoryColorKey is not null
+            && departmentColors is not null
+            && departmentColors.TryGetValue(categoryColorKey, out string? categoryColor))
+        {
+            return categoryColor;
+        }
+
         const string prefix = "department:";
         if (category.Key.StartsWith(prefix, StringComparison.Ordinal)
             && departmentColors is not null
@@ -174,6 +193,13 @@ public static partial class CalendarEventPresentationPolicy
 
         return category.BackgroundColor ?? DerivedColor(category.Key);
     }
+
+    private static bool IsPractice(ScheduleEventType eventType) => eventType is
+        ScheduleEventType.Practice
+        or ScheduleEventType.AnatomyPractice
+        or ScheduleEventType.BedsidePractice
+        or ScheduleEventType.FacultyPractice
+        or ScheduleEventType.VerticalCorridor;
 
     private static string EventTypeName(ScheduleEventType eventType) => eventType switch
     {

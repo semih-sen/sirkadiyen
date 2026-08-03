@@ -22,6 +22,34 @@ public sealed class DepartmentColorServiceTests
 
         Assert.Equal("#222222", colors["anatomi"]);
         Assert.Equal(DepartmentCatalog.DefaultColor("fizyoloji"), colors["fizyoloji"]);
+        Assert.Equal("#FF6D00", colors[CalendarPresentationColorCatalog.PracticeKey]);
+    }
+
+    [Fact]
+    public async Task EventCategoryColorsUseTheSameUserAdminSystemPrecedence()
+    {
+        MemoryStore store = new()
+        {
+            Admin = new Dictionary<string, string>
+            {
+                [CalendarPresentationColorCatalog.IntegratedSessionKey] = "#111111",
+            },
+            User = new Dictionary<string, string>
+            {
+                [CalendarPresentationColorCatalog.IntegratedSessionKey] = "#222222",
+            },
+        };
+        DepartmentColorService service = new(store, new FixedTimeProvider(Now));
+
+        IReadOnlyList<DepartmentColorView> views =
+            await service.GetForUserAsync(Guid.CreateVersion7(), CancellationToken.None);
+        DepartmentColorView integrated = Assert.Single(
+            views,
+            item => item.Key == CalendarPresentationColorCatalog.IntegratedSessionKey);
+
+        Assert.Equal(CalendarColorKind.EventCategory, integrated.Kind);
+        Assert.Null(integrated.Division);
+        Assert.Equal("#222222", integrated.EffectiveColor);
     }
 
     [Fact]

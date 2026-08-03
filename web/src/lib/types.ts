@@ -130,11 +130,14 @@ export interface CalendarSyncResponse {
 }
 
 export type DepartmentDivision = 'Basic' | 'Internal' | 'Surgical';
+export type CalendarColorKind = 'EventCategory' | 'Department';
 
 export interface DepartmentColorView {
   key: string;
   name: string;
-  division: DepartmentDivision;
+  kind: CalendarColorKind;
+  division?: DepartmentDivision | null;
+  description?: string | null;
   systemDefaultColor: string;
   adminDefaultColor?: string | null;
   userColor?: string | null;

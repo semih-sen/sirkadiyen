@@ -4675,3 +4675,49 @@ alone performs no mutation.
   may consolidate this with other overview health data.
 
 ---
+
+## ADR-088: Integrated sessions and practices are configurable presentation categories
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-03
+**Amends:** ADR-072, ADR-086
+
+### Context
+
+Integrated sessions were labelled from the complete ordered department combination.
+That preserved source detail but produced a different Calendar label and derived color
+for every combination. Practices were resolved after department inference, so a
+physiology practice inherited physiology's lecture color and did not stand out as a
+practice. Anatomy practices (dissections) had the same problem.
+
+### Decision
+
+Introduce two code-owned presentation-category identities beside the reviewed
+department identities: `integrated-session` and `practice`. They use the same layered
+color precedence as departments: user override, administrator default, system default.
+The existing audited color persistence and inventory-refresh path stores these bounded
+keys; no new table or migration is required.
+
+Resolve exams and free study first, then every practice type, then integrated sessions,
+and only then department colors. A record explicitly typed `IntegratedSession`, or one
+that states several departments, uses the single stable `Entegre oturum` Calendar label.
+`Practice`, `AnatomyPractice`, `BedsidePractice`, `FacultyPractice`, and
+`VerticalCorridor` use the single stable `Uygulamalar` label. Their system color is the
+attention-oriented orange `#FF6D00`; the integrated-session default is `#5E35B1`.
+
+Calendar summaries are presentation-only: ordinary practice titles become
+`UYGULAMA - {SOURCE TITLE IN TURKISH UPPERCASE}`, while `AnatomyPractice` becomes the
+exact title `DİSEKSİYON`. Canonical source titles, identities, and content hashes remain
+unchanged.
+
+### Consequences
+
+- Department combinations no longer fragment integrated-session colors.
+- Every application/dissection is visually recognizable independently of its course.
+- Admin and user palette panels expose both categories above the department catalog.
+- Changing either category color marks the same completed calendars due for bounded,
+  non-destructive inventory; existing events are patched in place.
+- Existing department-color tables retain historical names but accept only keys from
+  the server-owned department or presentation-category catalogs.
+
+---
