@@ -1,3 +1,4 @@
+using Sirkadiyen.Application.Operations;
 using Sirkadiyen.Domain.SchedulePublication;
 
 namespace Sirkadiyen.Application.SchedulePublication;
@@ -14,6 +15,11 @@ namespace Sirkadiyen.Application.SchedulePublication;
 /// </remarks>
 public interface IScheduleRevisionPublicationStore
 {
+    Task<OperationalFreezeScope?> GetOperationalScopeAsync(
+        Guid revisionId,
+        CancellationToken cancellationToken) =>
+        Task.FromResult<OperationalFreezeScope?>(null);
+
     /// <summary>
     /// Moves a <see cref="RevisionState.Validated"/> revision to
     /// <see cref="RevisionState.Published"/> and supersedes the source's

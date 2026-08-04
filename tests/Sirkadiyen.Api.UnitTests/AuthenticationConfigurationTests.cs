@@ -19,7 +19,7 @@ public sealed class AuthenticationConfigurationTests
         Assert.Equal(CookieSecurePolicy.Always, options.Cookie.SecurePolicy);
         Assert.Equal(SameSiteMode.Lax, options.Cookie.SameSite);
         Assert.Equal("/", options.Cookie.Path);
-        Assert.Equal(TimeSpan.FromHours(8), options.ExpireTimeSpan);
+        Assert.Equal(TimeSpan.FromDays(30), options.ExpireTimeSpan);
         Assert.True(options.SlidingExpiration);
         Assert.Equal(
             typeof(SirkadiyenCookieAuthenticationEvents),

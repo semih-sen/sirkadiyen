@@ -735,7 +735,7 @@ interval. Those Calendar-only checks never acquire or parse a source. The next c
 is shortened when necessary to preserve the source deadline, so responsiveness does
 not turn into extra source traffic or polling drift.
 
-## 24. Global operational freeze pattern
+## 24. Global and scoped operational freeze pattern
 
 A runtime-readable, audited global freeze gates every mutating pipeline boundary
 (ADR-034). While frozen, the worker does not start acquisition, parsing,
@@ -752,6 +752,15 @@ again after immutable evidence storage, and the publication service checks
 immediately before each revision. A later diff dispatcher and every Calendar
 job must consume the same application port rather than introducing a queue-local
 flag.
+
+ADR-091 adds a narrower control keyed by `(ClassYear, ProgramLanguage)`. The
+global singleton remains the emergency stop; a pipeline is frozen when either
+the singleton or its exact scope is frozen. Scoped controls and their append-only
+audits live in separate PostgreSQL tables. Acquisition, parsing, publication,
+diff dispatch, initial sync, replay, inventory and snapshot retention resolve the
+source or student's class/program before mutating, so freezing `Dönem 1 / Turkish`
+does not silently stop another program. A shared administrative upload skips only
+its frozen targets while retaining the same bytes for active targets.
 
 The `SuperAdmin` API exposes both the read and the audited transition. Mutation
 is CSRF-protected, requires a non-empty reason, derives the actor from the

@@ -55,6 +55,17 @@ public sealed class CalendarInventoryReconciliationService(
         InventoryAccumulator accumulator = new(target.UserId);
         try
         {
+            if (await freezeStore.IsFrozenAsync(
+                new OperationalFreezeScope
+                {
+                    ClassYear = target.Profile.ClassYear,
+                    ProgramLanguage = target.Profile.ProgramLanguage,
+                },
+                cancellationToken))
+            {
+                return accumulator.ToResult(CalendarInventoryOutcome.Frozen);
+            }
+
             CalendarAccess access = new()
             {
                 RefreshToken = tokenProtector.Unprotect(target.ProtectedRefreshToken),
@@ -426,6 +437,7 @@ public sealed record CalendarInventoryUserResult
 
 public enum CalendarInventoryOutcome
 {
+    Frozen,
     Completed,
     CompletedWithConflicts,
     Deferred,

@@ -1,3 +1,5 @@
+using Sirkadiyen.Domain.ScheduleSources;
+
 namespace Sirkadiyen.Application.Operations;
 
 /// <summary>
@@ -26,11 +28,53 @@ public interface IOperationalFreezeStore
         string correlationId,
         DateTimeOffset changedAtUtc,
         CancellationToken cancellationToken);
+
+    /// <summary>Returns the explicit switch for one class/program pipeline.</summary>
+    Task<OperationalFreezeSnapshot> GetScopedAsync(
+        OperationalFreezeScope scope,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(new OperationalFreezeSnapshot { IsFrozen = false, Scope = scope });
+
+    Task<IReadOnlyList<OperationalFreezeSnapshot>> ListScopedAsync(
+        CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<OperationalFreezeSnapshot>>([]);
+
+    Task<OperationalFreezeChangeResult> SetScopedAsync(
+        OperationalFreezeScope scope,
+        bool isFrozen,
+        string changedBy,
+        string reason,
+        string correlationId,
+        DateTimeOffset changedAtUtc,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This operational freeze store does not support scoped controls.");
+
+    /// <summary>Combines the global emergency stop with the selected pipeline switch.</summary>
+    async Task<bool> IsFrozenAsync(
+        OperationalFreezeScope scope,
+        CancellationToken cancellationToken)
+    {
+        if ((await GetAsync(cancellationToken)).IsFrozen)
+        {
+            return true;
+        }
+
+        return (await GetScopedAsync(scope, cancellationToken)).IsFrozen;
+    }
+}
+
+public sealed record OperationalFreezeScope
+{
+    public required int ClassYear { get; init; }
+    public required ProgramLanguage ProgramLanguage { get; init; }
 }
 
 public sealed record OperationalFreezeSnapshot
 {
     public required bool IsFrozen { get; init; }
+
+    /// <summary>Null for the global emergency stop.</summary>
+    public OperationalFreezeScope? Scope { get; init; }
 
     public string? ChangedBy { get; init; }
 

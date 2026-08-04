@@ -4815,3 +4815,45 @@ the Next production build beside the test suite.
 - The frontend adds development-only test dependencies and an `npm test` command.
 - Authentication, proxy and database integration still require a local smoke test;
   component mocks do not replace environment-level verification.
+
+---
+
+## ADR-091: Persistent browser sessions, scoped pipeline freezes and explicit service health
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-04
+**Amends:** ADR-034, ADR-043, ADR-052, ADR-089
+
+### Context
+
+An eight-hour session forced ordinary users to repeat Google sign-in despite returning from
+the same browser. The global-only operational freeze also stopped unrelated academic programs
+when an incident affected one line, and the admin server page could not distinguish the worker
+or parser process from API/database readiness. Finally, source status showed parser warning
+counts but not the persisted warnings that explained `CompletedWithWarnings`.
+
+### Decision
+
+- Issue the existing backend-managed persistent secure cookie with a 30-day sliding ticket.
+  Keep it HTTP-only, `Secure`, `SameSite=Lax`, CSRF-protected and revalidated against the user
+  row on every authenticated request. The short-lived Google ID credential is still discarded.
+- Keep the audited global freeze as the emergency stop and add audited controls keyed by
+  `(ClassYear, ProgramLanguage)`. A mutation is blocked when either global or exact-scope state
+  is frozen. Shared uploads skip only frozen targets; unrelated source and calendar lines run.
+- Persist a worker process heartbeat every 15 seconds. Treat a heartbeat older than 45 seconds
+  as unhealthy. Probe the parser's existing `/health` endpoint on explicit SuperAdmin refresh;
+  do not fold either dependency into API liveness or claim CPU/RAM/Redis telemetry.
+- Project warning details by deserializing the latest stored parser response. This read is
+  evidence-only and never starts a new parser run.
+
+### Consequences
+
+- Returning users normally need no Google sign-in for 30 days in the same browser, with the
+  window sliding during use. Explicit logout, role/user invalidation, cookie deletion, key-ring
+  loss or expiry still ends the session.
+- Scoped controls and service heartbeat require migration
+  `AddScopedFreezeAndServiceHeartbeats`; both freeze histories remain append-only.
+- API and worker processes must restart after deployment to load the new cookie policy,
+  endpoints and heartbeat service.
+- Worker health is process heartbeat freshness, not proof that every queued job is progressing;
+  queue and source counts remain separate operational signals.

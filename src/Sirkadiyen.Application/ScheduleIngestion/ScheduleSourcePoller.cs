@@ -67,7 +67,7 @@ public sealed class ScheduleSourcePoller(
         // This read happens immediately before the external acquisition. If the
         // authoritative row cannot be read, the exception escapes and no read is
         // started: failure is closed, never treated as "probably unfrozen".
-        if ((await operationalFreeze.GetAsync(cancellationToken)).IsFrozen)
+        if (await operationalFreeze.IsFrozenAsync(Scope(source), cancellationToken))
         {
             return Frozen(source.SourceId, snapshotChanged: false);
         }
@@ -105,7 +105,7 @@ public sealed class ScheduleSourcePoller(
         // A freeze may be enabled while the external read is in flight. ADR-034
         // permits the immutable evidence to finish storing, but no parse run may
         // start or resume after that point.
-        if ((await operationalFreeze.GetAsync(cancellationToken)).IsFrozen)
+        if (await operationalFreeze.IsFrozenAsync(Scope(source), cancellationToken))
         {
             return Frozen(source.SourceId, stored.Changed);
         }
@@ -163,7 +163,7 @@ public sealed class ScheduleSourcePoller(
         ScheduleSource source,
         CancellationToken cancellationToken)
     {
-        if ((await operationalFreeze.GetAsync(cancellationToken)).IsFrozen)
+        if (await operationalFreeze.IsFrozenAsync(Scope(source), cancellationToken))
         {
             return Frozen(source.SourceId, snapshotChanged: false);
         }
@@ -326,6 +326,11 @@ public sealed class ScheduleSourcePoller(
             Outcome = ScheduleSourcePollOutcome.Frozen,
             SnapshotChanged = snapshotChanged,
         };
+    private static OperationalFreezeScope Scope(ScheduleSource source) => new()
+    {
+        ClassYear = source.ClassYear,
+        ProgramLanguage = source.ProgramLanguage,
+    };
 }
 
 public sealed record ScheduleSourcePollResult

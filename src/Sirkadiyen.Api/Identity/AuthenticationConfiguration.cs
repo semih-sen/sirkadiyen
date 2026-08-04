@@ -20,7 +20,11 @@ public static class AuthenticationConfiguration
         options.Cookie.SameSite = SameSiteMode.Lax;
         options.Cookie.Path = "/";
         options.Cookie.IsEssential = true;
-        options.ExpireTimeSpan = TimeSpan.FromHours(8);
+        // A remembered same-browser session should survive ordinary study breaks without
+        // making the Google ID credential itself long-lived. The cookie ticket remains
+        // backend-issued, HTTP-only, secure and revalidated against the user row on every
+        // request; sliding expiry renews the 30-day window while the browser is in use.
+        options.ExpireTimeSpan = TimeSpan.FromDays(30);
         options.SlidingExpiration = true;
         options.EventsType = typeof(SirkadiyenCookieAuthenticationEvents);
     }

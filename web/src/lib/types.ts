@@ -280,10 +280,29 @@ export interface SourceSnapshotSummary {
   hasPayload: boolean;
 }
 
+export type ParserWarningSeverity = 'Information' | 'Warning' | 'Error' | string;
+
+export interface ParserSourceEvidence {
+  sheetId: string;
+  sheetTitle: string;
+  range: string;
+  rawText?: string | null;
+  extractionRule: string;
+}
+
+export interface ParserWarningView {
+  severity: ParserWarningSeverity;
+  code: string;
+  message: string;
+  candidateId?: string | null;
+  evidence?: ParserSourceEvidence | null;
+}
+
 export interface SourceStatusDetail {
   summary: SourceStatusListItem;
   parserProfile: string;
   parserProfileVersion: string;
+  latestParseWarnings: ParserWarningView[];
   recentSnapshots: SourceSnapshotSummary[];
 }
 
@@ -326,6 +345,21 @@ export interface HealthStatus {
   ok: boolean;
   status: number;
   text: string;
+}
+
+export type ServiceHealthState = 'Healthy' | 'Unhealthy' | 'Unknown' | string;
+
+export interface ServiceHealthView {
+  service: string;
+  state: ServiceHealthState;
+  lastSeenAtUtc?: string | null;
+  detail?: string | null;
+}
+
+export interface AdminServiceHealthSnapshot {
+  checkedAtUtc: string;
+  worker: ServiceHealthView;
+  parser: ServiceHealthView;
 }
 
 export interface CalendarSyncResponse {
@@ -382,10 +416,16 @@ export interface LicenseRevocationResult {
 // GET/POST /api/operations/freeze (SuperAdmin only)
 export interface OperationalFreezeSnapshot {
   isFrozen: boolean;
+  scope?: OperationalFreezeScope | null;
   changedBy?: string | null;
   reason?: string | null;
   correlationId?: string | null;
   changedAtUtc?: string | null;
+}
+
+export interface OperationalFreezeScope {
+  classYear: number;
+  programLanguage: ProgramLanguage;
 }
 
 export type OperationalFreezeChangeOutcome = 'Changed' | 'AlreadyInRequestedState' | string;
@@ -454,14 +494,14 @@ export interface UploadableSourceView {
 }
 
 /** Whether the upload became a new snapshot or normalized to content already held. */
-export type SourceDocumentUploadOutcome = 'Stored' | 'Unchanged' | string;
+export type SourceDocumentUploadOutcome = 'Stored' | 'Unchanged' | 'Frozen' | string;
 
 export interface SourceDocumentUploadTarget {
   sourceId: string;
   classYear: number;
   programLanguage: ProgramLanguage;
   outcome: SourceDocumentUploadOutcome;
-  snapshotId: string;
+  snapshotId?: string | null;
 }
 
 export interface SourceDocumentUploadResponse {

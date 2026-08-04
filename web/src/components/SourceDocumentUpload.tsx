@@ -84,6 +84,7 @@ function formatBytes(byteCount: number): string {
 function outcomeLabel(outcome: string): string {
   if (outcome === 'Stored') return 'yeni anlık görüntü kaydedildi';
   if (outcome === 'Unchanged') return 'içerik değişmedi';
+  if (outcome === 'Frozen') return 'bu dönem/program hattı donduruldu; saklanmadı';
   return outcome;
 }
 

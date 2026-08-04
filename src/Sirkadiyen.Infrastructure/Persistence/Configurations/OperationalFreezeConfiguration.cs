@@ -63,3 +63,53 @@ internal sealed class OperationalFreezeAuditConfiguration
         builder.HasIndex(audit => audit.ChangedAtUtc);
     }
 }
+
+internal sealed class ScopedOperationalFreezeControlConfiguration
+    : IEntityTypeConfiguration<ScopedOperationalFreezeControl>
+{
+    public void Configure(EntityTypeBuilder<ScopedOperationalFreezeControl> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ToTable("scoped_operational_freeze_controls");
+        builder.HasKey(control => control.Id);
+        builder.Property(control => control.ProgramLanguage).HasConversion<string>();
+        builder.Property(control => control.ChangedBy)
+            .HasMaxLength(OperationalFreezeControl.MaximumActorLength);
+        builder.Property(control => control.Reason)
+            .HasMaxLength(OperationalFreezeControl.MaximumReasonLength);
+        builder.Property(control => control.CorrelationId)
+            .HasMaxLength(OperationalFreezeControl.MaximumCorrelationIdLength);
+        builder.Property(control => control.RowVersion).IsRowVersion();
+        builder.HasIndex(control => new { control.ClassYear, control.ProgramLanguage }).IsUnique();
+        builder.ToTable(table => table.HasCheckConstraint(
+            "ck_scoped_operational_freeze_class_year",
+            "\"ClassYear\" BETWEEN 1 AND 6"));
+    }
+}
+
+internal sealed class ScopedOperationalFreezeAuditConfiguration
+    : IEntityTypeConfiguration<ScopedOperationalFreezeAudit>
+{
+    public void Configure(EntityTypeBuilder<ScopedOperationalFreezeAudit> builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+
+        builder.ToTable("scoped_operational_freeze_audits");
+        builder.HasKey(audit => audit.Id);
+        builder.Property(audit => audit.ChangedBy)
+            .HasMaxLength(OperationalFreezeControl.MaximumActorLength)
+            .IsRequired();
+        builder.Property(audit => audit.Reason)
+            .HasMaxLength(OperationalFreezeControl.MaximumReasonLength)
+            .IsRequired();
+        builder.Property(audit => audit.CorrelationId)
+            .HasMaxLength(OperationalFreezeControl.MaximumCorrelationIdLength)
+            .IsRequired();
+        builder.HasOne<ScopedOperationalFreezeControl>()
+            .WithMany()
+            .HasForeignKey(audit => audit.ScopedOperationalFreezeControlId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.HasIndex(audit => audit.ChangedAtUtc);
+    }
+}

@@ -1,5 +1,8 @@
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Sirkadiyen.Application.Administration;
+using Sirkadiyen.Contracts.Parsing;
+using Sirkadiyen.Contracts.Serialization;
 using Sirkadiyen.Domain.ScheduleSources;
 
 namespace Sirkadiyen.Infrastructure.Persistence;
@@ -13,6 +16,7 @@ namespace Sirkadiyen.Infrastructure.Persistence;
 public sealed class SourceStatusReadStore(SirkadiyenDbContext dbContext) : ISourceStatusReadStore
 {
     private const int RecentSnapshotLimit = 10;
+    private static readonly JsonSerializerOptions JsonOptions = ContractJson.CreateOptions();
 
     public async Task<IReadOnlyList<SourceStatusListItem>> ListAsync(
         CancellationToken cancellationToken)
@@ -67,11 +71,26 @@ public sealed class SourceStatusReadStore(SirkadiyenDbContext dbContext) : ISour
             })
             .ToListAsync(cancellationToken);
 
+        string? latestResponse = await (
+                from run in dbContext.ParseRuns.AsNoTracking()
+                join snapshot in dbContext.SourceSnapshots.AsNoTracking()
+                    on run.SourceSnapshotId equals snapshot.Id
+                where snapshot.SourceId == parsed && run.Response != null
+                orderby run.CompletedAtUtc descending, run.StartedAtUtc descending
+                select run.Response)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        IReadOnlyList<ParserWarning> latestWarnings = latestResponse is null
+            ? []
+            : JsonSerializer.Deserialize<ParseSnapshotResponse>(latestResponse, JsonOptions)?.Warnings
+                ?? [];
+
         return new SourceStatusDetail
         {
             Summary = await BuildListItemAsync(source, cancellationToken),
             ParserProfile = source.ParserProfile,
             ParserProfileVersion = source.ParserProfileVersion,
+            LatestParseWarnings = latestWarnings,
             RecentSnapshots = snapshots,
         };
     }

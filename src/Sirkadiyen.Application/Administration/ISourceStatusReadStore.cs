@@ -1,6 +1,7 @@
 using Sirkadiyen.Domain.ScheduleParsing;
 using Sirkadiyen.Domain.SchedulePublication;
 using Sirkadiyen.Domain.ScheduleSources;
+using ParserWarning = Sirkadiyen.Contracts.Parsing.ParserWarning;
 
 namespace Sirkadiyen.Application.Administration;
 
@@ -56,6 +57,12 @@ public sealed record SourceStatusDetail
     public required string ParserProfile { get; init; }
 
     public required string ParserProfileVersion { get; init; }
+
+    /// <summary>
+    /// The warnings returned by the latest completed parser run. These are read from the
+    /// persisted parser response; opening this view never invokes the parser.
+    /// </summary>
+    public required IReadOnlyList<ParserWarning> LatestParseWarnings { get; init; }
 
     public required IReadOnlyList<SourceSnapshotSummary> RecentSnapshots { get; init; }
 }

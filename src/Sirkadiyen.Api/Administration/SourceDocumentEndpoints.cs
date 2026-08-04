@@ -252,7 +252,7 @@ public sealed record UploadTargetResponse
 
     public required SourceDocumentUploadOutcome Outcome { get; init; }
 
-    public required Guid SnapshotId { get; init; }
+    public Guid? SnapshotId { get; init; }
 }
 
 public sealed record UploadAuditEntry

@@ -48,7 +48,7 @@
 
 - [x] Implement Google sign-in
 - [x] Implement local user creation
-- [x] Implement secure session
+- [x] Implement secure persistent session (30-day sliding HTTP-only secure cookie, ADR-091)
 - [x] Implement admin role authorization
 - [x] Implement license generation
 - [x] Implement secure license hashing
@@ -197,8 +197,8 @@
 
 ## Phase 10: Administration and operations
 
-- [x] Implement audited global freeze core and pipeline gates (ADR-034, ADR-043)
-- [x] Add authenticated freeze/unfreeze administration surface
+- [x] Implement audited global and class/program-scoped freeze core and pipeline gates (ADR-034, ADR-043, ADR-091)
+- [x] Add authenticated global and scoped freeze/unfreeze administration surface
 - [x] Administrative document acquisition surface (endpoint ADR-080, `/admin` UI and
   `GET /api/sources/uploadable` ADR-081)
 - [x] Department color administration surface with required audit reason (ADR-086)
@@ -207,8 +207,7 @@
 - [x] Source status dashboard backend (`GET /api/admin/sources`, poll status + latest parse
   run/revision, ADR-089)
 - [x] Snapshot inspection backend (`GET /api/admin/sources/{id}` recent snapshots, ADR-089)
-- [~] Parser warning review (latest parse run warning/error counts exposed on source status;
-  full per-warning review still via the revision findings on `GET /api/revisions/{id}`)
+- [x] Parser warning review (latest persisted parser warnings and source evidence exposed in source detail; revision validation findings remain on `GET /api/revisions/{id}`)
 - [ ] Revision diff viewer
 - [ ] Manual publish and reject
 - [x] User sync status backend (`GET /api/admin/users(+detail)`: profile, licenses,
@@ -216,7 +215,7 @@
 - [ ] Retry failed jobs
 - [x] Audit log viewer backend (`GET /api/admin/audit`, `GET /api/admin/access-logs` with
   masked IP + audited unmask, ADR-089)
-- [x] Health checks (`/health/live`, `/health/ready` with a PostgreSQL connectivity check, ADR-089)
+- [x] Health checks (`/health/live`, `/health/ready`, worker heartbeat and parser `/health` probe, ADR-089/091)
 - [x] Metrics (`GET /api/admin/metrics` JSON operational-count snapshot, ADR-089)
 - [~] Structured logs (correlation-id middleware stamps every request/log line; a full
   structured-logging/OpenTelemetry stack is still pending)
@@ -234,18 +233,16 @@
 - [x] Initial-sync start and progress polling UI
 - [x] Onboarding route gating by authoritative backend state
 - [x] SuperAdmin routed to admin panel instead of student onboarding (ADR-067)
-- [~] Admin/operator interfaces (`/admin`: operational-freeze control, SuperAdmin
-  self-activation, revision review queue, and administrative document upload — ADR-081.
-  Backends for source status, user list/detail, license listing, audit/access logs, and
-  metrics now exist — ADR-089 — so the remaining work is the React surface and the
-  `web/src/lib/types.ts`/`api.ts` contract mirror; diff-release UI also still pending)
+- [~] Admin/operator interfaces (freeze including class/program scopes, source warning
+  evidence, user/license administration, audit/access logs and worker/parser health are
+  wired; held-diff release and endpointless product domains remain)
 - [x] Administrative document upload UI, driven by `GET /api/sources/uploadable` (ADR-081)
 - [x] Component system / design system (ported the Wise-inspired prototype design
   system into `web/src/app/globals.css` + shared `web/src/components/ui.tsx`; light
   theme, tokens, two densities; Tailwind deliberately not added)
 - [x] Public + legal surface (landing `/`, `/gizlilik`, `/kosullar`, `/iletisim`)
   and re-skinned onboarding/dashboard/admin against the design system
-- [ ] Automated frontend tests
+- [x] Automated frontend tests (Vitest + React Testing Library, ADR-090)
 - [ ] Production deployment topology and reverse-proxy config
 
 ## Current next action

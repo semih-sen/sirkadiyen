@@ -73,6 +73,21 @@ public sealed class InitialCalendarSyncService(
                 };
             }
 
+            if (await freezeStore.IsFrozenAsync(
+                new OperationalFreezeScope
+                {
+                    ClassYear = profile.ClassYear,
+                    ProgramLanguage = profile.ProgramLanguage,
+                },
+                cancellationToken))
+            {
+                return new InitialCalendarSyncResult
+                {
+                    UserId = connection.UserId,
+                    Outcome = InitialCalendarSyncOutcome.Frozen,
+                };
+            }
+
             CalendarAccess access = new()
             {
                 RefreshToken = tokenProtector.Unprotect(connection.ProtectedRefreshToken),
@@ -279,6 +294,9 @@ public sealed record InitialCalendarSyncResult
 
 public enum InitialCalendarSyncOutcome
 {
+    /// <summary>The user's class/program pipeline is frozen; its durable work remains pending.</summary>
+    Frozen,
+
     /// <summary>Every applicable event is now written; the connection is marked complete.</summary>
     Completed,
 

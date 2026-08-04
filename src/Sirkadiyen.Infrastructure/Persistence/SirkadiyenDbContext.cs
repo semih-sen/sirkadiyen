@@ -77,6 +77,14 @@ public sealed class SirkadiyenDbContext(DbContextOptions<SirkadiyenDbContext> op
     public DbSet<OperationalFreezeAudit> OperationalFreezeAudits =>
         Set<OperationalFreezeAudit>();
 
+    public DbSet<ScopedOperationalFreezeControl> ScopedOperationalFreezeControls =>
+        Set<ScopedOperationalFreezeControl>();
+
+    public DbSet<ScopedOperationalFreezeAudit> ScopedOperationalFreezeAudits =>
+        Set<ScopedOperationalFreezeAudit>();
+
+    public DbSet<ServiceHeartbeat> ServiceHeartbeats => Set<ServiceHeartbeat>();
+
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

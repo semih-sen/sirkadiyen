@@ -32,6 +32,15 @@ public sealed class ScheduleRevisionPublicationService(
             return Frozen(revisionId);
         }
 
+        OperationalFreezeScope? scope = await store.GetOperationalScopeAsync(
+            revisionId,
+            cancellationToken);
+        if (scope is not null
+            && (await operationalFreeze.GetScopedAsync(scope, cancellationToken)).IsFrozen)
+        {
+            return Frozen(revisionId);
+        }
+
         return await store.PublishAsync(
             revisionId,
             timeProvider.GetUtcNow(),
@@ -55,6 +64,12 @@ public sealed class ScheduleRevisionPublicationService(
             limit,
             cancellationToken);
 
+        if (publishable.Count > 0
+            && (await operationalFreeze.GetAsync(cancellationToken)).IsFrozen)
+        {
+            return [Frozen(publishable[0])];
+        }
+
         List<RevisionPublicationResult> results = [];
         foreach (Guid revisionId in publishable)
         {
@@ -64,13 +79,8 @@ public sealed class ScheduleRevisionPublicationService(
                 cancellationToken);
             results.Add(result);
 
-            if (result.Outcome is RevisionPublicationOutcome.Frozen)
-            {
-                // Every later revision is blocked by the same global switch.
-                // Stop after one explicit result rather than producing a page of
-                // duplicate "Frozen" outcomes every worker cycle.
-                break;
-            }
+            // A scoped freeze blocks only this revision's class/program pipeline;
+            // later revisions may belong to another active scope and must continue.
         }
 
         return results;

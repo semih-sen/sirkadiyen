@@ -69,6 +69,17 @@ public sealed class CalendarReconciliationService(
                     "The completed Calendar connection has no student profile.");
             }
 
+            if (await freezeStore.IsFrozenAsync(
+                new OperationalFreezeScope
+                {
+                    ClassYear = profile.ClassYear,
+                    ProgramLanguage = profile.ProgramLanguage,
+                },
+                cancellationToken))
+            {
+                return accumulator.ToResult(CalendarReconciliationOutcome.Frozen);
+            }
+
             IReadOnlyList<DispatchedDiff> diffs =
                 await diffStore.ListDispatchedForReplayAsync(
                     connection.CursorDispatchedAtUtc,
@@ -669,6 +680,7 @@ public sealed record CalendarReconciliationUserResult
 
 public enum CalendarReconciliationOutcome
 {
+    Frozen,
     Completed,
     InProgress,
     Deferred,

@@ -85,6 +85,19 @@ public sealed class IncrementalCalendarSyncService(
             IReadOnlyDictionary<Guid, CanonicalScheduleRecord> records =
                 await LoadSubjectRecordsAsync(diff.Entries, cancellationToken);
 
+            CanonicalScheduleRecord? scopedRecord = records.Values.FirstOrDefault();
+            if (scopedRecord is not null
+                && await freezeStore.IsFrozenAsync(
+                    new OperationalFreezeScope
+                    {
+                        ClassYear = scopedRecord.ClassYear,
+                        ProgramLanguage = scopedRecord.ProgramLanguage,
+                    },
+                    cancellationToken))
+            {
+                return accumulator.ToResult(diffId, IncrementalDispatchOutcome.Frozen);
+            }
+
             foreach (ScheduleDiffEntry entry in diff.Entries)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -812,6 +825,7 @@ public sealed record IncrementalCalendarSyncDiffResult
 
 public enum IncrementalDispatchOutcome
 {
+    Frozen,
     /// <summary>Every applicable calendar was updated; the diff is marked dispatched.</summary>
     Dispatched,
 

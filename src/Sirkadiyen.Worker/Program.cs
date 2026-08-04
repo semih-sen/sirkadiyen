@@ -271,6 +271,7 @@ builder.Services.AddSirkadiyenParserClient(
         builder.Configuration["SIRKADIYEN_PARSER:TIMEOUT"],
         TimeSpan.FromMinutes(2)));
 builder.Services.AddHostedService<Worker>();
+builder.Services.AddHostedService<WorkerHeartbeatService>();
 
 var host = builder.Build();
 await host.RunAsync();

@@ -356,6 +356,12 @@ internal sealed class Worker(
     {
         switch (diff.Outcome)
         {
+            case IncrementalDispatchOutcome.Frozen:
+                logger.LogInformation(
+                    "Diff {DiffId} remains pending because its class/program pipeline is frozen.",
+                    diff.DiffId);
+                break;
+
             case IncrementalDispatchOutcome.Dispatched:
                 logger.LogInformation(
                     "Diff {DiffId} dispatched to calendars in {CalendarOperationsAttempted} "
@@ -455,6 +461,13 @@ internal sealed class Worker(
     {
         switch (user.Outcome)
         {
+            case InitialCalendarSyncOutcome.Frozen:
+                logger.LogInformation(
+                    "Initial calendar sync remains pending for user {UserId} because their "
+                    + "class/program pipeline is frozen.",
+                    user.UserId);
+                break;
+
             case InitialCalendarSyncOutcome.Completed:
                 logger.LogInformation(
                     "Initial calendar sync completed for user {UserId}; wrote {EventsWritten} "
@@ -559,6 +572,13 @@ internal sealed class Worker(
 
         switch (user.Outcome)
         {
+            case CalendarInventoryOutcome.Frozen:
+                logger.LogInformation(
+                    "Calendar inventory was skipped for user {UserId} because their "
+                    + "class/program pipeline is frozen.",
+                    user.UserId);
+                break;
+
             case CalendarInventoryOutcome.AuthorizationRequired:
                 logger.LogWarning(
                     "Calendar inventory stopped for user {UserId}; re-authorization is required.",
@@ -633,6 +653,13 @@ internal sealed class Worker(
     {
         switch (user.Outcome)
         {
+            case CalendarReconciliationOutcome.Frozen:
+                logger.LogInformation(
+                    "Calendar reconciliation remains pending for user {UserId} because their "
+                    + "class/program pipeline is frozen.",
+                    user.UserId);
+                break;
+
             case CalendarReconciliationOutcome.Completed:
                 logger.LogInformation(
                     "Calendar reconciliation completed for user {UserId}; no dispatched diff "

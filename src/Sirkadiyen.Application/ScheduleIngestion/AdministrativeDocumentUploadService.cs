@@ -82,14 +82,13 @@ public sealed class AdministrativeDocumentUploadService(
                 $"The uploaded document is larger than {MaximumDocumentBytes} bytes.");
         }
 
-        // Read before the freeze check would be wasted work; read after storing
-        // would be too late. This order matches the poller: refuse to acquire at
-        // all while the pipeline is frozen (ADR-034).
+        // The global emergency stop still rejects the whole acquisition. Scoped controls below
+        // skip only their own targets when one shared document serves several pipelines.
         if ((await operationalFreeze.GetAsync(cancellationToken)).IsFrozen)
         {
             return Rejected(
                 DocumentUploadOutcome.Frozen,
-                "The pipeline is frozen, so no source may be acquired.");
+                "The global pipeline freeze is active, so no source may be acquired.");
         }
 
         IReadOnlyList<ScheduleSource> targets = await sourceStore.ListSharingDocumentAsync(
@@ -114,6 +113,23 @@ public sealed class AdministrativeDocumentUploadService(
         List<DocumentUploadTargetResult> results = [];
         foreach (ScheduleSource target in targets)
         {
+            OperationalFreezeScope scope = new()
+            {
+                ClassYear = target.ClassYear,
+                ProgramLanguage = target.ProgramLanguage,
+            };
+            if (await operationalFreeze.IsFrozenAsync(scope, cancellationToken))
+            {
+                results.Add(new DocumentUploadTargetResult
+                {
+                    SourceId = target.SourceId.Value,
+                    ClassYear = target.ClassYear,
+                    ProgramLanguage = target.ProgramLanguage,
+                    Outcome = SourceDocumentUploadOutcome.Frozen,
+                });
+                continue;
+            }
+
             NormalizedSpreadsheetSnapshot snapshot = converter.Convert(
                 target.DocumentFormat,
                 request.Content,
@@ -216,7 +232,7 @@ public sealed record DocumentUploadTargetResult
 
     public required SourceDocumentUploadOutcome Outcome { get; init; }
 
-    public required Guid SnapshotId { get; init; }
+    public Guid? SnapshotId { get; init; }
 }
 
 public enum DocumentUploadOutcome

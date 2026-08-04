@@ -21,6 +21,7 @@ import type {
   ApproveRevisionResponse,
   OperationalFreezeChangeResult,
   OperationalFreezeSnapshot,
+  OperationalFreezeScope,
   ProblemDetails,
   RevisionState,
   ScheduleRevisionDetail,
@@ -36,6 +37,7 @@ import type {
   AdminLicenseDetail,
   AdminLicenseListItem,
   AdminMetricsSnapshot,
+  AdminServiceHealthSnapshot,
   AdminUserDetailResponse,
   AdminUserListItem,
   AuditEventCategory,
@@ -366,6 +368,21 @@ export function setFreeze(isFrozen: boolean, reason: string): Promise<Operationa
   });
 }
 
+export function listScopedFreezes(): Promise<OperationalFreezeSnapshot[]> {
+  return request<OperationalFreezeSnapshot[]>('/api/operations/freeze/scopes');
+}
+
+export function setScopedFreeze(
+  scope: OperationalFreezeScope,
+  isFrozen: boolean,
+  reason: string,
+): Promise<OperationalFreezeChangeResult> {
+  return request<OperationalFreezeChangeResult>('/api/operations/freeze/scopes', {
+    method: 'POST',
+    body: { ...scope, isFrozen, reason },
+  });
+}
+
 export function getAdminDepartmentColors(): Promise<DepartmentColorView[]> {
   return request<DepartmentColorView[]>('/api/admin/calendar-colors/');
 }
@@ -474,6 +491,10 @@ export function unmaskAuditIp(id: string, reason: string): Promise<UnmaskAuditIp
 
 export function getAdminMetrics(): Promise<AdminMetricsSnapshot> {
   return request('/api/admin/metrics');
+}
+
+export function getAdminServiceHealth(): Promise<AdminServiceHealthSnapshot> {
+  return request('/api/admin/services/health');
 }
 
 export async function getHealth(path: 'live' | 'ready'): Promise<HealthStatus> {

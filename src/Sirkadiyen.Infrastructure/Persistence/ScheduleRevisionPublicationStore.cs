@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
+using Sirkadiyen.Application.Operations;
 using Sirkadiyen.Application.SchedulePublication;
 using Sirkadiyen.Domain.SchedulePublication;
 
@@ -18,6 +19,19 @@ public sealed class ScheduleRevisionPublicationStore(SirkadiyenDbContext dbConte
 {
     /// <summary>PostgreSQL's unique-violation SQLSTATE.</summary>
     private const string UniqueViolation = "23505";
+
+    public Task<OperationalFreezeScope?> GetOperationalScopeAsync(
+        Guid revisionId,
+        CancellationToken cancellationToken) =>
+        (from revision in dbContext.ScheduleRevisions.AsNoTracking()
+         join source in dbContext.ScheduleSources.AsNoTracking()
+             on revision.ScheduleSourceId equals source.Id
+         where revision.Id == revisionId
+         select new OperationalFreezeScope
+         {
+             ClassYear = source.ClassYear,
+             ProgramLanguage = source.ProgramLanguage,
+         }).SingleOrDefaultAsync(cancellationToken);
 
     public Task<RevisionPublicationResult> PublishAsync(
         Guid revisionId,

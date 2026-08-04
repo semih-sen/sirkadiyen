@@ -51,7 +51,7 @@ These screens are connected to real routes and were re-skinned, not stubbed:
 | Calendar step | `GET/POST /api/calendar/authorization`, `.../options` |
 | Initial-sync step | `GET/POST /api/calendar/sync` |
 | Dashboard (real modules) | `GET /api/calendar/sync`, `GET /api/profile` |
-| Admin · freeze | `GET/POST /api/operations/freeze` |
+| Admin · freeze | `GET/POST /api/operations/freeze`, `GET/POST /api/operations/freeze/scopes` |
 | Admin · document upload | `GET /api/sources/uploadable`, `POST /api/sources/{id}/document`, `GET .../uploads` |
 | Admin · revision review | `GET /api/revisions`, `GET /api/revisions/{id}`, `POST /api/revisions/{id}/approve` |
 | Admin · self-activation | `POST /api/admin/users/{id}/activate` |
@@ -61,7 +61,7 @@ These screens are connected to real routes and were re-skinned, not stubbed:
 | Admin · users/licenses | `GET /api/admin/users`, `GET /api/admin/licenses` and detail routes |
 | Admin · source status | `GET /api/admin/sources` and `GET /api/admin/sources/{id}` |
 | Admin · access/audit | `GET /api/admin/access-logs`, `POST .../unmask`, `GET /api/admin/audit` |
-| Admin · health/metrics | `/health/live`, `/health/ready`, `GET /api/admin/metrics` |
+| Admin · health/metrics | `/health/live`, `/health/ready`, `GET /api/admin/metrics`, `GET /api/admin/services/health` |
 
 ---
 
@@ -121,9 +121,9 @@ fabricate records or metrics. The sections below separate remaining gaps from wi
 ### 3.3 Wired read-only administration views
 
 - `/admin/users`: paged user and license lists, user/license detail, license audit and selected-license revocation.
-- `/admin/sources`: source pipeline status and retained snapshot evidence beside administrative upload.
+- `/admin/sources`: source pipeline status, the latest persisted parser warning/evidence details and retained snapshot evidence beside administrative upload.
 - `/admin/access-logs`: masked sign-in log, audited transient IP reveal and cross-category audit query.
-- `/admin/server`: liveness, readiness and database-backed point-in-time counts. CPU/RAM/Worker/Parser/Redis metrics remain unavailable and are not fabricated.
+- `/admin/server`: liveness, readiness, worker heartbeat, parser `/health` probe and database-backed point-in-time counts. CPU/RAM/Redis metrics remain unavailable and are not fabricated.
 
 ---
 
@@ -140,5 +140,5 @@ fabricate records or metrics. The sections below separate remaining gaps from wi
 1. Wire **held-diff release** (backend already exists — §3.2).
 2. Add a per-user sync activity log before exposing `GET /api/calendar/sync/history`.
 3. Decide and implement notification and contact contracts.
-4. Add exporter/host telemetry only if CPU/RAM/Worker/Parser/Redis visibility becomes a requirement.
+4. Add exporter/host telemetry only if CPU/RAM/Redis visibility becomes a requirement; worker/parser process health is already wired.
 5. New product domains last: bulk event, user warning, finance.

@@ -97,6 +97,8 @@ Preferred baseline:
 - Seq for initial deployment or OpenTelemetry-compatible backend
 - health checks
 - metrics endpoint
+- worker process heartbeat persisted every 15 seconds in PostgreSQL
+- SuperAdmin-only parser `/health` probe and worker-heartbeat snapshot
 
 ## Python parser service
 

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sirkadiyen.Application.Operations;
+using Sirkadiyen.Domain.ScheduleSources;
 using Sirkadiyen.Infrastructure.Persistence;
 using Xunit;
 
@@ -90,6 +91,60 @@ public sealed class OperationalFreezeStoreTests(PostgresFixture fixture)
             "Restore the shared fixture state.",
             $"test-{Guid.NewGuid():N}",
             Now.AddSeconds(1),
+            Token);
+    }
+
+    [Fact]
+    public async Task ScopedFreezeAffectsOnlyTheSelectedClassAndProgram()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        OperationalFreezeStore store = new(context);
+        IOperationalFreezeStore freezeStore = store;
+        await EnsureUnfrozenAsync(store);
+        OperationalFreezeScope turkishYearOne = new()
+        {
+            ClassYear = 1,
+            ProgramLanguage = ProgramLanguage.Turkish,
+        };
+        OperationalFreezeScope englishYearOne = new()
+        {
+            ClassYear = 1,
+            ProgramLanguage = ProgramLanguage.English,
+        };
+
+        OperationalFreezeSnapshot current = await store.GetScopedAsync(turkishYearOne, Token);
+        if (current.IsFrozen)
+        {
+            await store.SetScopedAsync(turkishYearOne, false, "test", "Reset scope.", "scope-reset", Now, Token);
+        }
+
+        OperationalFreezeChangeResult result = await store.SetScopedAsync(
+            turkishYearOne,
+            true,
+            "semih",
+            "Only the Turkish year-one source is under review.",
+            "scope-incident",
+            Now.AddMinutes(3),
+            Token);
+
+        Assert.Equal(OperationalFreezeChangeOutcome.Changed, result.Outcome);
+        Assert.True(await freezeStore.IsFrozenAsync(turkishYearOne, Token));
+        Assert.False(await freezeStore.IsFrozenAsync(englishYearOne, Token));
+        Assert.Contains(
+            await store.ListScopedAsync(Token),
+            item => item.Scope == turkishYearOne && item.IsFrozen);
+        Assert.Contains(
+            await context.ScopedOperationalFreezeAudits.AsNoTracking().ToListAsync(Token),
+            audit => audit.CorrelationId == "scope-incident");
+
+        await store.SetScopedAsync(
+            turkishYearOne,
+            false,
+            "test",
+            "Restore fixture state.",
+            "scope-cleanup",
+            Now.AddMinutes(4),
             Token);
     }
 

@@ -45,6 +45,14 @@ public sealed class SnapshotRetentionStore(SirkadiyenDbContext dbContext)
                     .Where(snapshot =>
                         snapshot.Payload != null
                         && snapshot.AcquiredAtUtc < cutoffUtc)
+                    // A scoped freeze protects only its own class/program evidence while
+                    // allowing retention to continue for every other pipeline.
+                    .Where(snapshot => !dbContext.ScopedOperationalFreezeControls.Any(control =>
+                        control.IsFrozen
+                        && dbContext.ScheduleSources.Any(source =>
+                            source.Id == snapshot.ScheduleSourceId
+                            && source.ClassYear == control.ClassYear
+                            && source.ProgramLanguage == control.ProgramLanguage)))
                     // Keep the newest content per source even after a quiet
                     // period. A parser-profile version change reparses this
                     // snapshot when the source itself is unchanged.

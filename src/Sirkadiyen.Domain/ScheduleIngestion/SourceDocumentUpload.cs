@@ -131,4 +131,7 @@ public enum SourceDocumentUploadOutcome
 
     /// <summary>The upload normalized to content the source already held.</summary>
     Unchanged,
+
+    /// <summary>The target's class/program pipeline was frozen, so no evidence was stored.</summary>
+    Frozen,
 }

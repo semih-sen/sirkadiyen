@@ -52,7 +52,9 @@ public sealed class AdminMetricsReadStore(SirkadiyenDbContext dbContext, TimePro
                 cancellationToken);
 
         bool freezeActive = await dbContext.OperationalFreezeControls
-            .AnyAsync(control => control.IsFrozen, cancellationToken);
+            .AnyAsync(control => control.IsFrozen, cancellationToken)
+            || await dbContext.ScopedOperationalFreezeControls
+                .AnyAsync(control => control.IsFrozen, cancellationToken);
 
         return new AdminMetricsSnapshot
         {

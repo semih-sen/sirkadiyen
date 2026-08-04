@@ -13,6 +13,7 @@ using Sirkadiyen.Api.Observability;
 using Sirkadiyen.Api.Onboarding;
 using Sirkadiyen.Api.Schedule;
 using Sirkadiyen.Api.StudentProfiles;
+using Sirkadiyen.Application.Administration;
 using Sirkadiyen.Application.Auditing;
 using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Identity;
@@ -26,6 +27,7 @@ using Sirkadiyen.Domain.Identity;
 using Sirkadiyen.Infrastructure.Configuration;
 using Sirkadiyen.Infrastructure.Google;
 using Sirkadiyen.Infrastructure.Licensing;
+using Sirkadiyen.Infrastructure.Observability;
 using Sirkadiyen.Infrastructure.Persistence;
 using Sirkadiyen.Infrastructure.ScheduleIngestion;
 using Sirkadiyen.Infrastructure.Security;
@@ -70,6 +72,10 @@ string licenseHashKey = Required(
     builder.Configuration,
     "SIRKADIYEN_LICENSING:HASH_KEY");
 
+Uri parserBaseUrl = new(Required(
+    builder.Configuration,
+    "SIRKADIYEN_PARSER:BASE_URL"), UriKind.Absolute);
+
 builder.Services.AddProblemDetails();
 
 // TLS is terminated at the edge (the Next dev server locally, a reverse proxy in
@@ -99,6 +105,11 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 builder.Services.AddScoped<DatabaseHealthCheck>();
+builder.Services.AddHttpClient<IAdminServiceHealthProbe, AdminServiceHealthProbe>(client =>
+{
+    client.BaseAddress = parserBaseUrl;
+    client.Timeout = TimeSpan.FromSeconds(5);
+});
 builder.Services
     .AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);
@@ -233,6 +244,7 @@ app.MapAdminUserEndpoints();
 app.MapSourceStatusEndpoints();
 app.MapAuditEndpoints();
 app.MapMetricsEndpoints();
+app.MapServiceHealthEndpoints();
 
 app.Run();
 

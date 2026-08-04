@@ -44,7 +44,9 @@ no worker change. Admin reads (`GET /api/admin/users(+detail)`, `/api/admin/lice
 `/api/admin/sources(+detail)`, `/api/admin/audit`, `/api/admin/access-logs` with audited unmask,
 `/api/admin/metrics`) project existing tables. `/health/live` and `/health/ready` (a real
 PostgreSQL check) split liveness from readiness, and a correlation-id middleware stamps every
-request and log line. 594 .NET tests pass (up from 546), 0 skipped.
+request and log line. ADR-091 extends this surface with worker heartbeat and parser health,
+and extends the operational stop from global-only to global plus class/program scopes.
+597 .NET tests pass, 0 skipped.
 
 ### Open risks — read/query & audit surface (2026-08-04)
 
@@ -58,9 +60,9 @@ request and log line. 594 .NET tests pass (up from 546), 0 skipped.
   patched-since-created are reported. The prototype's 8-stage timeline still lacks a data source.
 - **`GET /api/licenses/status` returns no "time remaining"** — Sirkadiyen access does not lapse
   after activation. A trial/expiry concept would be a new decision.
-- **The frontend contract mirror and React screens are the remaining work.** These backends are
-  not yet consumed: `web/src/lib/types.ts` / `api.ts` and the `/admin/*` and dashboard screens
-  in `web/GAPS.md` §2–3 still need wiring. The OpenAPI document (`MapOpenApi`) is the contract.
+- **Held-diff release is the remaining backend-supported admin UI gap.** Dashboard,
+  user/license, source warning/evidence, access/audit, scoped freeze and server-health
+  contracts are wired; endpointless finance/bulk-event/user-warning areas remain explicit gaps.
 - **`GET /api/admin/metrics` is a JSON count snapshot, not a metrics exporter.** A
   Prometheus/OpenTelemetry `/metrics` endpoint and host CPU/RAM/Redis gauges (server dashboard)
   remain unbuilt and would need their own decision.
@@ -1941,3 +1943,23 @@ dimension can be added with evidence.
   unavailable and are still labelled as such.
 - The Next edge proxies both `/api/*` and `/health/*`. ADR-090 adds Vitest + React Testing
   Library; no backend contract, database schema or Calendar behavior changed.
+
+## Latest implementation session (2026-08-04, persistent sessions and scoped operations)
+
+- ADR-091 makes the persistent secure session ticket a 30-day sliding cookie; the existing
+  `IsPersistent`, HTTP-only, `Secure`, `SameSite=Lax` and per-request user-row revalidation
+  protections remain unchanged.
+- Operational freeze now has a global emergency stop plus audited `(classYear,
+  programLanguage)` controls. Source acquisition/parsing, administrative upload targets,
+  publication, diff dispatch, initial sync, replay, inventory and retention resolve and honor
+  the exact scope, so Dönem 1 Turkish can stop without blocking Dönem 1 English.
+- Source detail deserializes the latest persisted `ParseRun.Response` and exposes every parser
+  warning with severity, code, message, candidate and source evidence. Reading the drawer
+  never invokes polling or parsing.
+- The worker writes a PostgreSQL heartbeat every 15 seconds. The SuperAdmin service-health
+  endpoint combines that heartbeat with an on-demand parser `/health` probe; the server page
+  shows both independently from API liveness/readiness and does not invent host metrics.
+- Migration `AddScopedFreezeAndServiceHeartbeats` was generated and applied to the configured
+  local database. Release build, 597 .NET tests, 11 frontend tests and frontend typecheck pass.
+- A running Debug API kept its old assemblies loaded during implementation. Restart the API
+  and worker processes to activate the new routes, 30-day cookie policy and heartbeat writer.
