@@ -208,6 +208,11 @@ public sealed class OnboardingStateServiceTests
             Guid userId,
             DateTimeOffset atUtc,
             CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<RequestReconciliationOutcome> RequestReconciliationAsync(
+            Guid userId,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class StubProfileStore(bool hasProfile) : IStudentProfileStore
@@ -236,6 +241,10 @@ public sealed class OnboardingStateServiceTests
         public Task<UserLicenseState> GetUserLicenseStateAsync(
             Guid userId,
             CancellationToken cancellationToken) => Task.FromResult(state);
+
+        public Task<UserLicenseSummary?> GetUserLicenseSummaryAsync(
+            Guid userId,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
 
         public Task SaveCreatedAsync(
             License license,

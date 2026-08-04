@@ -2,13 +2,18 @@ using System.Security.Claims;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
 using Sirkadiyen.Api.Administration;
 using Sirkadiyen.Api.GoogleCalendar;
+using Sirkadiyen.Api.Health;
 using Sirkadiyen.Api.Identity;
 using Sirkadiyen.Api.Licensing;
+using Sirkadiyen.Api.Observability;
 using Sirkadiyen.Api.Onboarding;
+using Sirkadiyen.Api.Schedule;
 using Sirkadiyen.Api.StudentProfiles;
+using Sirkadiyen.Application.Auditing;
 using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Identity;
 using Sirkadiyen.Application.Licensing;
@@ -93,7 +98,10 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
-builder.Services.AddHealthChecks();
+builder.Services.AddScoped<DatabaseHealthCheck>();
+builder.Services
+    .AddHealthChecks()
+    .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);
 builder.Services.AddOpenApi();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton(new GoogleSignInOptions { ClientId = googleAuthClientId });
@@ -115,6 +123,8 @@ builder.Services.AddSingleton<
     GoogleCalendarAuthorizationClient>();
 builder.Services.AddSirkadiyenDataProtection(dataProtectionKeyRingPath);
 builder.Services.AddSingleton<ICalendarTokenProtector, DataProtectionCalendarTokenProtector>();
+builder.Services.AddSingleton<IAuditIpProtector, DataProtectionAuditIpProtector>();
+builder.Services.AddScoped<AuditEventRecorder>();
 builder.Services.AddScoped<CalendarAuthorizationService>();
 builder.Services.AddScoped<OnboardingStateService>();
 builder.Services.AddScoped<SirkadiyenCookieAuthenticationEvents>();
@@ -161,6 +171,19 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0,
                 AutoReplenishment = true,
             }));
+    options.AddPolicy(
+        RateLimitingPolicies.CalendarReconcile,
+        context => RateLimitPartition.GetFixedWindowLimiter(
+            context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous",
+            static _ => new FixedWindowRateLimiterOptions
+            {
+                // A repair is a heavy, worker-scheduled operation; a few requests an hour is
+                // plenty and stops a user from forcing repeated inventory passes.
+                PermitLimit = 3,
+                Window = TimeSpan.FromHours(1),
+                QueueLimit = 0,
+                AutoReplenishment = true,
+            }));
 });
 builder.Services.AddScoped<ScheduleRevisionPublicationService>();
 builder.Services.AddScoped<ScheduleDiffReviewService>();
@@ -178,24 +201,38 @@ var app = builder.Build();
 // Must run before anything that reads the scheme (auth, antiforgery, cookies).
 app.UseForwardedHeaders();
 
+// Assign a correlation id as early as possible so every log line and audit event for the request
+// can carry it.
+app.UseMiddleware<CorrelationIdMiddleware>();
+
 app.UseExceptionHandler();
 app.UseAuthentication();
 app.UseRateLimiter();
 app.UseAuthorization();
 app.UseAntiforgery();
 app.MapHealthChecks("/health");
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false });
+app.MapHealthChecks(
+    "/health/ready",
+    new HealthCheckOptions { Predicate = static registration => registration.Tags.Contains("ready") });
 app.MapOpenApi();
 app.MapAuthenticationEndpoints();
 app.MapLicenseEndpoints();
 app.MapStudentProfileEndpoints();
 app.MapCalendarAuthorizationEndpoints();
 app.MapCalendarSyncEndpoints();
+app.MapCalendarReconcileEndpoints();
+app.MapScheduleEndpoints();
 app.MapDepartmentColorEndpoints();
 app.MapOnboardingEndpoints();
 app.MapRevisionEndpoints();
 app.MapSourceDocumentEndpoints();
 app.MapDiffEndpoints();
 app.MapOperationalEndpoints();
+app.MapAdminUserEndpoints();
+app.MapSourceStatusEndpoints();
+app.MapAuditEndpoints();
+app.MapMetricsEndpoints();
 
 app.Run();
 

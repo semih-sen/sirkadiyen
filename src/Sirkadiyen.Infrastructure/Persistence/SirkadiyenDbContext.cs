@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sirkadiyen.Domain.Auditing;
 using Sirkadiyen.Domain.GoogleCalendar;
 using Sirkadiyen.Domain.Identity;
 using Sirkadiyen.Domain.Licensing;
@@ -75,6 +76,8 @@ public sealed class SirkadiyenDbContext(DbContextOptions<SirkadiyenDbContext> op
 
     public DbSet<OperationalFreezeAudit> OperationalFreezeAudits =>
         Set<OperationalFreezeAudit>();
+
+    public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

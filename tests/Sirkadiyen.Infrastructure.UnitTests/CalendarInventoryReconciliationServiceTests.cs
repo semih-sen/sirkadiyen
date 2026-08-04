@@ -394,6 +394,10 @@ public sealed class CalendarInventoryReconciliationServiceTests
             Guid userId,
             CancellationToken cancellationToken) => throw new NotSupportedException();
 
+        public Task<CalendarSyncProgressView> GetProgressForUserAsync(
+            Guid userId,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
         public Task<IReadOnlyList<CalendarEventMappingView>> ListForStableIdentityAsync(
             SourceId sourceId,
             string stableIdentity,
@@ -440,6 +444,11 @@ public sealed class CalendarInventoryReconciliationServiceTests
             CalendarUnavailable = true;
             return Task.CompletedTask;
         }
+
+        public Task<RequestReconciliationOutcome> RequestReconciliationAsync(
+            Guid userId,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
 
         public Task MarkNeedsReauthorizationAsync(
             Guid userId,

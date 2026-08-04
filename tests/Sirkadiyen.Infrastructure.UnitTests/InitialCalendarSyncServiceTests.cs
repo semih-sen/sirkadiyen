@@ -424,6 +424,11 @@ public sealed class InitialCalendarSyncServiceTests
             Guid userId,
             DateTimeOffset atUtc,
             CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<RequestReconciliationOutcome> RequestReconciliationAsync(
+            Guid userId,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class FakeCalendarClient(
@@ -522,6 +527,10 @@ public sealed class InitialCalendarSyncServiceTests
 
         public Task<int> CountForUserAsync(Guid userId, CancellationToken cancellationToken) =>
             Task.FromResult(identities.Count);
+
+        public Task<CalendarSyncProgressView> GetProgressForUserAsync(
+            Guid userId,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
 
         public Task<IReadOnlyList<CalendarEventMappingView>> ListForUserAsync(
             Guid userId,

@@ -263,6 +263,39 @@ public sealed class LicenseStore(SirkadiyenDbContext dbContext) : ILicenseStore
         return revoked ? UserLicenseState.Suspended : UserLicenseState.None;
     }
 
+    public async Task<UserLicenseSummary?> GetUserLicenseSummaryAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        // The redeemed license is the one that grants access, so it wins over any older revoked
+        // one. Only fall back to a revoked license so a suspended user can be told why.
+        License? license = await dbContext.Licenses
+            .AsNoTracking()
+            .Where(candidate => candidate.RedeemedByUserId == userId
+                && candidate.Status == LicenseStatus.Redeemed)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        license ??= await dbContext.Licenses
+            .AsNoTracking()
+            .Where(candidate => candidate.RedeemedByUserId == userId
+                && candidate.Status == LicenseStatus.Revoked)
+            .OrderByDescending(candidate => candidate.RevokedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (license is null)
+        {
+            return null;
+        }
+
+        return new UserLicenseSummary
+        {
+            Status = license.Status,
+            Kind = license.Kind,
+            RedeemedAtUtc = license.RedeemedAtUtc,
+            RevokedAtUtc = license.RevokedAtUtc,
+        };
+    }
+
     private static LicenseRedemptionResult Result(
         LicenseRedemptionOutcome outcome,
         Guid? licenseId = null) => new()

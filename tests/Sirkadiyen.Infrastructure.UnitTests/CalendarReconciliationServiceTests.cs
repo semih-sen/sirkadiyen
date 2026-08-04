@@ -412,6 +412,11 @@ public sealed class CalendarReconciliationServiceTests
             Guid userId,
             DateTimeOffset atUtc,
             CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<RequestReconciliationOutcome> RequestReconciliationAsync(
+            Guid userId,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class FakeMappingStore : IUserCalendarEventMappingStore
@@ -540,6 +545,10 @@ public sealed class CalendarReconciliationServiceTests
             CancellationToken cancellationToken) => throw new NotSupportedException();
 
         public Task<int> CountForUserAsync(
+            Guid userId,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<CalendarSyncProgressView> GetProgressForUserAsync(
             Guid userId,
             CancellationToken cancellationToken) => throw new NotSupportedException();
 

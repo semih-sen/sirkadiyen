@@ -33,6 +33,41 @@ failure. Calendar job admission is now independent from adaptive source polling
 (ADR-082): newly queued initial sync, diff dispatch and reconciliation work is found
 within the five-second idle-check interval even when the next source poll is an hour away.
 
+The read/query and observability surface over this pipeline is now implemented (ADR-089).
+A new append-only `AuditEvent` log records the events that had no home — sign-in (there was
+no login record before), user-requested reconcile, and IP-unmask — with the client IP masked
+by default and the full address encrypted at rest; revealing it is a separate reason-required
+audited action. Student reads (`GET /api/schedule/upcoming`, `/api/schedule/changes`,
+`GET /api/calendar/sync/progress`, `GET /api/licenses/status`) project the mapping ledger and
+license tables; `POST /api/calendar/reconcile` reuses the inventory "due" mechanism so it needs
+no worker change. Admin reads (`GET /api/admin/users(+detail)`, `/api/admin/licenses(+detail)`,
+`/api/admin/sources(+detail)`, `/api/admin/audit`, `/api/admin/access-logs` with audited unmask,
+`/api/admin/metrics`) project existing tables. `/health/live` and `/health/ready` (a real
+PostgreSQL check) split liveness from readiness, and a correlation-id middleware stamps every
+request and log line. 594 .NET tests pass (up from 546), 0 skipped.
+
+### Open risks — read/query & audit surface (2026-08-04)
+
+- **`GET /api/calendar/sync/history` was not built.** The mapping ledger holds only current
+  state, so a faithful per-user sync timeline (including deletions) needs a new
+  `UserSyncActivity` log written by the sync services — a change to high-risk calendar code,
+  deliberately deferred. `GET /api/schedule/changes` has the same limit: it reports creations
+  and updates, never deletions.
+- **`GET /api/calendar/sync/progress` cannot report per-stage "unchanged"/"failed" counters
+  or an applicable-record total** — the ledger does not record them. Only total-mapped and
+  patched-since-created are reported. The prototype's 8-stage timeline still lacks a data source.
+- **`GET /api/licenses/status` returns no "time remaining"** — Sirkadiyen access does not lapse
+  after activation. A trial/expiry concept would be a new decision.
+- **The frontend contract mirror and React screens are the remaining work.** These backends are
+  not yet consumed: `web/src/lib/types.ts` / `api.ts` and the `/admin/*` and dashboard screens
+  in `web/GAPS.md` §2–3 still need wiring. The OpenAPI document (`MapOpenApi`) is the contract.
+- **`GET /api/admin/metrics` is a JSON count snapshot, not a metrics exporter.** A
+  Prometheus/OpenTelemetry `/metrics` endpoint and host CPU/RAM/Redis gauges (server dashboard)
+  remain unbuilt and would need their own decision.
+- **The unified `GET /api/admin/audit` covers only `AuditEvent` categories** (sign-in, reconcile,
+  unmask). The per-domain audits (license, freeze, colour, upload, revision approval, diff
+  release) remain in their own tables and are not yet unioned into this view.
+
 The Google Sheets path now runs end to end from catalog seeding to a stored
 diff: adaptive polling, immutable snapshot storage, strict parser HTTP calls,
 parse-run persistence, transactional candidate revision creation, validation,

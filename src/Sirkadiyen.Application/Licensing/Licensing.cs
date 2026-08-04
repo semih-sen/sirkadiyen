@@ -46,6 +46,35 @@ public interface ILicenseStore
     Task<UserLicenseState> GetUserLicenseStateAsync(
         Guid userId,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The license that currently governs one user's access, or <see langword="null"/> when the
+    /// user has never activated. Prefers the redeemed (active) license, falling back to the most
+    /// recently revoked one so a suspended user can be shown why. Never exposes the code hash.
+    /// </summary>
+    Task<UserLicenseSummary?> GetUserLicenseSummaryAsync(
+        Guid userId,
+        CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// A safe, read-only summary of the license governing one user's access.
+/// </summary>
+/// <remarks>
+/// Sirkadiyen licenses do not expire after redemption — <see cref="License.ExpiresAtUtc"/> is a
+/// redemption deadline for an unused code, not a post-activation validity window. There is
+/// therefore no "time remaining" to report; introducing time-limited access would be a separate,
+/// recorded decision (AI_GUIDELINE §4, §7).
+/// </remarks>
+public sealed record UserLicenseSummary
+{
+    public required LicenseStatus Status { get; init; }
+
+    public required LicenseKind Kind { get; init; }
+
+    public DateTimeOffset? RedeemedAtUtc { get; init; }
+
+    public DateTimeOffset? RevokedAtUtc { get; init; }
 }
 
 public sealed record LicenseRedemptionResult

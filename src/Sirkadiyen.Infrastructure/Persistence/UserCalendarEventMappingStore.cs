@@ -28,6 +28,34 @@ public sealed class UserCalendarEventMappingStore(SirkadiyenDbContext dbContext)
             .AsNoTracking()
             .CountAsync(mapping => mapping.UserId == userId, cancellationToken);
 
+    public async Task<CalendarSyncProgressView> GetProgressForUserAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        // One aggregate pass over the user's ledger rows. The GroupBy over a constant yields a
+        // single summary row, or none when the user has no mappings yet.
+        var summary = await dbContext.UserCalendarEventMappings
+            .AsNoTracking()
+            .Where(mapping => mapping.UserId == userId)
+            .GroupBy(_ => 1)
+            .Select(group => new
+            {
+                Total = group.Count(),
+                Updated = group.Count(mapping => mapping.UpdatedAtUtc > mapping.CreatedAtUtc),
+                First = (DateTimeOffset?)group.Min(mapping => mapping.CreatedAtUtc),
+                Last = (DateTimeOffset?)group.Max(mapping => mapping.UpdatedAtUtc),
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        return new CalendarSyncProgressView
+        {
+            MappedEventCount = summary?.Total ?? 0,
+            UpdatedEventCount = summary?.Updated ?? 0,
+            FirstWrittenAtUtc = summary?.First,
+            LastWrittenAtUtc = summary?.Last,
+        };
+    }
+
     public async Task<IReadOnlyList<CalendarEventMappingView>> ListForUserAsync(
         Guid userId,
         CancellationToken cancellationToken) =>

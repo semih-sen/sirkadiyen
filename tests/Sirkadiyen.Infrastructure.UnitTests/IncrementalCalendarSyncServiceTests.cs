@@ -641,6 +641,11 @@ public sealed class IncrementalCalendarSyncServiceTests
             DateTimeOffset atUtc,
             CancellationToken cancellationToken) => throw new NotSupportedException();
 
+        public Task<RequestReconciliationOutcome> RequestReconciliationAsync(
+            Guid userId,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
         public Task<GoogleCalendarConnectionView?> GetByUserIdAsync(
             Guid userId,
             CancellationToken cancellationToken) => throw new NotSupportedException();
@@ -787,6 +792,10 @@ public sealed class IncrementalCalendarSyncServiceTests
 
         public Task<int> CountForUserAsync(Guid userId, CancellationToken cancellationToken) =>
             throw new NotSupportedException();
+
+        public Task<CalendarSyncProgressView> GetProgressForUserAsync(
+            Guid userId,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
 
         public Task<IReadOnlyList<CalendarEventMappingView>> ListForUserAsync(
             Guid userId,

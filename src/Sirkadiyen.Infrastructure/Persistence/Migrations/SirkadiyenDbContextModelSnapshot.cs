@@ -23,6 +23,67 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Sirkadiyen.Domain.Auditing.AuditEvent", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ActorEmail")
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<Guid?>("ActorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<string>("CorrelationId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("MaskedIp")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<string>("Metadata")
+                        .HasColumnType("jsonb");
+
+                    b.Property<DateTimeOffset>("OccurredAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ProtectedIp")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<string>("SubjectId")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("SubjectType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("UserAgent")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserId");
+
+                    b.HasIndex("Category");
+
+                    b.HasIndex("OccurredAtUtc");
+
+                    b.ToTable("audit_events", "sirkadiyen");
+                });
+
             modelBuilder.Entity("Sirkadiyen.Domain.GoogleCalendar.DepartmentColorAudit", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1357,6 +1418,14 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_student_profiles_student_number", "\"StudentNumber\" ~ '^[0-9]{10}$'");
                         });
+                });
+
+            modelBuilder.Entity("Sirkadiyen.Domain.Auditing.AuditEvent", b =>
+                {
+                    b.HasOne("Sirkadiyen.Domain.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Sirkadiyen.Domain.GoogleCalendar.GoogleCalendarConnection", b =>

@@ -3,8 +3,10 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.RateLimiting;
+using Sirkadiyen.Application.Auditing;
 using Sirkadiyen.Application.Identity;
 using Sirkadiyen.Application.Onboarding;
+using Sirkadiyen.Domain.Auditing;
 
 namespace Sirkadiyen.Api.Identity;
 
@@ -62,6 +64,7 @@ public static class AuthenticationEndpoints
         GoogleSignInRequest request,
         GoogleSignInService signIn,
         OnboardingStateService onboarding,
+        AuditEventRecorder audit,
         HttpContext context,
         CancellationToken cancellationToken)
     {
@@ -97,6 +100,21 @@ public static class AuthenticationEndpoints
                 detail: "This verified email is already linked to another Google identity.",
                 statusCode: StatusCodes.Status409Conflict);
         }
+
+        // Record the sign-in before issuing the session so a successful authentication always
+        // leaves an access-log entry. The IP is masked and encrypted inside the recorder; no raw
+        // address is written here (AI_GUIDELINE §15).
+        await audit.RecordAsync(
+            new AuditEventDraft
+            {
+                Category = AuditEventCategory.SignIn,
+                ActorUserId = session.UserId,
+                ActorEmail = session.Email,
+                CorrelationId = context.CorrelationId(),
+                ClientIp = context.ClientIp(),
+                UserAgent = context.ClientUserAgent(),
+            },
+            cancellationToken);
 
         await context.SignInAsync(
             CookieAuthenticationDefaults.AuthenticationScheme,

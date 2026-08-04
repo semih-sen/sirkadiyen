@@ -333,6 +333,35 @@ public sealed class GoogleCalendarConnection
     }
 
     /// <summary>
+    /// Records a user-initiated request to reconcile their own calendar, by making the connection
+    /// due for the next non-destructive inventory pass (ADR-062). Returns whether it took effect.
+    /// </summary>
+    /// <remarks>
+    /// This only schedules the existing inventory reconciliation sooner; it never mutates a
+    /// calendar itself and never derives a deletion. It is a no-op — returning
+    /// <see langword="false"/> — for a connection that is not a healthy, completed, still-available
+    /// calendar, because forcing an inventory would not help a connection that needs
+    /// re-authorization or repair.
+    /// </remarks>
+    public bool TryRequestReconciliation(DateTimeOffset atUtc)
+    {
+        if (Status is not GoogleCalendarConnectionStatus.Authorized
+            || InitialSyncState is not GoogleCalendarInitialSyncState.Completed
+            || ManagedCalendarId is null
+            || ManagedCalendarUnavailableAtUtc is not null
+            || ReconciliationRequiredSinceUtc is not null)
+        {
+            return false;
+        }
+
+        // A null last-inventory time is what the due-selection treats as immediately due, the same
+        // mechanism a colour change uses to force a presentation refresh.
+        LastCalendarInventoryAtUtc = null;
+        UpdatedAtUtc = atUtc;
+        return true;
+    }
+
+    /// <summary>
     /// Marks the initial synchronization finished, moving the connection to
     /// <see cref="GoogleCalendarInitialSyncState.Completed"/>.
     /// </summary>

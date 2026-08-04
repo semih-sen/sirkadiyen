@@ -208,6 +208,28 @@ public sealed class GoogleCalendarConnectionStore(SirkadiyenDbContext dbContext)
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<RequestReconciliationOutcome> RequestReconciliationAsync(
+        Guid userId,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken)
+    {
+        GoogleCalendarConnection? connection = await dbContext.GoogleCalendarConnections
+            .SingleOrDefaultAsync(candidate => candidate.UserId == userId, cancellationToken);
+
+        if (connection is null)
+        {
+            return RequestReconciliationOutcome.NotFound;
+        }
+
+        if (!connection.TryRequestReconciliation(atUtc))
+        {
+            return RequestReconciliationOutcome.NotEligible;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return RequestReconciliationOutcome.Requested;
+    }
+
     private async Task<GoogleCalendarConnection> SingleForUpdateAsync(
         Guid userId,
         CancellationToken cancellationToken) =>

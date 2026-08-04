@@ -18,6 +18,17 @@ public interface IUserCalendarEventMappingStore
     /// <summary>How many events have been mapped for the user, for a progress read.</summary>
     Task<int> CountForUserAsync(Guid userId, CancellationToken cancellationToken);
 
+    /// <summary>
+    /// An honest progress projection for one user, derived only from what the ledger actually
+    /// records: how many events are on the calendar, how many have been patched since they were
+    /// first written, and when the first and last writes happened. The ledger does not record
+    /// per-stage "unchanged" or "failed" outcomes, nor the total applicable-record count, so those
+    /// are deliberately absent rather than fabricated (AI_GUIDELINE §9).
+    /// </summary>
+    Task<CalendarSyncProgressView> GetProgressForUserAsync(
+        Guid userId,
+        CancellationToken cancellationToken);
+
     /// <summary>Every ledger row for one user, used by the periodic inventory sweep.</summary>
     Task<IReadOnlyList<CalendarEventMappingView>> ListForUserAsync(
         Guid userId,
@@ -77,6 +88,29 @@ public interface IUserCalendarEventMappingStore
         Guid userId,
         string stableIdentity,
         CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// A ledger-derived progress read for one user's initial/incremental synchronization.
+/// </summary>
+/// <remarks>
+/// Every mapped row is an event currently on the calendar. A row whose content was patched after
+/// it was first written has <c>UpdatedAtUtc &gt; CreatedAtUtc</c>; the remainder were written once
+/// and never changed. These are the only counts the ledger can state truthfully.
+/// </remarks>
+public sealed record CalendarSyncProgressView
+{
+    /// <summary>Total events currently mapped onto the user's calendar.</summary>
+    public required int MappedEventCount { get; init; }
+
+    /// <summary>Of the mapped events, how many have been patched since first written.</summary>
+    public required int UpdatedEventCount { get; init; }
+
+    /// <summary>When the first event was written, or <see langword="null"/> when none have been.</summary>
+    public DateTimeOffset? FirstWrittenAtUtc { get; init; }
+
+    /// <summary>When the most recent write happened, or <see langword="null"/> when none have been.</summary>
+    public DateTimeOffset? LastWrittenAtUtc { get; init; }
 }
 
 /// <summary>A read projection of one ledger row, for the incremental reverse lookup.</summary>

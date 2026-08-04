@@ -42,7 +42,7 @@
 - [x] Define semantic diff model
 - [x] Define user calendar event mapping
 - [ ] Define sync job state machine
-- [ ] Define audit event model
+- [x] Define audit event model (append-only account-access/activity log `AuditEvent`, ADR-089)
 
 ## Phase 2: Authentication and licensing
 
@@ -202,18 +202,24 @@
 - [x] Administrative document acquisition surface (endpoint ADR-080, `/admin` UI and
   `GET /api/sources/uploadable` ADR-081)
 - [x] Department color administration surface with required audit reason (ADR-086)
-- [~] License administration (create/revoke/manual activation complete; listing and audit inspection pending)
-- [ ] Source status dashboard
-- [ ] Snapshot inspection
-- [ ] Parser warning review
+- [x] License administration (create/revoke/manual activation; listing + audit inspection
+  `GET /api/admin/licenses(+detail)`, ADR-089)
+- [x] Source status dashboard backend (`GET /api/admin/sources`, poll status + latest parse
+  run/revision, ADR-089)
+- [x] Snapshot inspection backend (`GET /api/admin/sources/{id}` recent snapshots, ADR-089)
+- [~] Parser warning review (latest parse run warning/error counts exposed on source status;
+  full per-warning review still via the revision findings on `GET /api/revisions/{id}`)
 - [ ] Revision diff viewer
 - [ ] Manual publish and reject
-- [ ] User sync status
+- [x] User sync status backend (`GET /api/admin/users(+detail)`: profile, licenses,
+  managed-event count, onboarding state, recent sign-ins, ADR-089)
 - [ ] Retry failed jobs
-- [ ] Audit log viewer
-- [ ] Health checks
-- [ ] Metrics
-- [ ] Structured logs
+- [x] Audit log viewer backend (`GET /api/admin/audit`, `GET /api/admin/access-logs` with
+  masked IP + audited unmask, ADR-089)
+- [x] Health checks (`/health/live`, `/health/ready` with a PostgreSQL connectivity check, ADR-089)
+- [x] Metrics (`GET /api/admin/metrics` JSON operational-count snapshot, ADR-089)
+- [~] Structured logs (correlation-id middleware stamps every request/log line; a full
+  structured-logging/OpenTelemetry stack is still pending)
 - [ ] Alerts
 
 ## Phase 11: Consumer frontend
@@ -229,8 +235,10 @@
 - [x] Onboarding route gating by authoritative backend state
 - [x] SuperAdmin routed to admin panel instead of student onboarding (ADR-067)
 - [~] Admin/operator interfaces (`/admin`: operational-freeze control, SuperAdmin
-  self-activation, revision review queue, and administrative document upload — ADR-081;
-  source status, diff release, license and audit surfaces pending)
+  self-activation, revision review queue, and administrative document upload — ADR-081.
+  Backends for source status, user list/detail, license listing, audit/access logs, and
+  metrics now exist — ADR-089 — so the remaining work is the React surface and the
+  `web/src/lib/types.ts`/`api.ts` contract mirror; diff-release UI also still pending)
 - [x] Administrative document upload UI, driven by `GET /api/sources/uploadable` (ADR-081)
 - [x] Component system / design system (ported the Wise-inspired prototype design
   system into `web/src/app/globals.css` + shared `web/src/components/ui.tsx`; light

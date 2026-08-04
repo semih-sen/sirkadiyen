@@ -313,6 +313,65 @@ public sealed class GoogleCalendarConnectionStoreTests(PostgresFixture fixture)
         Assert.Null(await store.GetByUserIdAsync(user.UserId, Token));
     }
 
+    [Fact]
+    public async Task RequestingReconciliationMakesAHealthyConnectionDue()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        UserSession user = await CreateUserAsync("calendar-reconcile-request");
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        GoogleCalendarConnectionStore store = new(context);
+        await store.UpsertAuthorizationAsync(user.UserId, "protected", Scope, Now, Token);
+        await store.RequestInitialSyncAsync(user.UserId, Now.AddMinutes(1), Token);
+        await store.AttachManagedCalendarAsync(
+            user.UserId,
+            "reconcile@group.calendar.google.com",
+            Now.AddMinutes(2),
+            Token);
+        await store.MarkInitialSyncCompletedAsync(user.UserId, Now.AddMinutes(3), Token);
+        await store.MarkCalendarInventoryCompletedAsync(user.UserId, Now.AddHours(1), Token);
+
+        RequestReconciliationOutcome outcome = await store.RequestReconciliationAsync(
+            user.UserId,
+            Now.AddHours(2),
+            Token);
+
+        Assert.Equal(RequestReconciliationOutcome.Requested, outcome);
+
+        // The connection is now immediately due for the next inventory pass.
+        GoogleCalendarConnectionView view = (await store.GetByUserIdAsync(user.UserId, Token))!;
+        Assert.Null(view.LastCalendarInventoryAtUtc);
+    }
+
+    [Fact]
+    public async Task ReconciliationIsNotEligibleBeforeInitialSyncCompletes()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        UserSession user = await CreateUserAsync("calendar-reconcile-pending");
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        GoogleCalendarConnectionStore store = new(context);
+        await store.UpsertAuthorizationAsync(user.UserId, "protected", Scope, Now, Token);
+
+        Assert.Equal(
+            RequestReconciliationOutcome.NotEligible,
+            await store.RequestReconciliationAsync(user.UserId, Now.AddMinutes(1), Token));
+    }
+
+    [Fact]
+    public async Task ReconciliationForUnknownUserReportsNotFound()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        Assert.Equal(
+            RequestReconciliationOutcome.NotFound,
+            await new GoogleCalendarConnectionStore(context).RequestReconciliationAsync(
+                Guid.CreateVersion7(),
+                Now,
+                Token));
+    }
+
     private async Task<UserSession> CreateUserAsync(string prefix)
     {
         await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();

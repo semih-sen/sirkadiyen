@@ -205,6 +205,54 @@ public sealed class UserCalendarEventMappingStoreTests(PostgresFixture fixture)
             await store.RemoveAsync(user.UserId, "to-remove", Token));
     }
 
+    [Fact]
+    public async Task ProgressCountsMappedAndPatchedEventsForTheUser()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        UserSession user = await CreateUserAsync("mapping-progress");
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        UserCalendarEventMappingStore store = new(context);
+        await store.AddAsync(Mapping(user.UserId, "created-1"), Token);
+        await store.AddAsync(Mapping(user.UserId, "created-2"), Token);
+        await store.AddAsync(Mapping(user.UserId, "patched-1"), Token);
+
+        DateTimeOffset later = Now.AddDays(1);
+        await store.UpdateContentAsync(
+            user.UserId,
+            "patched-1",
+            Guid.CreateVersion7(),
+            "sha256:patched-1-v2",
+            later,
+            Token);
+
+        CalendarSyncProgressView progress =
+            await store.GetProgressForUserAsync(user.UserId, Token);
+
+        Assert.Equal(3, progress.MappedEventCount);
+        Assert.Equal(1, progress.UpdatedEventCount);
+        Assert.Equal(Now, progress.FirstWrittenAtUtc);
+        Assert.Equal(later, progress.LastWrittenAtUtc);
+    }
+
+    [Fact]
+    public async Task ProgressIsAllZeroWhenTheUserHasNoMappings()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        UserSession user = await CreateUserAsync("mapping-progress-empty");
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        UserCalendarEventMappingStore store = new(context);
+
+        CalendarSyncProgressView progress =
+            await store.GetProgressForUserAsync(user.UserId, Token);
+
+        Assert.Equal(0, progress.MappedEventCount);
+        Assert.Equal(0, progress.UpdatedEventCount);
+        Assert.Null(progress.FirstWrittenAtUtc);
+        Assert.Null(progress.LastWrittenAtUtc);
+    }
+
     private static UserCalendarEventMapping Mapping(
         Guid userId,
         string stableIdentity,

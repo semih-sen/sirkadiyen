@@ -96,6 +96,30 @@ public interface IGoogleCalendarConnectionStore
         Guid userId,
         DateTimeOffset atUtc,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Records a user-initiated reconciliation request, making the connection due for the next
+    /// non-destructive inventory pass. The worker does the actual work; this only records intent.
+    /// </summary>
+    Task<RequestReconciliationOutcome> RequestReconciliationAsync(
+        Guid userId,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken);
+}
+
+public enum RequestReconciliationOutcome
+{
+    /// <summary>The connection was made due; the worker will reconcile it on its next cycle.</summary>
+    Requested,
+
+    /// <summary>
+    /// The connection cannot be reconciled on demand — it is not a healthy, initial-sync-completed
+    /// connection with an available calendar (it may need re-authorization or repair).
+    /// </summary>
+    NotEligible,
+
+    /// <summary>The user has no Calendar connection.</summary>
+    NotFound,
 }
 
 /// <summary>

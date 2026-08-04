@@ -17,6 +17,27 @@ Legend:
 
 ---
 
+## Update — backends added (ADR-089, 2026-08-04)
+
+Several rows below have moved from **No endpoint** to **Endpoint exists, UI not built**. The
+routes are live and tested; only the React surface and the `web/src/lib/types.ts` / `api.ts`
+mirror remain. Newly available:
+
+- **Dashboard:** `GET /api/schedule/upcoming`, `GET /api/schedule/changes`,
+  `GET /api/calendar/sync/progress` (partial — total mapped + patched counts, no per-stage
+  unchanged/failed), `POST /api/calendar/reconcile`, `GET /api/licenses/status` (activation
+  state + date; there is no "kalan süre", access does not lapse after activation).
+- **Admin:** `GET /api/admin/users` (+`/{id}`), `GET /api/admin/licenses` (+`/{id}`),
+  `GET /api/admin/sources` (+`/{id}`), `GET /api/admin/audit`, `GET /api/admin/access-logs`
+  (masked IP) + `POST /api/admin/access-logs/{id}/unmask`, `GET /api/admin/metrics`,
+  `/health/live` + `/health/ready`.
+
+Still **No endpoint** (unchanged): `GET /api/calendar/sync/history` (needs a per-user activity
+log — deferred), `GET /api/notifications`, `POST /api/contact`, and the finance / bulk-event /
+user-warning domains.
+
+---
+
 ## Wired in this migration (for reference)
 
 These screens are connected to real routes and were re-skinned, not stubbed:

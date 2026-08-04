@@ -263,6 +263,66 @@ public sealed class LicenseStoreTests(PostgresFixture fixture)
                 Token));
     }
 
+    [Fact]
+    public async Task SummaryIsNullWhenUserNeverActivated()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        UserSession user = await CreateUserAsync("summary-none", UserRole.User);
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        UserLicenseSummary? summary =
+            await new LicenseStore(context).GetUserLicenseSummaryAsync(user.UserId, Token);
+
+        Assert.Null(summary);
+    }
+
+    [Fact]
+    public async Task SummaryReportsTheRedeemedLicense()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        (UserSession admin, UserSession user) = await CreateUsersAsync("summary-active");
+        byte[] hash = RandomHash();
+        await CreateLicenseAsync(hash, admin);
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        LicenseStore store = new(context);
+        await store.RedeemAsync(hash, user.UserId, user.Email, Now.AddMinutes(1), Token);
+
+        UserLicenseSummary? summary = await store.GetUserLicenseSummaryAsync(user.UserId, Token);
+
+        Assert.NotNull(summary);
+        Assert.Equal(LicenseStatus.Redeemed, summary!.Status);
+        Assert.Equal(LicenseKind.Code, summary.Kind);
+        Assert.Equal(Now.AddMinutes(1), summary.RedeemedAtUtc);
+        Assert.Null(summary.RevokedAtUtc);
+    }
+
+    [Fact]
+    public async Task SummaryReportsRevocationWhenSuspended()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        (UserSession admin, UserSession user) = await CreateUsersAsync("summary-suspended");
+        byte[] hash = RandomHash();
+        Guid licenseId = await CreateLicenseAsync(hash, admin);
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        LicenseStore store = new(context);
+        await store.RedeemAsync(hash, user.UserId, user.Email, Now.AddMinutes(1), Token);
+        await store.RevokeAsync(
+            licenseId,
+            admin.UserId,
+            admin.Email,
+            "Administrative revocation.",
+            Now.AddMinutes(2),
+            Token);
+
+        UserLicenseSummary? summary = await store.GetUserLicenseSummaryAsync(user.UserId, Token);
+
+        Assert.NotNull(summary);
+        Assert.Equal(LicenseStatus.Revoked, summary!.Status);
+        Assert.Equal(Now.AddMinutes(2), summary.RevokedAtUtc);
+    }
+
     private async Task<(UserSession Admin, UserSession User)> CreateUsersAsync(string prefix) => (
         await CreateUserAsync($"admin-{prefix}", UserRole.SuperAdmin),
         await CreateUserAsync($"user-{prefix}", UserRole.User));

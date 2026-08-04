@@ -1,9 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Sirkadiyen.Application.Administration;
+using Sirkadiyen.Application.Auditing;
 using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Identity;
 using Sirkadiyen.Application.Licensing;
 using Sirkadiyen.Application.Operations;
+using Sirkadiyen.Application.Schedule;
 using Sirkadiyen.Application.ScheduleDiffing;
 using Sirkadiyen.Application.ScheduleIngestion;
 using Sirkadiyen.Application.ScheduleParsing;
@@ -59,6 +62,12 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<ICanonicalScheduleReadStore, CanonicalScheduleReadStore>();
         services.AddScoped<ICalendarSyncTargetReadStore, CalendarSyncTargetReadStore>();
         services.AddScoped<IDepartmentColorStore, DepartmentColorStore>();
+        services.AddScoped<IAuditEventStore, AuditEventStore>();
+        services.AddScoped<IUserScheduleReadStore, UserScheduleReadStore>();
+        services.AddScoped<IAdminUserReadStore, AdminUserReadStore>();
+        services.AddScoped<IAdminLicenseReadStore, AdminLicenseReadStore>();
+        services.AddScoped<ISourceStatusReadStore, SourceStatusReadStore>();
+        services.AddScoped<IAdminMetricsReadStore, AdminMetricsReadStore>();
 
         return services;
     }

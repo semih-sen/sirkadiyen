@@ -4721,3 +4721,68 @@ unchanged.
   the server-owned department or presentation-category catalogs.
 
 ---
+
+## ADR-089: An account-access audit log and a read-only admin/observability surface
+
+### Context
+
+The backend pipeline was complete, but the product had no way to *see* the data it
+already produced. There was no login record at all — `User.LastSignedInAtUtc` is
+overwritten each sign-in — so `progress.md` Phase 1 "audit event model" and the Phase 10
+access-log, user-detail, source-status, health-check and metrics items were unbuilt, and
+the finished admin/dashboard screens in `web/` rendered as "Yakında" placeholders
+(`web/GAPS.md`).
+
+### Decision
+
+Add read/query and observability surfaces over existing data, plus one new append-only
+domain concept — an account-access and activity log — without changing any pipeline
+behavior.
+
+- **AuditEvent** (`Domain/Auditing`) is an append-only cross-cutting log distinct from the
+  per-domain audits (license, freeze, colour, upload), which remain authoritative for their
+  domains. It records the events that had no home: `SignIn`, `ReconcileRequested`, and
+  `IpUnmasked`. The client IP is stored masked by default (IPv4 last octet / IPv6 host bits
+  cleared) and the full address is encrypted at rest with a dedicated Data Protection
+  purpose; revealing it is a separate, reason-required, itself-audited SuperAdmin action
+  (`POST /api/admin/access-logs/{id}/unmask`). Category is stored as a string with no check
+  constraint so new categories are a code change, not a migration.
+- **Student reads** (`GET /api/schedule/upcoming`, `/api/schedule/changes`,
+  `GET /api/calendar/sync/progress`, `GET /api/licenses/status`) and **admin reads**
+  (`GET /api/admin/users(+detail)`, `/api/admin/licenses(+detail)`, `/api/admin/sources(+detail)`,
+  `/api/admin/audit`, `/api/admin/metrics`) are thin read stores projecting existing tables.
+- **User-initiated reconcile** (`POST /api/calendar/reconcile`) reuses the existing
+  inventory "due" mechanism (nulling `LastCalendarInventoryAtUtc`, as a colour change does),
+  so it needs no new column and no change to the worker: it only records intent and is
+  gated by the same operational freeze.
+- **Health/metrics**: `/health/live` and `/health/ready` (a real PostgreSQL connectivity
+  check) split liveness from readiness; `GET /api/admin/metrics` is a JSON aggregation of
+  operational counts. A correlation-id middleware stamps every request and log line.
+
+### Honest limits (deliberately not fabricated, per AI_GUIDELINE §9, §21)
+
+- Sync progress reports only what the mapping ledger records — total mapped events and how
+  many were patched since first written. It cannot report "unchanged", "failed", or an
+  applicable-record total, so those are omitted rather than invented.
+- License status reports activation state and date only. Sirkadiyen access does not lapse
+  after redemption (`License.ExpiresAtUtc` is a pre-redemption code deadline), so no "time
+  remaining" is returned; time-limited access would be a separate decision.
+- `GET /api/schedule/changes` reports creations and updates, not deletions: a removed event
+  leaves no ledger row. `GET /api/calendar/sync/history` is deferred for the same reason — a
+  faithful timeline needs a per-user activity log written by the sync services.
+- `GET /api/admin/metrics` is a read aggregation, not a metrics-stack exporter. A
+  Prometheus/OpenTelemetry `/metrics` exporter and host CPU/RAM/Redis gauges remain a
+  separate decision.
+
+### Consequences
+
+- The access-log, user-list/detail, license-list/detail, source-status, audit-query,
+  health and metrics gaps in `web/GAPS.md` §2–3 now have backing routes; the remaining work
+  for those screens is the React surface and the hand-maintained `web/src/lib/types.ts` /
+  `api.ts` contract mirror.
+- New table `audit_events` (migration `AddAuditEvents`); the per-domain audit tables are
+  unchanged and not migrated.
+- The unified `GET /api/admin/audit` covers the AuditEvent categories only; the per-domain
+  audits stay queryable through their own surfaces and could be unioned later.
+- New product domains (contact, bulk event, user warning, finance) and the Python
+  parser/ingestion profile gaps are out of scope of this change.

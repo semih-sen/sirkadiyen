@@ -131,6 +131,10 @@ public sealed class LicenseServiceTests
         public Task<UserLicenseState> GetUserLicenseStateAsync(
             Guid userId,
             CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<UserLicenseSummary?> GetUserLicenseSummaryAsync(
+            Guid userId,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
