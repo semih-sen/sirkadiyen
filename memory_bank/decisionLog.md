@@ -4840,9 +4840,11 @@ counts but not the persisted warnings that explained `CompletedWithWarnings`.
 - Keep the audited global freeze as the emergency stop and add audited controls keyed by
   `(ClassYear, ProgramLanguage)`. A mutation is blocked when either global or exact-scope state
   is frozen. Shared uploads skip only frozen targets; unrelated source and calendar lines run.
-- Persist a worker process heartbeat every 15 seconds. Treat a heartbeat older than 45 seconds
-  as unhealthy. Probe the parser's existing `/health` endpoint on explicit SuperAdmin refresh;
-  do not fold either dependency into API liveness or claim CPU/RAM/Redis telemetry.
+- Host internal `/health/live` and `/health/ready` endpoints in the worker process. Readiness
+  exposes its instance, start time, last in-process activity and current pipeline stage. The API
+  probes that endpoint and the parser's existing `/health` endpoint only on explicit SuperAdmin
+  refresh; do not persist health heartbeats, fold either dependency into API liveness, or claim
+  CPU/RAM/Redis telemetry.
 - Project warning details by deserializing the latest stored parser response. This read is
   evidence-only and never starts a new parser run.
 
@@ -4851,9 +4853,11 @@ counts but not the persisted warnings that explained `CompletedWithWarnings`.
 - Returning users normally need no Google sign-in for 30 days in the same browser, with the
   window sliding during use. Explicit logout, role/user invalidation, cookie deletion, key-ring
   loss or expiry still ends the session.
-- Scoped controls and service heartbeat require migration
-  `AddScopedFreezeAndServiceHeartbeats`; both freeze histories remain append-only.
+- Scoped controls were introduced by `AddScopedFreezeAndServiceHeartbeats`; the later
+  `RemoveServiceHeartbeats` migration removes the superseded heartbeat table. Both freeze
+  histories remain append-only.
 - API and worker processes must restart after deployment to load the new cookie policy,
-  endpoints and heartbeat service.
-- Worker health is process heartbeat freshness, not proof that every queued job is progressing;
-  queue and source counts remain separate operational signals.
+  endpoints and internal Worker HTTP listener.
+- Worker readiness reports process reachability and the latest in-process stage/activity. It is
+  not proof that every queued job is progressing; queue and source counts remain separate
+  operational signals.

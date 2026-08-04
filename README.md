@@ -169,6 +169,11 @@ dotnet run --project src/Sirkadiyen.Api
 dotnet run --project src/Sirkadiyen.Worker
 ```
 
+The worker exposes internal process health at `/health/live` and operational readiness at
+`/health/ready`. It binds to `SIRKADIYEN_WORKER__HEALTH_URL` (loopback port 5081 by default),
+while the API probes `SIRKADIYEN_WORKER__BASE_URL`. Do not publish this listener through the
+public reverse proxy; the authenticated SuperAdmin API is the external health surface.
+
 An exported or container-injected variable always wins over the file, so a
 deployed host — which ships no `.env` at all — is unaffected.
 

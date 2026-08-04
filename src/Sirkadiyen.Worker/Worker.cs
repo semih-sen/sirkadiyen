@@ -20,6 +20,7 @@ internal sealed class Worker(
     WorkerOptions options,
     AdaptivePollingIntervalPolicy intervalPolicy,
     TimeProvider timeProvider,
+    WorkerHealthState healthState,
     ILogger<Worker> logger) : BackgroundService
 {
     /// <summary>
@@ -39,64 +40,79 @@ internal sealed class Worker(
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         logger.LogInformation("Sirkadiyen worker started.");
-
-        await SeedSourceCatalogAsync(stoppingToken);
-
-        bool pollScheduleSources = true;
-        DateTimeOffset nextSourcePollAt = timeProvider.GetUtcNow();
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            if (pollScheduleSources)
+            healthState.MarkActivity("seeding-source-catalog");
+            await SeedSourceCatalogAsync(stoppingToken);
+            healthState.MarkReady("ready");
+
+            bool pollScheduleSources = true;
+            DateTimeOffset nextSourcePollAt = timeProvider.GetUtcNow();
+            while (!stoppingToken.IsCancellationRequested)
             {
-                await PollAllSourcesAsync(stoppingToken);
-                await PublishValidatedRevisionsAsync(stoppingToken);
-                await CalculatePendingDiffsAsync(stoppingToken);
+                if (pollScheduleSources)
+                {
+                    healthState.MarkActivity("polling-sources");
+                    await PollAllSourcesAsync(stoppingToken);
+                    healthState.MarkActivity("publishing-revisions");
+                    await PublishValidatedRevisionsAsync(stoppingToken);
+                    healthState.MarkActivity("calculating-diffs");
+                    await CalculatePendingDiffsAsync(stoppingToken);
 
-                DateTimeOffset intervalSelectedAt = timeProvider.GetUtcNow();
-                nextSourcePollAt =
-                    intervalSelectedAt + intervalPolicy.GetInterval(intervalSelectedAt);
+                    DateTimeOffset intervalSelectedAt = timeProvider.GetUtcNow();
+                    nextSourcePollAt =
+                        intervalSelectedAt + intervalPolicy.GetInterval(intervalSelectedAt);
+                }
+
+                healthState.MarkActivity("initial-calendar-sync");
+                bool calendarCatchUpRequired =
+                    await RunPendingInitialSyncsAsync(stoppingToken);
+                healthState.MarkActivity("calendar-maintenance");
+                calendarCatchUpRequired |=
+                    await RunFencedCalendarMaintenanceAsync(stoppingToken);
+
+                if (pollScheduleSources)
+                {
+                    healthState.MarkActivity("snapshot-retention");
+                    await PruneExpiredSnapshotPayloadsAsync(stoppingToken);
+                }
+
+                WorkerCycleSchedule next = WorkerCycleScheduler.GetNext(
+                    calendarCatchUpRequired,
+                    nextSourcePollAt,
+                    options,
+                    timeProvider.GetUtcNow());
+                pollScheduleSources = next.PollScheduleSources;
+
+                if (calendarCatchUpRequired && !next.PollScheduleSources)
+                {
+                    logger.LogInformation(
+                        "Calendar work remains after an ordinary mutation-budget yield. "
+                        + "Catch-up resumes in {CatchUpInterval} without polling schedule sources.",
+                        next.Delay);
+                }
+                else if (next.PollScheduleSources)
+                {
+                    logger.LogInformation(
+                        "Next source polling cycle starts in {PollingInterval}.",
+                        next.Delay);
+                }
+                else
+                {
+                    logger.LogDebug(
+                        "Calendar queue is idle. It will be checked again in {IdleCheckInterval}; "
+                        + "the next source poll remains due at {NextSourcePollAt}.",
+                        next.Delay,
+                        nextSourcePollAt);
+                }
+
+                healthState.MarkActivity("waiting");
+                await Task.Delay(next.Delay, timeProvider, stoppingToken);
             }
-
-            bool calendarCatchUpRequired =
-                await RunPendingInitialSyncsAsync(stoppingToken);
-            calendarCatchUpRequired |=
-                await RunFencedCalendarMaintenanceAsync(stoppingToken);
-
-            if (pollScheduleSources)
-            {
-                await PruneExpiredSnapshotPayloadsAsync(stoppingToken);
-            }
-
-            WorkerCycleSchedule next = WorkerCycleScheduler.GetNext(
-                calendarCatchUpRequired,
-                nextSourcePollAt,
-                options,
-                timeProvider.GetUtcNow());
-            pollScheduleSources = next.PollScheduleSources;
-
-            if (calendarCatchUpRequired && !next.PollScheduleSources)
-            {
-                logger.LogInformation(
-                    "Calendar work remains after an ordinary mutation-budget yield. "
-                    + "Catch-up resumes in {CatchUpInterval} without polling schedule sources.",
-                    next.Delay);
-            }
-            else if (next.PollScheduleSources)
-            {
-                logger.LogInformation(
-                    "Next source polling cycle starts in {PollingInterval}.",
-                    next.Delay);
-            }
-            else
-            {
-                logger.LogDebug(
-                    "Calendar queue is idle. It will be checked again in {IdleCheckInterval}; "
-                    + "the next source poll remains due at {NextSourcePollAt}.",
-                    next.Delay,
-                    nextSourcePollAt);
-            }
-
-            await Task.Delay(next.Delay, timeProvider, stoppingToken);
+        }
+        finally
+        {
+            healthState.MarkStopped();
         }
     }
 

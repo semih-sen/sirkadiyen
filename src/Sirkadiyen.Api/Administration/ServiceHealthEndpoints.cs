@@ -14,7 +14,7 @@ public static class ServiceHealthEndpoints
                     probe.GetAsync(cancellationToken))
             .RequireAuthorization(AuthorizationPolicies.SuperAdmin)
             .WithTags("Observability")
-            .WithSummary("Returns the worker heartbeat and a point-in-time parser health probe.");
+            .WithSummary("Probes the internal worker and parser health endpoints.");
         return builder;
     }
 }

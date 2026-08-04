@@ -123,7 +123,7 @@ fabricate records or metrics. The sections below separate remaining gaps from wi
 - `/admin/users`: paged user and license lists, user/license detail, license audit and selected-license revocation.
 - `/admin/sources`: source pipeline status, the latest persisted parser warning/evidence details and retained snapshot evidence beside administrative upload.
 - `/admin/access-logs`: masked sign-in log, audited transient IP reveal and cross-category audit query.
-- `/admin/server`: liveness, readiness, worker heartbeat, parser `/health` probe and database-backed point-in-time counts. CPU/RAM/Redis metrics remain unavailable and are not fabricated.
+- `/admin/server`: API liveness/readiness, internal worker `/health/ready`, parser `/health` probe and database-backed point-in-time counts. CPU/RAM/Redis metrics remain unavailable and are not fabricated.
 
 ---
 

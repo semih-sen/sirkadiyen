@@ -1,4 +1,7 @@
 using Google.Apis.Sheets.v4;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -22,7 +25,11 @@ using Sirkadiyen.Worker;
 // and ships no file, so this does nothing there (ADR-041).
 DotEnvFile.Load();
 
-var builder = Host.CreateApplicationBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
+
+string healthUrl = builder.Configuration["SIRKADIYEN_WORKER:HEALTH_URL"]
+    ?? "http://127.0.0.1:5081";
+builder.WebHost.UseUrls(healthUrl);
 
 string connectionString = Required(
     builder.Configuration,
@@ -211,6 +218,7 @@ SnapshotRetentionOptions retentionOptions = new()
 retentionOptions.Validate();
 
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<WorkerHealthState>();
 builder.Services.AddSingleton(diffOptions);
 builder.Services.AddSingleton(diffThresholds);
 builder.Services.AddSingleton<SemanticScheduleDiffer>();
@@ -271,10 +279,21 @@ builder.Services.AddSirkadiyenParserClient(
         builder.Configuration["SIRKADIYEN_PARSER:TIMEOUT"],
         TimeSpan.FromMinutes(2)));
 builder.Services.AddHostedService<Worker>();
-builder.Services.AddHostedService<WorkerHeartbeatService>();
 
-var host = builder.Build();
-await host.RunAsync();
+var app = builder.Build();
+app.MapGet("/health/live", (WorkerHealthState state) =>
+{
+    WorkerHealthSnapshot snapshot = state.GetSnapshot();
+    return Results.Ok(snapshot with { Status = "healthy" });
+});
+app.MapGet("/health/ready", (WorkerHealthState state) =>
+{
+    WorkerHealthSnapshot snapshot = state.GetSnapshot();
+    return string.Equals(snapshot.Status, "healthy", StringComparison.Ordinal)
+        ? Results.Ok(snapshot)
+        : Results.Json(snapshot, statusCode: StatusCodes.Status503ServiceUnavailable);
+});
+await app.RunAsync();
 
 static string Required(IConfiguration configuration, string key) =>
     configuration[key] is { } value && !string.IsNullOrWhiteSpace(value)

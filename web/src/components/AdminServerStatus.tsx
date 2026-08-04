@@ -100,7 +100,7 @@ function ServiceCard({ title, service, unavailable }: { title: string; service: 
     <section className="card card-content">
       <div className="cluster" style={{ justifyContent: 'space-between' }}><h2 style={{ fontSize: 16 }}>{title}</h2><span className={`badge ${healthy ? 'badge-success' : service || unavailable ? 'badge-danger' : 'badge-neutral'}`}>{label}</span></div>
       <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>{service?.detail ?? 'Servis sağlık sözleşmesi bekleniyor.'}</p>
-      {service?.lastSeenAtUtc && <small>Son sinyal: {formatDateTime(service.lastSeenAtUtc)}</small>}
+      {service?.lastSeenAtUtc && <small>Son aktivite: {formatDateTime(service.lastSeenAtUtc)}</small>}
     </section>
   );
 }

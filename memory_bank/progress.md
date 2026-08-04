@@ -215,7 +215,7 @@
 - [ ] Retry failed jobs
 - [x] Audit log viewer backend (`GET /api/admin/audit`, `GET /api/admin/access-logs` with
   masked IP + audited unmask, ADR-089)
-- [x] Health checks (`/health/live`, `/health/ready`, worker heartbeat and parser `/health` probe, ADR-089/091)
+- [x] Health checks (API and internal Worker `/health/live` + `/health/ready`, parser `/health` probe, ADR-089/091)
 - [x] Metrics (`GET /api/admin/metrics` JSON operational-count snapshot, ADR-089)
 - [~] Structured logs (correlation-id middleware stamps every request/log line; a full
   structured-logging/OpenTelemetry stack is still pending)

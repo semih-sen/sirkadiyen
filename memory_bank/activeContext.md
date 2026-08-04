@@ -44,9 +44,9 @@ no worker change. Admin reads (`GET /api/admin/users(+detail)`, `/api/admin/lice
 `/api/admin/sources(+detail)`, `/api/admin/audit`, `/api/admin/access-logs` with audited unmask,
 `/api/admin/metrics`) project existing tables. `/health/live` and `/health/ready` (a real
 PostgreSQL check) split liveness from readiness, and a correlation-id middleware stamps every
-request and log line. ADR-091 extends this surface with worker heartbeat and parser health,
+request and log line. ADR-091 extends this surface with internal worker and parser health probes,
 and extends the operational stop from global-only to global plus class/program scopes.
-597 .NET tests pass, 0 skipped.
+599 .NET tests pass, 0 skipped.
 
 ### Open risks — read/query & audit surface (2026-08-04)
 
@@ -1956,10 +1956,13 @@ dimension can be added with evidence.
 - Source detail deserializes the latest persisted `ParseRun.Response` and exposes every parser
   warning with severity, code, message, candidate and source evidence. Reading the drawer
   never invokes polling or parsing.
-- The worker writes a PostgreSQL heartbeat every 15 seconds. The SuperAdmin service-health
-  endpoint combines that heartbeat with an on-demand parser `/health` probe; the server page
-  shows both independently from API liveness/readiness and does not invent host metrics.
-- Migration `AddScopedFreezeAndServiceHeartbeats` was generated and applied to the configured
-  local database. Release build, 597 .NET tests, 11 frontend tests and frontend typecheck pass.
+- The worker hosts internal `/health/live` and `/health/ready` endpoints with its instance,
+  start time, current pipeline stage and last in-process activity. The SuperAdmin service-health
+  endpoint probes Worker and parser on demand; the server page shows both independently from
+  API liveness/readiness and does not invent host metrics.
+- Migration `AddScopedFreezeAndServiceHeartbeats` was generated for the scoped controls; the
+  follow-up `RemoveServiceHeartbeats` migration removes the superseded DB health table and was
+  applied to the configured local database. Release build, 599 .NET tests, 11 frontend tests
+  and frontend typecheck pass.
 - A running Debug API kept its old assemblies loaded during implementation. Restart the API
-  and worker processes to activate the new routes, 30-day cookie policy and heartbeat writer.
+  and worker processes to activate the new routes, 30-day cookie policy and internal listener.

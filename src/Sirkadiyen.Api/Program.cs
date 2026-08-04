@@ -75,6 +75,9 @@ string licenseHashKey = Required(
 Uri parserBaseUrl = new(Required(
     builder.Configuration,
     "SIRKADIYEN_PARSER:BASE_URL"), UriKind.Absolute);
+Uri workerBaseUrl = new(
+    builder.Configuration["SIRKADIYEN_WORKER:BASE_URL"] ?? "http://127.0.0.1:5081",
+    UriKind.Absolute);
 
 builder.Services.AddProblemDetails();
 
@@ -105,11 +108,13 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 builder.Services.AddScoped<DatabaseHealthCheck>();
-builder.Services.AddHttpClient<IAdminServiceHealthProbe, AdminServiceHealthProbe>(client =>
+builder.Services.AddSingleton(new AdminServiceHealthProbeOptions
 {
-    client.BaseAddress = parserBaseUrl;
-    client.Timeout = TimeSpan.FromSeconds(5);
+    WorkerBaseUrl = workerBaseUrl,
+    ParserBaseUrl = parserBaseUrl,
 });
+builder.Services.AddHttpClient<IAdminServiceHealthProbe, AdminServiceHealthProbe>(client =>
+    client.Timeout = TimeSpan.FromSeconds(5));
 builder.Services
     .AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);

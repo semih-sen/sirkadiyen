@@ -54,7 +54,6 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IScheduleDiffStore, ScheduleDiffStore>();
         services.AddScoped<IScheduleDiffReviewStore, ScheduleDiffReviewStore>();
         services.AddScoped<IOperationalFreezeStore, OperationalFreezeStore>();
-        services.AddScoped<IServiceHeartbeatStore, ServiceHeartbeatStore>();
         services.AddScoped<IUserStore, UserStore>();
         services.AddScoped<ILicenseStore, LicenseStore>();
         services.AddScoped<IStudentProfileStore, StudentProfileStore>();
