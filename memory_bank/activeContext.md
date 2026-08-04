@@ -1966,3 +1966,18 @@ dimension can be added with evidence.
   and frontend typecheck pass.
 - A running Debug API kept its old assemblies loaded during implementation. Restart the API
   and worker processes to activate the new routes, 30-day cookie policy and internal listener.
+
+## Latest refactor session (2026-08-04, Worker composition)
+
+- ADR-092 decomposes the Worker executable without changing its pipeline order, retry policy,
+  PostgreSQL fence boundary, health stages, polling cadence or configuration keys/defaults.
+- `Program.cs` is now only the composition entry point. Configuration construction, service
+  registration and health endpoint mapping have dedicated types.
+- `Worker.cs` now owns only process lifecycle and cycle scheduling. Catalog initialization,
+  source polling, publication, diff calculation, initial sync, fenced dispatch/reconciliation,
+  inventory and snapshot retention each have one focused class and one class per file.
+- Worker-specific scheduling, health and configuration tests pass. The complete Release suite
+  passes with 601 tests; Worker build, solution formatting/analyzers and diff checks are clean.
+- Worker source layout now mirrors its namespaces: `Composition`, `Configuration`, `Health`,
+  `Scheduling`, `Sources` and `Calendars`. Only `Program.cs` and the hosted `Worker.cs` remain at
+  the project root.

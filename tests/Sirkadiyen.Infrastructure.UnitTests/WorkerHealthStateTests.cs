@@ -1,4 +1,4 @@
-using Sirkadiyen.Worker;
+using Sirkadiyen.Worker.Health;
 using Xunit;
 
 namespace Sirkadiyen.Infrastructure.UnitTests;

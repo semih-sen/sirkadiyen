@@ -1,4 +1,4 @@
-namespace Sirkadiyen.Worker;
+namespace Sirkadiyen.Worker.Configuration;
 
 internal sealed record WorkerOptions
 {

@@ -1,4 +1,4 @@
-namespace Sirkadiyen.Worker;
+namespace Sirkadiyen.Worker.Health;
 
 /// <summary>In-process health state exposed only by the Worker's internal HTTP listener.</summary>
 internal sealed class WorkerHealthState(TimeProvider timeProvider)
@@ -44,13 +44,4 @@ internal sealed class WorkerHealthState(TimeProvider timeProvider)
             }
         }
     }
-}
-
-internal sealed record WorkerHealthSnapshot
-{
-    public required string Status { get; init; }
-    public required string InstanceId { get; init; }
-    public required DateTimeOffset StartedAtUtc { get; init; }
-    public required DateTimeOffset LastActivityAtUtc { get; init; }
-    public required string CurrentStage { get; init; }
 }

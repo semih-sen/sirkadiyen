@@ -551,3 +551,14 @@ source-faithful, and ordinary inventory patches existing Calendar events in plac
   guard, source read-only behavior and honest metrics rendering (ADR-090).
 - Remaining frontend gaps are sync history, notifications, contact, held-diff release,
   finance, bulk event and user warning.
+
+## Latest refactor session (2026-08-04, Worker composition)
+
+- The 324-line Worker startup and 807-line background service were decomposed into a small
+  composition root, a lifecycle/scheduling host and focused pipeline tasks (ADR-092).
+- Source processing and Calendar maintenance keep the same execution order and failure
+  isolation. The existing shared Calendar fence still spans dispatch, replay and inventory.
+- Worker configuration retains every existing environment key, fallback and validation step;
+  regression tests cover default and configured values.
+- The Worker project now uses namespace-aligned feature folders (`Composition`, `Configuration`,
+  `Health`, `Scheduling`, `Sources`, `Calendars`) rather than a flat source directory.

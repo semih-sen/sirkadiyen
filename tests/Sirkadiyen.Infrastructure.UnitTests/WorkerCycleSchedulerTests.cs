@@ -1,4 +1,5 @@
-using Sirkadiyen.Worker;
+using Sirkadiyen.Worker.Configuration;
+using Sirkadiyen.Worker.Scheduling;
 using Xunit;
 
 namespace Sirkadiyen.Infrastructure.UnitTests;

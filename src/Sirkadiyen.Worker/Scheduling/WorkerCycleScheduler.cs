@@ -1,8 +1,6 @@
-namespace Sirkadiyen.Worker;
+using Sirkadiyen.Worker.Configuration;
 
-internal readonly record struct WorkerCycleSchedule(
-    bool PollScheduleSources,
-    TimeSpan Delay);
+namespace Sirkadiyen.Worker.Scheduling;
 
 internal static class WorkerCycleScheduler
 {
@@ -21,17 +19,11 @@ internal static class WorkerCycleScheduler
 
         if (sourceDelay <= TimeSpan.Zero)
         {
-            return new WorkerCycleSchedule(
-                PollScheduleSources: true,
-                TimeSpan.Zero);
+            return new WorkerCycleSchedule(PollScheduleSources: true, TimeSpan.Zero);
         }
 
         return sourceDelay <= calendarDelay
-            ? new WorkerCycleSchedule(
-                PollScheduleSources: true,
-                sourceDelay)
-            : new WorkerCycleSchedule(
-                PollScheduleSources: false,
-                calendarDelay);
+            ? new WorkerCycleSchedule(PollScheduleSources: true, sourceDelay)
+            : new WorkerCycleSchedule(PollScheduleSources: false, calendarDelay);
     }
 }

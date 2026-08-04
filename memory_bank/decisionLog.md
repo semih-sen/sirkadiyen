@@ -4861,3 +4861,44 @@ counts but not the persisted warnings that explained `CompletedWithWarnings`.
 - Worker readiness reports process reachability and the latest in-process stage/activity. It is
   not proof that every queued job is progressing; queue and source counts remain separate
   operational signals.
+
+---
+
+## ADR-092: Worker composition uses focused pipeline tasks
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-04
+
+### Context
+
+The Worker executable accumulated host configuration, dependency registration, health routing,
+cycle scheduling, source processing and four Calendar workflows in two files. Although the
+runtime behavior was correct, the composition made responsibilities difficult to review and
+made isolated changes unnecessarily risky.
+
+### Decision
+
+- Keep `Program.cs` as a minimal composition entry point and move configuration parsing,
+  validated option construction, dependency registration and health route mapping to focused
+  Worker types.
+- Keep `Worker` responsible only for hosted-service lifecycle, health-stage transitions and
+  cycle scheduling.
+- Represent catalog initialization, polling, publication, diff calculation, initial sync,
+  incremental dispatch, reconciliation, inventory and retention as separate internal classes.
+- Preserve the exact pipeline ordering and keep the existing PostgreSQL lease continuously held
+  across incremental dispatch, Calendar reconciliation and inventory.
+- Use one top-level type per Worker source file. Do not introduce a new scheduler, queue,
+  persistence model or public contract as part of this structural refactor.
+- Mirror responsibilities in physical folders and namespaces: host wiring belongs to
+  `Composition`, option construction to `Configuration`, process state to `Health`, cadence
+  types to `Scheduling`, and executable pipeline tasks to `Sources` or `Calendars`. Keep only
+  the executable entry point and hosted lifecycle class in the project root namespace.
+
+### Consequences
+
+- Failures remain isolated at the same task boundaries, but log categories now identify the
+  responsible task instead of reporting every message under `Worker`.
+- Configuration keys, defaults and validation remain backward compatible and have focused unit
+  coverage.
+- Pipeline tasks are independently replaceable/testable through dependency injection; runtime
+  behavior and deployment topology are unchanged.
