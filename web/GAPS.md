@@ -34,8 +34,20 @@ The health routes are also proxied through the same Next.js edge. Vitest and Rea
 Library cover the request layer and the privacy-sensitive UI paths.
 
 Still **No endpoint** (unchanged): `GET /api/calendar/sync/history` (needs a per-user activity
-log — deferred), `GET /api/notifications`, `POST /api/contact`, and the finance / bulk-event /
+log — deferred), `GET /api/notifications`, `POST /api/contact`, and the bulk-event /
 user-warning domains.
+
+---
+
+## Update — finance backend implemented (2026-08-05)
+
+The finance module backend (ADR-093) is complete and moves from §3.1 to §3.2 below:
+`/api/admin/finance/*` (holders, accounts, transactions incl. edit/hard-delete/history, the
+ten-figure summary, monthly trend, CSV export, the module's own audit query),
+`/api/admin/finance/obligations/*` (receivables/debts, settle, cancel settlement, write off,
+cancel), and `/api/admin/finance/distributions/*` (the six-step preview/execute/reverse profit
+distribution flow). All SuperAdmin-only, CSRF-protected on every mutating route. No UI exists yet
+— `web/src/app/admin/finance/page.tsx` still renders `AdminUnavailable`.
 
 ---
 
@@ -108,7 +120,6 @@ fabricate records or metrics. The sections below separate remaining gaps from wi
 
 | Prototype screen | File | Notes |
 | --- | --- | --- |
-| Finans (gelir/gider/kâr dağıtımı) | `admin-finance.html` | Entirely new domain (plan §5.10). Needs revenue/expense models, profit-distribution + audit. Uses the §4.3 high-risk 6-step pattern. |
 | Toplu takvim etkinliği | `admin-bulk-event.html` | Audience resolution → estimated recipients → dedup campaign key → queued delivery tracking (plan §4.4, §5.11). |
 | Tek kullanıcı uyarısı | `admin-user-warning.html` | Idempotent `warning-key` per user+template+date (plan §4.5, §5.12). |
 
@@ -117,6 +128,7 @@ fabricate records or metrics. The sections below separate remaining gaps from wi
 | Screen / module | Existing routes | Notes |
 | --- | --- | --- |
 | Diff serbest bırakma (held-diff release) | `GET /api/diffs`, `GET /api/diffs/{id}`, `POST /api/diffs/{id}/release` | Backend live (ADR-042). An ambiguity hold is **not** releasable and must be shown as such. Only the UI is missing. |
+| Finans (gelir/gider/kâr dağıtımı) | `admin-finance.html` | Backend live (ADR-093): `/api/admin/finance/*`, `/api/admin/finance/obligations/*`, `/api/admin/finance/distributions/*`. Uses the §4.3 high-risk 6-step pattern for distribution execute; needs a persistent "not statutory accounting" banner (plan constraint K9) once built. |
 
 ### 3.3 Wired read-only administration views
 
@@ -141,4 +153,5 @@ fabricate records or metrics. The sections below separate remaining gaps from wi
 2. Add a per-user sync activity log before exposing `GET /api/calendar/sync/history`.
 3. Decide and implement notification and contact contracts.
 4. Add exporter/host telemetry only if CPU/RAM/Redis visibility becomes a requirement; worker/parser process health is already wired.
-5. New product domains last: bulk event, user warning, finance.
+5. Wire **finance** next (backend already exists — §3.2). Remaining new product domains without
+   a backend: bulk event, user warning.

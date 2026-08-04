@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Sirkadiyen.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Sirkadiyen.Infrastructure.Persistence;
 namespace Sirkadiyen.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(SirkadiyenDbContext))]
-    partial class SirkadiyenDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260804211706_AddFinanceObligations")]
+    partial class AddFinanceObligations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -274,148 +277,6 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_finance_audits_action", "\"Action\" IN ('AccountOpened', 'AccountUpdated', 'AccountClosed', 'HolderCreated',\n             'HolderUpdated', 'HolderDeactivated', 'PartnerSharesChanged',\n             'TransactionCreated', 'TransactionUpdated', 'TransactionDeleted',\n             'ObligationCreated', 'ObligationUpdated', 'ObligationSettled',\n             'ObligationSettlementCancelled', 'ObligationWrittenOff', 'ObligationCancelled',\n             'DistributionExecuted', 'DistributionReversed')");
 
                             t.HasCheckConstraint("ck_finance_audits_reason_required", "\"Action\" NOT IN ('AccountClosed', 'HolderDeactivated', 'TransactionUpdated', 'TransactionDeleted', 'ObligationSettlementCancelled', 'ObligationWrittenOff', 'ObligationCancelled', 'DistributionExecuted', 'DistributionReversed') OR \"Reason\" IS NOT NULL");
-                        });
-                });
-
-            modelBuilder.Entity("Sirkadiyen.Domain.Finance.FinanceDistribution", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ConfirmationToken")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("DistributableAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<DateTimeOffset>("ExecutedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ExecutedByEmail")
-                        .IsRequired()
-                        .HasMaxLength(320)
-                        .HasColumnType("character varying(320)");
-
-                    b.Property<Guid>("ExecutedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateOnly>("PeriodEndOn")
-                        .HasColumnType("date");
-
-                    b.Property<DateOnly>("PeriodStartOn")
-                        .HasColumnType("date");
-
-                    b.Property<string>("PlanHash")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character(64)")
-                        .IsFixedLength();
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<string>("ReversalReason")
-                        .HasMaxLength(2000)
-                        .HasColumnType("character varying(2000)");
-
-                    b.Property<DateTimeOffset?>("ReversedAtUtc")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("ReversedByEmail")
-                        .HasMaxLength(320)
-                        .HasColumnType("character varying(320)");
-
-                    b.Property<Guid?>("ReversedByUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<uint>("RowVersion")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
-                    b.Property<Guid>("SourceFinanceAccountId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("character varying(40)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ConfirmationToken")
-                        .IsUnique();
-
-                    b.HasIndex("ExecutedByUserId");
-
-                    b.HasIndex("ReversedByUserId");
-
-                    b.HasIndex("SourceFinanceAccountId");
-
-                    b.HasIndex("PeriodStartOn", "PeriodEndOn")
-                        .IsUnique()
-                        .HasFilter("\"Status\" = 'Executed'");
-
-                    b.ToTable("finance_distributions", "sirkadiyen", t =>
-                        {
-                            t.HasCheckConstraint("ck_finance_distributions_amount", "\"DistributableAmount\" > 0");
-
-                            t.HasCheckConstraint("ck_finance_distributions_period", "\"PeriodEndOn\" >= \"PeriodStartOn\"");
-
-                            t.HasCheckConstraint("ck_finance_distributions_reversal", "(\"Status\" = 'Reversed'\n AND \"ReversedByUserId\" IS NOT NULL\n AND \"ReversedByEmail\" IS NOT NULL\n AND \"ReversalReason\" IS NOT NULL\n AND \"ReversedAtUtc\" IS NOT NULL)\nOR\n(\"Status\" <> 'Reversed'\n AND \"ReversedByUserId\" IS NULL\n AND \"ReversedByEmail\" IS NULL\n AND \"ReversalReason\" IS NULL\n AND \"ReversedAtUtc\" IS NULL)");
-
-                            t.HasCheckConstraint("ck_finance_distributions_status", "\"Status\" IN ('Executed', 'Reversed')");
-                        });
-                });
-
-            modelBuilder.Entity("Sirkadiyen.Domain.Finance.FinanceDistributionShare", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("AllocatedAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<long>("ExactShareMinorUnits")
-                        .HasColumnType("bigint");
-
-                    b.Property<Guid>("FinanceAccountHolderId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("FinanceDistributionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("FinanceTransactionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<bool>("RemainderUnitAwarded")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("ShareBasisPoints")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FinanceAccountHolderId");
-
-                    b.HasIndex("FinanceTransactionId")
-                        .IsUnique();
-
-                    b.HasIndex("FinanceDistributionId", "FinanceAccountHolderId")
-                        .IsUnique();
-
-                    b.ToTable("profit_distribution_shares", "sirkadiyen", t =>
-                        {
-                            t.HasCheckConstraint("ck_profit_distribution_shares_amount", "\"AllocatedAmount\" > 0");
-
-                            t.HasCheckConstraint("ck_profit_distribution_shares_basis_points", "\"ShareBasisPoints\" BETWEEN 1 AND 10000");
-
-                            t.HasCheckConstraint("ck_profit_distribution_shares_exact", "\"ExactShareMinorUnits\" >= 0");
                         });
                 });
 
@@ -2168,47 +2029,6 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Sirkadiyen.Domain.Finance.FinanceDistribution", b =>
-                {
-                    b.HasOne("Sirkadiyen.Domain.Identity.User", null)
-                        .WithMany()
-                        .HasForeignKey("ExecutedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Sirkadiyen.Domain.Identity.User", null)
-                        .WithMany()
-                        .HasForeignKey("ReversedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Sirkadiyen.Domain.Finance.FinanceAccount", null)
-                        .WithMany()
-                        .HasForeignKey("SourceFinanceAccountId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("Sirkadiyen.Domain.Finance.FinanceDistributionShare", b =>
-                {
-                    b.HasOne("Sirkadiyen.Domain.Finance.FinanceAccountHolder", null)
-                        .WithMany()
-                        .HasForeignKey("FinanceAccountHolderId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Sirkadiyen.Domain.Finance.FinanceDistribution", null)
-                        .WithMany()
-                        .HasForeignKey("FinanceDistributionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("Sirkadiyen.Domain.Finance.FinanceTransaction", null)
-                        .WithMany()
-                        .HasForeignKey("FinanceTransactionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("Sirkadiyen.Domain.Finance.FinanceLedgerEntry", b =>
                 {
                     b.HasOne("Sirkadiyen.Domain.Finance.FinanceAccount", null)
@@ -2255,11 +2075,6 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
                         .HasForeignKey("CreatedByUserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-
-                    b.HasOne("Sirkadiyen.Domain.Finance.FinanceDistribution", null)
-                        .WithMany()
-                        .HasForeignKey("FinanceDistributionId")
-                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("Sirkadiyen.Domain.Identity.User", null)
                         .WithMany()

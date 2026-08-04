@@ -127,4 +127,10 @@ public enum AuditEventCategory
 
     /// <summary>An administrator revealed the full client IP behind a masked audit record.</summary>
     IpUnmasked,
+
+    /// <summary>A SuperAdmin hard-deleted a finance transaction (AI_GUIDELINE §15, ADR-093).</summary>
+    FinanceTransactionDeleted,
+
+    /// <summary>A SuperAdmin executed a profit distribution (ADR-093).</summary>
+    FinanceDistributionExecuted,
 }

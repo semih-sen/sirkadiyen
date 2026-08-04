@@ -46,7 +46,47 @@ no worker change. Admin reads (`GET /api/admin/users(+detail)`, `/api/admin/lice
 PostgreSQL check) split liveness from readiness, and a correlation-id middleware stamps every
 request and log line. ADR-091 extends this surface with internal worker and parser health probes,
 and extends the operational stop from global-only to global plus class/program scopes.
-599 .NET tests pass, 0 skipped.
+
+**The finance module backend is now implemented** (ADR-093), the last of the "new product
+domains last" items from `progress.md`. An audited, editable cash ledger
+(`FinanceAccountHolder`/`FinanceAccount`/`FinanceTransaction`/`FinanceLedgerEntry`) derives
+every balance from `SUM(Amount) WHERE OccurredOn <= X` rather than a stored column; a
+transaction can be edited or hard-deleted, with the module's own append-only
+`finance_audits` log (not the cross-cutting `AuditEvent` table) capturing a full before/after
+image — including ledger entries — in the same commit. A separate accrual layer
+(`FinanceObligation`/`FinanceSettlement`) tracks receivables and debts without posting ledger
+entries of its own, so double counting is structurally impossible. `GET /api/admin/finance/summary`
+answers all ten period figures (Devreden/Gelir/Gider/Bakiye/Nakit/Devredecek/Alacak/Tahsilat/
+Borç/Ödeme) plus category totals and a monthly trend, honestly distinguishing "current cash" from
+a period's opening/closing balance for future and past periods. Profit distribution
+(`FinanceDistribution`/`FinanceDistributionShare`) follows the six-step high-risk pattern —
+scope, server-computed preview with a binding SHA-256 plan hash, typed partner exclusions,
+confirmation-phrase execution, reverse — using largest-remainder allocation
+(`ProfitShareAllocator`) so partner payouts always sum exactly to the distributable amount; it is
+non-repeatable per period and idempotent per confirmation token, both enforced by unique indexes,
+not just application logic. The admin UI stays the existing `AdminUnavailable` placeholder
+(`web/src/app/admin/finance/page.tsx`) — this was a backend-only phase; `FinanceEndpoints.cs`,
+`FinanceObligationEndpoints.cs` and `FinanceDistributionEndpoints.cs` are ready for it, including
+a CSV transaction export. 742 `.NET` tests pass across the Infrastructure unit, Contracts unit and
+Persistence integration suites (0 skipped when `SIRKADIYEN_TEST_DATABASE__CONNECTION_STRING` is
+set), all verified against a real PostgreSQL database in this session, not just compiled.
+
+### Open risks — finance module (2026-08-05)
+
+- **No period close.** Nothing stops an income transaction dated in an already-distributed month
+  from being recorded or edited afterward; `PlanHash` proves the basis a distribution was computed
+  from, but there is no warning at entry time and no lock. A period-close concept is the natural
+  next phase for finance, deferred deliberately (ADR-093 §11).
+- **`LicenseSales` income cannot be derived from the licenses table** (no price column, and
+  `License.ExpiresAtUtc` is a redemption deadline per ADR-089, not a price term), so it is entered
+  manually. This is stated as a limit, not silently worked around.
+- **Cross-row partner-share sum (must total exactly 10000 basis points) is enforced by two
+  independent application gates** (the share-setting mutation and the distribution preview
+  blocker), not a database constraint — a direct SQL edit could still break it.
+- **The finance admin UI does not exist yet.** Every endpoint this session built
+  (`/api/admin/finance/*`, `/api/admin/finance/obligations/*`, `/api/admin/finance/distributions/*`)
+  is unconsumed by `web/`; `web/GAPS.md` records this as "endpoint exists, UI not built" rather than
+  "no endpoint", which is the cheaper category to close next.
 
 ### Open risks — read/query & audit surface (2026-08-04)
 
@@ -138,6 +178,43 @@ a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
 ## Latest implementation session
+
+- **Built the finance module backend end to end** (ADR-093), in the phased order the plan
+  specified: domain (Phase 1, zero host references) → persistence (Phase 2, `AddFinanceLedger`) →
+  transaction API (Phase 3) → obligations (Phase 4, `AddFinanceObligations`) → summary/trend
+  reporting (Phase 5) → profit distribution (Phase 6, `AddFinanceDistributions`) → CSV export and
+  this documentation (Phase 7). Each phase built, tested against a real PostgreSQL instance (the
+  `sirkadiyen-postgres` container plus `sirkadiyen_test` database from `.env`), and passed before
+  the next began.
+- **One deviation from the plan, recorded in ADR-093:** `Sirkadiyen.Domain` has zero project
+  references (not even `Sirkadiyen.Contracts`), so a domain factory cannot serialize
+  `BeforeState`/`AfterState` JSON with `ContractJson.CreateOptions()`. `FinancePosting` returns
+  `(Transaction, Entries)` only; the infrastructure store assembles the `FinanceAudit` row (via the
+  new `FinanceSnapshotSerializer`) in the same commit instead.
+- **Real bugs the persistence tests caught, not just compiled around:** Postgres's `numeric(18,2)`
+  column truncation rounds half-away-from-zero, not half-to-even, as `FinanceConstraintTests`
+  documents; an EF `GroupBy`-into-`DefaultIfEmpty` join for the Receivables/Debts figure did not
+  translate reliably and was rewritten as two queries joined in memory; and a distribution-execute
+  race where two callers hit the *same* confirmation token concurrently could report
+  `AlreadyDistributedForPeriod` instead of the correct `ReplayedExistingExecution`, because the
+  token-replay check only ran once, before the row that would have matched it was visible — fixed by
+  re-checking the token under the account lock before mapping the period conflict.
+- **Test-authoring lesson worth keeping:** partner shares and the ten period figures are *global*
+  (not scoped to one test's own accounts), so several finance persistence tests originally asserted
+  absolute totals and broke under shared-database contamination from other tests in the same
+  collection. The fix was either deactivating any other active partner holders before seeding a
+  distribution scenario, or asserting a before/after delta across the seed rather than an absolute
+  value — both now the established pattern for any future finance test using global figures.
+- **Migrations:** `AddFinanceLedger`, `AddFinanceObligations`, `AddFinanceDistributions` (the last
+  also adds the deferred FK from `finance_transactions.FinanceDistributionId`, since that table did
+  not exist when the first migration was written).
+- **Not done in this session:** the finance admin UI (`web/src/app/admin/finance/page.tsx` stays
+  the `AdminUnavailable` placeholder — this was scoped backend-only), a live HTTP smoke test of the
+  new endpoints (a pre-existing, not-started-by-this-session `Sirkadiyen.Api.exe` process held the
+  build output locked throughout), and a period-close feature (deliberately deferred, see risks
+  below).
+
+## Previous frontend re-skin session
 
 - **Migrated the `web-design/` HTML/CSS/JS prototype into the Next.js app (`web/`).**
   The prototype's Wise-inspired design system is now production CSS in

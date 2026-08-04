@@ -21,6 +21,15 @@ migrations.
 | `schedule_diff_entries` | the created, updated, deleted, unchanged, or ambiguous record pairs that make up a diff |
 | `operational_freeze_control` | the singleton runtime switch read before acquisition, parsing and publication (ADR-034, ADR-043) |
 | `operational_freeze_audits` | append-only freeze and unfreeze transitions with actor, reason, timestamp and correlation ID |
+| `finance_account_holders` | whose cash box or bank account something is; an optional linked user and a basis-point profit-distribution share (0 = not a partner) (ADR-093) |
+| `finance_accounts` | one cash or bank account per holder; TRY only; no balance column — see "Finance" below |
+| `finance_transactions` | the editable business event behind one or more ledger postings: opening balance, income, expense, transfer, or distribution payout |
+| `finance_ledger_entries` | one signed posting per affected account; always rewritten wholesale on edit, never patched |
+| `finance_audits` | the module's own append-only log — distinct from `audit_events` — with a full before/after image including entries |
+| `finance_obligations` | receivables and debts; posts no ledger entries of its own |
+| `finance_settlements` | links one obligation to the ordinary cash transaction that settled part of it |
+| `finance_distributions` | one profit-distribution execution, non-repeatable per period and idempotent per confirmation token |
+| `profit_distribution_shares` | one partner's payout within a distribution, with the pre-rounding numerator kept for auditability |
 
 The freeze control migration seeds exactly one unfrozen baseline row. That seed
 is not an operator action and therefore has no audit entry. Every later state
@@ -62,6 +71,47 @@ matching unless both records explicitly carry it (ADR-035). Migration
 Student profiles, Google Calendar connections and event mappings are **not**
 here yet. Licensing is implemented by `licenses` and `license_audits`; profile
 and Calendar schemas remain future migrations.
+
+## Finance
+
+An account's balance is never a stored column. It is derived on every read as
+`SUM(Amount) WHERE OccurredOn <= X` over `finance_ledger_entries`, so a rewritten posting (an
+edit) simply produces a different sum — nothing needs a fix-up pass. `finance_accounts` still
+matters even though it holds no balance: it is the `SELECT … FOR UPDATE` lock target that makes
+"read balance, then debit" safe under concurrency for transfers and distribution payouts.
+Ordinary income/expense entry takes no lock and may legitimately leave a negative balance
+(overdraft is reported, not blocked).
+
+There is no opening-balance column either. An account's opening balance is itself a
+`finance_transactions` row of `Kind = 'OpeningBalance'`, dated on the account's opening date, so
+"at most one opening balance per account" is a filtered unique index
+(`finance_ledger_entries (FinanceAccountId, Kind) WHERE Kind = 'OpeningBalance'`) rather than a
+special case in every balance query.
+
+Transactions are editable and hard-deletable, not reversal-only. `finance_audits` is what makes
+that safe: every create, edit, and delete writes one row in the same commit as the change,
+carrying a full before/after image — including the ledger entries, not just the transaction row
+— serialized with `ContractJson.CreateOptions()`. A deleted transaction is fully reconstructable
+from its audit row alone. No update or delete method exists on the audit store; it is append-only
+by construction, not by convention.
+
+A transaction referenced by a `finance_settlements` row or a `profit_distribution_shares` row
+cannot be edited or deleted. This is enforced twice: both FKs are `DeleteBehavior.Restrict`, so the
+database refuses regardless of code path, and the store pre-checks so the operator gets a named
+outcome (`TransactionSettlesAnObligation` / `TransactionIsADistributionPayout`) telling them what
+to undo first, rather than a raw constraint-violation error.
+
+`finance_obligations.SettledAmount` is a write guard for that row, not a reporting source. A
+historical period's Receivables/Debts figure recomputes from `finance_settlements` dated on or
+before the period end instead — reading the cached field would silently use today's settlement
+state for a question about the past.
+
+A profit distribution is non-repeatable per period (`UNIQUE (PeriodStartOn, PeriodEndOn) WHERE
+Status = 'Executed'`) and idempotent per confirmation token (`UNIQUE (ConfirmationToken)`), both
+enforced by the schema rather than application logic alone. `finance_transactions.FinanceDistributionId`
+has no FK in the `AddFinanceLedger` migration that introduces the column — `finance_distributions`
+does not exist yet at that point — and gains one later, in `AddFinanceDistributions`, once EF can
+model the relationship.
 
 ## Local setup
 
@@ -158,3 +208,11 @@ does not apply cleanly fails there rather than in production.
 - Timestamps are `timestamptz` and are written in UTC. Schedule dates and times
   are stored as local `date` and `time` with an explicit timezone identifier,
   because a lesson is scheduled in `Europe/Istanbul` wall-clock terms.
+- Money is `decimal` mapped `numeric(18,2)`. There is no `Money` value object and no EF complex
+  type — `Sirkadiyen.Domain.Finance.FinanceAmount` is the only guard, and it **rejects** a value
+  with more than two decimal places rather than rounding it. Postgres itself does not protect
+  this: a raw `numeric(18,2)` insert with three decimal places silently rounds (half away from
+  zero, not half to even), which `FinanceConstraintTests` documents rather than assumes.
+- `FinanceCategory` is one enum with disjoint income and expense members
+  (`FinanceCategories.IsIncome`/`IsExpense`), so the check constraint that mirrors it stays
+  unambiguous without a separate direction column.

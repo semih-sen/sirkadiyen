@@ -550,7 +550,8 @@ source-faithful, and ordinary inventory patches existing Calendar events in plac
 - Vitest + React Testing Library cover the request client, dashboard semantics, IP reveal
   guard, source read-only behavior and honest metrics rendering (ADR-090).
 - Remaining frontend gaps are sync history, notifications, contact, held-diff release,
-  finance, bulk event and user warning.
+  bulk event and user warning. Finance moved from "no endpoint" to "endpoint exists, UI not
+  built" once the backend below landed (`web/GAPS.md`).
 
 ## Latest refactor session (2026-08-04, Worker composition)
 
@@ -562,3 +563,46 @@ source-faithful, and ordinary inventory patches existing Calendar events in plac
   regression tests cover default and configured values.
 - The Worker project now uses namespace-aligned feature folders (`Composition`, `Configuration`,
   `Health`, `Scheduling`, `Sources`, `Calendars`) rather than a flat source directory.
+
+## Latest backend session (2026-08-05, Finance module)
+
+- **The finance module backend is implemented** (ADR-093) — the last "new product domain",
+  per the sequencing this file previously recorded above. Built and verified phase by phase
+  against a real PostgreSQL database, in the order: domain → persistence/ledger → transaction
+  API → obligations → summary/trend reporting → profit distribution → CSV export.
+- An audited, editable cash ledger (`FinanceAccountHolder`/`FinanceAccount`/`FinanceTransaction`/
+  `FinanceLedgerEntry`) derives every balance from ledger entries rather than a stored column.
+  Transactions can be edited (rewriting the whole posting) or hard-deleted; the module's own
+  append-only `finance_audits` log — not the cross-cutting `AuditEvent` table — captures a full
+  before/after image, including entries, in the same commit as the change.
+  `POST /api/admin/finance/transactions/{id}/delete` also raises a cross-cutting
+  `AuditEventCategory.FinanceTransactionDeleted` event, since a hard delete of money data is
+  high-risk enough to appear in the access/activity log too.
+- Obligations (`FinanceObligation`/`FinanceSettlement`) track receivables and debts as an accrual
+  layer beside the ledger: settling one writes an ordinary Income/Expense transaction plus a
+  settlement link, so double counting is structurally impossible rather than merely avoided by
+  convention.
+- `GET /api/admin/finance/summary` answers all ten period figures (carried-over, income,
+  expenses, balance, current cash, to-be-carried-over, receivables, collections, debts,
+  payments) plus category totals; `GET /api/admin/finance/trend` adds a monthly series. Current
+  cash balance is deliberately never clamped to the reporting period, so a past or future period
+  is labeled honestly rather than silently relabeling a historical figure as "current".
+- Profit distribution (`FinanceDistribution`/`FinanceDistributionShare`) follows the six-step
+  high-risk pattern from the design plan: scope, server-computed preview with a binding SHA-256
+  plan hash and typed partner exclusions, confirmation-phrase execution that recomputes and
+  compares the plan rather than trusting the client's copy, and reversal. Allocation uses
+  largest-remainder rounding in integer minor units (`ProfitShareAllocator`, pure, no I/O) so
+  partner payouts always sum exactly to the distributable amount. Non-repeatability per period
+  and idempotency per confirmation token are both enforced by unique database indexes.
+- Three migrations: `AddFinanceLedger`, `AddFinanceObligations`, `AddFinanceDistributions` (the
+  last also adds the FK from `finance_transactions.FinanceDistributionId`, deferred from the
+  first migration because that table did not exist yet).
+- 742 `.NET` tests pass across Infrastructure unit, Contracts unit and Persistence integration
+  suites, all verified against a real PostgreSQL database in this session (not just compiled):
+  constraint tests proving each check constraint bites via raw SQL, whole-table integrity
+  sweeps, and concurrency tests for competing transfers, edits, deletes, settlements, and
+  distribution executions.
+- **Backend only, as scoped.** `web/src/app/admin/finance/page.tsx` remains the
+  `AdminUnavailable` placeholder; see `activeContext.md` for the open risks (no period close,
+  manually-entered license-sales income, partner-share-sum enforcement not yet a database
+  constraint) carried forward from this session.

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sirkadiyen.Domain.Auditing;
+using Sirkadiyen.Domain.Finance;
 using Sirkadiyen.Domain.GoogleCalendar;
 using Sirkadiyen.Domain.Identity;
 using Sirkadiyen.Domain.Licensing;
@@ -84,6 +85,24 @@ public sealed class SirkadiyenDbContext(DbContextOptions<SirkadiyenDbContext> op
         Set<ScopedOperationalFreezeAudit>();
 
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+
+    public DbSet<FinanceAccountHolder> FinanceAccountHolders => Set<FinanceAccountHolder>();
+
+    public DbSet<FinanceAccount> FinanceAccounts => Set<FinanceAccount>();
+
+    public DbSet<FinanceTransaction> FinanceTransactions => Set<FinanceTransaction>();
+
+    public DbSet<FinanceLedgerEntry> FinanceLedgerEntries => Set<FinanceLedgerEntry>();
+
+    public DbSet<FinanceAudit> FinanceAudits => Set<FinanceAudit>();
+
+    public DbSet<FinanceObligation> FinanceObligations => Set<FinanceObligation>();
+
+    public DbSet<FinanceSettlement> FinanceSettlements => Set<FinanceSettlement>();
+
+    public DbSet<FinanceDistribution> FinanceDistributions => Set<FinanceDistribution>();
+
+    public DbSet<FinanceDistributionShare> FinanceDistributionShares => Set<FinanceDistributionShare>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

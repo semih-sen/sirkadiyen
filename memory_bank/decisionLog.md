@@ -4902,3 +4902,139 @@ made isolated changes unnecessarily risky.
   coverage.
 - Pipeline tasks are independently replaceable/testable through dependency injection; runtime
   behavior and deployment topology are unchanged.
+
+---
+
+## ADR-093: Finance module — an audited mutable cash ledger with derived balances, a separate accrual layer, and non-repeatable profit distribution
+
+**Status:** Accepted and implemented (all seven phases; admin UI intentionally out of scope)
+**Date:** 2026-08-04 (implementation completed 2026-08-05)
+
+### Context
+
+Sirkadiyen has revenue (license sales, sponsorships, donations) and costs (servers, domains,
+charitable activity) that lived nowhere in the system. `web/GAPS.md` recorded finance as
+"Entirely new domain … Needs revenue/expense models, profit-distribution + audit", ADR-089 put it
+explicitly out of scope, and `progress.md` sequenced it last among new product domains. This
+decision establishes the module's shape: a backend that can answer, for any period, where the
+money is and where it went — across several real accounts held by two operators (cash boxes and
+bank accounts) — and that can execute a profit distribution safely, once, with a complete audit
+trail. Scope is backend only; the admin UI stays a placeholder until the API is proven.
+
+There is no money type, no `HasPrecision` on a currency value, and no decimal-money precedent
+anywhere in the codebase before this change.
+
+### Decision
+
+1. The ledger is **cash-basis**. `FinanceTransaction` is the business event; one or more signed
+   `FinanceLedgerEntry` postings (one row per affected account) are its ledger effect. Kinds are
+   `OpeningBalance`, `Income`, `Expense`, `Transfer`, `Distribution`, each with a fixed entry/leg/sign
+   shape enforced by both the domain factory and a mirrored database check constraint.
+2. **Balances are derived, never cached.** An account's balance is `SUM(Amount) WHERE OccurredOn
+   <= X` over its ledger entries — no stored balance column, no opening-balance column (an opening
+   balance is itself an `OpeningBalance` transaction). The `finance_accounts` row is still real: it
+   is the `SELECT … FOR UPDATE` lock target that makes "read balance, then debit" safe under
+   concurrency for transfers and (later) distribution payouts. Ordinary income/expense entry needs
+   no lock and may legitimately produce a negative balance (overdraft is reported, not blocked);
+   only operations that move money the ledger claims to have — transfers today, distribution
+   payouts once Phase 6 lands — check the balance under that lock.
+3. **Transactions are editable and hard-deletable**, not reversal-only. Correctness rests entirely
+   on `finance_audits`, the module's own append-only audit log (distinct from the cross-cutting
+   `audit_events` table), which records a full before/after image — including the entries, not just
+   the transaction row — of every create, edit and delete in the same commit as the change. Editing
+   rewrites the whole posting (old entries deleted, new entries inserted, transaction row updated)
+   under `FOR UPDATE` locks on every account involved, old and new, taken in a fixed order to avoid
+   deadlock; deleting captures the before-image and then removes the entries and the transaction.
+   `RevisionNumber` and a `RowVersion` (`xmin`-backed) make edits contestable: a client-supplied
+   stale row version is refused before anything is touched.
+4. `Kind` may move among `Income`/`Expense`/`Transfer` on edit; converting to or from
+   `OpeningBalance` or `Distribution` is refused, because those kinds carry structural guarantees an
+   ordinary edit must not manufacture. A `Distribution` transaction additionally refuses edit and
+   delete outright, naming what to undo first — the `Restrict` foreign key from
+   `profit_distribution_shares` (Phase 6) backstops this at the schema level; the Phase 2 store
+   already refuses by `Kind` alone, since nothing can produce that kind before Phase 6 exists.
+5. Money is `decimal` mapped `numeric(18,2)`; there is **no `Money` value object**. The codebase's
+   only existing value object (`SourceId`) exists to prevent silent misattribution across sources —
+   a `decimal` in a single-currency ledger has no equivalent failure mode. Instead, a domain static
+   `FinanceAmount` (`Scale = 2`, `MaximumAmount = 1_000_000_000m`) **rejects** any value whose scale
+   exceeds 2 rather than rounding it; Postgres itself does not protect this (a raw `numeric(18,2)`
+   insert silently rounds, proven by `FinanceConstraintTests`), so the domain is the only real
+   guard. `CurrencyCode` is a constrained `char(3)`; TRY only in v1.
+6. `OccurredOn` is a `DateOnly` accounting date; `RecordedAtUtc`/`UpdatedAtUtc` are UTC from the
+   injected `TimeProvider`. Period selectors resolve against Istanbul "today" using the same
+   `TimeZoneInfo.FindSystemTimeZoneById("Europe/Istanbul")` idiom as `ScheduleEndpoints`, duplicated
+   rather than extracted into a shared helper since no such helper exists yet (a follow-up, not a
+   blocker).
+7. Accrual obligations (`FinanceObligation`/`FinanceSettlement`, Phase 4) are a layer beside the
+   ledger, not inside it: an obligation posts no ledger entries, and settling one writes an ordinary
+   Income/Expense transaction plus a settlement row linking the two. This keeps double counting
+   structurally impossible, which is why `Collections ≤ Income` and `Payments ≤ Expenses` hold by
+   construction.
+8. Profit distribution (`FinanceDistribution`/`FinanceDistributionShare`, Phase 6) uses
+   largest-remainder allocation over integer minor units (`ProfitShareAllocator`, pure, tested
+   exhaustively ahead of and independent from the transactional wiring it sits inside), and is
+   non-repeatable per period and idempotent per confirmation token, both by unique index rather than
+   application logic alone. Distribution is outflow-only: partners are paid externally, so no
+   destination account is credited.
+9. Finance is **SuperAdmin-only** (`AuthorizationPolicies.SuperAdmin`, the only policy that exists
+   per ADR-045). `FinanceAccountHolder` names whose cash box or bank account something is; it is not
+   a role and does not participate in authorization.
+10. Finance is **not freeze-gated**: `IOperationalFreezeStore` protects student calendar mutation,
+    and bookkeeping is not calendar mutation.
+11. **No period close in v1.** Carried-over and to-be-carried-over figures are derived from the same
+    balance aggregate at different dates; back-dating into an already-reported period is surfaced
+    (a distribution's `PlanHash` proves the basis it was computed from) rather than prevented. A
+    period lock is a deliberate Phase 8+ follow-up.
+12. Recorded non-declarative assumptions (AI_GUIDELINE §18): a transfer's two legs sum to zero; a
+    ledger entry's denormalized `Kind`/`OccurredOn` match its owning transaction's. Both are
+    domain-enforced today and swept by `FinanceIntegrityTests` against the real database rather than
+    trusted on faith.
+
+### Deviation from the original plan
+
+The plan sketched `FinancePosting` as `(Transaction, Entries, Audit)`, built entirely inside the
+domain factory. `Sirkadiyen.Domain` has zero project references — not even to `Sirkadiyen.Contracts`
+— so it cannot serialize `BeforeState`/`AfterState` with `ContractJson.CreateOptions()`. Domain
+factories return `(Transaction, Entries)` only; the audit row (before/after JSON via the
+application-layer `FinanceSnapshotSerializer`, plus `ChangedFields`/`AmountDelta`) is assembled by
+the infrastructure store in the same commit. `FinanceAudit`'s own invariants (a reason is required
+for update/delete/write-off/cancel/distribution actions; append-only, no update or delete method
+exists on its store) are unchanged from the plan.
+
+### Consequences
+
+- Three migrations: `AddFinanceLedger` (Phase 2: `finance_account_holders`, `finance_accounts`,
+  `finance_transactions`, `finance_ledger_entries`, `finance_audits`), `AddFinanceObligations`
+  (Phase 4: `finance_obligations`, `finance_settlements`), and `AddFinanceDistributions` (Phase 6:
+  `finance_distributions`, `profit_distribution_shares`, plus the FK from
+  `finance_transactions.FinanceDistributionId` deferred from Phase 2 because that table did not
+  exist yet — EF cannot model a relationship to a type outside the current model).
+- All seven phases are implemented: domain, ledger persistence and API (Phases 1–3), obligations
+  (Phase 4), summary/trend reporting (Phase 5), profit distribution (Phase 6), and CSV export
+  (Phase 7). The admin UI remains a `web/GAPS.md` "endpoint exists, UI not built" item — this
+  decision was backend-only throughout, per its own scope statement.
+- `FinanceConstraintTests`, `FinanceIntegrityTests`, `FinanceConcurrencyTests`,
+  `FinanceObligationStoreTests`, `FinanceSummaryReadStoreTests` and `FinanceDistributionStoreTests`
+  all run against a real PostgreSQL instance (not just the no-database `FinanceModelTests`). This
+  caught three real bugs rather than only confirming assumptions: Postgres's `numeric(18,2)` column
+  truncation rounds half-away-from-zero, not half-to-even; an EF `GroupBy`-into-`DefaultIfEmpty`
+  join computing outstanding obligations did not translate reliably and was rewritten as two
+  queries joined in memory; and a distribution-execute race where two callers used the *same*
+  confirmation token concurrently could report `AlreadyDistributedForPeriod` instead of the correct
+  `ReplayedExistingExecution`, because the token-replay check ran once before acquiring the source
+  account lock and so could miss a row that had not committed yet — fixed by re-checking the token
+  under the lock before mapping the period conflict. All three concurrency scenarios (competing
+  transfers, competing edits, edit-vs-delete, competing distribution executions, competing
+  distributions for one period) pass on every re-run after those fixes, but "concrete evidence" for
+  points 2 and 3 above should be read as "evidence obtained after finding and fixing what the tests
+  caught," not "passed unmodified on the first attempt."
+- Two additional shared-test-database lessons, kept here because they generalize to any future
+  finance test: partner shares and the ten summary figures are *global* (not scoped to one test's
+  own accounts or holders), so a test that seeds nonzero-share partners must first deactivate any
+  other active partner left behind by an earlier test in the same collection, and a test asserting
+  an obligation-derived figure (Receivables/Debts/Collections/Payments) should assert a before/after
+  delta across its own seed rather than an absolute value.
+- This is a management ledger, not statutory accounting; no VAT/withholding/tax, invoice generation,
+  or bank statement import is in scope.
+
+---

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Sirkadiyen.Application.Administration;
 using Sirkadiyen.Application.Auditing;
+using Sirkadiyen.Application.Finance;
 using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Identity;
 using Sirkadiyen.Application.Licensing;
@@ -68,6 +69,12 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IAdminLicenseReadStore, AdminLicenseReadStore>();
         services.AddScoped<ISourceStatusReadStore, SourceStatusReadStore>();
         services.AddScoped<IAdminMetricsReadStore, AdminMetricsReadStore>();
+        services.AddScoped<IFinanceLedgerStore, FinanceLedgerStore>();
+        services.AddScoped<IFinanceReadStore, FinanceReadStore>();
+        services.AddScoped<IFinanceAuditStore, FinanceAuditStore>();
+        services.AddScoped<IFinanceObligationStore, FinanceObligationStore>();
+        services.AddScoped<IFinanceSummaryReadStore, FinanceSummaryReadStore>();
+        services.AddScoped<IFinanceDistributionStore, FinanceDistributionStore>();
 
         return services;
     }
