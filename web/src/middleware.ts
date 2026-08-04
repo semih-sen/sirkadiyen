@@ -12,4 +12,4 @@ export function middleware(request: NextRequest) {
   return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
-export const config = { matcher: '/api/:path*' };
+export const config = { matcher: ['/api/:path*', '/health/:path*'] };

@@ -4786,3 +4786,32 @@ behavior.
   audits stay queryable through their own surfaces and could be unioned later.
 - New product domains (contact, bulk event, user warning, finance) and the Python
   parser/ingestion profile gaps are out of scope of this change.
+
+---
+
+## ADR-090: Frontend contract integrations use Vitest and React Testing Library
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-04
+
+### Context
+
+The Next.js frontend previously had only TypeScript and production-build verification.
+ADR-089 introduced privacy-sensitive IP reveal and audited reconciliation interactions,
+plus independent partial-failure read surfaces. Compile checks cannot verify these
+interaction and honesty constraints.
+
+### Decision
+
+Use Vitest with jsdom and React Testing Library/user-event for frontend unit and component
+tests. Keep tests at the typed browser-contract boundary; do not add a second schema
+generator or a browser end-to-end service dependency. Continue to require TypeScript and
+the Next production build beside the test suite.
+
+### Consequences
+
+- CSRF request construction, reconciliation outcomes, masked-IP reveal and honest
+  source/metrics presentation have automated regression coverage.
+- The frontend adds development-only test dependencies and an `npm test` command.
+- Authentication, proxy and database integration still require a local smoke test;
+  component mocks do not replace environment-level verification.

@@ -1,2 +1,4 @@
-import { AdminUnavailable } from '@/components/AdminUnavailable';
-export default function Page() { return <AdminUnavailable active="server" title="Sunucu ve servis izleme" description="API, worker, parser, veri tabanı ve kuyrukların operasyonel görünürlüğü." capabilities={['Servis sağlık durumları', 'Kuyruk derinliği ve gecikme', 'Kaynak, parser ve Google API hata oranları']} />; }
+import { AdminPageFrame } from '@/components/AdminPageFrame';
+import { AdminPageHeader } from '@/components/AdminShell';
+import { AdminServerStatus } from '@/components/AdminServerStatus';
+export default function Page() { return <AdminPageFrame active="server"><AdminPageHeader eyebrow="Operasyonel görünürlük" title="Sunucu ve servis izleme" description="API sağlığını ve veritabanından hesaplanan operasyon sayılarını uydurma sinyal üretmeden izle." /><AdminServerStatus /></AdminPageFrame>; }

@@ -13,7 +13,8 @@ talks to one origin and there is no cross-origin request to configure:
 Browser --HTTPS--> https://localhost:3000  (Next dev server)
                        |  src/middleware.ts adds X-Forwarded-Proto: https
                        +-- /            React pages
-                       +-- /api/:path*  -> BACKEND_ORIGIN (Kestrel)   [next.config.mjs]
+                       +-- /api/:path*     -> BACKEND_ORIGIN (Kestrel)   [next.config.mjs]
+                       +-- /health/:path*  -> BACKEND_ORIGIN (Kestrel)
 ```
 
 - **Same-origin** → no CORS, and the backend's `SameSite=Lax`/`Strict` cookies
@@ -33,7 +34,7 @@ Because Kestrel receives the proxied request over plain HTTP, `Request.IsHttps` 
 (`SecurePolicy.Always`) has a hard runtime guard that throws on a non-SSL request,
 so this must be handled. Two pieces cooperate:
 
-- **`src/middleware.ts`** sets `X-Forwarded-Proto: https` on every `/api/*`
+- **`src/middleware.ts`** sets `X-Forwarded-Proto: https` on every `/api/*` and `/health/*`
   request. (Next's rewrite proxy forwards `X-Forwarded-Host` but **not**
   `X-Forwarded-Proto`, so we add it ourselves.)
 - **The backend calls `UseForwardedHeaders`** (in `Program.cs`) to honor it, which
@@ -100,6 +101,18 @@ authorization work against the API alone.
 > The worker performs the calendar writes. For the initial-sync step to progress
 > past `InProgress`, run the worker too:
 > `dotnet run --project src/Sirkadiyen.Worker`.
+
+## Frontend verification
+
+```bash
+npm test
+npm run typecheck
+npm run build
+```
+
+Vitest and React Testing Library cover typed API requests and the critical dashboard,
+masked-IP, source-evidence and health/metrics behavior. Tests mock the browser-facing
+contract; an authenticated local smoke test still requires the API and its database.
 
 ## Testing the OAuth flows on localhost
 

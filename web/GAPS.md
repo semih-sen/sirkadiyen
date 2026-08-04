@@ -17,11 +17,9 @@ Legend:
 
 ---
 
-## Update — backends added (ADR-089, 2026-08-04)
+## Update — ADR-089 frontend integration completed (2026-08-04)
 
-Several rows below have moved from **No endpoint** to **Endpoint exists, UI not built**. The
-routes are live and tested; only the React surface and the `web/src/lib/types.ts` / `api.ts`
-mirror remain. Newly available:
+The ADR-089 routes now have typed browser contracts and live React surfaces:
 
 - **Dashboard:** `GET /api/schedule/upcoming`, `GET /api/schedule/changes`,
   `GET /api/calendar/sync/progress` (partial — total mapped + patched counts, no per-stage
@@ -31,6 +29,9 @@ mirror remain. Newly available:
   `GET /api/admin/sources` (+`/{id}`), `GET /api/admin/audit`, `GET /api/admin/access-logs`
   (masked IP) + `POST /api/admin/access-logs/{id}/unmask`, `GET /api/admin/metrics`,
   `/health/live` + `/health/ready`.
+
+The health routes are also proxied through the same Next.js edge. Vitest and React Testing
+Library cover the request layer and the privacy-sensitive UI paths.
 
 Still **No endpoint** (unchanged): `GET /api/calendar/sync/history` (needs a per-user activity
 log — deferred), `GET /api/notifications`, `POST /api/contact`, and the finance / bulk-event /
@@ -56,6 +57,11 @@ These screens are connected to real routes and were re-skinned, not stubbed:
 | Admin · self-activation | `POST /api/admin/users/{id}/activate` |
 | Admin · department colors | `GET/PUT/POST /api/admin/calendar-colors` |
 | Admin · license create/revoke | `POST /api/admin/licenses`, `POST /api/admin/licenses/{id}/revoke` |
+| Dashboard · schedule/status/repair | `GET /api/schedule/upcoming`, `GET /api/schedule/changes`, `GET /api/calendar/sync/progress`, `POST /api/calendar/reconcile`, `GET /api/licenses/status` |
+| Admin · users/licenses | `GET /api/admin/users`, `GET /api/admin/licenses` and detail routes |
+| Admin · source status | `GET /api/admin/sources` and `GET /api/admin/sources/{id}` |
+| Admin · access/audit | `GET /api/admin/access-logs`, `POST .../unmask`, `GET /api/admin/audit` |
+| Admin · health/metrics | `/health/live`, `/health/ready`, `GET /api/admin/metrics` |
 
 ---
 
@@ -70,23 +76,23 @@ These screens are connected to real routes and were re-skinned, not stubbed:
 
 ## 2. Student dashboard — `/dashboard`
 
-Real modules (sync status, academic profile, calendar-connection state, mapped
-event count) are wired. The following prototype modules have **no backend** and are
-rendered as honest "Yakında" placeholders, not fabricated data:
+Schedule, sync status, academic profile, calendar connection, repair and license
+modules are wired. The table distinguishes those live modules from the remaining
+honest "Yakında" placeholders:
 
 | Module | Status | Target endpoint (suggested) |
 | --- | --- | --- |
-| Sıradaki dersler (upcoming lessons) | No endpoint | `GET /api/schedule/upcoming` — the student's next N managed events. |
-| Son program değişiklikleri (recent changes) | No endpoint | `GET /api/schedule/changes` — diffs applied to this user's calendar. |
+| Sıradaki dersler (upcoming lessons) | Wired | `GET /api/schedule/upcoming` — the student's next N managed events. |
+| Son program değişiklikleri (recent changes) | Wired | `GET /api/schedule/changes` — creations and updates currently represented in the ledger. |
 | Senkronizasyon geçmişi (sync history) | No endpoint | `GET /api/calendar/sync/history`. |
-| Onarım / mutabakat talebi (repair request) | No endpoint | `POST /api/calendar/reconcile` (audited, per plan §5.8). Button rendered disabled. |
+| Onarım / mutabakat talebi (repair request) | Wired | `POST /api/calendar/reconcile` (audited and rate limited). |
 | Bildirimler (notifications) | No endpoint | `GET /api/notifications`. |
 | Makaleler / podcast | No endpoint | Content system; "Yakında" by design (plan open question #8). |
-| Lisans/deneme kalan süre | Contract gap | `GET /api/onboarding` returns `hasActiveLicense` only — no expiry/trial detail. A license-status endpoint is needed to show "14 gün kaldı". |
+| Lisans durumu | Wired | `GET /api/licenses/status` reports activation/suspension dates; access is not a timed subscription. |
 
-### Sync-progress per-stage counters
-- **Status:** Contract gap.
-- `GET /api/calendar/sync` returns `initialSyncState` + `mappedEventCount` only. The prototype's 8-stage timeline with created/updated/unchanged/failed counters (plan §4.2, from the `UserCalendarEventMapping` ledger) is **not** exposed. The migrated screen therefore drives timeline status from the single authoritative state and shows only the real mapped-event count. A richer `GET /api/calendar/sync/progress` would be needed for true per-stage counters.
+### Sync progress
+- **Status:** Wired to `GET /api/calendar/sync/progress`.
+- The UI shows mapped, first-written and later-patched event counts plus write timestamps. It explicitly does not present unavailable unchanged/failed/per-run totals.
 
 ---
 
@@ -96,7 +102,7 @@ The admin information architecture now has dedicated routes. **Genel bakış** i
 an orientation screen only; live operations are separated into `/admin/sources`,
 `/admin/revisions`, `/admin/colors`, `/admin/operations`, and `/admin/users`.
 Areas without a backend have explicit, navigable empty-state panels and never
-fabricate records or metrics. The following still need backend work:
+fabricate records or metrics. The sections below separate remaining gaps from wired reads:
 
 ### 3.1 No endpoint (new product surface)
 
@@ -105,8 +111,6 @@ fabricate records or metrics. The following still need backend work:
 | Finans (gelir/gider/kâr dağıtımı) | `admin-finance.html` | Entirely new domain (plan §5.10). Needs revenue/expense models, profit-distribution + audit. Uses the §4.3 high-risk 6-step pattern. |
 | Toplu takvim etkinliği | `admin-bulk-event.html` | Audience resolution → estimated recipients → dedup campaign key → queued delivery tracking (plan §4.4, §5.11). |
 | Tek kullanıcı uyarısı | `admin-user-warning.html` | Idempotent `warning-key` per user+template+date (plan §4.5, §5.12). |
-| Sunucu izleme | `admin-server.html` | Health/metrics endpoints (CPU/RAM/queue depth/API/worker/parser/PostgreSQL/Redis). Progress.md Phase 10 "Health checks / Metrics" = not started. |
-| Erişim kayıtları | `admin-access-logs.html` | Login audit with **masked IP by default**; unmask is a separate audited action (plan §5.14, constraint K7). No audit-event model yet (progress.md Phase 1 "audit event model" = not started). |
 
 ### 3.2 Endpoint exists, UI not built (cheapest next steps)
 
@@ -114,13 +118,12 @@ fabricate records or metrics. The following still need backend work:
 | --- | --- | --- |
 | Diff serbest bırakma (held-diff release) | `GET /api/diffs`, `GET /api/diffs/{id}`, `POST /api/diffs/{id}/release` | Backend live (ADR-042). An ambiguity hold is **not** releasable and must be shown as such. Only the UI is missing. |
 
-### 3.3 No endpoint (admin data views)
+### 3.3 Wired read-only administration views
 
-| Prototype screen | File | Missing backend |
-| --- | --- | --- |
-| Kullanıcı listesi + detay | `admin-users.html` | `GET /api/admin/users`, `GET /api/admin/users/{id}` (identity, profile, license history, login/sync history, managed-event count, audit). progress.md "User sync status" = not started. |
-| Kaynak durum panosu | `admin-sources.html` | Source poll status, snapshot inspection, parser warnings/metrics, revision validation findings. progress.md Phase 10 "Source status dashboard / Snapshot inspection / Parser warning review / Revision diff viewer" = not started. Note: revision review queue **is** wired; the broader source dashboard is not. |
-| Lisans yönetimi listesi + denetim | `admin-users.html` / finance | `GET /api/admin/licenses` (listing) and license audit inspection = not started (progress.md Phase 10). |
+- `/admin/users`: paged user and license lists, user/license detail, license audit and selected-license revocation.
+- `/admin/sources`: source pipeline status and retained snapshot evidence beside administrative upload.
+- `/admin/access-logs`: masked sign-in log, audited transient IP reveal and cross-category audit query.
+- `/admin/server`: liveness, readiness and database-backed point-in-time counts. CPU/RAM/Worker/Parser/Redis metrics remain unavailable and are not fabricated.
 
 ---
 
@@ -134,9 +137,8 @@ fabricate records or metrics. The following still need backend work:
 
 ## 5. Suggested build order for closing gaps
 
-1. Wire **held-diff release** and **license create/revoke** UIs (backend already exists — §3.2).
-2. Add `GET /api/admin/users` + detail, then build the user list/detail screen.
-3. Add sync history + upcoming-lessons read endpoints for the dashboard.
-4. Add the audit-event model → access-logs and audit viewers.
-5. Health/metrics endpoints → server monitoring.
-6. New product domains last: bulk event, user warning, finance.
+1. Wire **held-diff release** (backend already exists — §3.2).
+2. Add a per-user sync activity log before exposing `GET /api/calendar/sync/history`.
+3. Decide and implement notification and contact contracts.
+4. Add exporter/host telemetry only if CPU/RAM/Worker/Parser/Redis visibility becomes a requirement.
+5. New product domains last: bulk event, user warning, finance.

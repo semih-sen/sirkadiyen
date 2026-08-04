@@ -124,6 +124,210 @@ export interface CalendarSyncStatusResponse {
   onboarding: OnboardingSnapshot;
 }
 
+// GET /api/calendar/sync/progress. These are durable-ledger counts, not one-run
+// success/failure counters.
+export interface CalendarSyncProgressResponse extends CalendarSyncStatusResponse {
+  createdEventCount: number;
+  updatedEventCount: number;
+  firstWrittenAtUtc?: string | null;
+  lastWrittenAtUtc?: string | null;
+}
+
+export interface ReconciliationResponse {
+  requested: boolean;
+}
+
+export type UserLicenseState = 'None' | 'Active' | 'Suspended' | string;
+export type LicenseKind = 'Code' | 'Manual' | string;
+export type LicenseStatus = 'Created' | 'Active' | 'Redeemed' | 'Revoked' | 'Expired' | string;
+
+export interface LicenseStatusResponse {
+  state: UserLicenseState;
+  kind?: LicenseKind | null;
+  activatedAtUtc?: string | null;
+  revokedAtUtc?: string | null;
+}
+
+export type ScheduleEventType = string;
+
+export interface UserScheduleEventView {
+  stableIdentity: string;
+  title: string;
+  localDate: string;
+  startLocalTime?: string | null;
+  endLocalTime?: string | null;
+  isAllDay: boolean;
+  timeZoneId: string;
+  location?: string | null;
+  instructor?: string | null;
+  eventType: ScheduleEventType;
+  departments: string[];
+}
+
+export type UserScheduleChangeKind = 'Created' | 'Updated';
+
+export interface UserScheduleChangeView {
+  stableIdentity: string;
+  title: string;
+  localDate: string;
+  kind: UserScheduleChangeKind;
+  changedAtUtc: string;
+}
+
+export interface PagedResult<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+}
+
+export interface AdminUserListItem {
+  id: string;
+  email: string;
+  displayName?: string | null;
+  role: UserRole;
+  licenseState: UserLicenseState;
+  hasProfile: boolean;
+  createdAtUtc: string;
+  lastSignedInAtUtc: string;
+}
+
+export interface AdminUserProfile {
+  academicYear: string;
+  classYear: number;
+  programLanguage: ProgramLanguage;
+  studentNumber: string;
+  selectorSchemaVersion: string;
+  selectors: Record<string, string>;
+}
+
+export interface AdminUserLicense {
+  licenseId: string;
+  kind: LicenseKind;
+  status: LicenseStatus;
+  createdAtUtc: string;
+  redeemedAtUtc?: string | null;
+  revokedAtUtc?: string | null;
+}
+
+export interface AdminUserDetail {
+  summary: AdminUserListItem;
+  profile?: AdminUserProfile | null;
+  managedEventCount: number;
+  licenses: AdminUserLicense[];
+}
+
+export interface AdminUserDetailResponse {
+  user: AdminUserDetail;
+  onboardingState: OnboardingState;
+  recentSignIns: AuditEventView[];
+}
+
+export interface AdminLicenseListItem {
+  licenseId: string;
+  kind: LicenseKind;
+  status: LicenseStatus;
+  createdByEmail: string;
+  createdAtUtc: string;
+  expiresAtUtc?: string | null;
+  redeemedByUserId?: string | null;
+  redeemedAtUtc?: string | null;
+  revokedAtUtc?: string | null;
+  notes?: string | null;
+}
+
+export interface AdminLicenseAuditEntry {
+  action: string;
+  actorEmail: string;
+  reason: string;
+  occurredAtUtc: string;
+}
+
+export interface AdminLicenseDetail {
+  summary: AdminLicenseListItem;
+  audit: AdminLicenseAuditEntry[];
+}
+
+export type ScheduleSourceTransport = string;
+export type ParseRunStatus = string;
+
+export interface SourceStatusListItem {
+  sourceId: string;
+  displayName: string;
+  classYear: number;
+  programLanguage: ProgramLanguage;
+  transport: ScheduleSourceTransport;
+  isPollingEnabled: boolean;
+  lastPolledAtUtc?: string | null;
+  lastChangedAtUtc?: string | null;
+  latestParseRunStatus?: ParseRunStatus | null;
+  latestParseRunAtUtc?: string | null;
+  latestParseWarningCount?: number | null;
+  latestParseErrorCount?: number | null;
+  latestRevisionId?: string | null;
+  latestRevisionState?: RevisionState | null;
+  latestRevisionAtUtc?: string | null;
+}
+
+export interface SourceSnapshotSummary {
+  snapshotId: string;
+  acquiredAtUtc: string;
+  contentHash: string;
+  worksheetCount: number;
+  cellCount: number;
+  diagnosticCount: number;
+  hasPayload: boolean;
+}
+
+export interface SourceStatusDetail {
+  summary: SourceStatusListItem;
+  parserProfile: string;
+  parserProfileVersion: string;
+  recentSnapshots: SourceSnapshotSummary[];
+}
+
+export type AuditEventCategory = 'SignIn' | 'ReconcileRequested' | 'IpUnmasked' | string;
+
+export interface AuditEventView {
+  id: string;
+  category: AuditEventCategory;
+  occurredAtUtc: string;
+  actorUserId?: string | null;
+  actorEmail?: string | null;
+  subjectType?: string | null;
+  subjectId?: string | null;
+  correlationId?: string | null;
+  maskedIp?: string | null;
+  hasProtectedIp: boolean;
+  userAgent?: string | null;
+  reason?: string | null;
+  metadata?: string | null;
+}
+
+export interface UnmaskAuditIpResponse {
+  auditEventId: string;
+  ip: string;
+}
+
+export interface AdminMetricsSnapshot {
+  generatedAtUtc: string;
+  totalUsers: number;
+  activeLicenses: number;
+  initialSyncsInProgress: number;
+  completedConnections: number;
+  revisionsAwaitingReview: number;
+  heldDiffs: number;
+  pollingSourcesOverdue: number;
+  operationalFreezeActive: boolean;
+}
+
+export interface HealthStatus {
+  ok: boolean;
+  status: number;
+  text: string;
+}
+
 export interface CalendarSyncResponse {
   connection: GoogleCalendarConnectionView;
   onboarding: OnboardingSnapshot;

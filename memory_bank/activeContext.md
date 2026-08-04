@@ -1930,3 +1930,14 @@ dimension can be added with evidence.
 - Verification: 412 Infrastructure, 137 PostgreSQL persistence, 6 Contracts and
   5 API tests pass (560 total); frontend TypeScript typecheck and Next.js production
   build, .NET format verification and Git diff checks also pass.
+
+## Latest frontend session (2026-08-04, ADR-089 integration)
+
+- The student dashboard reads upcoming managed events, recent ledger-backed changes,
+  sync inventory progress and license state, and can request rate-limited reconciliation.
+- Admin workspaces expose paged user/license reads, source evidence, masked access/audit
+  logs with audited transient IP reveal, and honest liveness/readiness/operational counts.
+- Sync history, notifications, contact, finance, bulk-event and user-warning remain
+  unavailable and are still labelled as such.
+- The Next edge proxies both `/api/*` and `/health/*`. ADR-090 adds Vitest + React Testing
+  Library; no backend contract, database schema or Calendar behavior changed.

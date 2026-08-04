@@ -9,8 +9,9 @@ const AREAS = [
   { href: '/admin/revisions', icon: '✓', title: 'Revizyonlar', text: 'İnceleme bekleyen revizyonları, bulguları ve yayın kararlarını yönet.', state: 'Canlı' },
   { href: '/admin/colors', icon: '◐', title: 'Anabilim dalı renkleri', text: '45 anabilim dalının fakülte genelindeki takvim görünümünü düzenle.', state: 'Canlı' },
   { href: '/admin/operations', icon: '⚙', title: 'Operasyon kontrolü', text: 'Acil durumda veri hattını denetimli biçimde dondur veya yeniden aç.', state: 'Canlı' },
-  { href: '/admin/users', icon: '◉', title: 'Kullanıcılar & lisans', text: 'Yeni lisans üret ve kendi öğrenci akışını test et.', state: 'Kısmi' },
-  { href: '/admin/server', icon: '▣', title: 'Sistem sağlığı', text: 'Servis ve kuyruk görünürlüğü için hazırlanan operasyon alanı.', state: 'Backend bekliyor' },
+  { href: '/admin/users', icon: '◉', title: 'Kullanıcılar & lisans', text: 'Kullanıcı, profil, giriş ve lisans yaşam döngüsünü incele.', state: 'Canlı' },
+  { href: '/admin/server', icon: '▣', title: 'Sistem sağlığı', text: 'API sağlığı ve gerçek operasyon sayaçlarını izle.', state: 'Canlı' },
+  { href: '/admin/access-logs', icon: '☰', title: 'Erişim & audit', text: 'Maskeli erişim ve hesap etkinliği kayıtlarını incele.', state: 'Canlı' },
 ];
 
 export default function AdminOverviewPage() {

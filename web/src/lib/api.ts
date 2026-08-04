@@ -33,6 +33,26 @@ import type {
   StudentProfileView,
   SupportedProfileOptions,
   UploadableSourceView,
+  AdminLicenseDetail,
+  AdminLicenseListItem,
+  AdminMetricsSnapshot,
+  AdminUserDetailResponse,
+  AdminUserListItem,
+  AuditEventCategory,
+  AuditEventView,
+  CalendarSyncProgressResponse,
+  HealthStatus,
+  LicenseKind,
+  LicenseStatus,
+  LicenseStatusResponse,
+  PagedResult,
+  ReconciliationResponse,
+  SourceStatusDetail,
+  SourceStatusListItem,
+  UnmaskAuditIpResponse,
+  UserRole,
+  UserScheduleChangeView,
+  UserScheduleEventView,
 } from './types';
 
 export class ApiError extends Error {
@@ -107,6 +127,17 @@ interface RequestOptions {
   body?: unknown;
   /** Treat 204/205 as a valid empty result rather than a parse target. */
   allowEmpty?: boolean;
+}
+
+type QueryValue = string | number | boolean | null | undefined;
+
+function withQuery(path: string, values: Record<string, QueryValue>): string {
+  const query = new URLSearchParams();
+  Object.entries(values).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') query.set(key, String(value));
+  });
+  const suffix = query.toString();
+  return suffix ? `${path}?${suffix}` : path;
 }
 
 /**
@@ -272,6 +303,29 @@ export function startSync(): Promise<CalendarSyncResponse> {
   return request<CalendarSyncResponse>('/api/calendar/sync/', { method: 'POST' });
 }
 
+export async function getSyncProgress(): Promise<CalendarSyncProgressResponse | null> {
+  const result = await request<CalendarSyncProgressResponse | undefined>('/api/calendar/sync/progress', {
+    allowEmpty: true,
+  });
+  return result ?? null;
+}
+
+export function requestReconciliation(): Promise<ReconciliationResponse> {
+  return request<ReconciliationResponse>('/api/calendar/reconcile', { method: 'POST' });
+}
+
+export function getUpcomingSchedule(days = 14): Promise<UserScheduleEventView[]> {
+  return request<UserScheduleEventView[]>(withQuery('/api/schedule/upcoming', { days }));
+}
+
+export function getScheduleChanges(limit = 20): Promise<UserScheduleChangeView[]> {
+  return request<UserScheduleChangeView[]>(withQuery('/api/schedule/changes', { limit }));
+}
+
+export function getLicenseStatus(): Promise<LicenseStatusResponse> {
+  return request<LicenseStatusResponse>('/api/licenses/status');
+}
+
 // ---- Calendar appearance -------------------------------------------------
 
 export function getDepartmentColors(): Promise<DepartmentColorView[]> {
@@ -361,6 +415,70 @@ export function revokeLicense(licenseId: string, reason: string): Promise<Licens
     method: 'POST',
     body: { reason },
   });
+}
+
+export function listAdminUsers(values: {
+  search?: string; role?: UserRole; page?: number; pageSize?: number;
+} = {}): Promise<PagedResult<AdminUserListItem>> {
+  return request(withQuery('/api/admin/users/', { ...values }));
+}
+
+export function getAdminUser(userId: string): Promise<AdminUserDetailResponse> {
+  return request(`/api/admin/users/${encodeURIComponent(userId)}`);
+}
+
+export function listAdminLicenses(values: {
+  status?: LicenseStatus; kind?: LicenseKind; page?: number; pageSize?: number;
+} = {}): Promise<PagedResult<AdminLicenseListItem>> {
+  return request(withQuery('/api/admin/licenses/', { ...values }));
+}
+
+export function getAdminLicense(licenseId: string): Promise<AdminLicenseDetail> {
+  return request(`/api/admin/licenses/${encodeURIComponent(licenseId)}`);
+}
+
+export function listAdminSources(): Promise<SourceStatusListItem[]> {
+  return request('/api/admin/sources/');
+}
+
+export function getAdminSource(sourceId: string): Promise<SourceStatusDetail> {
+  return request(`/api/admin/sources/${encodeURIComponent(sourceId)}`);
+}
+
+interface AuditFilters {
+  userId?: string;
+  category?: AuditEventCategory;
+  actorUserId?: string;
+  actorEmail?: string;
+  subjectType?: string;
+  subjectId?: string;
+  from?: string;
+  to?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export function listAccessLogs(filters: AuditFilters = {}): Promise<PagedResult<AuditEventView>> {
+  return request(withQuery('/api/admin/access-logs/', { ...filters }));
+}
+
+export function listAuditEvents(filters: AuditFilters = {}): Promise<PagedResult<AuditEventView>> {
+  return request(withQuery('/api/admin/audit/', { ...filters }));
+}
+
+export function unmaskAuditIp(id: string, reason: string): Promise<UnmaskAuditIpResponse> {
+  return request(`/api/admin/access-logs/${encodeURIComponent(id)}/unmask`, {
+    method: 'POST', body: { reason },
+  });
+}
+
+export function getAdminMetrics(): Promise<AdminMetricsSnapshot> {
+  return request('/api/admin/metrics');
+}
+
+export async function getHealth(path: 'live' | 'ready'): Promise<HealthStatus> {
+  const response = await fetch(`/health/${path}`, { headers: { Accept: 'text/plain' } });
+  return { ok: response.ok, status: response.status, text: await response.text() };
 }
 
 export function listRevisions(

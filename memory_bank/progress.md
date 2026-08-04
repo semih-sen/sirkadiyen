@@ -539,3 +539,18 @@ department combination. All application types, including vertical-corridor activ
 and dissections, share a configurable attention color; visible titles use the
 `UYGULAMA - ...` and `DİSEKSİYON` presentation rules. The canonical schedule remains
 source-faithful, and ordinary inventory patches existing Calendar events in place.
+
+## Latest frontend session (2026-08-04, ADR-089 API integration)
+
+- The active student dashboard now uses schedule upcoming/changes, ledger-backed sync
+  progress, license status and audited reconciliation endpoints. Unavailable history and
+  notification domains remain explicit placeholders.
+- Admin users/licenses, source status, access/audit and server health workspaces now read
+  the authoritative paged/detail contracts. Full IP addresses remain masked until a
+  reason-required audited action and are retained only in component state.
+- The Next same-origin edge proxies `/health/*`; server monitoring shows only liveness,
+  readiness and the database-backed metric snapshot.
+- Vitest + React Testing Library cover the request client, dashboard semantics, IP reveal
+  guard, source read-only behavior and honest metrics rendering (ADR-090).
+- Remaining frontend gaps are sync history, notifications, contact, held-diff release,
+  finance, bulk event and user warning.
