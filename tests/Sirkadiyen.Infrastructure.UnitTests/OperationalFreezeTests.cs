@@ -108,6 +108,13 @@ public sealed class OperationalFreezeTests
             string approvalReason,
             DateTimeOffset approvedAtUtc,
             CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<RevisionRejectionResult> RejectAsync(
+            Guid revisionId,
+            string rejectedBy,
+            string rejectionReason,
+            DateTimeOffset rejectedAtUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class FixedFreezeStore : IOperationalFreezeStore

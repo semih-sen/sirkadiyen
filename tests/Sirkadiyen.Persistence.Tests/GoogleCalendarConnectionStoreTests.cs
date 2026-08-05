@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Identity;
+using Sirkadiyen.Application.Licensing;
 using Sirkadiyen.Domain.GoogleCalendar;
 using Sirkadiyen.Domain.Identity;
 using Sirkadiyen.Infrastructure.Persistence;
@@ -372,7 +373,240 @@ public sealed class GoogleCalendarConnectionStoreTests(PostgresFixture fixture)
                 Token));
     }
 
-    private async Task<UserSession> CreateUserAsync(string prefix)
+    [Fact]
+    public async Task ARevokedUserLeavesTheInitialSyncAndReplayQueues()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        UserSession syncing = await CreateUserAsync("gate-initial", activate: false);
+        Guid syncingLicense = await ActivateAsync(syncing.UserId, "gate-initial");
+        UserSession replaying = await CreateUserAsync("gate-replay", activate: false);
+        Guid replayingLicense = await ActivateAsync(replaying.UserId, "gate-replay");
+
+        DateTimeOffset failedAt = Now.AddHours(1);
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        GoogleCalendarConnectionStore store = new(context);
+
+        await store.UpsertAuthorizationAsync(syncing.UserId, "protected", Scope, Now, Token);
+        await store.RequestInitialSyncAsync(syncing.UserId, Now.AddMinutes(1), Token);
+
+        await store.UpsertAuthorizationAsync(replaying.UserId, "protected", Scope, Now, Token);
+        await store.RequestInitialSyncAsync(replaying.UserId, Now.AddMinutes(1), Token);
+        await store.AttachManagedCalendarAsync(
+            replaying.UserId,
+            "gate@group.calendar.google.com",
+            Now.AddMinutes(2),
+            Token);
+        await store.MarkInitialSyncCompletedAsync(replaying.UserId, Now.AddMinutes(3), Token);
+        await store.MarkNeedsReauthorizationAsync(replaying.UserId, failedAt, Token);
+        await store.UpsertAuthorizationAsync(
+            replaying.UserId,
+            "fresh",
+            Scope,
+            failedAt.AddMinutes(1),
+            Token);
+
+        // Both are runnable work while their access is active.
+        Assert.Contains(
+            await store.ListPendingInitialSyncAsync(500, Token),
+            candidate => candidate.UserId == syncing.UserId);
+        Assert.Contains(
+            await store.ListPendingReconciliationAsync(500, Token),
+            candidate => candidate.UserId == replaying.UserId);
+
+        await RevokeAsync(syncingLicense, "gate-initial");
+        await RevokeAsync(replayingLicense, "gate-replay");
+
+        // Revocation stops future synchronization on the next read (ADR-095). The in-progress
+        // initial sync is not failed or rewound; it simply stops being listed, so restoring
+        // access resumes it from what the ledger already holds.
+        Assert.DoesNotContain(
+            await store.ListPendingInitialSyncAsync(500, Token),
+            candidate => candidate.UserId == syncing.UserId);
+        Assert.DoesNotContain(
+            await store.ListPendingReconciliationAsync(500, Token),
+            candidate => candidate.UserId == replaying.UserId);
+
+        GoogleCalendarConnectionView? preserved =
+            await store.GetByUserIdAsync(syncing.UserId, Token);
+        Assert.Equal(GoogleCalendarInitialSyncState.InProgress, preserved!.InitialSyncState);
+    }
+
+    [Fact]
+    public async Task AProfileResyncRequestIsQueuedAndClearedByItsOwnWorker()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        UserSession user = await CreateUserAsync("resync-queue");
+        DateTimeOffset requestedAt = Now.AddHours(1);
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        GoogleCalendarConnectionStore store = new(context);
+        await CompleteConnectionAsync(store, user.UserId, "resync@group.calendar.google.com");
+
+        // Not queued until a profile change asks for it.
+        Assert.DoesNotContain(
+            await store.ListPendingProfileResyncAsync(500, Token),
+            candidate => candidate.UserId == user.UserId);
+
+        await RequestResyncAsync(user.UserId, requestedAt);
+
+        PendingProfileResync pending = Assert.Single(
+            await store.ListPendingProfileResyncAsync(500, Token),
+            candidate => candidate.UserId == user.UserId);
+        Assert.Equal(requestedAt, pending.RequiredSinceUtc);
+        Assert.Equal("resync@group.calendar.google.com", pending.ManagedCalendarId);
+        Assert.Equal("protected", pending.ProtectedRefreshToken);
+
+        // A fresh context, as the worker uses a scoped one per pass: completion must read the
+        // committed request rather than an entity tracked from before it was written.
+        await using SirkadiyenDbContext completion = fixture.CreateProductionLikeContext();
+        Assert.Equal(
+            CompleteProfileResyncOutcome.Completed,
+            await new GoogleCalendarConnectionStore(completion).CompleteProfileResyncAsync(
+                user.UserId,
+                requestedAt,
+                requestedAt.AddMinutes(5),
+                Token));
+
+        Assert.DoesNotContain(
+            await store.ListPendingProfileResyncAsync(500, Token),
+            candidate => candidate.UserId == user.UserId);
+    }
+
+    [Fact]
+    public async Task AStaleWorkerCannotClearANewerProfileResyncRequest()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        UserSession user = await CreateUserAsync("resync-token");
+        DateTimeOffset requestedAt = Now.AddHours(1);
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        GoogleCalendarConnectionStore store = new(context);
+        await CompleteConnectionAsync(store, user.UserId, "token@group.calendar.google.com");
+        await RequestResyncAsync(user.UserId, requestedAt);
+
+        // The request timestamp is the workflow token. A pass that converged an older profile
+        // must report Superseded rather than clearing a change made while it ran.
+        await using SirkadiyenDbContext completion = fixture.CreateProductionLikeContext();
+        Assert.Equal(
+            CompleteProfileResyncOutcome.Superseded,
+            await new GoogleCalendarConnectionStore(completion).CompleteProfileResyncAsync(
+                user.UserId,
+                requestedAt.AddMinutes(-30),
+                requestedAt.AddMinutes(5),
+                Token));
+
+        Assert.Contains(
+            await store.ListPendingProfileResyncAsync(500, Token),
+            candidate => candidate.UserId == user.UserId);
+    }
+
+    [Fact]
+    public async Task CompletingAProfileResyncForAnUnknownUserReportsNotFound()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        Assert.Equal(
+            CompleteProfileResyncOutcome.NotFound,
+            await new GoogleCalendarConnectionStore(context).CompleteProfileResyncAsync(
+                Guid.CreateVersion7(),
+                Now,
+                Now,
+                Token));
+    }
+
+    [Fact]
+    public async Task ARevokedUserLeavesTheProfileResyncQueue()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        UserSession user = await CreateUserAsync("resync-revoked", activate: false);
+        Guid licenseId = await ActivateAsync(user.UserId, "resync-revoked");
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        GoogleCalendarConnectionStore store = new(context);
+        await CompleteConnectionAsync(store, user.UserId, "revoked@group.calendar.google.com");
+        await RequestResyncAsync(user.UserId, Now.AddHours(1));
+
+        await RevokeAsync(licenseId, "resync-revoked");
+
+        Assert.DoesNotContain(
+            await store.ListPendingProfileResyncAsync(500, Token),
+            candidate => candidate.UserId == user.UserId);
+    }
+
+    private async Task CompleteConnectionAsync(
+        GoogleCalendarConnectionStore store,
+        Guid userId,
+        string calendarId)
+    {
+        await store.UpsertAuthorizationAsync(userId, "protected", Scope, Now, Token);
+        await store.RequestInitialSyncAsync(userId, Now.AddMinutes(1), Token);
+        await store.AttachManagedCalendarAsync(userId, calendarId, Now.AddMinutes(2), Token);
+        await store.MarkInitialSyncCompletedAsync(userId, Now.AddMinutes(3), Token);
+    }
+
+    /// <summary>
+    /// Records a resync request the way a profile write does, through the aggregate, on its own
+    /// context so the queue read sees a committed row.
+    /// </summary>
+    private async Task RequestResyncAsync(Guid userId, DateTimeOffset atUtc)
+    {
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        GoogleCalendarConnection connection = await context.GoogleCalendarConnections
+            .SingleAsync(candidate => candidate.UserId == userId, Token);
+        Assert.True(connection.TryRequestProfileResync(atUtc));
+        await context.SaveChangesAsync(Token);
+    }
+
+    /// <summary>
+    /// Signs a user in and, unless the case is about the licensing gate itself, activates them.
+    /// Every worker queue requires an active license (ADR-095), so an unlicensed user is the
+    /// exception rather than the default here.
+    /// </summary>
+    private async Task<UserSession> CreateUserAsync(string prefix, bool activate = true)
+    {
+        UserSession user = await SignInAsync(prefix);
+        if (activate)
+        {
+            await ActivateAsync(user.UserId, prefix);
+        }
+
+        return user;
+    }
+
+    private async Task<Guid> ActivateAsync(Guid userId, string prefix)
+    {
+        UserSession admin = await SignInAsync($"{prefix}-admin");
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        ManualLicenseActivationResult activation = await new LicenseStore(context)
+            .ActivateManuallyAsync(
+                userId,
+                admin.UserId,
+                admin.Email,
+                "Seeded by the test.",
+                Now,
+                Token);
+
+        return activation.LicenseId!.Value;
+    }
+
+    private async Task RevokeAsync(Guid licenseId, string prefix)
+    {
+        UserSession admin = await SignInAsync($"{prefix}-revoker");
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        await new LicenseStore(context).RevokeAsync(
+            licenseId,
+            admin.UserId,
+            admin.Email,
+            "Revoked by the test.",
+            Now.AddMinutes(1),
+            Token);
+    }
+
+    private async Task<UserSession> SignInAsync(string prefix)
     {
         await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
         string nonce = Guid.NewGuid().ToString("N");

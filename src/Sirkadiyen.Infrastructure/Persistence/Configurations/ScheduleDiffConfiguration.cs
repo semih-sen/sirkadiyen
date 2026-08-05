@@ -47,9 +47,21 @@ internal sealed class ScheduleDiffConfiguration : IEntityTypeConfiguration<Sched
         builder.Property(diff => diff.DispatchFailureReason)
             .HasMaxLength(ScheduleDiff.MaximumDispatchFailureReasonLength);
 
+        // Who returned a terminally failed diff to the queue, and why (ADR-097). The count is kept
+        // across retries even though the attempts are reset, so a diff being retried repeatedly is
+        // visible as such.
+        builder.Property(diff => diff.DispatchRetryCount)
+            .IsRequired();
+        builder.Property(diff => diff.LastDispatchRetriedBy)
+            .HasMaxLength(ScheduleDiff.MaximumDispatchRetriedByLength);
+        builder.Property(diff => diff.LastDispatchRetryReason)
+            .HasMaxLength(ScheduleDiff.MaximumDispatchRetryReasonLength);
+        builder.Property(diff => diff.LastDispatchRetriedAtUtc);
+
         builder.Ignore(diff => diff.IsDispatchable);
         builder.Ignore(diff => diff.IsReleasable);
         builder.Ignore(diff => diff.IsDispatchPending);
+        builder.Ignore(diff => diff.IsDispatchRetriable);
 
         builder.HasOne<ScheduleSource>()
             .WithMany()
@@ -83,6 +95,10 @@ internal sealed class ScheduleDiffConfiguration : IEntityTypeConfiguration<Sched
         builder.ToTable(table => table.HasCheckConstraint(
             "ck_schedule_diffs_calendar_dispatch_state",
             "\"CalendarDispatchState\" IN ('Pending', 'Dispatched', 'Failed')"));
+
+        builder.ToTable(table => table.HasCheckConstraint(
+            "ck_schedule_diffs_dispatch_retry_count",
+            "\"DispatchRetryCount\" >= 0"));
 
         builder.HasMany(diff => diff.Entries)
             .WithOne()

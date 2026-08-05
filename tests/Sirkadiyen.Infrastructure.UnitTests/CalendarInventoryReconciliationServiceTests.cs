@@ -203,6 +203,7 @@ public sealed class CalendarInventoryReconciliationServiceTests
         {
             UserId = userId,
             StableIdentity = record.StableIdentity,
+            SourceId = record.SourceId,
             GoogleCalendarId = $"cal-{userId:N}",
             GoogleEventId = eventId,
             ContentHash = record.ContentHash,
@@ -325,6 +326,10 @@ public sealed class CalendarInventoryReconciliationServiceTests
             CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<CanonicalScheduleRecord>>([.. records]);
 
+        public Task<IReadOnlyList<PublishedRecordIdentity>> ListCurrentPublishedIdentitiesAsync(
+            string academicYear,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
         public Task<IReadOnlyList<CanonicalScheduleRecord>> ListRecordsByIdsAsync(
             IReadOnlyCollection<Guid> recordIds,
             CancellationToken cancellationToken) => throw new NotSupportedException();
@@ -356,6 +361,7 @@ public sealed class CalendarInventoryReconciliationServiceTests
             {
                 UserId = mapping.UserId,
                 StableIdentity = mapping.StableIdentity,
+                SourceId = mapping.SourceId,
                 GoogleCalendarId = mapping.GoogleCalendarId,
                 GoogleEventId = mapping.GoogleEventId,
                 ContentHash = mapping.ContentHash,
@@ -487,6 +493,16 @@ public sealed class CalendarInventoryReconciliationServiceTests
 
         public Task MarkInitialSyncCompletedAsync(
             Guid userId,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<IReadOnlyList<PendingProfileResync>> ListPendingProfileResyncAsync(
+            int limit,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<CompleteProfileResyncOutcome> CompleteProfileResyncAsync(
+            Guid userId,
+            DateTimeOffset expectedRequiredSinceUtc,
             DateTimeOffset atUtc,
             CancellationToken cancellationToken) => throw new NotSupportedException();
 

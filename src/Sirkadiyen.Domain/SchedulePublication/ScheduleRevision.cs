@@ -21,6 +21,10 @@ public sealed class ScheduleRevision
 
     public const int MaximumApprovalReasonLength = 2000;
 
+    public const int MaximumRejectedByLength = 200;
+
+    public const int MaximumRejectionReasonLength = 2000;
+
     private static readonly IReadOnlyDictionary<RevisionState, RevisionState[]> AllowedTransitions =
         new Dictionary<RevisionState, RevisionState[]>
         {
@@ -91,6 +95,18 @@ public sealed class ScheduleRevision
 
     public DateTimeOffset? ApprovedAtUtc { get; private set; }
 
+    /// <summary>Who rejected this revision out of review, when one did (ADR-097).</summary>
+    /// <remarks>
+    /// Kept separate from <see cref="ApprovedBy"/> deliberately. Recording "who decided" in a
+    /// field named for approval would make the audit trail state the opposite of what happened,
+    /// and these two decisions are read by exactly the people who need to tell them apart.
+    /// </remarks>
+    public string? RejectedBy { get; private set; }
+
+    public string? RejectionReason { get; private set; }
+
+    public DateTimeOffset? RejectedAtUtc { get; private set; }
+
     public int RecordCount { get; private set; }
 
     public uint RowVersion { get; private set; }
@@ -153,6 +169,49 @@ public sealed class ScheduleRevision
             RevisionState.Validated,
             atUtc,
             Truncate($"Approved by {approvedBy} over: {heldFor}", MaximumStateReasonLength));
+    }
+
+    /// <summary>
+    /// Rejects a revision held for review, recording who decided so and why (ADR-097).
+    /// </summary>
+    /// <remarks>
+    /// <see cref="RevisionState.Rejected"/> is terminal: a rejected revision has no transition
+    /// out, so this closes the review rather than parking it somewhere else. Only a quarantined
+    /// revision may be rejected — a validated one is corrected by publishing a newer revision over
+    /// it, and a published one is never withdrawn at all (ADR-033).
+    /// </remarks>
+    public void Reject(string rejectedBy, string rejectionReason, DateTimeOffset atUtc)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(rejectedBy);
+        ArgumentException.ThrowIfNullOrWhiteSpace(rejectionReason);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            rejectedBy.Length,
+            MaximumRejectedByLength,
+            nameof(rejectedBy));
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            rejectionReason.Length,
+            MaximumRejectionReasonLength,
+            nameof(rejectionReason));
+
+        if (State is not RevisionState.ReviewRequired)
+        {
+            throw new InvalidOperationException(
+                $"Only a revision awaiting review can be rejected; this one is {State}.");
+        }
+
+        // The finding that held the revision is carried into the new reason, exactly as approval
+        // does, so one row still says what the decision was made about. The findings themselves
+        // are never deleted.
+        string heldFor = StateReason ?? "an unrecorded finding";
+
+        RejectedBy = rejectedBy;
+        RejectionReason = rejectionReason;
+        RejectedAtUtc = atUtc;
+
+        TransitionTo(
+            RevisionState.Rejected,
+            atUtc,
+            Truncate($"Rejected by {rejectedBy} over: {heldFor}", MaximumStateReasonLength));
     }
 
     public void MarkSuperseded(Guid supersededByRevisionId, DateTimeOffset atUtc)

@@ -54,6 +54,27 @@ public sealed record FinanceObligationListItem
     public required FinanceObligationStatus Status { get; init; }
 
     public required uint RowVersion { get; init; }
+
+    /// <summary>
+    /// Populated by the detail read. List queries intentionally return an empty collection so the
+    /// existing paged response stays light while the wire contract remains additive.
+    /// </summary>
+    public IReadOnlyList<FinanceObligationSettlementListItem> Settlements { get; init; } = [];
+}
+
+public sealed record FinanceObligationSettlementListItem
+{
+    public required Guid SettlementId { get; init; }
+
+    public required Guid TransactionId { get; init; }
+
+    public required decimal Amount { get; init; }
+
+    public required DateOnly SettledOn { get; init; }
+
+    public required DateTimeOffset RecordedAtUtc { get; init; }
+
+    public string? Reference { get; init; }
 }
 
 public sealed record FinanceObligationQuery

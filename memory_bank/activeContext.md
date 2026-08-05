@@ -71,6 +71,37 @@ a CSV transaction export. 742 `.NET` tests pass across the Infrastructure unit, 
 Persistence integration suites (0 skipped when `SIRKADIYEN_TEST_DATABASE__CONNECTION_STRING` is
 set), all verified against a real PostgreSQL database in this session, not just compiled.
 
+**Four backend gaps between the documented design and the code are now closed** (ADR-095 through
+ADR-097). **License revocation stops synchronization**: every query that selects a user for Calendar
+work — cohort fan-out, ledger-holder targets, inventory, initial sync, replay — now requires an
+active license, gating future work without deleting anything already written. **A profile change
+re-synchronizes the calendar**: a write that changes the resolved audience records
+`ProfileResyncRequiredSinceUtc` on the connection in the same transaction, and a freeze-gated, fenced
+worker stage inserts what now applies and removes what no longer does — bounded by publication, so a
+lesson absent from published truth is still only the semantic diff's to retire. **A quarantined
+revision can be rejected** and **a terminally failed diff can be retried**, both audited,
+reason-required `SuperAdmin` routes, with the failed-dispatch queue made enumerable by
+`GET /api/diffs?dispatchState=Failed`.
+
+### Open risks — sync gating and operator recovery (2026-08-05)
+
+- **A revoked student's calendar silently drifts.** That is the intended product behaviour (ADR-022
+  preserves what was written), but nothing tells them so; the honest message belongs to the
+  suspended-onboarding surface, which does not say it yet.
+- **A profile change is not written to the cross-cutting `AuditEvent` log.** AI_GUIDELINE §19 lists
+  profile changes as auditable, and a resync can delete calendar events, so the trail for "why did
+  these disappear" is currently the mapping ledger and the worker log rather than an audit row.
+- **Profile-resync deletions are scoped to the profile's academic year.** An event written under a
+  previous academic year would never be cleaned up by this path. Correct while no year rollover
+  exists — there is no such data — and it must be revisited when one does.
+- **Neither operator route has a UI.** `POST /api/revisions/{id}/reject` and
+  `POST /api/diffs/{id}/retry` join held-diff release in `web/GAPS.md` as "endpoint exists, UI not
+  built".
+- **A repeatedly retried diff is visible but not alerted on.** `DispatchRetryCount` makes it
+  readable; nothing watches it, which is the still-unbuilt alerting work.
+- **A persistently failing per-user initial sync still has no terminal state**, so it retries every
+  cycle with nothing to retry *from* — the retry path built here covers diffs only.
+
 ### Open risks — finance module (2026-08-05)
 
 - **No period close.** Nothing stops an income transaction dated in an already-distributed month
@@ -177,7 +208,38 @@ approver for held revisions (ADR-032), forward-fix without rollback (ADR-033),
 a global freeze (ADR-034), secondary matching (ADR-035), Next.js (ADR-036),
 Hangfire (ADR-037), and recurring-undated-row exclusion (ADR-038).
 
-## Latest implementation session
+## Latest implementation session (2026-08-05, sync gating and operator recovery)
+
+- **Closed four gaps an audit found between the memory bank and the code** (ADR-095, ADR-096,
+  ADR-097). Each was documented behaviour the system did not have, or a state it could enter and
+  never leave.
+- **`ActiveLicenseQuery` is the single definition of "access is active"**, applied in the four read
+  stores that choose users for Calendar work rather than inside each service, so a fifth selection
+  path cannot quietly omit it and a revocation needs no sweep to take effect.
+- **`ProfileChangeResyncService` is a new fenced worker stage**, running after replay and before
+  inventory, so inventory sees the calendar the new profile expects instead of reporting the old
+  cohort's events as unexpected. Its plan is `applicable minus ledger` for additions and
+  `ledger ∩ still-published minus applicable` for removals — the intersection is what stops it from
+  deleting by absence.
+- **A defect the design avoided rather than fixed:** the mapping's `CanonicalRecordId` cannot answer
+  "is this lesson still live", because it points at whichever revision wrote the event and an
+  `Unchanged` diff entry never advances it. Every republish would have made held events look retired.
+  `ListCurrentPublishedIdentitiesAsync` answers by `(SourceId, StableIdentity)` instead.
+- **Rejection got its own fields rather than reusing approval's.** Recording "who decided" in
+  `ApprovedBy` would have made the audit trail state the opposite of what happened.
+- **A test-authoring note worth keeping:** existing persistence tests seeded users with no license
+  at all, so the ADR-095 gate broke them. The fix was to make an activated user the default in those
+  fixtures and take an explicit unlicensed/revoked path only where the gate itself is under test —
+  which is also the honest shape, since every worker queue now requires one.
+- **Also learned the hard way:** `dotnet ef migrations add --no-build` reads the *Debug* output, so
+  with a stale Debug build (a running `Sirkadiyen.Api` held its DLLs) it silently produced an empty
+  migration. Passing `--configuration Release` produced the real one.
+- 812 .NET tests pass with 0 skipped (64 new), the Persistence suite against real PostgreSQL.
+  `dotnet format --verify-no-changes` clean, Release build without warnings.
+- **Not done:** the two operator UIs, an `AuditEvent` category for profile changes, and a terminal
+  failure state for a stuck per-user initial sync.
+
+## Previous implementation session
 
 - **Built the finance module backend end to end** (ADR-093), in the phased order the plan
   specified: domain (Phase 1, zero host references) → persistence (Phase 2, `AddFinanceLedger`) →
@@ -2058,3 +2120,22 @@ dimension can be added with evidence.
 - Worker source layout now mirrors its namespaces: `Composition`, `Configuration`, `Health`,
   `Scheduling`, `Sources` and `Calendars`. Only `Program.cs` and the hosted `Worker.cs` remain at
   the project root.
+
+## Latest frontend session (2026-08-05, Finance administration)
+
+- ADR-094 replaces the `/admin/finance` placeholder with one responsive, SuperAdmin-only
+  workspace for reporting, ledger transactions, obligations, accounts/holders, binding profit
+  distribution and the module's append-only audit history.
+- The frontend mirrors every finance request/response contract and keeps money calculations,
+  balance derivation, authorization and distribution allocation authoritative on the backend.
+  The distribution execute step returns the preview's confirmation token, plan hash and exact
+  confirmation phrase unchanged; a stale plan is never silently recomputed by the browser.
+- Obligation detail now additively includes its settlement IDs, linked transaction IDs, amounts,
+  dates and transaction references. This makes historical settlement cancellation reachable from
+  the UI while preserving the cash transaction that really occurred. No migration was required.
+- The UI uses the existing design system plus native CSS/SVG only. It includes Turkish TRY/date
+  formatting, server-paged tables, filtered CSV export, responsive stacked layouts, reason-bound
+  destructive confirmations and keyboard/Escape modal handling.
+- Verification: all 15 frontend tests, frontend typecheck and production build pass. All 748 .NET
+  tests pass against the running PostgreSQL test database; the six focused finance-obligation
+  persistence tests also pass independently.

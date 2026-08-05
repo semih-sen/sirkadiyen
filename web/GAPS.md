@@ -39,15 +39,16 @@ user-warning domains.
 
 ---
 
-## Update — finance backend implemented (2026-08-05)
+## Update — finance administration completed (2026-08-05)
 
-The finance module backend (ADR-093) is complete and moves from §3.1 to §3.2 below:
+The finance backend (ADR-093) and SuperAdmin workspace (ADR-094) are complete:
 `/api/admin/finance/*` (holders, accounts, transactions incl. edit/hard-delete/history, the
 ten-figure summary, monthly trend, CSV export, the module's own audit query),
 `/api/admin/finance/obligations/*` (receivables/debts, settle, cancel settlement, write off,
 cancel), and `/api/admin/finance/distributions/*` (the six-step preview/execute/reverse profit
-distribution flow). All SuperAdmin-only, CSRF-protected on every mutating route. No UI exists yet
-— `web/src/app/admin/finance/page.tsx` still renders `AdminUnavailable`.
+distribution flow). All are SuperAdmin-only and every mutating route is CSRF-protected. The
+`/admin/finance` workspace now exposes reporting, ledger CRUD/export, obligations, accounts,
+holders/shares, binding distribution preview/execute/reverse and finance-audit inspection.
 
 ---
 
@@ -128,7 +129,8 @@ fabricate records or metrics. The sections below separate remaining gaps from wi
 | Screen / module | Existing routes | Notes |
 | --- | --- | --- |
 | Diff serbest bırakma (held-diff release) | `GET /api/diffs`, `GET /api/diffs/{id}`, `POST /api/diffs/{id}/release` | Backend live (ADR-042). An ambiguity hold is **not** releasable and must be shown as such. Only the UI is missing. |
-| Finans (gelir/gider/kâr dağıtımı) | `admin-finance.html` | Backend live (ADR-093): `/api/admin/finance/*`, `/api/admin/finance/obligations/*`, `/api/admin/finance/distributions/*`. Uses the §4.3 high-risk 6-step pattern for distribution execute; needs a persistent "not statutory accounting" banner (plan constraint K9) once built. |
+| Başarısız diff yeniden deneme (failed-diff retry) | `GET /api/diffs?dispatchState=Failed`, `POST /api/diffs/{id}/retry` | Backend live (ADR-097). A separate queue from the held one: a failed diff is still `Ready`/`Released` in its review state, so it must be listed by `dispatchState`. The summary carries `dispatchAttempts`, `dispatchFailureReason` and `dispatchRetryCount` — show the retry count, since a diff retried repeatedly is the signal. |
+| Revizyon reddi (revision rejection) | `POST /api/revisions/{id}/reject` | Backend live (ADR-097). The review queue UI already exists and offers approve only; reject needs a required reason and must be presented as terminal — the correction is a newer revision from a corrected source, never a rollback. |
 
 ### 3.3 Wired read-only administration views
 
@@ -136,6 +138,8 @@ fabricate records or metrics. The sections below separate remaining gaps from wi
 - `/admin/sources`: source pipeline status, the latest persisted parser warning/evidence details and retained snapshot evidence beside administrative upload.
 - `/admin/access-logs`: masked sign-in log, audited transient IP reveal and cross-category audit query.
 - `/admin/server`: API liveness/readiness, internal worker `/health/ready`, parser `/health` probe and database-backed point-in-time counts. CPU/RAM/Redis metrics remain unavailable and are not fabricated.
+- `/admin/finance`: ten-figure summary/trends, transaction CRUD/export/history, obligation lifecycle,
+  account/holder/share management, binding profit distribution and append-only finance audit.
 
 ---
 
@@ -147,11 +151,29 @@ fabricate records or metrics. The sections below separate remaining gaps from wi
 
 ---
 
+---
+
+## Update — sync gating and operator recovery (2026-08-05)
+
+ADR-095 through ADR-097 added backend behaviour with frontend consequences:
+
+- **A revoked student now really stops synchronizing** (ADR-095). Their calendar and its events are
+  preserved, but nothing is written to them again. The suspended screen should say so plainly; it
+  currently does not mention the calendar at all.
+- **A profile change now re-synchronizes the calendar** (ADR-096). `PUT /api/profile` reports
+  `calendarResyncRequested` when the change altered the audience, so the profile screen can tell the
+  student their calendar is being updated rather than leaving them to wonder. The work is the
+  worker's; the response only says it was requested.
+- **Two new operator routes have no UI**, both listed in §3.2: revision rejection and failed-diff
+  retry.
+
+---
+
 ## 5. Suggested build order for closing gaps
 
-1. Wire **held-diff release** (backend already exists — §3.2).
+1. Wire **held-diff release**, **failed-diff retry** and **revision rejection** (backends already
+   exist — §3.2).
 2. Add a per-user sync activity log before exposing `GET /api/calendar/sync/history`.
 3. Decide and implement notification and contact contracts.
 4. Add exporter/host telemetry only if CPU/RAM/Redis visibility becomes a requirement; worker/parser process health is already wired.
-5. Wire **finance** next (backend already exists — §3.2). Remaining new product domains without
-   a backend: bulk event, user warning.
+5. Remaining new product domains without a backend: bulk event and user warning.

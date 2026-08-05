@@ -26,6 +26,10 @@ public sealed class WorkerOptionsFactoryTests
         Assert.Equal("Sirkadiyen", initialSync.CalendarSummary);
         Assert.Equal("Europe/Istanbul", polling.TimeZoneId);
         Assert.Equal(TimeSpan.FromMinutes(15), polling.DaytimeInterval);
+
+        var profileResync = factory.CreateProfileResyncOptions();
+        Assert.Equal(5, profileResync.ConnectionBatchSize);
+        Assert.Equal(100, profileResync.CalendarOperationsPerConnectionPerCycle);
     }
 
     [Fact]
@@ -37,6 +41,7 @@ public sealed class WorkerOptionsFactoryTests
             ["SIRKADIYEN_SYNC:CONNECTION_BATCH_SIZE"] = "8",
             ["SIRKADIYEN_POLLING:DAYTIME_START"] = "06:30",
             ["SIRKADIYEN_VALIDATION:MAXIMUM_DELETION_SHARE"] = "0.25",
+            ["SIRKADIYEN_SYNC:PROFILE_RESYNC_OPERATIONS_PER_CONNECTION"] = "40",
         });
         WorkerOptionsFactory factory = new(builder.Configuration, builder.Environment);
 
@@ -45,6 +50,9 @@ public sealed class WorkerOptionsFactoryTests
         Assert.Equal(8, factory.CreateInitialSyncOptions().ConnectionBatchSize);
         Assert.Equal(new TimeOnly(6, 30), factory.CreatePollingOptions().DaytimeStart);
         Assert.Equal(0.25, factory.CreateValidationOptions().MaximumDeletionShare);
+        Assert.Equal(
+            40,
+            factory.CreateProfileResyncOptions().CalendarOperationsPerConnectionPerCycle);
     }
 
     private static HostApplicationBuilder CreateBuilder(

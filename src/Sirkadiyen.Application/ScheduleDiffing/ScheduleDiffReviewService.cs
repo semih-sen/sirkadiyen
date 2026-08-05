@@ -35,6 +35,20 @@ public sealed class ScheduleDiffReviewService(
         return store.FindAsync(scheduleDiffId, entryLimit, cancellationToken);
     }
 
+    /// <summary>
+    /// Lists diffs by their calendar dispatch progress, which is how the failed queue is found
+    /// (ADR-097).
+    /// </summary>
+    public Task<IReadOnlyList<ScheduleDiffSummary>> ListByDispatchStateAsync(
+        CalendarDispatchState dispatchState,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
+
+        return store.ListByDispatchStateAsync(dispatchState, limit, cancellationToken);
+    }
+
     /// <summary>Releases a held diff on a named operator's behalf.</summary>
     public Task<ScheduleDiffReleaseResult> ReleaseAsync(
         Guid scheduleDiffId,
@@ -45,6 +59,22 @@ public sealed class ScheduleDiffReviewService(
             scheduleDiffId,
             releasedBy,
             releaseReason,
+            timeProvider.GetUtcNow(),
+            cancellationToken);
+
+    /// <summary>
+    /// Returns a terminally failed diff to the dispatch queue on a named operator's behalf
+    /// (ADR-097). The worker performs the fan-out; this only makes it eligible again.
+    /// </summary>
+    public Task<ScheduleDiffRetryResult> RetryDispatchAsync(
+        Guid scheduleDiffId,
+        string retriedBy,
+        string retryReason,
+        CancellationToken cancellationToken) =>
+        store.RetryDispatchAsync(
+            scheduleDiffId,
+            retriedBy,
+            retryReason,
             timeProvider.GetUtcNow(),
             cancellationToken);
 }

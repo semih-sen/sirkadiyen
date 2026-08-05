@@ -265,6 +265,16 @@ public sealed class CalendarAuthorizationServiceTests
             DateTimeOffset atUtc,
             CancellationToken cancellationToken) => throw new NotSupportedException();
 
+        public Task<IReadOnlyList<PendingProfileResync>> ListPendingProfileResyncAsync(
+            int limit,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<CompleteProfileResyncOutcome> CompleteProfileResyncAsync(
+            Guid userId,
+            DateTimeOffset expectedRequiredSinceUtc,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
         public Task<IReadOnlyList<PendingCalendarReconciliation>> ListPendingReconciliationAsync(
             int limit,
             CancellationToken cancellationToken) => throw new NotSupportedException();
@@ -308,7 +318,7 @@ public sealed class CalendarAuthorizationServiceTests
             Guid userId,
             CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public Task<StudentProfileView> UpsertAsync(
+        public Task<StudentProfileUpsertResult> UpsertAsync(
             Guid userId,
             string academicYear,
             int classYear,

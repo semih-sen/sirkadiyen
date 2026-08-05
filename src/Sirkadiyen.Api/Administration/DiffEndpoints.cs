@@ -35,13 +35,24 @@ public static class DiffEndpoints
             .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
             .WithSummary("Releases a held diff for dispatch.");
 
+        diffs.MapPost("/{id:guid}/retry", RetryAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
+            .WithSummary("Returns a terminally failed diff to the dispatch queue.");
+
         return builder;
     }
 
+    /// <remarks>
+    /// Two queues, one route. <c>state</c> answers "may this diff be acted on", which is the
+    /// held-review queue; <c>dispatchState</c> answers "has it been", which is the only way to find
+    /// a diff whose fan-out failed terminally — such a diff is still <c>Ready</c> or
+    /// <c>Released</c>, so the state filter would never show it (ADR-097).
+    /// </remarks>
     private static async Task<IResult> ListAsync(
         ScheduleDiffReviewService review,
         CancellationToken cancellationToken,
         ScheduleDiffState state = ScheduleDiffState.Held,
+        CalendarDispatchState? dispatchState = null,
         int limit = 50)
     {
         if (limit is < 1 or > MaximumListLimit)
@@ -52,7 +63,9 @@ public static class DiffEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        return Results.Ok(await review.ListAsync(state, limit, cancellationToken));
+        return Results.Ok(dispatchState is { } dispatch
+            ? await review.ListByDispatchStateAsync(dispatch, limit, cancellationToken)
+            : await review.ListAsync(state, limit, cancellationToken));
     }
 
     private static async Task<IResult> FindAsync(
@@ -150,6 +163,105 @@ public static class DiffEndpoints
             }),
         };
     }
+
+    private static async Task<IResult> RetryAsync(
+        Guid id,
+        RetryDiffRequest request,
+        ClaimsPrincipal principal,
+        ScheduleDiffReviewService review,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        string retriedBy = UserClaimsPrincipalFactory.GetRequiredEmail(principal);
+        string retryReason = request.RetryReason?.Trim() ?? string.Empty;
+
+        if (retryReason.Length == 0)
+        {
+            return Results.Problem(
+                title: "Incomplete retry",
+                detail: "'retryReason' is required.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (retriedBy.Length > ScheduleDiff.MaximumDispatchRetriedByLength
+            || retryReason.Length > ScheduleDiff.MaximumDispatchRetryReasonLength)
+        {
+            return Results.Problem(
+                title: "Retry fields are too long",
+                detail: $"'retriedBy' allows {ScheduleDiff.MaximumDispatchRetriedByLength} "
+                    + $"characters and 'retryReason' allows "
+                    + $"{ScheduleDiff.MaximumDispatchRetryReasonLength}.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        ScheduleDiffRetryResult result = await review.RetryDispatchAsync(
+            id,
+            retriedBy,
+            retryReason,
+            cancellationToken);
+
+        return result.Outcome switch
+        {
+            ScheduleDiffRetryOutcome.DiffNotFound => Results.Problem(
+                title: "Diff not found",
+                detail: $"No diff with ID '{id}' exists.",
+                statusCode: StatusCodes.Status404NotFound),
+
+            ScheduleDiffRetryOutcome.NotFailed => Results.Problem(
+                title: "Diff dispatch has not failed",
+                detail: $"The diff's dispatch is {result.ObservedDispatchState}, so there is "
+                    + "nothing to retry: a pending diff is already queued and a dispatched one "
+                    + "is done.",
+                statusCode: StatusCodes.Status409Conflict),
+
+            ScheduleDiffRetryOutcome.NotDispatchable => Results.Problem(
+                title: "Diff may not reach a calendar",
+                detail: "The diff is held, so retrying it would release it under another name. "
+                    + "Release it explicitly if an operator can take responsibility for it, or "
+                    + "correct the source and let a newer revision supersede it.",
+                statusCode: StatusCodes.Status409Conflict),
+
+            ScheduleDiffRetryOutcome.ConcurrentChange => Results.Problem(
+                title: "Diff changed during retry",
+                detail: "A worker or another operator changed this diff. Read it again before "
+                    + "retrying it.",
+                statusCode: StatusCodes.Status409Conflict),
+
+            _ => Results.Ok(new RetryDiffResponse
+            {
+                ScheduleDiffId = id,
+                Retried = true,
+                RetriedAtUtc = result.RetriedAtUtc,
+                DispatchRetryCount = result.DispatchRetryCount,
+            }),
+        };
+    }
+}
+
+/// <summary>
+/// Why the authenticated SuperAdmin is returning a failed diff to the dispatch queue.
+/// </summary>
+/// <remarks>
+/// The actor is derived from the backend-authenticated Google identity and is
+/// never accepted from this payload.
+/// </remarks>
+public sealed record RetryDiffRequest
+{
+    /// <example>The Calendar outage that exhausted the attempts is over; Google is answering again.</example>
+    public required string? RetryReason { get; init; }
+}
+
+public sealed record RetryDiffResponse
+{
+    public required Guid ScheduleDiffId { get; init; }
+
+    public required bool Retried { get; init; }
+
+    public DateTimeOffset? RetriedAtUtc { get; init; }
+
+    /// <summary>How many times this diff has now been retried, including this one.</summary>
+    public required int DispatchRetryCount { get; init; }
 }
 
 /// <summary>

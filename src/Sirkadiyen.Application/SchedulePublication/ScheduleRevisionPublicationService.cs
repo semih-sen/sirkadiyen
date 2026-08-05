@@ -120,6 +120,28 @@ public sealed class ScheduleRevisionPublicationService(
         };
     }
 
+    /// <summary>
+    /// Rejects a quarantined revision on an administrator's behalf, closing the review (ADR-097).
+    /// </summary>
+    /// <remarks>
+    /// Unlike approval this has no second step: <see cref="RevisionState.Rejected"/> is terminal,
+    /// nothing downstream consumes a rejected revision, and the correction is a newer revision
+    /// from a corrected source (ADR-033). It is deliberately not freeze-gated — refusing to publish
+    /// is not a mutation of the pipeline, and an operator working the queue during a freeze is
+    /// exactly who should be able to clear it.
+    /// </remarks>
+    public Task<RevisionRejectionResult> RejectAsync(
+        Guid revisionId,
+        string rejectedBy,
+        string rejectionReason,
+        CancellationToken cancellationToken) =>
+        store.RejectAsync(
+            revisionId,
+            rejectedBy,
+            rejectionReason,
+            timeProvider.GetUtcNow(),
+            cancellationToken);
+
     private static RevisionPublicationResult Frozen(Guid revisionId) => new()
     {
         RevisionId = revisionId,

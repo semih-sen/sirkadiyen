@@ -32,10 +32,34 @@ public interface IScheduleDiffReviewStore
         int entryLimit,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Lists diffs by how far their calendar fan-out has progressed, oldest first (ADR-097).
+    /// </summary>
+    /// <remarks>
+    /// Dispatch state is orthogonal to <see cref="ScheduleDiffState"/>: a diff whose fan-out failed
+    /// terminally is still <c>Ready</c> or <c>Released</c>, so the state-based queue cannot find it.
+    /// Without this the failed queue would be unenumerable and the retry route unusable.
+    /// </remarks>
+    Task<IReadOnlyList<ScheduleDiffSummary>> ListByDispatchStateAsync(
+        CalendarDispatchState dispatchState,
+        int limit,
+        CancellationToken cancellationToken);
+
     Task<ScheduleDiffReleaseResult> ReleaseAsync(
         Guid scheduleDiffId,
         string releasedBy,
         string releaseReason,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Returns a terminally failed diff to the dispatch queue on a named operator's behalf
+    /// (ADR-097).
+    /// </summary>
+    Task<ScheduleDiffRetryResult> RetryDispatchAsync(
+        Guid scheduleDiffId,
+        string retriedBy,
+        string retryReason,
         DateTimeOffset atUtc,
         CancellationToken cancellationToken);
 }
@@ -78,6 +102,28 @@ public sealed record ScheduleDiffSummary
     public string? ReleaseReason { get; init; }
 
     public DateTimeOffset? ReleasedAtUtc { get; init; }
+
+    /// <summary>How far the fan-out onto student calendars has progressed (ADR-059).</summary>
+    public required CalendarDispatchState CalendarDispatchState { get; init; }
+
+    public required int DispatchAttempts { get; init; }
+
+    public DateTimeOffset? DispatchedAtUtc { get; init; }
+
+    /// <summary>Why the last dispatch attempt failed; the operator's evidence for a retry.</summary>
+    public string? DispatchFailureReason { get; init; }
+
+    /// <summary>Whether an operator may return this diff to the dispatch queue (ADR-097).</summary>
+    public required bool IsDispatchRetriable { get; init; }
+
+    /// <summary>How many times an operator has already retried it.</summary>
+    public required int DispatchRetryCount { get; init; }
+
+    public string? LastDispatchRetriedBy { get; init; }
+
+    public string? LastDispatchRetryReason { get; init; }
+
+    public DateTimeOffset? LastDispatchRetriedAtUtc { get; init; }
 }
 
 public sealed record ScheduleDiffDetail
@@ -163,4 +209,39 @@ public enum ScheduleDiffReleaseOutcome
 
     /// <summary>Another operator changed the diff during this release.</summary>
     ConcurrentRelease,
+}
+
+public sealed record ScheduleDiffRetryResult
+{
+    public required ScheduleDiffRetryOutcome Outcome { get; init; }
+
+    /// <summary>The dispatch state observed when the retry was refused.</summary>
+    public CalendarDispatchState? ObservedDispatchState { get; init; }
+
+    public DateTimeOffset? RetriedAtUtc { get; init; }
+
+    /// <summary>How many times this diff has now been retried, including this one.</summary>
+    public int DispatchRetryCount { get; init; }
+}
+
+public enum ScheduleDiffRetryOutcome
+{
+    Retried,
+
+    DiffNotFound,
+
+    /// <summary>
+    /// The dispatch has not failed terminally, so there is nothing to retry: a pending diff is
+    /// already queued and a dispatched one is done.
+    /// </summary>
+    NotFailed,
+
+    /// <summary>
+    /// The diff is held, so it may not reach a calendar at all. Releasing it is the operator
+    /// action that applies (ADR-042), not retrying it.
+    /// </summary>
+    NotDispatchable,
+
+    /// <summary>Another operator or a worker changed the diff during this retry.</summary>
+    ConcurrentChange,
 }

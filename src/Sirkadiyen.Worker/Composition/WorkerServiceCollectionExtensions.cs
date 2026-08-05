@@ -55,6 +55,7 @@ internal static class WorkerServiceCollectionExtensions
         services.AddSingleton(options.CreateCalendarAuthorizationOptions());
         services.AddSingleton(options.CreateInitialSyncOptions());
         services.AddSingleton(options.CreateIncrementalSyncOptions());
+        services.AddSingleton(options.CreateProfileResyncOptions());
         services.AddSingleton(options.CreateReconciliationOptions());
         services.AddSingleton(options.CreateInventoryOptions());
         services.AddSirkadiyenDataProtection(options.DataProtectionKeyRingPath);
@@ -63,6 +64,7 @@ internal static class WorkerServiceCollectionExtensions
         services.AddScoped<DepartmentColorService>();
         services.AddScoped<InitialCalendarSyncService>();
         services.AddScoped<IncrementalCalendarSyncService>();
+        services.AddScoped<ProfileChangeResyncService>();
         services.AddScoped<CalendarReconciliationService>();
         services.AddScoped<CalendarInventoryReconciliationService>();
         services.AddSingleton<GoogleSheetsServiceFactory>();
@@ -86,6 +88,7 @@ internal static class WorkerServiceCollectionExtensions
         services.AddSingleton<InitialCalendarSyncTask>();
         services.AddSingleton<PendingDiffDispatchTask>();
         services.AddSingleton<CalendarReconciliationTask>();
+        services.AddSingleton<ProfileResyncTask>();
         services.AddSingleton<CalendarInventoryTask>();
         services.AddSingleton<FencedCalendarMaintenanceTask>();
         services.AddHostedService<Worker>();

@@ -52,4 +52,30 @@ public sealed class CanonicalScheduleReadStore(SirkadiyenDbContext dbContext)
             .Where(record => recordIds.Contains(record.Id))
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<PublishedRecordIdentity>> ListCurrentPublishedIdentitiesAsync(
+        string academicYear,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(academicYear);
+
+        // Across every program of the year, because the question this answers is "is this lesson
+        // still live" for a ledger row that may have been written under a different cohort than
+        // the student now belongs to. Only the identity is projected: a profile re-synchronization
+        // needs to know that the lesson exists, not what it says.
+        return await (
+            from record in dbContext.CanonicalScheduleRecords.AsNoTracking()
+            join revision in dbContext.ScheduleRevisions.AsNoTracking()
+                on record.ScheduleRevisionId equals revision.Id
+            where revision.State == RevisionState.Published
+                && record.RecordStatus == CanonicalRecordStatus.Scheduled
+                && record.AcademicYear == academicYear
+            select new PublishedRecordIdentity
+            {
+                SourceId = record.SourceId,
+                StableIdentity = record.StableIdentity,
+            })
+            .Distinct()
+            .ToListAsync(cancellationToken);
+    }
 }

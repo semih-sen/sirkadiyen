@@ -159,6 +159,7 @@ public sealed class CalendarReconciliationServiceTests
         {
             UserId = userId,
             StableIdentity = record.StableIdentity,
+            SourceId = record.SourceId,
             GoogleCalendarId = $"cal-{userId:N}",
             GoogleEventId = eventId,
             ContentHash = record.ContentHash,
@@ -321,6 +322,16 @@ public sealed class CalendarReconciliationServiceTests
 
         public bool FlaggedForReauthorization { get; private set; }
 
+        public Task<IReadOnlyList<PendingProfileResync>> ListPendingProfileResyncAsync(
+            int limit,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<CompleteProfileResyncOutcome> CompleteProfileResyncAsync(
+            Guid userId,
+            DateTimeOffset expectedRequiredSinceUtc,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
         public Task<IReadOnlyList<PendingCalendarReconciliation>> ListPendingReconciliationAsync(
             int limit,
             CancellationToken cancellationToken)
@@ -450,6 +461,7 @@ public sealed class CalendarReconciliationServiceTests
             {
                 UserId = mapping.UserId,
                 StableIdentity = mapping.StableIdentity,
+                SourceId = mapping.SourceId,
                 GoogleCalendarId = mapping.GoogleCalendarId,
                 GoogleEventId = mapping.GoogleEventId,
                 ContentHash = mapping.ContentHash,
@@ -644,6 +656,10 @@ public sealed class CalendarReconciliationServiceTests
     private sealed class FakeScheduleReadStore(IReadOnlyList<CanonicalScheduleRecord> records)
         : ICanonicalScheduleReadStore
     {
+        public Task<IReadOnlyList<PublishedRecordIdentity>> ListCurrentPublishedIdentitiesAsync(
+            string academicYear,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
         public Task<IReadOnlyList<CanonicalScheduleRecord>> ListRecordsByIdsAsync(
             IReadOnlyCollection<Guid> recordIds,
             CancellationToken cancellationToken) =>
@@ -668,7 +684,7 @@ public sealed class CalendarReconciliationServiceTests
             Guid userId,
             CancellationToken cancellationToken) => throw new NotSupportedException();
 
-        public Task<StudentProfileView> UpsertAsync(
+        public Task<StudentProfileUpsertResult> UpsertAsync(
             Guid userId,
             string academicYear,
             int classYear,

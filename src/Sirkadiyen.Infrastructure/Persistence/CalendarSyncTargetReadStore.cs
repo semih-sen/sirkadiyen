@@ -79,6 +79,11 @@ public sealed class CalendarSyncTargetReadStore(SirkadiyenDbContext dbContext)
     /// calendar attached — to their student profile. Both halves are needed: the connection for the
     /// credential and calendar, the profile for the audience decision.
     /// </summary>
+    /// <remarks>
+    /// An active license is required here as well (ADR-095). Revocation stops future
+    /// synchronization, so a revoked student drops out of diff fan-out and periodic inventory on
+    /// the next cycle while keeping every event already written to their calendar.
+    /// </remarks>
     private IQueryable<Row> ReadyTargets() =>
         from connection in dbContext.GoogleCalendarConnections.AsNoTracking()
         join profile in dbContext.StudentProfiles.AsNoTracking()
@@ -87,6 +92,7 @@ public sealed class CalendarSyncTargetReadStore(SirkadiyenDbContext dbContext)
             && connection.InitialSyncState == GoogleCalendarInitialSyncState.Completed
             && connection.ManagedCalendarId != null
             && connection.ManagedCalendarUnavailableAtUtc == null
+            && ActiveLicenseQuery.UserIds(dbContext).Contains(connection.UserId)
         select new Row { Connection = connection, Profile = profile };
 
     private static IReadOnlyList<CalendarSyncTarget> Project(IEnumerable<Row> rows) =>

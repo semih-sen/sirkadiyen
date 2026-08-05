@@ -311,6 +311,77 @@ public sealed class GoogleCalendarConnectionTests
         Assert.Equal(GoogleCalendarInitialSyncState.Completed, connection.InitialSyncState);
     }
 
+    [Fact]
+    public void AProfileChangeOnACompletedConnectionRecordsAResyncRequest()
+    {
+        GoogleCalendarConnection connection = CompletedConnection();
+
+        Assert.True(connection.TryRequestProfileResync(Now.AddHours(1)));
+        Assert.Equal(Now.AddHours(1), connection.ProfileResyncRequiredSinceUtc);
+        Assert.Equal(Now.AddHours(1), connection.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public void ASecondProfileChangeKeepsTheOldestUnconvergedRequest()
+    {
+        // The queue is ordered by the request time, so pushing it forward on every change would
+        // let a student who keeps editing starve the others.
+        GoogleCalendarConnection connection = CompletedConnection();
+        connection.TryRequestProfileResync(Now.AddHours(1));
+
+        connection.TryRequestProfileResync(Now.AddHours(2));
+
+        Assert.Equal(Now.AddHours(1), connection.ProfileResyncRequiredSinceUtc);
+    }
+
+    [Fact]
+    public void AConnectionWhoseInitialSyncHasNotFinishedNeedsNoResyncRequest()
+    {
+        // Initial sync resolves the audience from the profile as it stands when it runs.
+        GoogleCalendarConnection connection = Create();
+
+        Assert.False(connection.TryRequestProfileResync(Now.AddHours(1)));
+        Assert.Null(connection.ProfileResyncRequiredSinceUtc);
+    }
+
+    [Fact]
+    public void CompletingAResyncClearsItsRequest()
+    {
+        GoogleCalendarConnection connection = CompletedConnection();
+        connection.TryRequestProfileResync(Now.AddHours(1));
+
+        connection.CompleteProfileResync(Now.AddHours(1), Now.AddHours(2));
+
+        Assert.Null(connection.ProfileResyncRequiredSinceUtc);
+        Assert.Equal(Now.AddHours(2), connection.UpdatedAtUtc);
+    }
+
+    [Fact]
+    public void AStaleWorkerCannotClearANewerResyncRequest()
+    {
+        // The request timestamp is an optimistic workflow token: a pass that converged the older
+        // profile must not clear a change made while it ran.
+        GoogleCalendarConnection connection = CompletedConnection();
+        connection.TryRequestProfileResync(Now.AddHours(1));
+
+        Assert.Throws<InvalidOperationException>(
+            () => connection.CompleteProfileResync(Now.AddMinutes(30), Now.AddHours(2)));
+        Assert.Equal(Now.AddHours(1), connection.ProfileResyncRequiredSinceUtc);
+    }
+
+    [Fact]
+    public void AResyncRequestSurvivesReauthorization()
+    {
+        // A dead credential is not a failure of the request: it waits for the new grant.
+        GoogleCalendarConnection connection = CompletedConnection();
+        connection.TryRequestProfileResync(Now.AddHours(1));
+        connection.MarkNeedsReauthorization(Now.AddHours(2));
+
+        connection.Reauthorize("protected-token-2", Scope, Now.AddHours(3));
+
+        Assert.Equal(Now.AddHours(1), connection.ProfileResyncRequiredSinceUtc);
+    }
+
     private static GoogleCalendarConnection Create(
         Guid? userId = null,
         string protectedRefreshToken = "protected-token",

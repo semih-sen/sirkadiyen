@@ -31,6 +31,10 @@ public sealed class ScheduleDiff
 
     public const int MaximumDispatchFailureReasonLength = 2000;
 
+    public const int MaximumDispatchRetriedByLength = 200;
+
+    public const int MaximumDispatchRetryReasonLength = 2000;
+
     private readonly List<ScheduleDiffEntry> entries = [];
 
     private ScheduleDiff()
@@ -157,6 +161,19 @@ public sealed class ScheduleDiff
 
     /// <summary>Why the last dispatch attempt failed, kept for the operator who reads a failed diff.</summary>
     public string? DispatchFailureReason { get; private set; }
+
+    /// <summary>
+    /// How many times an operator has returned this diff to the dispatch queue after it failed
+    /// terminally (ADR-097). A diff retried repeatedly is an operational signal in its own right,
+    /// so the count is kept rather than reset with the attempts.
+    /// </summary>
+    public int DispatchRetryCount { get; private set; }
+
+    public string? LastDispatchRetriedBy { get; private set; }
+
+    public string? LastDispatchRetryReason { get; private set; }
+
+    public DateTimeOffset? LastDispatchRetriedAtUtc { get; private set; }
 
     public uint RowVersion { get; private set; }
 
@@ -309,6 +326,62 @@ public sealed class ScheduleDiff
             int exponent = Math.Min(DispatchAttempts - 1, 12);
             NextAttemptAtUtc = now + (baseRetryDelay * Math.Pow(2, exponent));
         }
+    }
+
+    /// <summary>
+    /// Whether an operator may return this diff to the dispatch queue: it failed terminally, and
+    /// it is still allowed to reach a calendar at all.
+    /// </summary>
+    public bool IsDispatchRetriable =>
+        IsDispatchable && CalendarDispatchState is CalendarDispatchState.Failed;
+
+    /// <summary>
+    /// Returns a terminally failed diff to the dispatch queue on a named operator's behalf
+    /// (ADR-097).
+    /// </summary>
+    /// <remarks>
+    /// This grants no new authority. The diff is the same immutable record it always was, it must
+    /// still be dispatchable, and the fan-out it re-enters is the ordinary idempotent one: an
+    /// operation already applied converges through the deterministic event id and the mapping
+    /// ledger rather than being applied twice. Attempts are reset because the next attempt is a
+    /// fresh one; the retry itself is counted separately so resetting them hides nothing.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">The diff has not failed terminally.</exception>
+    public void RetryDispatch(string retriedBy, string retryReason, DateTimeOffset atUtc)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(retriedBy);
+        ArgumentException.ThrowIfNullOrWhiteSpace(retryReason);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            retriedBy.Length,
+            MaximumDispatchRetriedByLength,
+            nameof(retriedBy));
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            retryReason.Length,
+            MaximumDispatchRetryReasonLength,
+            nameof(retryReason));
+
+        if (!IsDispatchable)
+        {
+            throw new InvalidOperationException(
+                $"A diff in {State} cannot be dispatched to calendars.");
+        }
+
+        if (CalendarDispatchState is not CalendarDispatchState.Failed)
+        {
+            throw new InvalidOperationException(
+                $"Only a failed dispatch can be retried; this one is {CalendarDispatchState}.");
+        }
+
+        CalendarDispatchState = CalendarDispatchState.Pending;
+        DispatchAttempts = 0;
+        NextAttemptAtUtc = null;
+        DispatchRetryCount++;
+        LastDispatchRetriedBy = retriedBy;
+        LastDispatchRetryReason = retryReason;
+        LastDispatchRetriedAtUtc = atUtc;
+
+        // DispatchFailureReason is deliberately left in place: until the retried attempt reports
+        // its own outcome, why it failed last time is still the most useful thing to read.
     }
 
     private string? DescribeHold(ScheduleDiffSafetyThresholds thresholds)

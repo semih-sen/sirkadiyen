@@ -205,6 +205,94 @@ public sealed class ScheduleRevisionPublicationStoreTests(PostgresFixture fixtur
     }
 
     [Fact]
+    public async Task RejectionClosesTheReviewAndRecordsWhoDecidedAndWhy()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        (_, ScheduleRevision revision) =
+            await AddRevisionAsync(context, RevisionState.ReviewRequired);
+
+        ScheduleRevisionPublicationStore store = new(context);
+        RevisionRejectionResult rejection = await store.RejectAsync(
+            revision.Id,
+            "semih",
+            "The workbook was mid-edit; half the rooms are blank.",
+            Now,
+            Token);
+
+        Assert.Equal(RevisionRejectionOutcome.Rejected, rejection.Outcome);
+
+        context.ChangeTracker.Clear();
+        ScheduleRevision stored = await ReadAsync(context, revision.Id);
+        Assert.Equal(RevisionState.Rejected, stored.State);
+        Assert.Equal("semih", stored.RejectedBy);
+        Assert.Equal(
+            "The workbook was mid-edit; half the rooms are blank.",
+            stored.RejectionReason);
+        Assert.Equal(Now, stored.RejectedAtUtc);
+
+        // A rejection must never leave a row that says somebody approved it.
+        Assert.Null(stored.ApprovedBy);
+    }
+
+    [Fact]
+    public async Task ARejectedRevisionIsNotQueuedForPublication()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        (_, ScheduleRevision revision) =
+            await AddRevisionAsync(context, RevisionState.ReviewRequired);
+
+        ScheduleRevisionPublicationStore store = new(context);
+        await store.RejectAsync(revision.Id, "semih", "Bad parse.", Now, Token);
+
+        context.ChangeTracker.Clear();
+        Assert.DoesNotContain(revision.Id, await store.ListPublishableAsync(500, Token));
+
+        // And it is terminal: publication refuses it outright.
+        RevisionPublicationResult publication =
+            await store.PublishAsync(revision.Id, Now.AddMinutes(1), Token);
+        Assert.Equal(RevisionPublicationOutcome.NotValidated, publication.Outcome);
+        Assert.Equal(RevisionState.Rejected, publication.ObservedState);
+    }
+
+    [Theory]
+    [InlineData(RevisionState.Validated)]
+    [InlineData(RevisionState.Parsed)]
+    public async Task OnlyAQuarantinedRevisionCanBeRejected(RevisionState state)
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        (_, ScheduleRevision revision) = await AddRevisionAsync(context, state);
+
+        ScheduleRevisionPublicationStore store = new(context);
+        RevisionRejectionResult rejection = await store.RejectAsync(
+            revision.Id,
+            "semih",
+            "Nothing to reject.",
+            Now,
+            Token);
+
+        Assert.Equal(RevisionRejectionOutcome.NotAwaitingReview, rejection.Outcome);
+        Assert.Equal(state, rejection.ObservedState);
+
+        context.ChangeTracker.Clear();
+        Assert.Null((await ReadAsync(context, revision.Id)).RejectedBy);
+    }
+
+    [Fact]
+    public async Task RejectingAMissingRevisionIsReportedRatherThanThrown()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+
+        RevisionRejectionResult rejection = await new ScheduleRevisionPublicationStore(context)
+            .RejectAsync(Guid.CreateVersion7(), "semih", "Reason.", Now, Token);
+
+        Assert.Equal(RevisionRejectionOutcome.RevisionNotFound, rejection.Outcome);
+    }
+
+    [Fact]
     public async Task AnOlderRevisionCannotReplaceANewerPublishedOne()
     {
         // Publishing backwards would make the source's live schedule regress, and

@@ -29,4 +29,31 @@ public interface ICanonicalScheduleReadStore
     Task<IReadOnlyList<CanonicalScheduleRecord>> ListRecordsByIdsAsync(
         IReadOnlyCollection<Guid> recordIds,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The <c>(SourceId, StableIdentity)</c> pairs every currently-published revision of one
+    /// academic year states, across programs (ADR-096).
+    /// </summary>
+    /// <remarks>
+    /// This answers "is this lesson still live" for a ledger row, which the row's
+    /// <c>CanonicalRecordId</c> cannot: that id points at whichever revision wrote the event, and
+    /// an <c>Unchanged</c> diff entry never advances it, so a republished-but-identical lesson
+    /// would look retired. The stable identity is what survives revisions, so it is the join key.
+    /// <para>
+    /// A profile re-synchronization uses it as the boundary on its deletions: a mapping absent
+    /// from this set is left completely alone, because removing it would be deleting from absence
+    /// rather than from a published decision (AI_GUIDELINE §13).
+    /// </para>
+    /// </remarks>
+    Task<IReadOnlyList<PublishedRecordIdentity>> ListCurrentPublishedIdentitiesAsync(
+        string academicYear,
+        CancellationToken cancellationToken);
+}
+
+/// <summary>One live lesson's identity, as the ledger keys it.</summary>
+public sealed record PublishedRecordIdentity
+{
+    public required SourceId SourceId { get; init; }
+
+    public required string StableIdentity { get; init; }
 }

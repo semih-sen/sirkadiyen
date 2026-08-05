@@ -223,6 +223,150 @@ public sealed class ScheduleDiffReviewStoreTests(PostgresFixture fixture)
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
+    [Fact]
+    public async Task TheFailedDispatchQueueIsFoundByDispatchStateNotReviewState()
+    {
+        // A diff whose fan-out failed terminally is still Ready in its review state, so the
+        // state-based queue can never show it (ADR-097).
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        ScheduleDiff diff = await FailADispatchAsync(context);
+
+        ScheduleDiffSummary summary = Assert.Single(
+            await Store(context).ListByDispatchStateAsync(CalendarDispatchState.Failed, 500, Token),
+            candidate => candidate.ScheduleDiffId == diff.Id);
+
+        Assert.Equal(ScheduleDiffState.Ready, summary.State);
+        Assert.Equal(CalendarDispatchState.Failed, summary.CalendarDispatchState);
+        Assert.Equal(1, summary.DispatchAttempts);
+        Assert.Equal("Google was unavailable.", summary.DispatchFailureReason);
+        Assert.True(summary.IsDispatchRetriable);
+        Assert.Equal(0, summary.DispatchRetryCount);
+
+        Assert.DoesNotContain(
+            await Store(context).ListByStateAsync(ScheduleDiffState.Held, 500, Token),
+            candidate => candidate.ScheduleDiffId == diff.Id);
+    }
+
+    [Fact]
+    public async Task RetryingAFailedDiffReturnsItToTheDispatchQueueAndRecordsWho()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        ScheduleDiff diff = await FailADispatchAsync(context);
+
+        ScheduleDiffRetryResult retry = await Store(context).RetryDispatchAsync(
+            diff.Id,
+            "semih",
+            "The Calendar outage is over.",
+            Now.AddHours(3),
+            Token);
+
+        Assert.Equal(ScheduleDiffRetryOutcome.Retried, retry.Outcome);
+        Assert.Equal(1, retry.DispatchRetryCount);
+
+        context.ChangeTracker.Clear();
+        ScheduleDiff stored = await context.ScheduleDiffs.SingleAsync(
+            candidate => candidate.Id == diff.Id,
+            Token);
+        Assert.Equal(CalendarDispatchState.Pending, stored.CalendarDispatchState);
+        Assert.Equal(0, stored.DispatchAttempts);
+        Assert.Null(stored.NextAttemptAtUtc);
+        Assert.Equal("semih", stored.LastDispatchRetriedBy);
+        Assert.Equal("The Calendar outage is over.", stored.LastDispatchRetryReason);
+        Assert.Equal(Now.AddHours(3), stored.LastDispatchRetriedAtUtc);
+
+        // Back in the queue the dispatcher scans, with no new authority granted.
+        Assert.True(stored.IsDispatchPending);
+        Assert.Contains(
+            diff.Id,
+            await new ScheduleDiffStore(context).ListPendingDispatchAsync(
+                500,
+                Now.AddHours(4),
+                Token));
+    }
+
+    [Fact]
+    public async Task ADispatchThatHasNotFailedHasNothingToRetry()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        ScheduleSource source = await ScheduleDiffScenario.AddSourceAsync(context);
+        ScheduleRevision revision = await ScheduleDiffScenario.PublishAsync(
+            context,
+            source,
+            Now,
+            ["a", "b"]);
+        ScheduleDiff diff = await CalculateAsync(context, revision.Id);
+
+        ScheduleDiffRetryResult retry = await Store(context)
+            .RetryDispatchAsync(diff.Id, "semih", "Impatient.", Now, Token);
+
+        Assert.Equal(ScheduleDiffRetryOutcome.NotFailed, retry.Outcome);
+        Assert.Equal(CalendarDispatchState.Pending, retry.ObservedDispatchState);
+    }
+
+    [Fact]
+    public async Task AHeldDiffCannotBeRetriedIntoDispatch()
+    {
+        // Retrying a held diff would be releasing it under another name (ADR-042).
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        ScheduleDiff diff = await HoldAMassDeletionAsync(context);
+
+        ScheduleDiffRetryResult retry = await Store(context)
+            .RetryDispatchAsync(diff.Id, "semih", "Just push it through.", Now, Token);
+
+        Assert.Equal(ScheduleDiffRetryOutcome.NotDispatchable, retry.Outcome);
+
+        context.ChangeTracker.Clear();
+        ScheduleDiff stored = await context.ScheduleDiffs.SingleAsync(
+            candidate => candidate.Id == diff.Id,
+            Token);
+        Assert.Equal(ScheduleDiffState.Held, stored.State);
+        Assert.False(stored.IsDispatchable);
+    }
+
+    [Fact]
+    public async Task RetryingAMissingDiffIsReportedRatherThanThrown()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+
+        Assert.Equal(
+            ScheduleDiffRetryOutcome.DiffNotFound,
+            (await Store(context).RetryDispatchAsync(
+                Guid.CreateVersion7(),
+                "semih",
+                "Reason.",
+                Now,
+                Token)).Outcome);
+    }
+
+    /// <summary>A dispatchable diff whose fan-out has exhausted its attempts.</summary>
+    private static async Task<ScheduleDiff> FailADispatchAsync(SirkadiyenDbContext context)
+    {
+        ScheduleSource source = await ScheduleDiffScenario.AddSourceAsync(context);
+        ScheduleRevision revision = await ScheduleDiffScenario.PublishAsync(
+            context,
+            source,
+            Now,
+            ["a", "b"]);
+        ScheduleDiff diff = await CalculateAsync(context, revision.Id);
+        Assert.Equal(ScheduleDiffState.Ready, diff.State);
+
+        await new ScheduleDiffStore(context).RecordDispatchFailureAsync(
+            diff.Id,
+            "Google was unavailable.",
+            TimeSpan.FromSeconds(30),
+            maxAttempts: 1,
+            Now.AddHours(1),
+            Token);
+
+        context.ChangeTracker.Clear();
+        return diff;
+    }
+
     private static ScheduleDiffReviewStore Store(SirkadiyenDbContext context) => new(context);
 
     /// <summary>Publishes 40 lessons and then 20, which trips the dispatch gate.</summary>

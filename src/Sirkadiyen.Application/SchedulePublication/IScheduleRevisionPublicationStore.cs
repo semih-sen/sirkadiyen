@@ -45,6 +45,17 @@ public interface IScheduleRevisionPublicationStore
         string approvalReason,
         DateTimeOffset approvedAtUtc,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Records a rejection against a quarantined revision and moves it to the terminal
+    /// <see cref="RevisionState.Rejected"/> state (ADR-097).
+    /// </summary>
+    Task<RevisionRejectionResult> RejectAsync(
+        Guid revisionId,
+        string rejectedBy,
+        string rejectionReason,
+        DateTimeOffset rejectedAtUtc,
+        CancellationToken cancellationToken);
 }
 
 public sealed record RevisionPublicationResult
@@ -102,5 +113,28 @@ public enum RevisionApprovalOutcome
     RevisionNotFound,
 
     /// <summary>The revision is not waiting for review, so there is nothing to release.</summary>
+    NotAwaitingReview,
+}
+
+public sealed record RevisionRejectionResult
+{
+    public required Guid RevisionId { get; init; }
+
+    public required RevisionRejectionOutcome Outcome { get; init; }
+
+    public RevisionState? ObservedState { get; init; }
+}
+
+public enum RevisionRejectionOutcome
+{
+    Rejected,
+
+    RevisionNotFound,
+
+    /// <summary>
+    /// The revision is not waiting for review, so there is nothing to reject. A validated revision
+    /// is corrected by publishing a newer one over it, and a published one is never withdrawn
+    /// (ADR-033).
+    /// </summary>
     NotAwaitingReview,
 }

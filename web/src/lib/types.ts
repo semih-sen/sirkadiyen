@@ -528,6 +528,245 @@ export interface ApproveRevisionResponse {
   supersededRevisionId?: string | null;
 }
 
+// Finance administration (SuperAdmin): /api/admin/finance/*
+export type FinanceAccountKind = 'Cash' | 'Bank';
+export type FinanceAccountStatus = 'Active' | 'Closed';
+export type FinanceAccountHolderStatus = 'Active' | 'Inactive';
+export type FinanceTransactionKind = 'OpeningBalance' | 'Income' | 'Expense' | 'Transfer' | 'Distribution';
+export type FinanceLedgerLeg = 'Single' | 'From' | 'To';
+export type FinanceCategory =
+  | 'LicenseSales' | 'Sponsorship' | 'Donation' | 'OtherIncome'
+  | 'Servers' | 'Domains' | 'ExternalServices' | 'SoftwareLicenses'
+  | 'Marketing' | 'Operational' | 'Charitable' | 'OtherExpense';
+export type FinancePeriodSelector =
+  | 'CurrentMonth' | 'PreviousMonth' | 'NextMonth'
+  | 'LastThreeMonths' | 'NextThreeMonths' | 'Custom';
+
+export interface FinanceAccountHolderListItem {
+  holderId: string;
+  displayName: string;
+  userId?: string | null;
+  shareBasisPoints: number;
+  status: FinanceAccountHolderStatus;
+}
+
+export interface FinanceAccountListItem {
+  accountId: string;
+  financeAccountHolderId: string;
+  holderDisplayName: string;
+  name: string;
+  kind: FinanceAccountKind;
+  currencyCode: string;
+  status: FinanceAccountStatus;
+  openedOn: string;
+  currentBalance: number;
+  balanceAsOfOn: string;
+}
+
+export interface FinanceTransactionListItemEntry {
+  financeAccountId: string;
+  accountName: string;
+  leg: FinanceLedgerLeg;
+  amount: number;
+}
+
+export interface FinanceTransactionListItem {
+  transactionId: string;
+  kind: FinanceTransactionKind;
+  category?: FinanceCategory | null;
+  amount: number;
+  occurredOn: string;
+  description: string;
+  reference?: string | null;
+  counterpartyName?: string | null;
+  revisionNumber: number;
+  entries: FinanceTransactionListItemEntry[];
+}
+
+export interface FinanceTransactionDetail {
+  transaction: FinanceTransactionListItem;
+  rowVersion: number;
+  createdByUserId: string;
+  createdByEmail: string;
+  createdAtUtc: string;
+  updatedByUserId: string;
+  updatedByEmail: string;
+  updatedAtUtc: string;
+}
+
+export interface FinanceTransactionFilters {
+  from?: string;
+  to?: string;
+  kind?: FinanceTransactionKind;
+  category?: FinanceCategory;
+  accountId?: string;
+  holderId?: string;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface FinanceCategoryTotal {
+  category: FinanceCategory;
+  kind: FinanceTransactionKind;
+  total: number;
+}
+
+export interface FinanceSummary {
+  periodStartOn: string;
+  periodEndOn: string;
+  accountId?: string | null;
+  carriedOver: number;
+  income: number;
+  expenses: number;
+  balance: number;
+  currentBalance: number;
+  asOfOn: string;
+  toBeCarriedOver: number;
+  receivables: number;
+  collections: number;
+  debts: number;
+  payments: number;
+  periodStartsInFuture: boolean;
+  periodIsClosed: boolean;
+  categoryTotals: FinanceCategoryTotal[];
+}
+
+export interface FinanceTrendPoint {
+  year: number;
+  month: number;
+  income: number;
+  expenses: number;
+  net: number;
+}
+
+export interface FinanceAccountHolderMutationResult {
+  outcome: string;
+  holderId?: string | null;
+}
+
+export interface FinanceAccountMutationResult {
+  outcome: string;
+  accountId?: string | null;
+}
+
+export interface FinanceTransactionMutationResult {
+  outcome: string;
+  transactionId?: string | null;
+  revisionNumber?: number | null;
+}
+
+export type FinanceObligationDirection = 'Receivable' | 'Payable';
+export type FinanceObligationStatus = 'Open' | 'PartiallySettled' | 'Settled' | 'WrittenOff' | 'Cancelled';
+
+export interface FinanceObligationSettlementListItem {
+  settlementId: string;
+  transactionId: string;
+  amount: number;
+  settledOn: string;
+  recordedAtUtc: string;
+  reference?: string | null;
+}
+
+export interface FinanceObligationListItem {
+  obligationId: string;
+  direction: FinanceObligationDirection;
+  category: FinanceCategory;
+  counterpartyName: string;
+  description?: string | null;
+  amount: number;
+  settledAmount: number;
+  issuedOn: string;
+  dueOn?: string | null;
+  status: FinanceObligationStatus;
+  rowVersion: number;
+  settlements: FinanceObligationSettlementListItem[];
+}
+
+export interface FinanceObligationMutationResult {
+  outcome: string;
+  obligationId?: string | null;
+  settlementId?: string | null;
+  transactionId?: string | null;
+}
+
+export type FinanceDistributionPlanOutcome =
+  | 'Ready' | 'NothingToDistribute' | 'NoEligiblePartners' | 'SharesDoNotSumToTotal'
+  | 'SourceAccountNotFound' | 'SourceAccountClosed' | 'AlreadyDistributedForPeriod';
+export type FinanceDistributionStatus = 'Executed' | 'Reversed';
+
+export interface FinanceDistributionPlanShare {
+  holderId: string;
+  holderDisplayName: string;
+  shareBasisPoints: number;
+  exactShareMinorUnits: number;
+  allocatedAmount: number;
+  remainderUnitAwarded: boolean;
+}
+
+export interface FinanceDistributionExclusion {
+  holderId: string;
+  holderDisplayName: string;
+  reason: 'NotAPartner' | 'HolderInactive' | 'HolderHasNoShare' | string;
+}
+
+export interface FinanceDistributionPlan {
+  outcome: FinanceDistributionPlanOutcome;
+  periodStartOn: string;
+  periodEndOn: string;
+  sourceAccountId?: string | null;
+  distributableAmount: number;
+  shares: FinanceDistributionPlanShare[];
+  exclusions: FinanceDistributionExclusion[];
+  confirmationToken?: string | null;
+  planHash?: string | null;
+  expectedConfirmationPhrase?: string | null;
+}
+
+export interface FinanceDistributionResult {
+  outcome: string;
+  distributionId?: string | null;
+}
+
+export interface FinanceDistributionListItem {
+  distributionId: string;
+  periodStartOn: string;
+  periodEndOn: string;
+  sourceFinanceAccountId: string;
+  distributableAmount: number;
+  status: FinanceDistributionStatus;
+  executedAtUtc: string;
+}
+
+export type FinanceAuditAction =
+  | 'AccountOpened' | 'AccountUpdated' | 'AccountClosed'
+  | 'HolderCreated' | 'HolderUpdated' | 'HolderDeactivated' | 'PartnerSharesChanged'
+  | 'TransactionCreated' | 'TransactionUpdated' | 'TransactionDeleted'
+  | 'ObligationCreated' | 'ObligationUpdated' | 'ObligationSettled'
+  | 'ObligationSettlementCancelled' | 'ObligationWrittenOff' | 'ObligationCancelled'
+  | 'DistributionExecuted' | 'DistributionReversed';
+
+export interface FinanceAuditListItem {
+  sequence: number;
+  action: FinanceAuditAction;
+  subjectType: string;
+  subjectId: string;
+  actorUserId: string;
+  actorEmail: string;
+  occurredAtUtc: string;
+  correlationId?: string | null;
+  reason?: string | null;
+  amountDelta: number;
+  revisionNumber: number;
+  changedFields: string[];
+}
+
+export interface FinanceAuditDetail {
+  summary: FinanceAuditListItem;
+  beforeState?: string | null;
+  afterState?: string | null;
+}
+
 /** RFC 7807 problem details, as returned by AddProblemDetails / Results.Problem. */
 export interface ProblemDetails {
   type?: string;

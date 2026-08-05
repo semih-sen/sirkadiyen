@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using Sirkadiyen.Application.StudentProfiles;
+using Sirkadiyen.Domain.GoogleCalendar;
 using Sirkadiyen.Domain.ScheduleSources;
 using Sirkadiyen.Domain.StudentProfiles;
 
@@ -26,7 +27,7 @@ public sealed class StudentProfileStore(SirkadiyenDbContext dbContext) : IStuden
             .AsNoTracking()
             .AnyAsync(candidate => candidate.UserId == userId, cancellationToken);
 
-    public async Task<StudentProfileView> UpsertAsync(
+    public async Task<StudentProfileUpsertResult> UpsertAsync(
         Guid userId,
         string academicYear,
         int classYear,
@@ -48,7 +49,7 @@ public sealed class StudentProfileStore(SirkadiyenDbContext dbContext) : IStuden
             retryAfterConcurrentInsert: true,
             cancellationToken);
 
-    private async Task<StudentProfileView> UpsertAsync(
+    private async Task<StudentProfileUpsertResult> UpsertAsync(
         Guid userId,
         string academicYear,
         int classYear,
@@ -72,6 +73,8 @@ public sealed class StudentProfileStore(SirkadiyenDbContext dbContext) : IStuden
                         candidate => candidate.UserId == userId,
                         cancellationToken);
 
+                bool audienceChanged = false;
+
                 if (profile is null)
                 {
                     profile = StudentProfile.Create(
@@ -87,6 +90,15 @@ public sealed class StudentProfileStore(SirkadiyenDbContext dbContext) : IStuden
                 }
                 else
                 {
+                    // Asked before the update, while the stored values are still the old ones.
+                    // A first profile is never an audience change: there is nothing on a calendar
+                    // yet, and initial sync resolves the audience when it runs (ADR-096).
+                    audienceChanged = !profile.DescribesSameAudienceAs(
+                        academicYear,
+                        classYear,
+                        programLanguage,
+                        selectors);
+
                     profile.Update(
                         academicYear,
                         classYear,
@@ -97,9 +109,20 @@ public sealed class StudentProfileStore(SirkadiyenDbContext dbContext) : IStuden
                         atUtc);
                 }
 
+                bool resyncRequested = audienceChanged
+                    && await RequestCalendarResyncAsync(userId, atUtc, cancellationToken);
+
+                // One transaction for both writes. A profile that has moved to a new cohort while
+                // nothing knows the calendar must follow is precisely the state ADR-096 exists to
+                // prevent, so the request cannot be lost to a crash between them.
                 await dbContext.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
-                return View(profile);
+                return new StudentProfileUpsertResult
+                {
+                    Profile = View(profile),
+                    AudienceChanged = audienceChanged,
+                    CalendarResyncRequested = resyncRequested,
+                };
             });
         }
         catch (DbUpdateException exception)
@@ -121,6 +144,23 @@ public sealed class StudentProfileStore(SirkadiyenDbContext dbContext) : IStuden
                 retryAfterConcurrentInsert: false,
                 cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// Records that the user's calendar must be converged onto the new audience (ADR-096), inside
+    /// the caller's transaction. Returns whether a connection was there to flag.
+    /// </summary>
+    private async Task<bool> RequestCalendarResyncAsync(
+        Guid userId,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken)
+    {
+        GoogleCalendarConnection? connection = await dbContext.GoogleCalendarConnections
+            .SingleOrDefaultAsync(candidate => candidate.UserId == userId, cancellationToken);
+
+        // No connection, or one whose initial sync has not finished, needs nothing: initial sync
+        // reads the profile as it stands when it runs.
+        return connection is not null && connection.TryRequestProfileResync(atUtc);
     }
 
     private static StudentProfileView View(StudentProfile profile) => new()

@@ -367,6 +367,7 @@ public sealed class IncrementalCalendarSyncServiceTests
         {
             UserId = userId,
             StableIdentity = stableIdentity,
+            SourceId = SourceId.Parse("G1-TR-ANNUAL"),
             GoogleCalendarId = $"cal-{userId:N}",
             GoogleEventId = $"evt-{userId:N}",
             ContentHash = contentHash,
@@ -613,6 +614,16 @@ public sealed class IncrementalCalendarSyncServiceTests
             return Task.CompletedTask;
         }
 
+        public Task<IReadOnlyList<PendingProfileResync>> ListPendingProfileResyncAsync(
+            int limit,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<CompleteProfileResyncOutcome> CompleteProfileResyncAsync(
+            Guid userId,
+            DateTimeOffset expectedRequiredSinceUtc,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
         public Task<IReadOnlyList<PendingCalendarReconciliation>> ListPendingReconciliationAsync(
             int limit,
             CancellationToken cancellationToken) => throw new NotSupportedException();
@@ -713,6 +724,7 @@ public sealed class IncrementalCalendarSyncServiceTests
             {
                 UserId = mapping.UserId,
                 StableIdentity = mapping.StableIdentity,
+                SourceId = mapping.SourceId,
                 GoogleCalendarId = mapping.GoogleCalendarId,
                 GoogleEventId = mapping.GoogleEventId,
                 ContentHash = mapping.ContentHash,
@@ -831,6 +843,10 @@ public sealed class IncrementalCalendarSyncServiceTests
     private sealed class FakeScheduleReadStore(IReadOnlyList<CanonicalScheduleRecord> records)
         : ICanonicalScheduleReadStore
     {
+        public Task<IReadOnlyList<PublishedRecordIdentity>> ListCurrentPublishedIdentitiesAsync(
+            string academicYear,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
         public Task<IReadOnlyList<CanonicalScheduleRecord>> ListRecordsByIdsAsync(
             IReadOnlyCollection<Guid> recordIds,
             CancellationToken cancellationToken) =>

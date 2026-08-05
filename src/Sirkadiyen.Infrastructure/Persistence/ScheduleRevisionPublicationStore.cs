@@ -191,6 +191,56 @@ public sealed class ScheduleRevisionPublicationStore(SirkadiyenDbContext dbConte
         });
     }
 
+    public Task<RevisionRejectionResult> RejectAsync(
+        Guid revisionId,
+        string rejectedBy,
+        string rejectionReason,
+        DateTimeOffset rejectedAtUtc,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(rejectedBy);
+        ArgumentException.ThrowIfNullOrWhiteSpace(rejectionReason);
+
+        return RetriableTransaction.ExecuteAsync(dbContext, async () =>
+        {
+            ScheduleRevision? revision = await dbContext.ScheduleRevisions
+                .SingleOrDefaultAsync(
+                    candidate => candidate.Id == revisionId,
+                    cancellationToken);
+
+            if (revision is null)
+            {
+                return new RevisionRejectionResult
+                {
+                    RevisionId = revisionId,
+                    Outcome = RevisionRejectionOutcome.RevisionNotFound,
+                };
+            }
+
+            if (revision.State is not RevisionState.ReviewRequired)
+            {
+                // Includes a revision another operator has already decided on. Rejecting anything
+                // but a quarantined revision is refused rather than forced: publication is
+                // corrected forward (ADR-033), never withdrawn.
+                return new RevisionRejectionResult
+                {
+                    RevisionId = revisionId,
+                    Outcome = RevisionRejectionOutcome.NotAwaitingReview,
+                    ObservedState = revision.State,
+                };
+            }
+
+            revision.Reject(rejectedBy, rejectionReason, rejectedAtUtc);
+            await dbContext.SaveChangesAsync(cancellationToken);
+
+            return new RevisionRejectionResult
+            {
+                RevisionId = revisionId,
+                Outcome = RevisionRejectionOutcome.Rejected,
+            };
+        });
+    }
+
     private static bool IsUniqueViolation(DbUpdateException exception) =>
         exception.InnerException is PostgresException { SqlState: UniqueViolation };
 }

@@ -41,7 +41,8 @@
 - [x] Define schedule revision model
 - [x] Define semantic diff model
 - [x] Define user calendar event mapping
-- [ ] Define sync job state machine
+- [~] Define sync job state machine (per-diff dispatch lifecycle with an operator retry, ADR-097;
+  no unified job aggregate)
 - [x] Define audit event model (append-only account-access/activity log `AuditEvent`, ADR-089)
 
 ## Phase 2: Authentication and licensing
@@ -148,6 +149,7 @@
 - [x] Treat source-authored free-study overlaps as non-blocking availability (ADR-069)
 - [x] Implement review-required state
 - [x] Implement admin revision review
+- [x] Implement audited manual rejection of a quarantined revision (ADR-097)
 - [x] Implement transactional publication
 - [x] Decide forward-fix policy; no rollback operation (ADR-033)
 - [x] Add validation regression tests
@@ -169,6 +171,7 @@
 - [x] Persist semantic diffs
 - [x] Calculate and store a diff after publication
 - [x] Provide an operator path for releasing a held diff (ADR-042)
+- [x] Provide an operator path for retrying a terminally failed diff dispatch (ADR-097)
 
 ## Phase 9: Calendar synchronization
 
@@ -194,6 +197,9 @@
   delay, including an initial-sync request created while the worker is idle (ADR-082)
 - [x] Add the 45-department faculty catalog, admin color defaults, per-user color
   overrides, audited persistence and inventory-driven recoloring (ADR-086)
+- [x] Require an active license before any calendar write, so revocation stops future
+  synchronization while preserving what was already written (ADR-095)
+- [x] Converge a student's calendar onto a changed academic profile (ADR-096)
 
 ## Phase 10: Administration and operations
 
@@ -209,10 +215,12 @@
 - [x] Snapshot inspection backend (`GET /api/admin/sources/{id}` recent snapshots, ADR-089)
 - [x] Parser warning review (latest persisted parser warnings and source evidence exposed in source detail; revision validation findings remain on `GET /api/revisions/{id}`)
 - [ ] Revision diff viewer
-- [ ] Manual publish and reject
+- [~] Manual publish and reject (`POST /api/revisions/{id}/reject` implemented, ADR-097; manual
+  publish of a validated revision is still the worker's job only)
 - [x] User sync status backend (`GET /api/admin/users(+detail)`: profile, licenses,
   managed-event count, onboarding state, recent sign-ins, ADR-089)
-- [ ] Retry failed jobs
+- [~] Retry failed jobs (`POST /api/diffs/{id}/retry` plus `GET /api/diffs?dispatchState=Failed`,
+  ADR-097; a persistently failing per-user initial sync still has no terminal state to retry from)
 - [x] Audit log viewer backend (`GET /api/admin/audit`, `GET /api/admin/access-logs` with
   masked IP + audited unmask, ADR-089)
 - [x] Health checks (API and internal Worker `/health/live` + `/health/ready`, parser `/health` probe, ADR-089/091)
@@ -606,3 +614,73 @@ source-faithful, and ordinary inventory patches existing Calendar events in plac
   `AdminUnavailable` placeholder; see `activeContext.md` for the open risks (no period close,
   manually-entered license-sales income, partner-share-sum enforcement not yet a database
   constraint) carried forward from this session.
+
+## Latest frontend session (2026-08-05, Finance administration)
+
+- `/admin/finance` is now fully wired to the ADR-093 backend. Its six workspaces cover the ten
+  summary figures and trend/category reporting, filtered/paged transaction CRUD and CSV export,
+  receivable/payable lifecycle, account/holder/share management, binding preview/execute/reverse
+  profit distribution and finance-audit inspection.
+- The prototype's document upload was intentionally not ported because the backend stores a text
+  reference rather than an attachment. All displayed amounts and outcomes come from authoritative
+  API responses; client code validates input shape but does not derive balances or allocations.
+- `FinanceObligationListItem.Settlements` is an additive detail read-model field. The persistence
+  read joins each settlement to its ordinary cash transaction for the reference; paged obligation
+  lists keep the collection empty to avoid loading unused detail data.
+- Four focused frontend regressions cover summary/trend/category rendering, income creation,
+  historical settlement-link cancellation and exact distribution preview binding. A test exposed
+  and fixed modal focus being reapplied on every render.
+- Verification: 15/15 frontend tests, TypeScript typecheck, Next.js production build and 748/748
+  .NET tests pass, including 217 PostgreSQL persistence tests.
+
+## Latest backend session (2026-08-05, sync gating and operator recovery)
+
+Four gaps found by an audit of the backend against the memory bank were closed. Each was a case
+where the documentation described behaviour the code did not have, or a state the pipeline could
+enter and never leave.
+
+- **License revocation now stops synchronization** (ADR-095). ADR-022 and `systemPatterns` Â§13 both
+  said it did; nothing observed the transition. All four queries that select users for Calendar work
+  â€” cohort fan-out, ledger-holder targets, periodic inventory, initial sync and re-authorization
+  replay â€” now require an active license, expressed once in `ActiveLicenseQuery`. It gates future
+  work only: no event is deleted and the ledger is untouched, so a revoked student keeps the calendar
+  they had, and restoring access re-admits them on the next cycle with no sweep.
+- **A profile change now re-synchronizes the calendar** (ADR-096). `StudentProfileService.SaveAsync`
+  previously persisted the row and stopped, so a student who corrected their practice or anatomy
+  group kept the old cohort's events forever and gained the new cohort's only by accident: initial
+  sync runs once, diff dispatch is edge-triggered by a revision, and inventory never deletes. A
+  profile write that changes the resolved audience now records
+  `ProfileResyncRequiredSinceUtc` on the connection **in the same transaction**, and a new
+  freeze-gated, fenced worker stage (`ProfileChangeResyncService`) inserts what now applies and
+  removes what no longer does.
+  - Its deletions are bounded by publication: a ledger row is removed only when its
+    `(SourceId, StableIdentity)` is still in the currently published schedule *and* the audience rule
+    says it is not this student's. A lesson absent from published truth is left completely alone â€”
+    that remains the semantic diff's decision (AI_GUIDELINE Â§13).
+  - The stable identity is the join key throughout, because a mapping's `CanonicalRecordId` points at
+    whichever revision wrote the event and an `Unchanged` diff entry never advances it.
+  - Bounded per cycle, resumable from the ledger, and completed only by a clean pass presenting the
+    original request timestamp as an optimistic workflow token, so a second change made mid-pass
+    survives.
+- **A quarantined revision can be rejected** (ADR-097). `ReviewRequired` had exactly one exit â€”
+  approve â€” so an operator who concluded the parse was wrong could only leave it in the queue,
+  indistinguishable from one nobody had read. `Reject` records `RejectedBy`/`RejectionReason`/
+  `RejectedAtUtc` (never the approval fields) and moves it to the terminal `Rejected` state.
+  `POST /api/revisions/{id}/reject`.
+- **A terminally failed diff can be retried** (ADR-097). `CalendarDispatchState.Failed` is terminal
+  by design so a broken diff stops churning, but nothing could move it out, and the failed queue was
+  not even enumerable â€” a failed diff is still `Ready` in its review state. `GET /api/diffs` now
+  accepts `dispatchState`, the summary carries the dispatch fields, and
+  `POST /api/diffs/{id}/retry` returns the diff to `Pending` with fresh attempts while counting the
+  retry and naming who made it. Retry grants no new authority: the same idempotent, ledger-resumable
+  fan-out re-runs.
+
+- Migration `AddProfileResyncRevisionRejectionAndDiffRetry` adds seven columns, one index and two
+  check constraints; no existing column changes meaning.
+- 812 `.NET` tests pass, 0 skipped, across Contracts (6), Api (5), Infrastructure (564) and
+  Persistence (237) â€” the last against the real PostgreSQL database. 64 are new. `dotnet format
+  --verify-no-changes` is clean and the Release build has no warnings.
+- **Backend only, as scoped.** Neither operator route has a UI yet; `web/GAPS.md` records both under
+  "endpoint exists, UI not built". A profile change is still not written to the cross-cutting
+  `AuditEvent` log, so the trail for a resync deletion is the ledger and the worker log.
+

@@ -120,6 +120,13 @@ public sealed record CalendarEventMappingView
 
     public required string StableIdentity { get; init; }
 
+    /// <summary>
+    /// The source that produced the lesson. A stable identity is only ever compared within its own
+    /// source, and a profile re-synchronization needs it to ask whether the lesson is still live
+    /// (ADR-096).
+    /// </summary>
+    public required SourceId SourceId { get; init; }
+
     public required string GoogleCalendarId { get; init; }
 
     public required string GoogleEventId { get; init; }

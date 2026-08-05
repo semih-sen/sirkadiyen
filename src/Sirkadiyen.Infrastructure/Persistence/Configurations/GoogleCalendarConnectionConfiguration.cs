@@ -38,6 +38,7 @@ internal sealed class GoogleCalendarConnectionConfiguration
         builder.Property(connection => connection.ReconciliationRequiredSinceUtc);
         builder.Property(connection => connection.ReconciliationCursorDispatchedAtUtc);
         builder.Property(connection => connection.ReconciliationCursorDiffId);
+        builder.Property(connection => connection.ProfileResyncRequiredSinceUtc);
         builder.Property(connection => connection.RowVersion).IsRowVersion();
 
         // One connection per account: onboarding and the synchronization path both read
@@ -56,6 +57,12 @@ internal sealed class GoogleCalendarConnectionConfiguration
             connection.ManagedCalendarUnavailableAtUtc,
             connection.LastCalendarInventoryAtUtc,
         }).HasDatabaseName("ix_google_calendar_connections_inventory_due");
+        builder.HasIndex(connection => new
+        {
+            connection.Status,
+            connection.InitialSyncState,
+            connection.ProfileResyncRequiredSinceUtc,
+        }).HasDatabaseName("ix_google_calendar_connections_profile_resync_pending");
         builder.HasOne<User>()
             .WithMany()
             .HasForeignKey(connection => connection.UserId)
@@ -79,6 +86,13 @@ internal sealed class GoogleCalendarConnectionConfiguration
             + " AND \"ManagedCalendarId\" IS NOT NULL"
             + " AND \"ReconciliationCursorDispatchedAtUtc\""
             + " >= \"ReconciliationRequiredSinceUtc\")"));
+        // A re-synchronization request only makes sense for a populated calendar (ADR-096): before
+        // that, initial sync resolves the audience from the profile as it stands when it runs.
+        builder.ToTable(table => table.HasCheckConstraint(
+            "ck_google_calendar_connections_profile_resync",
+            "\"ProfileResyncRequiredSinceUtc\" IS NULL"
+            + " OR (\"ManagedCalendarId\" IS NOT NULL"
+            + " AND \"InitialSyncState\" = 'Completed')"));
         builder.ToTable(table => table.HasCheckConstraint(
             "ck_google_calendar_connections_unavailable_calendar",
             "\"ManagedCalendarUnavailableAtUtc\" IS NULL"

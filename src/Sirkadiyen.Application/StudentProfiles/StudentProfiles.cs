@@ -10,8 +10,17 @@ public interface IStudentProfileStore
 
     Task<bool> ExistsForUserAsync(Guid userId, CancellationToken cancellationToken);
 
-    /// <summary>Inserts or replaces the user's profile transactionally.</summary>
-    Task<StudentProfileView> UpsertAsync(
+    /// <summary>
+    /// Inserts or replaces the user's profile transactionally, and — in the same transaction —
+    /// records a calendar re-synchronization request when the change alters the audience the
+    /// profile resolves (ADR-096).
+    /// </summary>
+    /// <remarks>
+    /// The two writes share one transaction on purpose: a profile that has moved to a new cohort
+    /// while nothing knows the calendar must follow is exactly the state this feature exists to
+    /// prevent.
+    /// </remarks>
+    Task<StudentProfileUpsertResult> UpsertAsync(
         Guid userId,
         string academicYear,
         int classYear,
@@ -21,6 +30,25 @@ public interface IStudentProfileStore
         IReadOnlyDictionary<string, string> selectors,
         DateTimeOffset atUtc,
         CancellationToken cancellationToken);
+}
+
+/// <summary>The stored profile, and what the write implied for the user's calendar (ADR-096).</summary>
+public sealed record StudentProfileUpsertResult
+{
+    public required StudentProfileView Profile { get; init; }
+
+    /// <summary>
+    /// Whether the write changed the audience the profile resolves. False for a first profile, for
+    /// an identical re-save, and for a change confined to the student number.
+    /// </summary>
+    public required bool AudienceChanged { get; init; }
+
+    /// <summary>
+    /// Whether a re-synchronization was actually queued. It is false when the audience changed but
+    /// the user has no completed calendar connection yet, because initial sync will resolve the
+    /// new audience when it runs.
+    /// </summary>
+    public required bool CalendarResyncRequested { get; init; }
 }
 
 /// <summary>A read projection of a stored student profile.</summary>
@@ -50,6 +78,12 @@ public sealed record SaveStudentProfileResult
     public StudentProfileView? Profile { get; init; }
 
     public IReadOnlyList<StudentProfileValidationError> ValidationErrors { get; init; } = [];
+
+    /// <summary>
+    /// Whether the save queued a calendar re-synchronization because the audience changed
+    /// (ADR-096). The worker performs it; this only reports that it was requested.
+    /// </summary>
+    public bool CalendarResyncRequested { get; init; }
 }
 
 public enum SaveStudentProfileOutcome
@@ -107,7 +141,7 @@ public sealed class StudentProfileService(
             };
         }
 
-        StudentProfileView stored = await profileStore.UpsertAsync(
+        StudentProfileUpsertResult stored = await profileStore.UpsertAsync(
             userId,
             schema.AcademicYear,
             submitted.ClassYear,
@@ -121,7 +155,8 @@ public sealed class StudentProfileService(
         return new SaveStudentProfileResult
         {
             Outcome = SaveStudentProfileOutcome.Saved,
-            Profile = stored,
+            Profile = stored.Profile,
+            CalendarResyncRequested = stored.CalendarResyncRequested,
         };
     }
 }

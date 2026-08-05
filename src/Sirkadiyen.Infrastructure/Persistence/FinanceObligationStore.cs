@@ -442,12 +442,37 @@ public sealed class FinanceObligationStore(SirkadiyenDbContext dbContext) : IFin
 
     public async Task<FinanceObligationListItem?> FindAsync(
         Guid obligationId,
-        CancellationToken cancellationToken) =>
-        await dbContext.FinanceObligations
+        CancellationToken cancellationToken)
+    {
+        FinanceObligationListItem? obligation = await dbContext.FinanceObligations
             .AsNoTracking()
             .Where(obligation => obligation.Id == obligationId)
             .Select(obligation => Project(obligation))
             .SingleOrDefaultAsync(cancellationToken);
+
+        if (obligation is null)
+        {
+            return null;
+        }
+
+        List<FinanceObligationSettlementListItem> settlements = await (
+            from settlement in dbContext.FinanceSettlements.AsNoTracking()
+            join transaction in dbContext.FinanceTransactions.AsNoTracking()
+                on settlement.FinanceTransactionId equals transaction.Id
+            where settlement.FinanceObligationId == obligationId
+            orderby settlement.SettledOn descending, settlement.RecordedAtUtc descending
+            select new FinanceObligationSettlementListItem
+            {
+                SettlementId = settlement.Id,
+                TransactionId = settlement.FinanceTransactionId,
+                Amount = settlement.Amount,
+                SettledOn = settlement.SettledOn,
+                RecordedAtUtc = settlement.RecordedAtUtc,
+                Reference = transaction.Reference,
+            }).ToListAsync(cancellationToken);
+
+        return obligation with { Settlements = settlements };
+    }
 
     private static FinanceObligationListItem Project(FinanceObligation obligation) => new()
     {

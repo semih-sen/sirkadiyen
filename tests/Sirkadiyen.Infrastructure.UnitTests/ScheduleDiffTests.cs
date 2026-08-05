@@ -325,6 +325,92 @@ public sealed class ScheduleDiffTests
         Assert.True(diff.IsDispatchPending);
     }
 
+    [Fact]
+    public void RetryingAFailedDispatchReturnsItToTheQueueWithFreshAttempts()
+    {
+        ScheduleDiff diff = Failed();
+
+        diff.RetryDispatch("semih", "The Calendar outage is over.", Now.AddHours(2));
+
+        Assert.Equal(CalendarDispatchState.Pending, diff.CalendarDispatchState);
+        Assert.Equal(0, diff.DispatchAttempts);
+        Assert.Null(diff.NextAttemptAtUtc);
+        Assert.True(diff.IsDispatchPending);
+    }
+
+    [Fact]
+    public void ARetryIsAttributableAndCounted()
+    {
+        ScheduleDiff diff = Failed();
+
+        diff.RetryDispatch("semih", "First try.", Now.AddHours(2));
+        diff.RecordDispatchFailure("boom", TimeSpan.FromSeconds(30), maxAttempts: 1, Now);
+        diff.RetryDispatch("semih", "Second try.", Now.AddHours(3));
+
+        // Attempts reset with each retry, so the retry count is what shows a diff that keeps
+        // failing rather than one bad night.
+        Assert.Equal(2, diff.DispatchRetryCount);
+        Assert.Equal("semih", diff.LastDispatchRetriedBy);
+        Assert.Equal("Second try.", diff.LastDispatchRetryReason);
+        Assert.Equal(Now.AddHours(3), diff.LastDispatchRetriedAtUtc);
+    }
+
+    [Fact]
+    public void ARetryKeepsTheFailureReasonUntilTheNextAttemptReportsItsOwn()
+    {
+        ScheduleDiff diff = Failed();
+
+        diff.RetryDispatch("semih", "Retrying.", Now.AddHours(2));
+
+        Assert.Equal("boom", diff.DispatchFailureReason);
+    }
+
+    [Fact]
+    public void OnlyAFailedDispatchCanBeRetried()
+    {
+        ScheduleDiff pending = Create(Entries(ScheduleDiffChange.Created, 3));
+        Assert.Throws<InvalidOperationException>(
+            () => pending.RetryDispatch("semih", "Reason.", Now));
+
+        ScheduleDiff dispatched = Create(Entries(ScheduleDiffChange.Created, 3));
+        dispatched.MarkDispatched(Now);
+        Assert.Throws<InvalidOperationException>(
+            () => dispatched.RetryDispatch("semih", "Reason.", Now));
+    }
+
+    [Fact]
+    public void AHeldDiffCannotBeRetriedIntoDispatch()
+    {
+        // Retrying a held diff would be releasing it under another name, and release is a
+        // different, named decision (ADR-042).
+        ScheduleDiff held = Create(
+            Entries(ScheduleDiffChange.Deleted, 12),
+            Entries(ScheduleDiffChange.Unchanged, 28));
+
+        Assert.False(held.IsDispatchRetriable);
+        Assert.Throws<InvalidOperationException>(
+            () => held.RetryDispatch("semih", "Reason.", Now));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ARetryMustStateWhoAndWhy(string blank)
+    {
+        ScheduleDiff diff = Failed();
+
+        Assert.ThrowsAny<ArgumentException>(() => diff.RetryDispatch(blank, "Reason.", Now));
+        Assert.ThrowsAny<ArgumentException>(() => diff.RetryDispatch("semih", blank, Now));
+    }
+
+    private static ScheduleDiff Failed()
+    {
+        ScheduleDiff diff = Create(Entries(ScheduleDiffChange.Created, 3));
+        diff.RecordDispatchFailure("boom", TimeSpan.FromSeconds(30), maxAttempts: 1, Now);
+        Assert.Equal(CalendarDispatchState.Failed, diff.CalendarDispatchState);
+        return diff;
+    }
+
     private static ScheduleDiff Create(params IReadOnlyList<ScheduleDiffEntry>[] groups) =>
         ScheduleDiff.Create(
             SourceRowId,

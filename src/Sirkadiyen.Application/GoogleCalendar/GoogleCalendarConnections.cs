@@ -82,6 +82,25 @@ public interface IGoogleCalendarConnectionStore
         DateTimeOffset atUtc,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Lists connections whose student profile changed the audience their calendar resolves from,
+    /// oldest request first (ADR-096). Like the other worker projections it carries the encrypted
+    /// credential, because converging the calendar means writing to it.
+    /// </summary>
+    Task<IReadOnlyList<PendingProfileResync>> ListPendingProfileResyncAsync(
+        int limit,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Clears a profile re-synchronization request after a complete pass converged the calendar,
+    /// presenting the original request timestamp as an optimistic workflow token.
+    /// </summary>
+    Task<CompleteProfileResyncOutcome> CompleteProfileResyncAsync(
+        Guid userId,
+        DateTimeOffset expectedRequiredSinceUtc,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken);
+
     /// <summary>Records one successful non-destructive Calendar/ledger inventory pass.</summary>
     Task MarkCalendarInventoryCompletedAsync(
         Guid userId,
@@ -183,6 +202,37 @@ public sealed record PendingCalendarReconciliation
     public required DateTimeOffset CursorDispatchedAtUtc { get; init; }
 
     public required Guid CursorDiffId { get; init; }
+}
+
+/// <summary>
+/// A completed connection whose calendar must be converged onto a changed student profile
+/// (ADR-096). The encrypted credential is confined to this backend-only worker projection.
+/// </summary>
+public sealed record PendingProfileResync
+{
+    public required Guid UserId { get; init; }
+
+    public required string ProtectedRefreshToken { get; init; }
+
+    public required string ManagedCalendarId { get; init; }
+
+    /// <summary>The request timestamp, which is also its optimistic workflow token.</summary>
+    public required DateTimeOffset RequiredSinceUtc { get; init; }
+}
+
+public enum CompleteProfileResyncOutcome
+{
+    /// <summary>The request this worker started was cleared.</summary>
+    Completed,
+
+    /// <summary>
+    /// The profile changed again while the pass ran, so a newer request is pending and was left
+    /// in place for the next cycle.
+    /// </summary>
+    Superseded,
+
+    /// <summary>The user has no Calendar connection.</summary>
+    NotFound,
 }
 
 public sealed record RequestInitialSyncResult

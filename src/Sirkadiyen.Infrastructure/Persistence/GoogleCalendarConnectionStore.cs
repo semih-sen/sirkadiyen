@@ -79,6 +79,12 @@ public sealed class GoogleCalendarConnectionStore(SirkadiyenDbContext dbContext)
         };
     }
 
+    /// <remarks>
+    /// A revoked student is simply absent (ADR-095). Their connection stays
+    /// <see cref="GoogleCalendarInitialSyncState.InProgress"/> rather than being failed, so
+    /// restoring access resumes the sync from what the ledger already holds instead of discarding
+    /// the progress over an administrative action that is often reversed.
+    /// </remarks>
     public async Task<IReadOnlyList<PendingCalendarSync>> ListPendingInitialSyncAsync(
         int limit,
         CancellationToken cancellationToken) =>
@@ -86,7 +92,8 @@ public sealed class GoogleCalendarConnectionStore(SirkadiyenDbContext dbContext)
             .AsNoTracking()
             .Where(connection =>
                 connection.Status == GoogleCalendarConnectionStatus.Authorized
-                && connection.InitialSyncState == GoogleCalendarInitialSyncState.InProgress)
+                && connection.InitialSyncState == GoogleCalendarInitialSyncState.InProgress
+                && ActiveLicenseQuery.UserIds(dbContext).Contains(connection.UserId))
             .OrderBy(connection => connection.UpdatedAtUtc)
             .Take(limit)
             .Select(connection => new PendingCalendarSync
@@ -143,7 +150,8 @@ public sealed class GoogleCalendarConnectionStore(SirkadiyenDbContext dbContext)
                 && connection.ManagedCalendarUnavailableAtUtc == null
                 && connection.ReconciliationRequiredSinceUtc != null
                 && connection.ReconciliationCursorDispatchedAtUtc != null
-                && connection.ReconciliationCursorDiffId != null)
+                && connection.ReconciliationCursorDiffId != null
+                && ActiveLicenseQuery.UserIds(dbContext).Contains(connection.UserId))
             .OrderBy(connection => connection.ReconciliationRequiredSinceUtc)
             .ThenBy(connection => connection.UserId)
             .Take(limit)
@@ -186,6 +194,65 @@ public sealed class GoogleCalendarConnectionStore(SirkadiyenDbContext dbContext)
         GoogleCalendarConnection connection = await SingleForUpdateAsync(userId, cancellationToken);
         connection.CompleteReconciliation(expectedRequiredSinceUtc, atUtc);
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<PendingProfileResync>> ListPendingProfileResyncAsync(
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
+
+        // A pending re-authorization replay is deliberately not excluded here the way inventory
+        // excludes it: replay only applies diffs the user missed, and this only converges the
+        // audience, so the two are about different things and both are idempotent. A connection
+        // that needs re-authorization is excluded, because nothing can be written for it at all.
+        return await dbContext.GoogleCalendarConnections
+            .AsNoTracking()
+            .Where(connection =>
+                connection.Status == GoogleCalendarConnectionStatus.Authorized
+                && connection.InitialSyncState == GoogleCalendarInitialSyncState.Completed
+                && connection.ManagedCalendarId != null
+                && connection.ManagedCalendarUnavailableAtUtc == null
+                && connection.ProfileResyncRequiredSinceUtc != null
+                && ActiveLicenseQuery.UserIds(dbContext).Contains(connection.UserId))
+            .OrderBy(connection => connection.ProfileResyncRequiredSinceUtc)
+            .ThenBy(connection => connection.UserId)
+            .Take(limit)
+            .Select(connection => new PendingProfileResync
+            {
+                UserId = connection.UserId,
+                ProtectedRefreshToken = connection.ProtectedRefreshToken,
+                ManagedCalendarId = connection.ManagedCalendarId!,
+                RequiredSinceUtc = connection.ProfileResyncRequiredSinceUtc!.Value,
+            })
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<CompleteProfileResyncOutcome> CompleteProfileResyncAsync(
+        Guid userId,
+        DateTimeOffset expectedRequiredSinceUtc,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken)
+    {
+        GoogleCalendarConnection? connection = await dbContext.GoogleCalendarConnections
+            .SingleOrDefaultAsync(candidate => candidate.UserId == userId, cancellationToken);
+
+        if (connection is null)
+        {
+            return CompleteProfileResyncOutcome.NotFound;
+        }
+
+        if (connection.ProfileResyncRequiredSinceUtc != expectedRequiredSinceUtc)
+        {
+            // The profile changed again while this pass ran. Reported rather than thrown: the
+            // newer request is correct and the next cycle converges it, so this is an ordinary
+            // outcome of a race the design expects, not a failure.
+            return CompleteProfileResyncOutcome.Superseded;
+        }
+
+        connection.CompleteProfileResync(expectedRequiredSinceUtc, atUtc);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return CompleteProfileResyncOutcome.Completed;
     }
 
     public async Task MarkCalendarInventoryCompletedAsync(

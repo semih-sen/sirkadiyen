@@ -347,6 +347,13 @@ Only one published revision per source scope should be current.
 
 Publishing a revision must be transactional.
 
+`ReviewRequired` has two exits, not one (ADR-097). A named operator stating a
+reason either approves it to `Validated` or rejects it to the terminal
+`Rejected`. Rejection is recorded in its own fields rather than the approval
+ones, so a row never claims a revision was approved when it was refused. Only a
+quarantined revision may be rejected: a published one is corrected forward, never
+withdrawn (ADR-033).
+
 ## 10. Validation pattern
 
 Validation has multiple levels:
@@ -449,6 +456,13 @@ A held diff is released only by a named operator stating a reason, which moves
 it to `Released` and keeps the hold reason (ADR-042). A hold caused by ambiguity
 is never releasable: the source has to state which lesson is which.
 
+A dispatch that fails terminally is likewise not a dead end (ADR-097). A named
+operator stating a reason returns it to `Pending` with fresh attempts; the retry
+is counted and attributed, and it grants no new authority — the same immutable
+diff re-enters the same idempotent, ledger-resumable fan-out. Because dispatch
+state is orthogonal to review state, that queue is found by dispatch state; the
+review-state queue cannot see it.
+
 Published data is corrected only by forward-fix: the authoritative source is
 fixed and a newer revision supersedes the bad one. A superseded revision is
 never restored to live state (ADR-033).
@@ -491,6 +505,14 @@ Every user owns one dedicated Sirkadiyen Google calendar. Managed events are
 never mixed into the user's primary or another existing calendar. License
 revocation stops future synchronization but preserves this calendar and all
 events already written to it.
+
+That gate lives where a user is *selected* for work, not inside each service
+(ADR-095). Every query that chooses users for a calendar write — diff fan-out,
+ledger-holder updates, periodic inventory, initial sync and re-authorization
+replay — requires an active license, from one shared definition. A revocation
+therefore takes effect on the next cycle with no job sweeping anything, and
+restoring access re-admits the user the same way. Nothing about it is
+destructive: a revoked student simply stops being chosen.
 
 ## 14. Idempotent job pattern
 
@@ -890,6 +912,36 @@ Exclude only an explicit, semantically empty annual placeholder (for example a
 one-token `UYGULAMA`), never every title containing a practice keyword. Account for
 each exclusion in parser diagnostics and remove previously published placeholders
 only through a new published revision and semantic diff (ADR-071).
+
+## 27a. Converging one recipient after the audience changes, not the schedule
+
+The fan-out patterns above are triggered by the *schedule* changing. When the
+**recipient** changes instead — a student corrects the cohort their calendar is
+resolved from — nothing else reaches them: initial sync has completed, no
+revision was published, and inventory is deliberately non-destructive
+(ADR-096).
+
+The write that changes the audience records durable intent on the recipient in
+the **same transaction** ([[26. Resumable per-user job with a deterministic
+idempotency ledger]]'s nullable-timestamp shape, which is also its optimistic
+workflow token). A freeze-gated, fenced worker stage then converges that one
+calendar: insert what the new audience applies and the ledger lacks, remove what
+the ledger holds and the new audience no longer applies.
+
+The removal half needs an authority that is not "absent from the plan", or it
+becomes deletion-by-absence and violates AI_GUIDELINE §13. The rule is an
+intersection: a ledger row is removed only when its lesson is **still currently
+published** *and* the audience rule says it is not this recipient's. A lesson
+missing from published truth is untouched — retiring it stays the semantic
+diff's decision.
+
+The join key is the **stable identity**, never the mapping's canonical record id:
+that id names whichever revision wrote the event, and an `Unchanged` diff entry
+never advances it, so every republish would make a held event look retired.
+
+Only an audience-relevant change counts; a correction to a non-audience field
+queues no work. Completion presents the original request timestamp back, so a
+second change made mid-pass is never cleared by the older pass.
 
 ## 28. Provider presentation policy over canonical schedule truth
 

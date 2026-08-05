@@ -78,6 +78,15 @@ internal sealed class WorkerOptionsFactory(
                 configuration["SIRKADIYEN_SYNC:DISPATCH_RETRY_BASE_DELAY_SECONDS"], 30),
         }, static options => options.Validate());
 
+    public ProfileResyncOptions CreateProfileResyncOptions() =>
+        Validate(new ProfileResyncOptions
+        {
+            ConnectionBatchSize = ConfigurationValueParser.Integer(
+                configuration["SIRKADIYEN_SYNC:PROFILE_RESYNC_CONNECTION_BATCH_SIZE"], 5),
+            CalendarOperationsPerConnectionPerCycle = ConfigurationValueParser.Integer(
+                configuration["SIRKADIYEN_SYNC:PROFILE_RESYNC_OPERATIONS_PER_CONNECTION"], 100),
+        }, static options => options.Validate());
+
     public CalendarReconciliationOptions CreateReconciliationOptions() =>
         Validate(new CalendarReconciliationOptions
         {

@@ -33,6 +33,11 @@ internal sealed class ScheduleRevisionConfiguration : IEntityTypeConfiguration<S
             .HasMaxLength(ScheduleRevision.MaximumApprovedByLength);
         builder.Property(revision => revision.ApprovalReason)
             .HasMaxLength(ScheduleRevision.MaximumApprovalReasonLength);
+        builder.Property(revision => revision.RejectedBy)
+            .HasMaxLength(ScheduleRevision.MaximumRejectedByLength);
+        builder.Property(revision => revision.RejectionReason)
+            .HasMaxLength(ScheduleRevision.MaximumRejectionReasonLength);
+        builder.Property(revision => revision.RejectedAtUtc);
 
         builder.HasOne<ScheduleSource>()
             .WithMany()

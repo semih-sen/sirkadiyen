@@ -87,6 +87,18 @@ public sealed class GoogleCalendarConnection
     /// </summary>
     public Guid? ReconciliationCursorDiffId { get; private set; }
 
+    /// <summary>
+    /// When the student's profile last changed the audience their calendar is resolved from
+    /// (ADR-096). A value means the calendar has not yet been converged onto the new profile;
+    /// null means there is nothing to re-synchronize.
+    /// </summary>
+    /// <remarks>
+    /// It doubles as the optimistic workflow token for that request, exactly as
+    /// <see cref="ReconciliationRequiredSinceUtc"/> does: a worker may only complete the request
+    /// it started, so a second profile change made mid-pass is never cleared by the older pass.
+    /// </remarks>
+    public DateTimeOffset? ProfileResyncRequiredSinceUtc { get; private set; }
+
     public DateTimeOffset CreatedAtUtc { get; private init; }
 
     /// <summary>When the current grant was recorded; a re-authorization advances it.</summary>
@@ -252,6 +264,53 @@ public sealed class GoogleCalendarConnection
         ReconciliationRequiredSinceUtc = null;
         ReconciliationCursorDispatchedAtUtc = null;
         ReconciliationCursorDiffId = null;
+        UpdatedAtUtc = atUtc;
+    }
+
+    /// <summary>
+    /// Records that the student's profile now resolves a different audience, so their calendar
+    /// must be converged onto it (ADR-096). Returns whether the request took effect.
+    /// </summary>
+    /// <remarks>
+    /// Only a connection whose initial sync has completed and whose calendar is attached needs
+    /// this: an earlier profile change is absorbed by initial sync, which computes the applicable
+    /// set from the profile as it stands when it runs. An existing request is kept at its original
+    /// timestamp rather than being pushed forward, so the oldest unconverged change stays the one
+    /// the queue is ordered by.
+    /// </remarks>
+    public bool TryRequestProfileResync(DateTimeOffset atUtc)
+    {
+        if (InitialSyncState is not GoogleCalendarInitialSyncState.Completed
+            || ManagedCalendarId is null)
+        {
+            return false;
+        }
+
+        ProfileResyncRequiredSinceUtc ??= atUtc;
+        UpdatedAtUtc = atUtc;
+        return true;
+    }
+
+    /// <summary>
+    /// Clears a profile re-synchronization request after a complete pass found no remaining
+    /// calendar work for the current profile (ADR-096).
+    /// </summary>
+    /// <exception cref="InvalidOperationException">
+    /// No request is pending, or it is not the one this worker started.
+    /// </exception>
+    public void CompleteProfileResync(
+        DateTimeOffset expectedRequiredSinceUtc,
+        DateTimeOffset atUtc)
+    {
+        if (ProfileResyncRequiredSinceUtc != expectedRequiredSinceUtc)
+        {
+            // A profile changed again while this pass was running, so its request is newer than
+            // the one that was converged. Clearing it would leave that change unapplied forever.
+            throw new InvalidOperationException(
+                "The profile re-synchronization request is absent or no longer matches this worker.");
+        }
+
+        ProfileResyncRequiredSinceUtc = null;
         UpdatedAtUtc = atUtc;
     }
 

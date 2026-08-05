@@ -58,6 +58,38 @@ public sealed class FinanceObligationStoreTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task DetailIncludesSettlementIdentityAndTransactionReference()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        UserSession actor = await CreateUserAsync("detail-settlements");
+        Guid accountId = await CreateAccountAsync("detail-settlements", actor);
+
+        Guid obligationId;
+        FinanceObligationMutationResult settled;
+        await using (SirkadiyenDbContext context = fixture.CreateProductionLikeContext())
+        {
+            FinanceObligationStore store = new(context);
+            FinanceObligationMutationResult created = await store.CreateAsync(
+                FinanceObligationDirection.Receivable, FinanceCategory.Sponsorship, "Sponsor", null,
+                750m, Today, null, actor.UserId, actor.Email, Now, Token);
+            obligationId = created.ObligationId!.Value;
+            settled = await store.SettleAsync(
+                obligationId, accountId, 250m, Today, "INV-2026-41", actor.UserId, actor.Email,
+                null, Now.AddHours(1), Token);
+        }
+
+        await using SirkadiyenDbContext readContext = fixture.CreateProductionLikeContext();
+        FinanceObligationListItem detail = Assert.IsType<FinanceObligationListItem>(
+            await new FinanceObligationStore(readContext).FindAsync(obligationId, Token));
+        FinanceObligationSettlementListItem item = Assert.Single(detail.Settlements);
+
+        Assert.Equal(settled.SettlementId, item.SettlementId);
+        Assert.Equal(settled.TransactionId, item.TransactionId);
+        Assert.Equal(250m, item.Amount);
+        Assert.Equal("INV-2026-41", item.Reference);
+    }
+
+    [Fact]
     public async Task OverSettlementRollsBackEverything()
     {
         Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
@@ -210,6 +242,10 @@ public sealed class FinanceObligationStoreTests(PostgresFixture fixture)
 
         // The cash transaction is real money that moved; cancelling the link must not touch it.
         Assert.True(await verify.FinanceTransactions.AnyAsync(t => t.Id == transactionId, Token));
+
+        FinanceObligationListItem detail = Assert.IsType<FinanceObligationListItem>(
+            await new FinanceObligationStore(verify).FindAsync(obligationId, Token));
+        Assert.Empty(detail.Settlements);
     }
 
     private async Task<UserSession> CreateUserAsync(string prefix)

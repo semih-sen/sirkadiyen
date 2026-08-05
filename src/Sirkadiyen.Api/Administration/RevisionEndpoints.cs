@@ -33,6 +33,10 @@ public static class RevisionEndpoints
             .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
             .WithSummary("Approves a quarantined revision and publishes it.");
 
+        revisions.MapPost("/{id:guid}/reject", RejectAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
+            .WithSummary("Rejects a quarantined revision, closing its review terminally.");
+
         return builder;
     }
 
@@ -128,6 +132,87 @@ public static class RevisionEndpoints
             }),
         };
     }
+
+    private static async Task<IResult> RejectAsync(
+        Guid id,
+        RejectRevisionRequest request,
+        ClaimsPrincipal principal,
+        ScheduleRevisionPublicationService publication,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        string rejectedBy = UserClaimsPrincipalFactory.GetRequiredEmail(principal);
+        string rejectionReason = request.RejectionReason?.Trim() ?? string.Empty;
+
+        if (rejectionReason.Length == 0)
+        {
+            // Rejection is terminal, so the record of why is the only thing left explaining a
+            // revision that never reached anyone's calendar.
+            return Results.Problem(
+                title: "Incomplete rejection",
+                detail: "'rejectionReason' is required.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (rejectedBy.Length > ScheduleRevision.MaximumRejectedByLength
+            || rejectionReason.Length > ScheduleRevision.MaximumRejectionReasonLength)
+        {
+            return Results.Problem(
+                title: "Rejection fields are too long",
+                detail: $"'rejectedBy' allows {ScheduleRevision.MaximumRejectedByLength} "
+                    + $"characters and 'rejectionReason' allows "
+                    + $"{ScheduleRevision.MaximumRejectionReasonLength}.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        RevisionRejectionResult result = await publication.RejectAsync(
+            id,
+            rejectedBy,
+            rejectionReason,
+            cancellationToken);
+
+        return result.Outcome switch
+        {
+            RevisionRejectionOutcome.RevisionNotFound => Results.Problem(
+                title: "Revision not found",
+                detail: $"No revision with ID '{id}' exists.",
+                statusCode: StatusCodes.Status404NotFound),
+
+            RevisionRejectionOutcome.NotAwaitingReview => Results.Problem(
+                title: "Revision is not awaiting review",
+                detail: $"The revision is {result.ObservedState}, so there is nothing to reject. "
+                    + "A published revision is never withdrawn; it is corrected by publishing a "
+                    + "newer one over it.",
+                statusCode: StatusCodes.Status409Conflict),
+
+            _ => Results.Ok(new RejectRevisionResponse
+            {
+                RevisionId = id,
+                Rejected = true,
+            }),
+        };
+    }
+}
+
+/// <summary>
+/// Why the authenticated SuperAdmin is rejecting a quarantined revision.
+/// </summary>
+/// <remarks>
+/// The actor is derived from the backend-authenticated Google identity and is
+/// never accepted from this payload.
+/// </remarks>
+public sealed record RejectRevisionRequest
+{
+    /// <example>Checked the source: the workbook was mid-edit and half the rooms are blank.</example>
+    public required string? RejectionReason { get; init; }
+}
+
+public sealed record RejectRevisionResponse
+{
+    public required Guid RevisionId { get; init; }
+
+    public required bool Rejected { get; init; }
 }
 
 /// <summary>

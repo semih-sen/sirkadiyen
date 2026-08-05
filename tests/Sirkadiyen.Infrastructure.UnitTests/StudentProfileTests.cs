@@ -126,6 +126,97 @@ public sealed class StudentProfileTests
         Assert.Equal("0101240048", profile.StudentNumber);
     }
 
+    [Fact]
+    public void AnIdenticalProfileDescribesTheSameAudience()
+    {
+        StudentProfile profile = Create();
+
+        Assert.True(profile.DescribesSameAudienceAs(
+            "2025-2026",
+            1,
+            ProgramLanguage.Turkish,
+            new Dictionary<string, string> { ["practiceGroup"] = "A" }));
+    }
+
+    [Fact]
+    public void SelectorsAreComparedAfterTheSameNormalizationTheUpdateApplies()
+    {
+        StudentProfile profile = Create();
+
+        // Surrounding whitespace is trimmed on the way in, so it must not read as a change and
+        // queue a full calendar re-synchronization (ADR-096).
+        Assert.True(profile.DescribesSameAudienceAs(
+            " 2025-2026 ",
+            1,
+            ProgramLanguage.Turkish,
+            new Dictionary<string, string> { [" practiceGroup "] = " A " }));
+    }
+
+    [Theory]
+    [InlineData(2, ProgramLanguage.Turkish, "A")]
+    [InlineData(1, ProgramLanguage.English, "A")]
+    [InlineData(1, ProgramLanguage.Turkish, "B")]
+    public void AChangedCohortDimensionIsAnAudienceChange(
+        int classYear,
+        ProgramLanguage language,
+        string practiceGroup)
+    {
+        StudentProfile profile = Create();
+
+        Assert.False(profile.DescribesSameAudienceAs(
+            "2025-2026",
+            classYear,
+            language,
+            new Dictionary<string, string> { ["practiceGroup"] = practiceGroup }));
+    }
+
+    [Fact]
+    public void AddingOrRemovingASelectorIsAnAudienceChange()
+    {
+        StudentProfile profile = Create();
+
+        Assert.False(profile.DescribesSameAudienceAs(
+            "2025-2026",
+            1,
+            ProgramLanguage.Turkish,
+            new Dictionary<string, string>
+            {
+                ["practiceGroup"] = "A",
+                ["anatomyGroup"] = "2",
+            }));
+
+        Assert.False(profile.DescribesSameAudienceAs(
+            "2025-2026",
+            1,
+            ProgramLanguage.Turkish,
+            new Dictionary<string, string>()));
+    }
+
+    [Fact]
+    public void AProfileWhoseOnlyChangeIsTheStudentNumberStillDescribesTheSameAudience()
+    {
+        // Correcting a typo in the number changes nothing about which lessons apply, so it must
+        // not queue calendar work (ADR-096).
+        StudentProfile profile = Create(studentNumber: "0101240048");
+        Dictionary<string, string> selectors = new() { ["practiceGroup"] = "A" };
+
+        profile.Update(
+            "2025-2026",
+            1,
+            ProgramLanguage.Turkish,
+            "0101240049",
+            "1.0",
+            selectors,
+            Now.AddMinutes(1));
+
+        Assert.Equal("0101240049", profile.StudentNumber);
+        Assert.True(profile.DescribesSameAudienceAs(
+            "2025-2026",
+            1,
+            ProgramLanguage.Turkish,
+            selectors));
+    }
+
     private static StudentProfile Create(
         Guid? userId = null,
         string academicYear = "2025-2026",

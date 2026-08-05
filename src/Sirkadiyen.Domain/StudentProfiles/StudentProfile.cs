@@ -118,6 +118,51 @@ public sealed class StudentProfile
         };
     }
 
+    /// <summary>
+    /// Whether a submitted profile would resolve to the same calendar audience as this one
+    /// (ADR-096).
+    /// </summary>
+    /// <remarks>
+    /// Only the fields <c>CalendarAudienceResolver</c> reads are compared: academic year, class
+    /// year, program language and the cohort selectors. The student number is deliberately not
+    /// among them — correcting a typo in it changes nothing about which lessons apply, and
+    /// queueing a full re-synchronization for it would be work nobody asked for.
+    /// <para>
+    /// The submitted selectors are normalized the same way <see cref="Update"/> normalizes them,
+    /// so a value that differs only by surrounding whitespace is correctly seen as unchanged.
+    /// </para>
+    /// </remarks>
+    public bool DescribesSameAudienceAs(
+        string academicYear,
+        int classYear,
+        ProgramLanguage programLanguage,
+        IReadOnlyDictionary<string, string> selectors)
+    {
+        if (!string.Equals(AcademicYear, academicYear?.Trim(), StringComparison.Ordinal)
+            || ClassYear != classYear
+            || ProgramLanguage != programLanguage)
+        {
+            return false;
+        }
+
+        IReadOnlyDictionary<string, string> candidate = NormalizeSelectors(selectors);
+        if (candidate.Count != Selectors.Count)
+        {
+            return false;
+        }
+
+        foreach ((string key, string value) in candidate)
+        {
+            if (!Selectors.TryGetValue(key, out string? current)
+                || !string.Equals(current, value, StringComparison.Ordinal))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     /// <summary>Replaces the mutable academic fields with a newly validated set.</summary>
     public void Update(
         string academicYear,

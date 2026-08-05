@@ -98,6 +98,82 @@ public sealed class ScheduleRevisionApprovalTests
             () => revision.TransitionTo(RevisionState.Published, Now));
     }
 
+    [Fact]
+    public void RejectionClosesTheReviewTerminallyAndRecordsWhoDecided()
+    {
+        ScheduleRevision revision = Quarantined();
+
+        revision.Reject("semih", "The workbook was mid-edit; half the rooms are blank.", Now);
+
+        Assert.Equal(RevisionState.Rejected, revision.State);
+        Assert.Equal("semih", revision.RejectedBy);
+        Assert.Equal(
+            "The workbook was mid-edit; half the rooms are blank.",
+            revision.RejectionReason);
+        Assert.Equal(Now, revision.RejectedAtUtc);
+    }
+
+    [Fact]
+    public void RejectionKeepsTheReasonTheRevisionWasHeld()
+    {
+        ScheduleRevision revision = Quarantined();
+
+        revision.Reject("semih", "Reviewed.", Now);
+
+        Assert.Contains("MassDeletion", revision.StateReason!, StringComparison.Ordinal);
+        Assert.Contains("semih", revision.StateReason!, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RejectionIsNotRecordedInTheApprovalFields()
+    {
+        // The two decisions are read by exactly the people who need to tell them apart, so a
+        // rejection must never leave a row that says somebody approved it.
+        ScheduleRevision revision = Quarantined();
+
+        revision.Reject("semih", "Reviewed.", Now);
+
+        Assert.Null(revision.ApprovedBy);
+        Assert.Null(revision.ApprovalReason);
+        Assert.Null(revision.ApprovedAtUtc);
+    }
+
+    [Theory]
+    [InlineData(RevisionState.Parsed)]
+    [InlineData(RevisionState.Validated)]
+    [InlineData(RevisionState.Published)]
+    [InlineData(RevisionState.Rejected)]
+    public void OnlyARevisionAwaitingReviewCanBeRejected(RevisionState state)
+    {
+        // Notably a published revision: there is no rollback, and it leaves live state only by
+        // being superseded (ADR-033).
+        ScheduleRevision revision = InState(state);
+
+        Assert.Throws<InvalidOperationException>(
+            () => revision.Reject("semih", "Reviewed.", Now));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void ARejectionMustStateWhoAndWhy(string blank)
+    {
+        ScheduleRevision revision = Quarantined();
+
+        Assert.ThrowsAny<ArgumentException>(() => revision.Reject(blank, "Reviewed.", Now));
+        Assert.ThrowsAny<ArgumentException>(() => revision.Reject("semih", blank, Now));
+    }
+
+    [Fact]
+    public void ARejectedRevisionCannotBeApprovedAfterwards()
+    {
+        ScheduleRevision revision = Quarantined();
+        revision.Reject("semih", "Reviewed.", Now);
+
+        Assert.Throws<InvalidOperationException>(
+            () => revision.Approve("someone-else", "Changed my mind.", Now.AddHours(1)));
+    }
+
     private static ScheduleRevision Quarantined() => InState(RevisionState.ReviewRequired);
 
     private static ScheduleRevision InState(RevisionState state)

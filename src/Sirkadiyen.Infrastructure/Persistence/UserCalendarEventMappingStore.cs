@@ -67,6 +67,7 @@ public sealed class UserCalendarEventMappingStore(SirkadiyenDbContext dbContext)
             {
                 UserId = mapping.UserId,
                 StableIdentity = mapping.StableIdentity,
+                SourceId = mapping.SourceId,
                 GoogleCalendarId = mapping.GoogleCalendarId,
                 GoogleEventId = mapping.GoogleEventId,
                 ContentHash = mapping.ContentHash,
@@ -89,6 +90,7 @@ public sealed class UserCalendarEventMappingStore(SirkadiyenDbContext dbContext)
             {
                 UserId = mapping.UserId,
                 StableIdentity = mapping.StableIdentity,
+                SourceId = mapping.SourceId,
                 GoogleCalendarId = mapping.GoogleCalendarId,
                 GoogleEventId = mapping.GoogleEventId,
                 ContentHash = mapping.ContentHash,

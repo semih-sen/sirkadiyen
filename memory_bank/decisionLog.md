@@ -5038,3 +5038,237 @@ exists on its store) are unchanged from the plan.
   or bank statement import is in scope.
 
 ---
+
+## ADR-094: Finance administration is one typed, server-authoritative workspace
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-05
+
+### Context
+
+ADR-093 completed the finance backend and deliberately left `/admin/finance` as a placeholder.
+The prototype showed summary cards, a transaction table and a distribution calculator, while the
+live backend additionally exposes accounts, holders, obligations and audit history. One contract
+gap made the existing historical settlement-cancellation route unreachable: obligation detail did
+not return settlement IDs.
+
+### Decision
+
+1. Finance remains one `/admin/finance` route with six tabs: overview, transactions, obligations,
+   accounts/holders, profit distribution and audit. This keeps the prototype's single-workspace
+   model while separating dense operations inside it.
+2. The frontend mirrors every finance contract in TypeScript and treats backend responses as
+   authoritative. It validates decimal input and confirmation text but never calculates balances,
+   partner allocations or authorization locally.
+3. Distribution execution is bound to the server preview. The browser sends the received
+   confirmation token, plan hash and exact expected phrase unchanged; plan-change conflicts require
+   a fresh preview.
+4. Obligation detail additively returns settlement identity, linked transaction identity, amount,
+   settlement/recording dates and the transaction reference. The list response stays lightweight;
+   the detail store performs a read-only settlement/transaction join. No database migration or
+   mutation rule changes.
+5. Historical settlement cancellation is presented as unlinking attribution, not deleting money.
+   The UI explicitly states that the ordinary cash transaction remains in the ledger.
+6. The existing design system and native SVG/CSS are sufficient. No chart, form or modal dependency
+   is introduced.
+
+### Consequences
+
+- Every ADR-093 finance capability is now reachable by a SuperAdmin UI, including CSV export,
+  optimistic-concurrency feedback, reason-required destructive actions and distribution reversal.
+- The finance page carries a persistent warning that this is a management ledger rather than
+  statutory accounting.
+- Settlement detail has PostgreSQL coverage for identity/reference projection and cancellation;
+  frontend tests cover preview binding and the highest-risk mutation paths.
+
+---
+## ADR-095: An active license is a precondition of every calendar write
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-05
+
+### Context
+
+ADR-022 accepted single-use licenses with "sync suspension on revocation", and systemPatterns Â§13
+states that "license revocation stops future synchronization but preserves this calendar and all
+events already written to it". Neither was true in code. `LicenseStore.RevokeAsync` moved the
+license row to `Revoked` and wrote its audit; nothing else observed that transition.
+
+Every path that selects users for Calendar work joined the connection to the student profile and
+asked only whether the credential worked and initial sync had finished:
+
+- `CalendarSyncTargetReadStore.ReadyTargets` â€” diff fan-out (cohort and ledger-holder targets) and
+  the periodic inventory,
+- `GoogleCalendarConnectionStore.ListPendingInitialSyncAsync` â€” initial sync,
+- `ListPendingReconciliationAsync` â€” re-authorization replay.
+
+A revoked student therefore kept receiving every schedule change, every inventory repair and, if
+they had asked for it before revocation, a full initial sync. Onboarding derived `Suspended` for
+them, so the UI said one thing while the worker did another.
+
+### Decision
+
+1. **An active license is a precondition of selecting a user for any Calendar write.** The four
+   selection queries above each require one. This is a gate on *future* work only: no event is
+   deleted, no calendar is touched, and the mapping ledger is left intact, exactly as ADR-022
+   requires.
+2. **"Active" has one definition, expressed once.** `ActiveLicenseQuery.UserIds` in the persistence
+   layer projects the users holding a `Redeemed` license, mirroring
+   `LicenseStore.GetUserLicenseStateAsync`. A manual `SuperAdmin` activation is already a `Redeemed`
+   license with no code hash (ADR-053), so it satisfies the gate with no special case.
+3. **Gating happens in the read stores, not in the services.** The rule belongs where a user is
+   *chosen* for work, so no future caller can add a fifth selection path that forgets it â€” and so a
+   revocation takes effect on the next cycle without a job to sweep anything.
+4. **Revocation is not made destructive and initial sync is not rewound.** A user revoked while
+   their initial sync is `InProgress` simply stops being listed; the connection stays `InProgress`
+   and resumes if the license is ever restored. The alternative â€” failing the connection â€” would
+   discard resumable progress over an administrative action that is often reversed.
+
+### Consequences
+
+- Revocation now means what the documentation always claimed. A revoked student keeps the calendar
+  and events they already had, and receives no further creations, updates, deletions or repairs.
+- Restoring access is just a new redemption or manual activation: the next worker cycle re-admits
+  the user, and the ledger-versus-truth difference is written by ordinary initial sync, dispatch
+  and inventory. No catch-up mechanism was needed, because none of those paths were destructive
+  while the user was out.
+- A revoked user's calendar drifts from the live schedule for as long as revocation lasts, and
+  nothing tells them so. That is the intended product behaviour, not an oversight; the honest
+  user-facing message belongs to the suspended-onboarding surface.
+- Persistence tests cover each of the four selection paths with a revoked, a never-licensed and an
+  actively licensed user.
+
+---
+
+## ADR-096: A profile change re-synchronizes the student's calendar
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-05
+
+### Context
+
+`StudentProfileService.SaveAsync` validated a profile and persisted it. Nothing else happened. For
+a student who had already completed initial sync, that meant a corrected practice group, anatomy
+group or program language changed the audience rule while their calendar stayed exactly as it was:
+
+- Initial sync runs once and is `Completed`.
+- Diff dispatch is edge-triggered by a published revision, so it moves nothing until the *schedule*
+  changes, and then only for the cohorts that revision touches.
+- Inventory (ADR-062) is deliberately non-destructive: it recreates and patches expected events but
+  reports rather than removes a ledger row with no current expected record.
+
+So the old cohort's events remained forever and the new cohort's arrived only by accident. A
+student who fixed a group they had entered wrongly during onboarding was left with a calendar that
+was wrong in both directions and looked complete.
+
+### Decision
+
+1. **A profile change that alters the audience records durable intent on the connection.**
+   `GoogleCalendarConnection.ProfileResyncRequiredSinceUtc` is set in the *same transaction* as the
+   profile upsert, so a crash between the two is impossible. This follows the ADR-060 shape: a
+   nullable timestamp that is both the request and its optimistic workflow token.
+2. **Only an audience change counts.** `StudentProfile.DescribesSameAudienceAs` compares academic
+   year, class year, program language and the normalized selector document. Correcting a student
+   number, or re-saving an identical profile, queues no calendar work.
+3. **Only a completed connection is flagged.** A profile change during onboarding needs nothing:
+   initial sync computes the applicable set when it runs. A connection with no calendar attached is
+   likewise skipped.
+4. **The worker converges the calendar to the ledger's difference from the new applicable set.**
+   `ProfileChangeResyncService` is freeze-gated (global and the *new* scope), fenced with dispatch,
+   replay and inventory, and per user:
+   - inserts every currently-published record that applies to the new profile and is not in the
+     ledger, reusing the deterministic event id and the ledger's uniqueness, so a re-run converges;
+   - deletes every ledger row whose lesson is **still currently published** but no longer applies.
+5. **Deletion authority here is the student's own profile, and it is bounded by publication.** A
+   ledger row is removed only when its `(SourceId, StableIdentity)` is present in the currently
+   published schedule for the profile's academic year *and* the audience rule says it is not this
+   student's. A stable identity that is absent from published truth is left completely alone â€” that
+   is the "do not delete because a parser failed to see it" rule (AI_GUIDELINE Â§13), and removing it
+   remains the semantic diff's job. Absence is never authority here either.
+6. **Bounded, resumable, and completed only by a clean pass.** Connections per cycle and mutations
+   per connection are bounded (`ProfileResyncOptions`). A pass that hits its budget leaves the
+   marker in place and returns a normal partial outcome. The marker is cleared only when a full
+   pass finds no remaining work, presenting the original timestamp as the workflow token, so a
+   second profile change made mid-pass survives instead of being cleared by the older worker.
+7. **A dead credential is not a failure of the request.** The connection is flagged
+   `NeedsReauthorization` and skipped with the marker intact; it is picked up again after
+   re-authorization, alongside the ADR-060 replay.
+
+### Consequences
+
+- A student can correct their cohort and see it. The events that no longer apply leave, the ones
+  that now apply arrive, and both happen without a schedule revision, a diff or a calendar wipe.
+- The stable identity is the join key throughout, not the canonical record id: a mapping's record
+  id points at whichever revision wrote it, and an `Unchanged` diff entry never advances it, so it
+  is not a reliable liveness signal. `ICanonicalScheduleReadStore.ListCurrentPublishedIdentitiesAsync`
+  answers liveness by identity instead.
+- Scoping the published-identity set to the profile's academic year bounds the query. It also means
+  an event written under a *previous* academic year would never be cleaned up by this path. That is
+  correct while no academic-year rollover exists (there is no such data yet) and must be revisited
+  when one does.
+- A profile change is still not written to the cross-cutting `AuditEvent` log, so the trail for
+  "why did these events disappear" is the ledger and the worker log rather than an audit row.
+  Recorded as an open risk, not closed by this ADR.
+
+---
+
+## ADR-097: A held revision can be rejected, and a failed diff can be retried
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-05
+
+### Context
+
+Two states in the pipeline were reachable but not leavable, and both were listed as unbuilt in
+`progress.md` Phase 10 ("Manual publish and reject", "Retry failed jobs").
+
+`RevisionState.ReviewRequired` had exactly one exit: `POST /api/revisions/{id}/approve`. The
+transition table already permitted `ReviewRequired` to `Rejected`, but nothing called it. An
+operator who read the findings and concluded the parse *was* wrong could only leave the revision in
+the queue forever, where it is indistinguishable from one nobody has looked at yet.
+
+`CalendarDispatchState.Failed` is terminal by design (ADR-059) so a broken diff stops churning
+every cycle. But nothing could ever move it out, so a diff whose fan-out exhausted its attempts
+during a Google outage stranded every affected student until a later revision happened to touch
+the same lessons. Neither state was even *findable*: the diff list filters on `ScheduleDiffState`,
+and a failed diff is `Ready`/`Released` in that dimension.
+
+### Decision
+
+1. **Rejection is a first-class, recorded decision, not a reuse of approval.** `ScheduleRevision`
+   gains `RejectedBy`, `RejectionReason` and `RejectedAtUtc`, and `Reject` moves a `ReviewRequired`
+   revision to the terminal `Rejected` state, carrying the finding it was held for into
+   `StateReason` exactly as `Approve` does. Recording a rejection in the approval fields would make
+   the audit trail lie.
+2. **Only a quarantined revision may be rejected.** Not a `Validated` one (publication is the next
+   step and forward-fix is the correction, ADR-033), and never a `Published` one â€” there is no
+   rollback, and a published revision leaves live state only by being superseded.
+3. **Retry clears the failure and returns the diff to the ordinary dispatcher.** `RetryDispatch`
+   moves `Failed` back to `Pending`, resets `DispatchAttempts` and clears `NextAttemptAtUtc`, so
+   the diff is picked up by the next cycle and runs through the same idempotent, ledger-resumable
+   fan-out. Retry does **not** re-run anything itself and grants no new authority: the diff must
+   still be dispatchable, and every per-user operation converges through the deterministic event id
+   and the mapping ledger, so a partially-applied diff completes rather than double-applying.
+4. **A retry is attributable and counted.** `DispatchRetryCount`, `LastDispatchRetriedBy`,
+   `LastDispatchRetryReason` and `LastDispatchRetriedAtUtc` are kept, and the previous
+   `DispatchFailureReason` is preserved until the next attempt overwrites it. An operator retrying
+   the same diff five times is visible as such rather than looking like one bad night.
+5. **Both actions require a named actor and a non-empty reason**, derived from the verified session
+   and never from the payload, and both are CSRF-protected `SuperAdmin` routes â€” the same shape as
+   revision approval (ADR-032) and diff release (ADR-042).
+6. **The failed queue is made findable.** `GET /api/diffs` accepts `dispatchState`, and the diff
+   summary now carries `CalendarDispatchState`, `DispatchAttempts`, `DispatchFailureReason` and the
+   retry fields. Without this, the retry route would exist for a queue nobody could enumerate.
+
+### Consequences
+
+- The two dead ends now have an audited, reason-required exit each, and neither weakens a safety
+  rule: rejection is terminal and forward-fix stays the only correction, and retry re-enters the
+  existing gate rather than bypassing it.
+- A repeatedly retried diff is a visible operational signal rather than a hidden one. There is
+  still no automatic alert on either queue â€” that remains the unbuilt alerting work.
+- One migration, `AddRevisionRejectionAndDiffRetry`, adds the six nullable columns and the retry
+  counter; no existing column changes meaning.
+
+---
+

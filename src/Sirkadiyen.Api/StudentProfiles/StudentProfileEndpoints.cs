@@ -94,6 +94,7 @@ public static class StudentProfileEndpoints
                 {
                     Profile = result.Profile!,
                     Onboarding = state,
+                    CalendarResyncRequested = result.CalendarResyncRequested,
                 });
 
             case SaveStudentProfileOutcome.ActivationRequired:
@@ -149,6 +150,17 @@ public sealed record SaveStudentProfileResponse
     public required StudentProfileView Profile { get; init; }
 
     public required OnboardingSnapshot Onboarding { get; init; }
+
+    /// <summary>
+    /// Whether the change altered the audience the profile resolves and therefore queued a
+    /// calendar re-synchronization (ADR-096).
+    /// </summary>
+    /// <remarks>
+    /// It says the work was <em>requested</em>, not that it has happened: the worker converges the
+    /// calendar on its next cycle. It is false for a first profile and for a change confined to
+    /// fields the audience rule does not read.
+    /// </remarks>
+    public required bool CalendarResyncRequested { get; init; }
 }
 
 /// <summary>The supported profile options the frontend renders its form from.</summary>

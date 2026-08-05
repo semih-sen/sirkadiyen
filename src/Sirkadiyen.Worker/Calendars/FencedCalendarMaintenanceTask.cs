@@ -8,6 +8,7 @@ internal sealed class FencedCalendarMaintenanceTask(
     IServiceScopeFactory scopeFactory,
     PendingDiffDispatchTask dispatch,
     CalendarReconciliationTask reconciliation,
+    ProfileResyncTask profileResync,
     CalendarInventoryTask inventory,
     ILogger<FencedCalendarMaintenanceTask> logger)
 {
@@ -29,6 +30,13 @@ internal sealed class FencedCalendarMaintenanceTask(
 
             bool catchUpRequired = await dispatch.RunAsync(cancellationToken);
             catchUpRequired |= await reconciliation.RunAsync(cancellationToken);
+
+            // After replay, before inventory. Replay applies the diffs a user missed, which is
+            // about the schedule; this converges who they are. Running it before inventory means
+            // inventory sees the calendar the new profile expects rather than reporting the old
+            // cohort's events as unexpected.
+            catchUpRequired |= await profileResync.RunAsync(cancellationToken);
+
             await inventory.RunAsync(cancellationToken);
             return catchUpRequired;
         }

@@ -55,6 +55,30 @@ import type {
   UserRole,
   UserScheduleChangeView,
   UserScheduleEventView,
+  FinanceAccountHolderListItem,
+  FinanceAccountHolderMutationResult,
+  FinanceAccountKind,
+  FinanceAccountListItem,
+  FinanceAccountMutationResult,
+  FinanceAuditAction,
+  FinanceAuditDetail,
+  FinanceAuditListItem,
+  FinanceCategory,
+  FinanceDistributionListItem,
+  FinanceDistributionPlan,
+  FinanceDistributionResult,
+  FinanceObligationDirection,
+  FinanceObligationListItem,
+  FinanceObligationMutationResult,
+  FinanceObligationStatus,
+  FinancePeriodSelector,
+  FinanceSummary,
+  FinanceTransactionDetail,
+  FinanceTransactionFilters,
+  FinanceTransactionKind,
+  FinanceTransactionListItem,
+  FinanceTransactionMutationResult,
+  FinanceTrendPoint,
 } from './types';
 
 export class ApiError extends Error {
@@ -561,4 +585,201 @@ export function listSourceDocumentUploads(
   return request<SourceDocumentUploadAuditEntry[]>(
     `/api/sources/${encodeURIComponent(sourceId)}/document/uploads`,
   );
+}
+
+// ---- Finance administration (SuperAdmin) ---------------------------------
+
+const FINANCE_PATH = '/api/admin/finance';
+
+export function listFinanceHolders(): Promise<FinanceAccountHolderListItem[]> {
+  return request(`${FINANCE_PATH}/holders`);
+}
+
+export function createFinanceHolder(body: {
+  displayName: string; userId?: string | null; shareBasisPoints: number;
+}): Promise<FinanceAccountHolderMutationResult> {
+  return request(`${FINANCE_PATH}/holders`, { method: 'POST', body });
+}
+
+export function setFinanceHolderShare(holderId: string, shareBasisPoints: number): Promise<FinanceAccountHolderMutationResult> {
+  return request(`${FINANCE_PATH}/holders/${encodeURIComponent(holderId)}/share`, {
+    method: 'POST', body: { shareBasisPoints },
+  });
+}
+
+export function deactivateFinanceHolder(holderId: string): Promise<FinanceAccountHolderMutationResult> {
+  return request(`${FINANCE_PATH}/holders/${encodeURIComponent(holderId)}/deactivate`, { method: 'POST' });
+}
+
+export function listFinanceAccounts(asOfOn?: string): Promise<FinanceAccountListItem[]> {
+  return request(withQuery(`${FINANCE_PATH}/accounts`, { asOfOn }));
+}
+
+export function getFinanceAccount(accountId: string, asOfOn?: string): Promise<FinanceAccountListItem> {
+  return request(withQuery(`${FINANCE_PATH}/accounts/${encodeURIComponent(accountId)}`, { asOfOn }));
+}
+
+export function openFinanceAccount(body: {
+  financeAccountHolderId: string; name: string; kind: FinanceAccountKind; openedOn: string;
+}): Promise<FinanceAccountMutationResult> {
+  return request(`${FINANCE_PATH}/accounts`, { method: 'POST', body });
+}
+
+export function closeFinanceAccount(accountId: string, reason: string): Promise<FinanceAccountMutationResult> {
+  return request(`${FINANCE_PATH}/accounts/${encodeURIComponent(accountId)}/close`, {
+    method: 'POST', body: { reason },
+  });
+}
+
+function financeTransactionQuery(filters: FinanceTransactionFilters): Record<string, QueryValue> {
+  return {
+    from: filters.from, to: filters.to, kind: filters.kind, category: filters.category,
+    accountId: filters.accountId, holderId: filters.holderId, search: filters.search,
+    page: filters.page, pageSize: filters.pageSize,
+  };
+}
+
+export function listFinanceTransactions(filters: FinanceTransactionFilters = {}): Promise<PagedResult<FinanceTransactionListItem>> {
+  return request(withQuery(`${FINANCE_PATH}/transactions`, financeTransactionQuery(filters)));
+}
+
+export function getFinanceTransaction(transactionId: string): Promise<FinanceTransactionDetail> {
+  return request(`${FINANCE_PATH}/transactions/${encodeURIComponent(transactionId)}`);
+}
+
+export function getFinanceTransactionHistory(transactionId: string): Promise<FinanceAuditDetail[]> {
+  return request(`${FINANCE_PATH}/transactions/${encodeURIComponent(transactionId)}/history`);
+}
+
+export function recordFinanceOpeningBalance(body: {
+  accountId: string; signedAmount: number; occurredOn: string; description: string;
+}): Promise<FinanceTransactionMutationResult> {
+  return request(`${FINANCE_PATH}/transactions/opening-balance`, { method: 'POST', body });
+}
+
+export function recordFinanceIncome(body: {
+  accountId: string; amount: number; category: FinanceCategory; occurredOn: string;
+  description: string; reference?: string | null; counterpartyName?: string | null;
+}): Promise<FinanceTransactionMutationResult> {
+  return request(`${FINANCE_PATH}/transactions/income`, { method: 'POST', body });
+}
+
+export function recordFinanceExpense(body: {
+  accountId: string; amount: number; category: FinanceCategory; occurredOn: string;
+  description: string; reference?: string | null; counterpartyName?: string | null;
+}): Promise<FinanceTransactionMutationResult> {
+  return request(`${FINANCE_PATH}/transactions/expense`, { method: 'POST', body });
+}
+
+export function recordFinanceTransfer(body: {
+  fromAccountId: string; toAccountId: string; amount: number; occurredOn: string;
+  description: string; reference?: string | null;
+}): Promise<FinanceTransactionMutationResult> {
+  return request(`${FINANCE_PATH}/transactions/transfer`, { method: 'POST', body });
+}
+
+export function updateFinanceTransaction(transactionId: string, body: {
+  kind: FinanceTransactionKind; category?: FinanceCategory | null; amount: number; occurredOn: string;
+  description: string; reference?: string | null; counterpartyName?: string | null;
+  accountId: string; toAccountId?: string | null; rowVersion: number; reason: string;
+}): Promise<FinanceTransactionMutationResult> {
+  return request(`${FINANCE_PATH}/transactions/${encodeURIComponent(transactionId)}`, { method: 'PUT', body });
+}
+
+export function deleteFinanceTransaction(transactionId: string, rowVersion: number, reason: string): Promise<FinanceTransactionMutationResult> {
+  return request(`${FINANCE_PATH}/transactions/${encodeURIComponent(transactionId)}/delete`, {
+    method: 'POST', body: { rowVersion, reason },
+  });
+}
+
+export async function exportFinanceTransactions(filters: FinanceTransactionFilters = {}): Promise<Blob> {
+  const path = withQuery(`${FINANCE_PATH}/transactions/export`, financeTransactionQuery(filters));
+  const response = await fetch(path, { method: 'GET', credentials: 'include', headers: { Accept: 'text/csv' } });
+  if (!response.ok) throw new ApiError(response.status, await readProblem(response), 'Finans işlemleri dışa aktarılamadı.');
+  return response.blob();
+}
+
+export function getFinanceSummary(values: {
+  period?: FinancePeriodSelector; startOn?: string; endOn?: string; accountId?: string;
+} = {}): Promise<FinanceSummary> {
+  return request(withQuery(`${FINANCE_PATH}/summary`, values));
+}
+
+export function getFinanceTrend(months = 12): Promise<FinanceTrendPoint[]> {
+  return request(withQuery(`${FINANCE_PATH}/trend`, { months }));
+}
+
+export function listFinanceObligations(values: {
+  direction?: FinanceObligationDirection; status?: FinanceObligationStatus; page?: number; pageSize?: number;
+} = {}): Promise<PagedResult<FinanceObligationListItem>> {
+  return request(withQuery(`${FINANCE_PATH}/obligations/`, values));
+}
+
+export function getFinanceObligation(obligationId: string): Promise<FinanceObligationListItem> {
+  return request(`${FINANCE_PATH}/obligations/${encodeURIComponent(obligationId)}`);
+}
+
+export function createFinanceObligation(body: {
+  direction: FinanceObligationDirection; category: FinanceCategory; counterpartyName: string;
+  description?: string | null; amount: number; issuedOn: string; dueOn?: string | null;
+}): Promise<FinanceObligationMutationResult> {
+  return request(`${FINANCE_PATH}/obligations/`, { method: 'POST', body });
+}
+
+export function settleFinanceObligation(obligationId: string, body: {
+  accountId: string; amount: number; settledOn: string; reference?: string | null;
+}): Promise<FinanceObligationMutationResult> {
+  return request(`${FINANCE_PATH}/obligations/${encodeURIComponent(obligationId)}/settle`, { method: 'POST', body });
+}
+
+export function cancelFinanceObligationSettlement(obligationId: string, settlementId: string, reason: string): Promise<FinanceObligationMutationResult> {
+  return request(`${FINANCE_PATH}/obligations/${encodeURIComponent(obligationId)}/settlements/${encodeURIComponent(settlementId)}/cancel`, {
+    method: 'POST', body: { reason },
+  });
+}
+
+export function writeOffFinanceObligation(obligationId: string, on: string, reason: string): Promise<FinanceObligationMutationResult> {
+  return request(`${FINANCE_PATH}/obligations/${encodeURIComponent(obligationId)}/write-off`, {
+    method: 'POST', body: { on, reason },
+  });
+}
+
+export function cancelFinanceObligation(obligationId: string, on: string, reason: string): Promise<FinanceObligationMutationResult> {
+  return request(`${FINANCE_PATH}/obligations/${encodeURIComponent(obligationId)}/cancel`, {
+    method: 'POST', body: { on, reason },
+  });
+}
+
+export function listFinanceDistributions(): Promise<FinanceDistributionListItem[]> {
+  return request(`${FINANCE_PATH}/distributions/`);
+}
+
+export function getFinanceDistribution(distributionId: string): Promise<FinanceDistributionListItem> {
+  return request(`${FINANCE_PATH}/distributions/${encodeURIComponent(distributionId)}`);
+}
+
+export function previewFinanceDistribution(body: {
+  periodStartOn: string; periodEndOn: string; sourceAccountId: string;
+}): Promise<FinanceDistributionPlan> {
+  return request(`${FINANCE_PATH}/distributions/preview`, { method: 'POST', body });
+}
+
+export function executeFinanceDistribution(body: {
+  periodStartOn: string; periodEndOn: string; sourceAccountId: string; confirmationToken: string;
+  planHash: string; expectedConfirmationPhrase: string; reason: string;
+}): Promise<FinanceDistributionResult> {
+  return request(`${FINANCE_PATH}/distributions/execute`, { method: 'POST', body });
+}
+
+export function reverseFinanceDistribution(distributionId: string, reason: string): Promise<FinanceDistributionResult> {
+  return request(`${FINANCE_PATH}/distributions/${encodeURIComponent(distributionId)}/reverse`, {
+    method: 'POST', body: { reason },
+  });
+}
+
+export function listFinanceAudit(values: {
+  subjectType?: string; subjectId?: string; action?: FinanceAuditAction; actorUserId?: string;
+  from?: string; to?: string; page?: number; pageSize?: number;
+} = {}): Promise<PagedResult<FinanceAuditListItem>> {
+  return request(withQuery(`${FINANCE_PATH}/audit`, values));
 }

@@ -34,6 +34,24 @@ public sealed class ScheduleDiffReviewStore(SirkadiyenDbContext dbContext) : ISc
         return [.. diffs.Select(Summarize)];
     }
 
+    public async Task<IReadOnlyList<ScheduleDiffSummary>> ListByDispatchStateAsync(
+        CalendarDispatchState dispatchState,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
+
+        List<ScheduleDiff> diffs = await dbContext.ScheduleDiffs
+            .AsNoTracking()
+            .Where(diff => diff.CalendarDispatchState == dispatchState)
+            .OrderBy(diff => diff.CreatedAtUtc)
+            .ThenBy(diff => diff.Id)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+
+        return [.. diffs.Select(Summarize)];
+    }
+
     public async Task<ScheduleDiffDetail?> FindAsync(
         Guid scheduleDiffId,
         int entryLimit,
@@ -154,6 +172,71 @@ public sealed class ScheduleDiffReviewStore(SirkadiyenDbContext dbContext) : ISc
         };
     }
 
+    public async Task<ScheduleDiffRetryResult> RetryDispatchAsync(
+        Guid scheduleDiffId,
+        string retriedBy,
+        string retryReason,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken)
+    {
+        ScheduleDiff? diff = await dbContext.ScheduleDiffs
+            .SingleOrDefaultAsync(candidate => candidate.Id == scheduleDiffId, cancellationToken);
+
+        if (diff is null)
+        {
+            return new ScheduleDiffRetryResult
+            {
+                Outcome = ScheduleDiffRetryOutcome.DiffNotFound,
+            };
+        }
+
+        if (!diff.IsDispatchable)
+        {
+            // A held diff may not reach a calendar at all, so retrying it would be releasing it
+            // under another name. That decision is ADR-042's, and it is a different one.
+            return new ScheduleDiffRetryResult
+            {
+                Outcome = ScheduleDiffRetryOutcome.NotDispatchable,
+                ObservedDispatchState = diff.CalendarDispatchState,
+            };
+        }
+
+        if (!diff.IsDispatchRetriable)
+        {
+            return new ScheduleDiffRetryResult
+            {
+                Outcome = ScheduleDiffRetryOutcome.NotFailed,
+                ObservedDispatchState = diff.CalendarDispatchState,
+            };
+        }
+
+        diff.RetryDispatch(retriedBy, retryReason, atUtc);
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // A worker or another operator changed this diff between the read and the write. The
+            // retry is refused rather than reapplied: whoever retries it must see its current
+            // state first, exactly as a release does.
+            dbContext.ChangeTracker.Clear();
+            return new ScheduleDiffRetryResult
+            {
+                Outcome = ScheduleDiffRetryOutcome.ConcurrentChange,
+            };
+        }
+
+        return new ScheduleDiffRetryResult
+        {
+            Outcome = ScheduleDiffRetryOutcome.Retried,
+            ObservedDispatchState = diff.CalendarDispatchState,
+            RetriedAtUtc = atUtc,
+            DispatchRetryCount = diff.DispatchRetryCount,
+        };
+    }
+
     private async Task<Dictionary<Guid, ScheduleDiffRecordView>> LoadRecordsAsync(
         Guid[] recordIds,
         CancellationToken cancellationToken)
@@ -211,5 +294,14 @@ public sealed class ScheduleDiffReviewStore(SirkadiyenDbContext dbContext) : ISc
         ReleasedBy = diff.ReleasedBy,
         ReleaseReason = diff.ReleaseReason,
         ReleasedAtUtc = diff.ReleasedAtUtc,
+        CalendarDispatchState = diff.CalendarDispatchState,
+        DispatchAttempts = diff.DispatchAttempts,
+        DispatchedAtUtc = diff.DispatchedAtUtc,
+        DispatchFailureReason = diff.DispatchFailureReason,
+        IsDispatchRetriable = diff.IsDispatchRetriable,
+        DispatchRetryCount = diff.DispatchRetryCount,
+        LastDispatchRetriedBy = diff.LastDispatchRetriedBy,
+        LastDispatchRetryReason = diff.LastDispatchRetryReason,
+        LastDispatchRetriedAtUtc = diff.LastDispatchRetriedAtUtc,
     };
 }
