@@ -1,10 +1,10 @@
 using Sirkadiyen.Application.Operations;
-using Sirkadiyen.Application.ScheduleDiffing;
+using Sirkadiyen.Application.Scheduling.Diffing;
 using Sirkadiyen.Application.StudentProfiles;
 using Sirkadiyen.Domain.GoogleCalendar;
-using Sirkadiyen.Domain.ScheduleDiffing;
-using Sirkadiyen.Domain.SchedulePublication;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Diffing;
+using Sirkadiyen.Domain.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
 namespace Sirkadiyen.Application.GoogleCalendar;
 

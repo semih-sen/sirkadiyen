@@ -1,7 +1,7 @@
-using Sirkadiyen.Domain.ScheduleDiffing;
-using Sirkadiyen.Domain.SchedulePublication;
+using Sirkadiyen.Domain.Scheduling.Diffing;
+using Sirkadiyen.Domain.Scheduling.Publication;
 
-namespace Sirkadiyen.Application.ScheduleDiffing;
+namespace Sirkadiyen.Application.Scheduling.Diffing;
 
 /// <summary>
 /// Loads the two revisions a diff compares and stores the result exactly once.
@@ -88,7 +88,7 @@ public sealed record DispatchableDiff
     public required Guid DiffId { get; init; }
 
     /// <summary>The source that produced these records, for scoping the ledger reverse lookup.</summary>
-    public required Domain.ScheduleSources.SourceId SourceId { get; init; }
+    public required Domain.Scheduling.Sources.SourceId SourceId { get; init; }
 
     public required IReadOnlyList<ScheduleDiffEntry> Entries { get; init; }
 }
@@ -100,7 +100,7 @@ public sealed record DispatchedDiff
 {
     public required Guid DiffId { get; init; }
 
-    public required Domain.ScheduleSources.SourceId SourceId { get; init; }
+    public required Domain.Scheduling.Sources.SourceId SourceId { get; init; }
 
     /// <summary>The first half of the durable replay ordering key.</summary>
     public required DateTimeOffset DispatchedAtUtc { get; init; }
@@ -112,7 +112,7 @@ public sealed record ScheduleDiffInput
 {
     public required Guid ScheduleSourceId { get; init; }
 
-    public required Domain.ScheduleSources.SourceId SourceId { get; init; }
+    public required Domain.Scheduling.Sources.SourceId SourceId { get; init; }
 
     public required Guid CurrentRevisionId { get; init; }
 

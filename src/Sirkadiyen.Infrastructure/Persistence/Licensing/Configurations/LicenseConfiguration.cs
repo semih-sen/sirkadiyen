@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Sirkadiyen.Domain.Identity;
 using Sirkadiyen.Domain.Licensing;
 
-namespace Sirkadiyen.Infrastructure.Persistence.Configurations;
+namespace Sirkadiyen.Infrastructure.Persistence.Licensing.Configurations;
 
 internal sealed class LicenseConfiguration : IEntityTypeConfiguration<License>
 {

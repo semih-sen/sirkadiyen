@@ -3,7 +3,7 @@ using Sirkadiyen.Application.Administration;
 using Sirkadiyen.Application.Common;
 using Sirkadiyen.Domain.Licensing;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Administration.Stores;
 
 /// <summary>
 /// Read-only admin listing and detail over licenses. It never projects the code hash: a license is

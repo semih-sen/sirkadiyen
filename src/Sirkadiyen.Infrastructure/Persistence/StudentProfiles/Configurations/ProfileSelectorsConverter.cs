@@ -2,7 +2,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Sirkadiyen.Contracts.Serialization;
 
-namespace Sirkadiyen.Infrastructure.Persistence.Configurations;
+namespace Sirkadiyen.Infrastructure.Persistence.StudentProfiles.Configurations;
 
 /// <summary>Stores the cohort selectors as a JSONB key/value document.</summary>
 /// <remarks>

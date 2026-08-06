@@ -1,10 +1,10 @@
 using System.Text;
 using System.Text.Json;
-using Sirkadiyen.Application.ScheduleParsing;
+using Sirkadiyen.Application.Scheduling.Parsing;
 using Sirkadiyen.Contracts.Parsing;
 using Sirkadiyen.Contracts.Serialization;
 
-namespace Sirkadiyen.Infrastructure.ScheduleParsing;
+namespace Sirkadiyen.Infrastructure.Scheduling.Parsing;
 
 /// <summary>Strict HTTP adapter for the versioned Python parser contract.</summary>
 public sealed class ParserHttpClient(HttpClient httpClient) : IScheduleParserClient

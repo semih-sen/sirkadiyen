@@ -1,6 +1,6 @@
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Application.ScheduleSources;
+namespace Sirkadiyen.Application.Scheduling.Sources;
 
 public sealed record ScheduleSourceCatalog
 {
@@ -72,7 +72,7 @@ public sealed record ScheduleSourceDefinition
 
     /// <summary>Projects the configured definition onto its persisted form.</summary>
     public ScheduleSource ToScheduleSource() => new(
-        Domain.ScheduleSources.SourceId.Parse(SourceId),
+        Domain.Scheduling.Sources.SourceId.Parse(SourceId),
         DisplayName,
         Transport,
         DocumentFormat,

@@ -2,9 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Sirkadiyen.Application.Operations;
 using Sirkadiyen.Domain.Operations;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Operations.Stores;
 
 /// <summary>
 /// PostgreSQL-backed global operational freeze with an atomic audit trail.

@@ -1,14 +1,14 @@
 using System.Globalization;
 using System.Text.Json;
-using Sirkadiyen.Application.SchedulePublication;
+using Sirkadiyen.Application.Scheduling.Publication;
 using Sirkadiyen.Contracts.Parsing;
 using Sirkadiyen.Contracts.Serialization;
-using Sirkadiyen.Domain.SchedulePublication;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Sources;
 using Xunit;
-using DomainAudienceScope = Sirkadiyen.Domain.SchedulePublication.AudienceScope;
-using DomainEventType = Sirkadiyen.Domain.SchedulePublication.ScheduleEventType;
-using DomainLanguage = Sirkadiyen.Domain.ScheduleSources.ProgramLanguage;
+using DomainAudienceScope = Sirkadiyen.Domain.Scheduling.Publication.AudienceScope;
+using DomainEventType = Sirkadiyen.Domain.Scheduling.Publication.ScheduleEventType;
+using DomainLanguage = Sirkadiyen.Domain.Scheduling.Sources.ProgramLanguage;
 
 namespace Sirkadiyen.Infrastructure.UnitTests;
 

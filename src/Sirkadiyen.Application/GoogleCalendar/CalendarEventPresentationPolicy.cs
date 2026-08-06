@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
-using Sirkadiyen.Domain.SchedulePublication;
+using Sirkadiyen.Domain.Scheduling.Publication;
 
 namespace Sirkadiyen.Application.GoogleCalendar;
 

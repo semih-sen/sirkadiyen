@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Antiforgery;
 using Sirkadiyen.Api.Identity;
 using Sirkadiyen.Application.Onboarding;
 using Sirkadiyen.Application.StudentProfiles;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
 namespace Sirkadiyen.Api.StudentProfiles;
 

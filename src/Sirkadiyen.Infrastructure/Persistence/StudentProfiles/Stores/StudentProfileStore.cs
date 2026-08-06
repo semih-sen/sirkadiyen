@@ -3,10 +3,10 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using Sirkadiyen.Application.StudentProfiles;
 using Sirkadiyen.Domain.GoogleCalendar;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 using Sirkadiyen.Domain.StudentProfiles;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.StudentProfiles.Stores;
 
 /// <summary>Transactional PostgreSQL student-profile store.</summary>
 public sealed class StudentProfileStore(SirkadiyenDbContext dbContext) : IStudentProfileStore

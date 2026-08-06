@@ -1,10 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
-using Sirkadiyen.Application.ScheduleIngestion;
-using Sirkadiyen.Domain.ScheduleIngestion;
-using Sirkadiyen.Domain.ScheduleParsing;
+using Sirkadiyen.Application.Scheduling.Ingestion;
+using Sirkadiyen.Domain.Scheduling.Ingestion;
+using Sirkadiyen.Domain.Scheduling.Parsing;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Scheduling.Stores;
 
 /// <summary>
 /// PostgreSQL implementation of the bounded snapshot-payload retention policy.

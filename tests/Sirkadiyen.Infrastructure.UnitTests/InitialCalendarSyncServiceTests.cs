@@ -2,8 +2,8 @@ using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Operations;
 using Sirkadiyen.Application.StudentProfiles;
 using Sirkadiyen.Domain.GoogleCalendar;
-using Sirkadiyen.Domain.SchedulePublication;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Sources;
 using Xunit;
 
 namespace Sirkadiyen.Infrastructure.UnitTests;

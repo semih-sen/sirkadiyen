@@ -3,7 +3,7 @@ using Sirkadiyen.Application.Common;
 using Sirkadiyen.Application.Finance;
 using Sirkadiyen.Domain.Finance;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Finance.Stores;
 
 /// <summary>Read-only access to the append-only finance audit log.</summary>
 public sealed class FinanceAuditStore(SirkadiyenDbContext dbContext) : IFinanceAuditStore

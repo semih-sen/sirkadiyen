@@ -1,6 +1,6 @@
-using Sirkadiyen.Application.ScheduleIngestion;
+using Sirkadiyen.Application.Scheduling.Ingestion;
 using Sirkadiyen.Contracts.Spreadsheets;
-using Sirkadiyen.Infrastructure.ScheduleIngestion;
+using Sirkadiyen.Infrastructure.Scheduling.Ingestion;
 using Xunit;
 
 namespace Sirkadiyen.Infrastructure.UnitTests;

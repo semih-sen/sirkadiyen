@@ -1,4 +1,4 @@
-namespace Sirkadiyen.Api.Administration;
+namespace Sirkadiyen.Api.Auditing;
 
 /// <summary>Why the authenticated SuperAdmin is revealing a masked client IP.</summary>
 public sealed record UnmaskAuditIpRequest

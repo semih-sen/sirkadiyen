@@ -1,10 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
-using Sirkadiyen.Application.ScheduleDiffing;
-using Sirkadiyen.Domain.ScheduleDiffing;
-using Sirkadiyen.Domain.SchedulePublication;
+using Sirkadiyen.Application.Scheduling.Diffing;
+using Sirkadiyen.Domain.Scheduling.Diffing;
+using Sirkadiyen.Domain.Scheduling.Publication;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Scheduling.Stores;
 
 /// <summary>
 /// Reads the two revisions a diff compares and stores the result once.

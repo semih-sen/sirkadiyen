@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Sirkadiyen.Application.ScheduleIngestion;
-using Sirkadiyen.Infrastructure.ScheduleSources;
+using Sirkadiyen.Application.Scheduling.Ingestion;
+using Sirkadiyen.Infrastructure.Scheduling.Sources;
 using Sirkadiyen.Worker.Calendars;
 using Sirkadiyen.Worker.Configuration;
 using Sirkadiyen.Worker.Health;

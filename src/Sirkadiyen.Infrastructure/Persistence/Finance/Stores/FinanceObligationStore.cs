@@ -6,7 +6,7 @@ using Sirkadiyen.Application.Finance;
 using Sirkadiyen.Contracts.Serialization;
 using Sirkadiyen.Domain.Finance;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Finance.Stores;
 
 /// <summary>Transactional PostgreSQL store for finance obligations and their settlements.</summary>
 public sealed class FinanceObligationStore(SirkadiyenDbContext dbContext) : IFinanceObligationStore

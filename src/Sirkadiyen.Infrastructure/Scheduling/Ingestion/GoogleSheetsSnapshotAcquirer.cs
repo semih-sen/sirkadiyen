@@ -1,9 +1,9 @@
 using Google.Apis.Sheets.v4;
 using Google.Apis.Sheets.v4.Data;
-using Sirkadiyen.Application.ScheduleIngestion;
+using Sirkadiyen.Application.Scheduling.Ingestion;
 using Sirkadiyen.Contracts.Spreadsheets;
 
-namespace Sirkadiyen.Infrastructure.ScheduleIngestion;
+namespace Sirkadiyen.Infrastructure.Scheduling.Ingestion;
 
 public sealed class GoogleSheetsSnapshotAcquirer(
     SheetsService sheetsService,

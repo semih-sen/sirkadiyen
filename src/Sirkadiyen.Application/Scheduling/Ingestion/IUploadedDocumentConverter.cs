@@ -1,7 +1,7 @@
 using Sirkadiyen.Contracts.Spreadsheets;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Application.ScheduleIngestion;
+namespace Sirkadiyen.Application.Scheduling.Ingestion;
 
 /// <summary>Converts an uploaded document into the normalized snapshot contract.</summary>
 /// <remarks>

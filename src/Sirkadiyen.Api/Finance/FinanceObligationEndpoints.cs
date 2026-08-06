@@ -5,7 +5,7 @@ using Sirkadiyen.Application.Common;
 using Sirkadiyen.Application.Finance;
 using Sirkadiyen.Domain.Finance;
 
-namespace Sirkadiyen.Api.Administration;
+namespace Sirkadiyen.Api.Finance;
 
 /// <summary>
 /// SuperAdmin-only administration of the accrual layer beside the cash ledger: receivables and

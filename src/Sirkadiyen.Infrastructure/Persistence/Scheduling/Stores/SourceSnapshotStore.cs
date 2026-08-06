@@ -1,12 +1,12 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Sirkadiyen.Application.ScheduleIngestion;
+using Sirkadiyen.Application.Scheduling.Ingestion;
 using Sirkadiyen.Contracts.Serialization;
 using Sirkadiyen.Contracts.Spreadsheets;
-using Sirkadiyen.Domain.ScheduleIngestion;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Ingestion;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Scheduling.Stores;
 
 /// <summary>
 /// Stores snapshots in PostgreSQL and implements the unchanged-source short

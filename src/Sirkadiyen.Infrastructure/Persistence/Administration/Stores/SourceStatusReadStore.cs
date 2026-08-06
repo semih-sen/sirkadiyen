@@ -3,9 +3,9 @@ using Microsoft.EntityFrameworkCore;
 using Sirkadiyen.Application.Administration;
 using Sirkadiyen.Contracts.Parsing;
 using Sirkadiyen.Contracts.Serialization;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Administration.Stores;
 
 /// <summary>
 /// Projects each configured source's ingestion health from existing pipeline tables: poll status

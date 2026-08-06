@@ -1,4 +1,4 @@
-namespace Sirkadiyen.Application.SchedulePublication;
+namespace Sirkadiyen.Application.Scheduling.Publication;
 
 /// <summary>
 /// Runs revision validation for one revision, or for every revision still

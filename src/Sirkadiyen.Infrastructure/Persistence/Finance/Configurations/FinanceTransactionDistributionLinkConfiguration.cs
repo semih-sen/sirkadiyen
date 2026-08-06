@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Sirkadiyen.Domain.Finance;
 
-namespace Sirkadiyen.Infrastructure.Persistence.Configurations;
+namespace Sirkadiyen.Infrastructure.Persistence.Finance.Configurations;
 
 /// <summary>
 /// Adds the deferred FK from <c>finance_transactions.FinanceDistributionId</c> to

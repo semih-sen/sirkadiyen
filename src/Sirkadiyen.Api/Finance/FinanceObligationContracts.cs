@@ -1,6 +1,6 @@
 using Sirkadiyen.Domain.Finance;
 
-namespace Sirkadiyen.Api.Administration;
+namespace Sirkadiyen.Api.Finance;
 
 public sealed record CreateFinanceObligationRequest
 {

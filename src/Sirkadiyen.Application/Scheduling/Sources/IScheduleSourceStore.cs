@@ -1,6 +1,6 @@
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Application.ScheduleSources;
+namespace Sirkadiyen.Application.Scheduling.Sources;
 
 /// <summary>
 /// Reads and updates the configured schedule sources.

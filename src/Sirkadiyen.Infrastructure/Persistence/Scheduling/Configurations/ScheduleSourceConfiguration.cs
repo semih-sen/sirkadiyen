@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Infrastructure.Persistence.Configurations;
+namespace Sirkadiyen.Infrastructure.Persistence.Scheduling.Configurations;
 
 internal sealed class ScheduleSourceConfiguration : IEntityTypeConfiguration<ScheduleSource>
 {

@@ -1,7 +1,7 @@
 using Sirkadiyen.Application.Operations;
-using Sirkadiyen.Domain.SchedulePublication;
+using Sirkadiyen.Domain.Scheduling.Publication;
 
-namespace Sirkadiyen.Application.SchedulePublication;
+namespace Sirkadiyen.Application.Scheduling.Publication;
 
 /// <summary>
 /// Makes a validated revision live, and releases a quarantined one so that it

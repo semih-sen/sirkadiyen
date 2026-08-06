@@ -1,6 +1,6 @@
-using Sirkadiyen.Domain.ScheduleDiffing;
+using Sirkadiyen.Domain.Scheduling.Diffing;
 
-namespace Sirkadiyen.Application.ScheduleDiffing;
+namespace Sirkadiyen.Application.Scheduling.Diffing;
 
 /// <summary>
 /// Calculates and stores the semantic diff of a published revision.

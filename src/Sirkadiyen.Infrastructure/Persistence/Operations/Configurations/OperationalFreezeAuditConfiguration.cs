@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Sirkadiyen.Domain.Operations;
 
-namespace Sirkadiyen.Infrastructure.Persistence.Configurations;
+namespace Sirkadiyen.Infrastructure.Persistence.Operations.Configurations;
 
 internal sealed class OperationalFreezeAuditConfiguration
     : IEntityTypeConfiguration<OperationalFreezeAudit>

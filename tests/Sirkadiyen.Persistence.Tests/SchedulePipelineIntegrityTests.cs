@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using Sirkadiyen.Domain.ScheduleIngestion;
-using Sirkadiyen.Domain.ScheduleParsing;
-using Sirkadiyen.Domain.SchedulePublication;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Ingestion;
+using Sirkadiyen.Domain.Scheduling.Parsing;
+using Sirkadiyen.Domain.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Sources;
 using Sirkadiyen.Infrastructure.Persistence;
 using Xunit;
 

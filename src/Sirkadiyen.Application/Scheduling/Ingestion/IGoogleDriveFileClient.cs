@@ -1,4 +1,4 @@
-namespace Sirkadiyen.Application.ScheduleIngestion;
+namespace Sirkadiyen.Application.Scheduling.Ingestion;
 
 /// <summary>
 /// Reads one file out of Google Drive, verified against what Drive says that file

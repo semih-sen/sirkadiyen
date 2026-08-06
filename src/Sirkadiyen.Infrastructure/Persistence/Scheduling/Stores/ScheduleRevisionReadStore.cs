@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using Sirkadiyen.Application.SchedulePublication;
-using Sirkadiyen.Domain.SchedulePublication;
+using Sirkadiyen.Application.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Publication;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Scheduling.Stores;
 
 /// <summary>
 /// Read-only projections of revisions and their validation findings.

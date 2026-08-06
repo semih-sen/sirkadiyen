@@ -1,6 +1,6 @@
-using Sirkadiyen.Domain.SchedulePublication;
+using Sirkadiyen.Domain.Scheduling.Publication;
 
-namespace Sirkadiyen.Application.SchedulePublication;
+namespace Sirkadiyen.Application.Scheduling.Publication;
 
 /// <summary>
 /// Loads what revision validation needs and records what it decided.

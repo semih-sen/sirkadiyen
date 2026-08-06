@@ -2,10 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using Sirkadiyen.Application.Administration;
 using Sirkadiyen.Domain.GoogleCalendar;
 using Sirkadiyen.Domain.Licensing;
-using Sirkadiyen.Domain.ScheduleDiffing;
-using Sirkadiyen.Domain.SchedulePublication;
+using Sirkadiyen.Domain.Scheduling.Diffing;
+using Sirkadiyen.Domain.Scheduling.Publication;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Administration.Stores;
 
 /// <summary>Aggregates the admin dashboard's operational counts from existing pipeline tables.</summary>
 public sealed class AdminMetricsReadStore(SirkadiyenDbContext dbContext, TimeProvider timeProvider)

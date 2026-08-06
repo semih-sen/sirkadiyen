@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using Sirkadiyen.Application.Schedule;
-using Sirkadiyen.Domain.SchedulePublication;
+using Sirkadiyen.Application.Scheduling.Access;
+using Sirkadiyen.Domain.Scheduling.Publication;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Scheduling.Stores;
 
 /// <summary>
 /// Reads a student's timetable from the event-mapping ledger joined to the canonical records it

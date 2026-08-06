@@ -3,14 +3,14 @@ using System.Text;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
-using Sirkadiyen.Application.ScheduleIngestion;
+using Sirkadiyen.Application.Scheduling.Ingestion;
 using Sirkadiyen.Contracts.Spreadsheets;
 using ContractGridRange = Sirkadiyen.Contracts.Spreadsheets.GridRange;
 using OpenXmlTable = DocumentFormat.OpenXml.Wordprocessing.Table;
 using OpenXmlTableCell = DocumentFormat.OpenXml.Wordprocessing.TableCell;
 using OpenXmlTableRow = DocumentFormat.OpenXml.Wordprocessing.TableRow;
 
-namespace Sirkadiyen.Infrastructure.ScheduleIngestion;
+namespace Sirkadiyen.Infrastructure.Scheduling.Ingestion;
 
 /// <summary>
 /// Converts a Word document into the same normalized snapshot the spreadsheet

@@ -6,7 +6,7 @@ using Sirkadiyen.Domain.Identity;
 using Sirkadiyen.Domain.Licensing;
 using Sirkadiyen.Domain.StudentProfiles;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Administration.Stores;
 
 /// <summary>Composes the admin user list and detail from identity, profile, and license tables.</summary>
 public sealed class AdminUserReadStore(SirkadiyenDbContext dbContext) : IAdminUserReadStore

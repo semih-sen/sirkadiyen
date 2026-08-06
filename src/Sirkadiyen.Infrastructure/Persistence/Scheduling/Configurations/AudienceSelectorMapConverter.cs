@@ -2,7 +2,7 @@ using System.Text.Json;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Sirkadiyen.Contracts.Serialization;
 
-namespace Sirkadiyen.Infrastructure.Persistence.Configurations;
+namespace Sirkadiyen.Infrastructure.Persistence.Scheduling.Configurations;
 
 /// <summary>Stores the declared audience selectors as a JSONB document.</summary>
 internal sealed class AudienceSelectorMapConverter()

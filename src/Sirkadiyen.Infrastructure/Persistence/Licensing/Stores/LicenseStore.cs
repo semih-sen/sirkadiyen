@@ -4,7 +4,7 @@ using Npgsql;
 using Sirkadiyen.Application.Licensing;
 using Sirkadiyen.Domain.Licensing;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Licensing.Stores;
 
 /// <summary>Transactional PostgreSQL license store.</summary>
 public sealed class LicenseStore(SirkadiyenDbContext dbContext) : ILicenseStore

@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Domain.GoogleCalendar;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.GoogleCalendar.Stores;
 
 public sealed class DepartmentColorStore(SirkadiyenDbContext dbContext)
     : IDepartmentColorStore

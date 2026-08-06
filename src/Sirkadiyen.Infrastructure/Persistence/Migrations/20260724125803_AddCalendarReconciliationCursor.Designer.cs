@@ -442,7 +442,7 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Sirkadiyen.Domain.ScheduleDiffing.ScheduleDiff", b =>
+            modelBuilder.Entity("Sirkadiyen.Domain.Scheduling.Diffing.ScheduleDiff", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -549,7 +549,7 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Sirkadiyen.Domain.ScheduleDiffing.ScheduleDiffEntry", b =>
+            modelBuilder.Entity("Sirkadiyen.Domain.Scheduling.Diffing.ScheduleDiffEntry", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -610,7 +610,7 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Sirkadiyen.Domain.ScheduleIngestion.SourceSnapshot", b =>
+            modelBuilder.Entity("Sirkadiyen.Domain.Scheduling.Ingestion.SourceSnapshot", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -679,7 +679,7 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
                     b.ToTable("source_snapshots", "sirkadiyen");
                 });
 
-            modelBuilder.Entity("Sirkadiyen.Domain.ScheduleParsing.ParseRun", b =>
+            modelBuilder.Entity("Sirkadiyen.Domain.Scheduling.Parsing.ParseRun", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -747,7 +747,7 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Sirkadiyen.Domain.SchedulePublication.CanonicalScheduleRecord", b =>
+            modelBuilder.Entity("Sirkadiyen.Domain.Scheduling.Publication.CanonicalScheduleRecord", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -876,7 +876,7 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
                         });
                 });
 
-            modelBuilder.Entity("Sirkadiyen.Domain.SchedulePublication.RevisionValidationFinding", b =>
+            modelBuilder.Entity("Sirkadiyen.Domain.Scheduling.Publication.RevisionValidationFinding", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -917,7 +917,7 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
                     b.ToTable("revision_validation_findings", "sirkadiyen");
                 });
 
-            modelBuilder.Entity("Sirkadiyen.Domain.SchedulePublication.ScheduleRevision", b =>
+            modelBuilder.Entity("Sirkadiyen.Domain.Scheduling.Publication.ScheduleRevision", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -991,7 +991,7 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
                     b.ToTable("schedule_revisions", "sirkadiyen");
                 });
 
-            modelBuilder.Entity("Sirkadiyen.Domain.ScheduleSources.ScheduleSource", b =>
+            modelBuilder.Entity("Sirkadiyen.Domain.Scheduling.Sources.ScheduleSource", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
@@ -1212,90 +1212,90 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Sirkadiyen.Domain.ScheduleDiffing.ScheduleDiff", b =>
+            modelBuilder.Entity("Sirkadiyen.Domain.Scheduling.Diffing.ScheduleDiff", b =>
                 {
-                    b.HasOne("Sirkadiyen.Domain.SchedulePublication.ScheduleRevision", null)
+                    b.HasOne("Sirkadiyen.Domain.Scheduling.Publication.ScheduleRevision", null)
                         .WithMany()
                         .HasForeignKey("CurrentRevisionId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Sirkadiyen.Domain.SchedulePublication.ScheduleRevision", null)
+                    b.HasOne("Sirkadiyen.Domain.Scheduling.Publication.ScheduleRevision", null)
                         .WithMany()
                         .HasForeignKey("PreviousRevisionId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("Sirkadiyen.Domain.ScheduleSources.ScheduleSource", null)
+                    b.HasOne("Sirkadiyen.Domain.Scheduling.Sources.ScheduleSource", null)
                         .WithMany()
                         .HasForeignKey("ScheduleSourceId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Sirkadiyen.Domain.ScheduleDiffing.ScheduleDiffEntry", b =>
+            modelBuilder.Entity("Sirkadiyen.Domain.Scheduling.Diffing.ScheduleDiffEntry", b =>
                 {
-                    b.HasOne("Sirkadiyen.Domain.SchedulePublication.CanonicalScheduleRecord", null)
+                    b.HasOne("Sirkadiyen.Domain.Scheduling.Publication.CanonicalScheduleRecord", null)
                         .WithMany()
                         .HasForeignKey("CurrentRecordId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("Sirkadiyen.Domain.SchedulePublication.CanonicalScheduleRecord", null)
+                    b.HasOne("Sirkadiyen.Domain.Scheduling.Publication.CanonicalScheduleRecord", null)
                         .WithMany()
                         .HasForeignKey("PreviousRecordId")
                         .OnDelete(DeleteBehavior.Restrict);
 
-                    b.HasOne("Sirkadiyen.Domain.ScheduleDiffing.ScheduleDiff", null)
+                    b.HasOne("Sirkadiyen.Domain.Scheduling.Diffing.ScheduleDiff", null)
                         .WithMany("Entries")
                         .HasForeignKey("ScheduleDiffId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Sirkadiyen.Domain.ScheduleIngestion.SourceSnapshot", b =>
+            modelBuilder.Entity("Sirkadiyen.Domain.Scheduling.Ingestion.SourceSnapshot", b =>
                 {
-                    b.HasOne("Sirkadiyen.Domain.ScheduleSources.ScheduleSource", null)
+                    b.HasOne("Sirkadiyen.Domain.Scheduling.Sources.ScheduleSource", null)
                         .WithMany()
                         .HasForeignKey("ScheduleSourceId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Sirkadiyen.Domain.ScheduleParsing.ParseRun", b =>
+            modelBuilder.Entity("Sirkadiyen.Domain.Scheduling.Parsing.ParseRun", b =>
                 {
-                    b.HasOne("Sirkadiyen.Domain.ScheduleIngestion.SourceSnapshot", null)
+                    b.HasOne("Sirkadiyen.Domain.Scheduling.Ingestion.SourceSnapshot", null)
                         .WithMany()
                         .HasForeignKey("SourceSnapshotId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Sirkadiyen.Domain.SchedulePublication.CanonicalScheduleRecord", b =>
+            modelBuilder.Entity("Sirkadiyen.Domain.Scheduling.Publication.CanonicalScheduleRecord", b =>
                 {
-                    b.HasOne("Sirkadiyen.Domain.SchedulePublication.ScheduleRevision", null)
+                    b.HasOne("Sirkadiyen.Domain.Scheduling.Publication.ScheduleRevision", null)
                         .WithMany()
                         .HasForeignKey("ScheduleRevisionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Sirkadiyen.Domain.SchedulePublication.RevisionValidationFinding", b =>
+            modelBuilder.Entity("Sirkadiyen.Domain.Scheduling.Publication.RevisionValidationFinding", b =>
                 {
-                    b.HasOne("Sirkadiyen.Domain.SchedulePublication.ScheduleRevision", null)
+                    b.HasOne("Sirkadiyen.Domain.Scheduling.Publication.ScheduleRevision", null)
                         .WithMany()
                         .HasForeignKey("ScheduleRevisionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Sirkadiyen.Domain.SchedulePublication.ScheduleRevision", b =>
+            modelBuilder.Entity("Sirkadiyen.Domain.Scheduling.Publication.ScheduleRevision", b =>
                 {
-                    b.HasOne("Sirkadiyen.Domain.ScheduleParsing.ParseRun", null)
+                    b.HasOne("Sirkadiyen.Domain.Scheduling.Parsing.ParseRun", null)
                         .WithMany()
                         .HasForeignKey("ParseRunId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("Sirkadiyen.Domain.ScheduleSources.ScheduleSource", null)
+                    b.HasOne("Sirkadiyen.Domain.Scheduling.Sources.ScheduleSource", null)
                         .WithMany()
                         .HasForeignKey("ScheduleSourceId")
                         .OnDelete(DeleteBehavior.Restrict)
@@ -1311,7 +1311,7 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("Sirkadiyen.Domain.ScheduleDiffing.ScheduleDiff", b =>
+            modelBuilder.Entity("Sirkadiyen.Domain.Scheduling.Diffing.ScheduleDiff", b =>
                 {
                     b.Navigation("Entries");
                 });

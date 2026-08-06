@@ -1,8 +1,8 @@
 using System.Security.Claims;
 using Sirkadiyen.Api.Identity;
-using Sirkadiyen.Application.Schedule;
+using Sirkadiyen.Application.Scheduling.Access;
 
-namespace Sirkadiyen.Api.Schedule;
+namespace Sirkadiyen.Api.Scheduling.Access;
 
 /// <summary>
 /// Read-only views of a student's own timetable, projected from what is actually on their calendar

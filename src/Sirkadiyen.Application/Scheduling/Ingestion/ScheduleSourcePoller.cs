@@ -1,17 +1,17 @@
 using System.Text.Json;
 using Sirkadiyen.Application.Operations;
-using Sirkadiyen.Application.ScheduleParsing;
-using Sirkadiyen.Application.SchedulePublication;
+using Sirkadiyen.Application.Scheduling.Parsing;
+using Sirkadiyen.Application.Scheduling.Publication;
 using Sirkadiyen.Contracts.Parsing;
 using Sirkadiyen.Contracts.Serialization;
 using Sirkadiyen.Contracts.Spreadsheets;
-using Sirkadiyen.Domain.ScheduleIngestion;
-using Sirkadiyen.Domain.ScheduleParsing;
-using Sirkadiyen.Domain.SchedulePublication;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Ingestion;
+using Sirkadiyen.Domain.Scheduling.Parsing;
+using Sirkadiyen.Domain.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Sources;
 using ContractProgramLanguage = Sirkadiyen.Contracts.Parsing.ProgramLanguage;
 
-namespace Sirkadiyen.Application.ScheduleIngestion;
+namespace Sirkadiyen.Application.Scheduling.Ingestion;
 
 /// <summary>
 /// Acquires one source, applies the unchanged-snapshot short circuit, invokes
@@ -300,9 +300,9 @@ public sealed class ScheduleSourcePoller(
                 ClassYear = source.ClassYear,
                 ProgramLanguage = source.ProgramLanguage switch
                 {
-                    Sirkadiyen.Domain.ScheduleSources.ProgramLanguage.Turkish =>
+                    Sirkadiyen.Domain.Scheduling.Sources.ProgramLanguage.Turkish =>
                         ContractProgramLanguage.Turkish,
-                    Sirkadiyen.Domain.ScheduleSources.ProgramLanguage.English =>
+                    Sirkadiyen.Domain.Scheduling.Sources.ProgramLanguage.English =>
                         ContractProgramLanguage.English,
                     _ => throw new InvalidOperationException(
                         $"Unsupported program language '{source.ProgramLanguage}'."),

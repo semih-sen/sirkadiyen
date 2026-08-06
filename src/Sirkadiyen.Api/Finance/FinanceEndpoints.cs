@@ -9,7 +9,7 @@ using Sirkadiyen.Application.Finance;
 using Sirkadiyen.Domain.Auditing;
 using Sirkadiyen.Domain.Finance;
 
-namespace Sirkadiyen.Api.Administration;
+namespace Sirkadiyen.Api.Finance;
 
 /// <summary>
 /// SuperAdmin-only finance ledger administration: holders, accounts, and transactions including

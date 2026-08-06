@@ -5,11 +5,11 @@ using Sirkadiyen.Domain.GoogleCalendar;
 using Sirkadiyen.Domain.Identity;
 using Sirkadiyen.Domain.Licensing;
 using Sirkadiyen.Domain.Operations;
-using Sirkadiyen.Domain.ScheduleDiffing;
-using Sirkadiyen.Domain.ScheduleIngestion;
-using Sirkadiyen.Domain.ScheduleParsing;
-using Sirkadiyen.Domain.SchedulePublication;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Diffing;
+using Sirkadiyen.Domain.Scheduling.Ingestion;
+using Sirkadiyen.Domain.Scheduling.Parsing;
+using Sirkadiyen.Domain.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Sources;
 using Sirkadiyen.Domain.StudentProfiles;
 
 namespace Sirkadiyen.Infrastructure.Persistence;

@@ -1,9 +1,9 @@
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
-using Sirkadiyen.Application.ScheduleIngestion;
+using Sirkadiyen.Application.Scheduling.Ingestion;
 using Sirkadiyen.Contracts.Spreadsheets;
-using Sirkadiyen.Infrastructure.ScheduleIngestion;
+using Sirkadiyen.Infrastructure.Scheduling.Ingestion;
 using Xunit;
 using OpenXmlTable = DocumentFormat.OpenXml.Wordprocessing.Table;
 using OpenXmlTableCell = DocumentFormat.OpenXml.Wordprocessing.TableCell;

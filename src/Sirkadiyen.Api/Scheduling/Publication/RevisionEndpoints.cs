@@ -1,10 +1,10 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Antiforgery;
 using Sirkadiyen.Api.Identity;
-using Sirkadiyen.Application.SchedulePublication;
-using Sirkadiyen.Domain.SchedulePublication;
+using Sirkadiyen.Application.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Publication;
 
-namespace Sirkadiyen.Api.Administration;
+namespace Sirkadiyen.Api.Scheduling.Publication;
 
 /// <summary>
 /// The internal endpoints an operator needs to work the review queue while there

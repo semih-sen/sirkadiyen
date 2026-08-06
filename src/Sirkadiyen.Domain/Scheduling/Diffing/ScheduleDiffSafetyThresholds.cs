@@ -1,4 +1,4 @@
-namespace Sirkadiyen.Domain.ScheduleDiffing;
+namespace Sirkadiyen.Domain.Scheduling.Diffing;
 
 /// <summary>
 /// The limits above which a calculated diff is held instead of dispatched.

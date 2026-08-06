@@ -3,8 +3,9 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Domain.GoogleCalendar;
+using Sirkadiyen.Infrastructure.Persistence.Licensing.Stores;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.GoogleCalendar.Stores;
 
 /// <summary>Transactional PostgreSQL Calendar-connection store.</summary>
 public sealed class GoogleCalendarConnectionStore(SirkadiyenDbContext dbContext)

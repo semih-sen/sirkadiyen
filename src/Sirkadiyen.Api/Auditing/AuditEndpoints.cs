@@ -4,7 +4,7 @@ using Sirkadiyen.Api.Identity;
 using Sirkadiyen.Application.Auditing;
 using Sirkadiyen.Domain.Auditing;
 
-namespace Sirkadiyen.Api.Administration;
+namespace Sirkadiyen.Api.Auditing;
 
 /// <summary>
 /// SuperAdmin views over the account-access and activity log: a sign-in-scoped access log with the

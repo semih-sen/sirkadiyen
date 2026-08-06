@@ -1,6 +1,6 @@
 using System.Text.Json;
 using Sirkadiyen.Application.StudentProfiles;
-using Sirkadiyen.Domain.SchedulePublication;
+using Sirkadiyen.Domain.Scheduling.Publication;
 
 namespace Sirkadiyen.Application.GoogleCalendar;
 

@@ -1,4 +1,4 @@
-namespace Sirkadiyen.Domain.SchedulePublication;
+namespace Sirkadiyen.Domain.Scheduling.Publication;
 
 /// <summary>
 /// One thing revision validation observed about a candidate revision, and how

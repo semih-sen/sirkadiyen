@@ -1,4 +1,4 @@
-namespace Sirkadiyen.Domain.ScheduleSources;
+namespace Sirkadiyen.Domain.Scheduling.Sources;
 
 /// <summary>
 /// A configured schedule source: where a program is published, how it is

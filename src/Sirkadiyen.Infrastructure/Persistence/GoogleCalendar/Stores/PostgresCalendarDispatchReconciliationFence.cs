@@ -1,7 +1,7 @@
 using Npgsql;
 using Sirkadiyen.Application.GoogleCalendar;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.GoogleCalendar.Stores;
 
 /// <summary>
 /// PostgreSQL session advisory lock shared by every worker instance. The dedicated connection

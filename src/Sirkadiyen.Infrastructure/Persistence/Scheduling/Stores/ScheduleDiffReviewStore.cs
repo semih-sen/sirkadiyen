@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using Sirkadiyen.Application.ScheduleDiffing;
-using Sirkadiyen.Domain.ScheduleDiffing;
-using Sirkadiyen.Domain.SchedulePublication;
+using Sirkadiyen.Application.Scheduling.Diffing;
+using Sirkadiyen.Domain.Scheduling.Diffing;
+using Sirkadiyen.Domain.Scheduling.Publication;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Scheduling.Stores;
 
 /// <summary>
 /// Serves the held-diff queue and records a release (ADR-042).

@@ -1,5 +1,5 @@
 using Sirkadiyen.Application.StudentProfiles;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
 namespace Sirkadiyen.Application.GoogleCalendar;
 

@@ -1,5 +1,5 @@
 using Sirkadiyen.Application.GoogleCalendar;
-using Sirkadiyen.Domain.SchedulePublication;
+using Sirkadiyen.Domain.Scheduling.Publication;
 using Xunit;
 
 namespace Sirkadiyen.Infrastructure.UnitTests;

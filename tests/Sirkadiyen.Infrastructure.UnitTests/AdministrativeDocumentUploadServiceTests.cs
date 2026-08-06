@@ -1,11 +1,11 @@
 using Sirkadiyen.Application.Operations;
-using Sirkadiyen.Application.ScheduleIngestion;
-using Sirkadiyen.Application.ScheduleSources;
+using Sirkadiyen.Application.Scheduling.Ingestion;
+using Sirkadiyen.Application.Scheduling.Sources;
 using Sirkadiyen.Contracts.Spreadsheets;
 using Sirkadiyen.Domain.Operations;
-using Sirkadiyen.Domain.ScheduleIngestion;
-using Sirkadiyen.Domain.ScheduleSources;
-using Sirkadiyen.Infrastructure.ScheduleIngestion;
+using Sirkadiyen.Domain.Scheduling.Ingestion;
+using Sirkadiyen.Domain.Scheduling.Sources;
+using Sirkadiyen.Infrastructure.Scheduling.Ingestion;
 using Xunit;
 
 namespace Sirkadiyen.Infrastructure.UnitTests;

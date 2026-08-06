@@ -1,8 +1,8 @@
-using Sirkadiyen.Application.ScheduleIngestion;
-using Sirkadiyen.Domain.ScheduleIngestion;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Application.Scheduling.Ingestion;
+using Sirkadiyen.Domain.Scheduling.Ingestion;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Api.Administration;
+namespace Sirkadiyen.Api.Scheduling.Ingestion;
 
 /// <summary>
 /// A source an administrator may upload a document for.

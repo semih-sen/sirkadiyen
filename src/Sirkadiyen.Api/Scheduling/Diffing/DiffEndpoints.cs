@@ -1,10 +1,10 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Antiforgery;
 using Sirkadiyen.Api.Identity;
-using Sirkadiyen.Application.ScheduleDiffing;
-using Sirkadiyen.Domain.ScheduleDiffing;
+using Sirkadiyen.Application.Scheduling.Diffing;
+using Sirkadiyen.Domain.Scheduling.Diffing;
 
-namespace Sirkadiyen.Api.Administration;
+namespace Sirkadiyen.Api.Scheduling.Diffing;
 
 /// <summary>
 /// The internal endpoints an operator needs to work the held-diff queue while

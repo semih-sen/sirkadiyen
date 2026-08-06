@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
-using Sirkadiyen.Domain.SchedulePublication;
+using Sirkadiyen.Domain.Scheduling.Publication;
 
 namespace Sirkadiyen.Application.GoogleCalendar;
 

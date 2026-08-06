@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
-namespace Sirkadiyen.Infrastructure.Persistence.Configurations;
+namespace Sirkadiyen.Infrastructure.Persistence.Finance.Configurations;
 
 /// <summary>Compares changed-field lists by value, in order, for change tracking.</summary>
 internal sealed class ChangedFieldsComparer()

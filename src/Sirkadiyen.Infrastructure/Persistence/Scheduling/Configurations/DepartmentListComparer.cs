@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
-namespace Sirkadiyen.Infrastructure.Persistence.Configurations;
+namespace Sirkadiyen.Infrastructure.Persistence.Scheduling.Configurations;
 
 /// <summary>Compares department lists by value, in order.</summary>
 /// <remarks>

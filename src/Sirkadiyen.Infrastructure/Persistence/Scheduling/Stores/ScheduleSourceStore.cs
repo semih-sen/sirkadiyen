@@ -1,8 +1,8 @@
 using Microsoft.EntityFrameworkCore;
-using Sirkadiyen.Application.ScheduleSources;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Application.Scheduling.Sources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Scheduling.Stores;
 
 public sealed class ScheduleSourceStore(SirkadiyenDbContext dbContext) : IScheduleSourceStore
 {

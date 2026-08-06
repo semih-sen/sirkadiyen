@@ -1,6 +1,6 @@
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Domain.SchedulePublication;
+namespace Sirkadiyen.Domain.Scheduling.Publication;
 
 /// <summary>
 /// One lesson in the canonical schedule model, belonging to one revision.

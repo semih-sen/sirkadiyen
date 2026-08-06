@@ -1,4 +1,4 @@
-namespace Sirkadiyen.Api.Administration;
+namespace Sirkadiyen.Api.Scheduling.Diffing;
 
 /// <summary>
 /// Why the authenticated SuperAdmin is returning a failed diff to the dispatch queue.

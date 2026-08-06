@@ -1,7 +1,8 @@
 using Sirkadiyen.Application.Administration;
-using Sirkadiyen.Domain.SchedulePublication;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Sources;
 using Sirkadiyen.Infrastructure.Persistence;
+using Sirkadiyen.Infrastructure.Persistence.Administration.Stores;
 using Xunit;
 
 namespace Sirkadiyen.Persistence.Tests;

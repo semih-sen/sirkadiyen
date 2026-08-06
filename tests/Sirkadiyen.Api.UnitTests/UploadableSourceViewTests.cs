@@ -1,5 +1,5 @@
-using Sirkadiyen.Api.Administration;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Api.Scheduling.Ingestion;
+using Sirkadiyen.Domain.Scheduling.Sources;
 using Xunit;
 
 namespace Sirkadiyen.Api.UnitTests;

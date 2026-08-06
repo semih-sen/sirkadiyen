@@ -1,11 +1,11 @@
 using System.Security.Cryptography;
 using Sirkadiyen.Application.Operations;
-using Sirkadiyen.Application.ScheduleSources;
+using Sirkadiyen.Application.Scheduling.Sources;
 using Sirkadiyen.Contracts.Spreadsheets;
-using Sirkadiyen.Domain.ScheduleIngestion;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Ingestion;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Application.ScheduleIngestion;
+namespace Sirkadiyen.Application.Scheduling.Ingestion;
 
 /// <summary>
 /// Acquires a source whose document is handed out rather than published, by

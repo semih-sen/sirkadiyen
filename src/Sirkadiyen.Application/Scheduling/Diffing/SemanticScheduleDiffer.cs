@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.Text;
-using Sirkadiyen.Domain.ScheduleDiffing;
-using Sirkadiyen.Domain.SchedulePublication;
+using Sirkadiyen.Domain.Scheduling.Diffing;
+using Sirkadiyen.Domain.Scheduling.Publication;
 
-namespace Sirkadiyen.Application.ScheduleDiffing;
+namespace Sirkadiyen.Application.Scheduling.Diffing;
 
 /// <summary>
 /// Calculates a deterministic semantic diff between two revisions (ADR-018,

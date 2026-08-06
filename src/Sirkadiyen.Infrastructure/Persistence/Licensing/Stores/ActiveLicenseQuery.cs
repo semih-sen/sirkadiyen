@@ -1,6 +1,6 @@
 using Sirkadiyen.Domain.Licensing;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Licensing.Stores;
 
 /// <summary>
 /// The one definition of "this user's access is currently active", for the queries that choose

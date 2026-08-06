@@ -1,11 +1,11 @@
 using System.Globalization;
 using Google.Apis.Sheets.v4.Data;
-using Sirkadiyen.Application.ScheduleIngestion;
+using Sirkadiyen.Application.Scheduling.Ingestion;
 using Sirkadiyen.Contracts.Spreadsheets;
 using ContractGridRange = Sirkadiyen.Contracts.Spreadsheets.GridRange;
 using GoogleGridRange = Google.Apis.Sheets.v4.Data.GridRange;
 
-namespace Sirkadiyen.Infrastructure.ScheduleIngestion;
+namespace Sirkadiyen.Infrastructure.Scheduling.Ingestion;
 
 public sealed class GoogleSheetsSnapshotMapper
 {

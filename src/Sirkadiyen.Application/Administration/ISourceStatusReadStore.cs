@@ -1,6 +1,6 @@
-using Sirkadiyen.Domain.ScheduleParsing;
-using Sirkadiyen.Domain.SchedulePublication;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Parsing;
+using Sirkadiyen.Domain.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Sources;
 using ParserWarning = Sirkadiyen.Contracts.Parsing.ParserWarning;
 
 namespace Sirkadiyen.Application.Administration;

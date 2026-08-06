@@ -5,7 +5,7 @@ using Sirkadiyen.Application.Auditing;
 using Sirkadiyen.Application.Finance;
 using Sirkadiyen.Domain.Auditing;
 
-namespace Sirkadiyen.Api.Administration;
+namespace Sirkadiyen.Api.Finance;
 
 /// <summary>
 /// The six-step high-risk profit distribution flow: scope, server-side compute, review, preview

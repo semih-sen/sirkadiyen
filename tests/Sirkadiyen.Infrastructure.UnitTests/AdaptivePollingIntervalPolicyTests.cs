@@ -1,4 +1,4 @@
-using Sirkadiyen.Application.ScheduleIngestion;
+using Sirkadiyen.Application.Scheduling.Ingestion;
 using Xunit;
 
 namespace Sirkadiyen.Infrastructure.UnitTests;

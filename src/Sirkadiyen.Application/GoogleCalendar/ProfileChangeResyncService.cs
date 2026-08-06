@@ -1,7 +1,7 @@
 using Sirkadiyen.Application.Operations;
 using Sirkadiyen.Application.StudentProfiles;
 using Sirkadiyen.Domain.GoogleCalendar;
-using Sirkadiyen.Domain.SchedulePublication;
+using Sirkadiyen.Domain.Scheduling.Publication;
 
 namespace Sirkadiyen.Application.GoogleCalendar;
 

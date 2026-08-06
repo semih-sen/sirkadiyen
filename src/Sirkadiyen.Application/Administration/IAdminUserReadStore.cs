@@ -2,7 +2,7 @@ using Sirkadiyen.Application.Common;
 using Sirkadiyen.Application.Licensing;
 using Sirkadiyen.Domain.Identity;
 using Sirkadiyen.Domain.Licensing;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
 namespace Sirkadiyen.Application.Administration;
 

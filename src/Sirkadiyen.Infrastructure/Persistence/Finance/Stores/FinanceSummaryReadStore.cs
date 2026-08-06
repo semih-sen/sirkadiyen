@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Sirkadiyen.Application.Finance;
 using Sirkadiyen.Domain.Finance;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Finance.Stores;
 
 /// <summary>
 /// Computes the ten period figures (ADR-093) as aggregate queries over

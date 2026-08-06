@@ -1,6 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Sirkadiyen.Application.SchedulePublication;
+using Sirkadiyen.Application.Scheduling.Publication;
 
 namespace Sirkadiyen.Worker.Sources;
 

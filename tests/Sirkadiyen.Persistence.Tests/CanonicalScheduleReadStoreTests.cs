@@ -1,10 +1,11 @@
-using Sirkadiyen.Domain.SchedulePublication;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Sources;
 using Sirkadiyen.Infrastructure.Persistence;
+using Sirkadiyen.Infrastructure.Persistence.Scheduling.Stores;
 using Xunit;
-using DomainAudienceScope = Sirkadiyen.Domain.SchedulePublication.AudienceScope;
-using DomainEventType = Sirkadiyen.Domain.SchedulePublication.ScheduleEventType;
-using DomainLanguage = Sirkadiyen.Domain.ScheduleSources.ProgramLanguage;
+using DomainAudienceScope = Sirkadiyen.Domain.Scheduling.Publication.AudienceScope;
+using DomainEventType = Sirkadiyen.Domain.Scheduling.Publication.ScheduleEventType;
+using DomainLanguage = Sirkadiyen.Domain.Scheduling.Sources.ProgramLanguage;
 
 namespace Sirkadiyen.Persistence.Tests;
 

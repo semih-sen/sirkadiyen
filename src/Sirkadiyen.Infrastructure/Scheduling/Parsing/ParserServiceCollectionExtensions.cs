@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
-using Sirkadiyen.Application.ScheduleParsing;
+using Sirkadiyen.Application.Scheduling.Parsing;
 
-namespace Sirkadiyen.Infrastructure.ScheduleParsing;
+namespace Sirkadiyen.Infrastructure.Scheduling.Parsing;
 
 public static class ParserServiceCollectionExtensions
 {

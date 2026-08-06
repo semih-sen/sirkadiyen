@@ -1,4 +1,4 @@
-namespace Sirkadiyen.Application.ScheduleIngestion;
+namespace Sirkadiyen.Application.Scheduling.Ingestion;
 
 /// <summary>Selects the next worker delay from the Istanbul-time policy in ADR-026.</summary>
 public sealed class AdaptivePollingIntervalPolicy

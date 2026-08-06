@@ -1,4 +1,4 @@
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
 namespace Sirkadiyen.Domain.StudentProfiles;
 

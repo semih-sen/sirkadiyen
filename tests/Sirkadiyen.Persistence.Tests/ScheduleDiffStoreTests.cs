@@ -1,10 +1,11 @@
 using Microsoft.EntityFrameworkCore;
-using Sirkadiyen.Application.ScheduleDiffing;
-using Sirkadiyen.Application.SchedulePublication;
-using Sirkadiyen.Domain.ScheduleDiffing;
-using Sirkadiyen.Domain.SchedulePublication;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Application.Scheduling.Diffing;
+using Sirkadiyen.Application.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Diffing;
+using Sirkadiyen.Domain.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Sources;
 using Sirkadiyen.Infrastructure.Persistence;
+using Sirkadiyen.Infrastructure.Persistence.Scheduling.Stores;
 using Xunit;
 
 namespace Sirkadiyen.Persistence.Tests;

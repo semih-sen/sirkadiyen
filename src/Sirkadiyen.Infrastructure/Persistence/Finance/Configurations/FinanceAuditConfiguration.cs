@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Sirkadiyen.Domain.Finance;
 using Sirkadiyen.Domain.Identity;
 
-namespace Sirkadiyen.Infrastructure.Persistence.Configurations;
+namespace Sirkadiyen.Infrastructure.Persistence.Finance.Configurations;
 
 internal sealed class FinanceAuditConfiguration : IEntityTypeConfiguration<FinanceAudit>
 {

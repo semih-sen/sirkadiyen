@@ -4,9 +4,9 @@ using Microsoft.AspNetCore.Antiforgery;
 using Sirkadiyen.Api.Identity;
 using Sirkadiyen.Application.Operations;
 using Sirkadiyen.Domain.Operations;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Api.Administration;
+namespace Sirkadiyen.Api.Operations;
 
 /// <summary>Administrative operational state.</summary>
 public static class OperationalEndpoints

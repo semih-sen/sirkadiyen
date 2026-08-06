@@ -4,8 +4,14 @@ using Sirkadiyen.Api.GoogleCalendar;
 using Sirkadiyen.Api.Identity;
 using Sirkadiyen.Api.Licensing;
 using Sirkadiyen.Api.Onboarding;
-using Sirkadiyen.Api.Schedule;
+using Sirkadiyen.Api.Scheduling.Access;
 using Sirkadiyen.Api.StudentProfiles;
+using Sirkadiyen.Api.Auditing;
+using Sirkadiyen.Api.Finance;
+using Sirkadiyen.Api.Operations;
+using Sirkadiyen.Api.Scheduling.Diffing;
+using Sirkadiyen.Api.Scheduling.Ingestion;
+using Sirkadiyen.Api.Scheduling.Publication;
 
 namespace Sirkadiyen.Api.Composition;
 

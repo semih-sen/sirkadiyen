@@ -1,7 +1,7 @@
 using Sirkadiyen.Contracts.Spreadsheets;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Application.ScheduleIngestion;
+namespace Sirkadiyen.Application.Scheduling.Ingestion;
 
 /// <summary>
 /// Acquires a source whose document is a file fetched from Google Drive, and

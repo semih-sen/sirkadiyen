@@ -1,5 +1,5 @@
-using Sirkadiyen.Domain.SchedulePublication;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
 namespace Sirkadiyen.Application.GoogleCalendar;
 

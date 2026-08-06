@@ -2,8 +2,12 @@ using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Identity;
 using Sirkadiyen.Application.Licensing;
 using Sirkadiyen.Domain.Identity;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 using Sirkadiyen.Infrastructure.Persistence;
+using Sirkadiyen.Infrastructure.Persistence.GoogleCalendar.Stores;
+using Sirkadiyen.Infrastructure.Persistence.Identity.Stores;
+using Sirkadiyen.Infrastructure.Persistence.Licensing.Stores;
+using Sirkadiyen.Infrastructure.Persistence.StudentProfiles.Stores;
 using Xunit;
 
 namespace Sirkadiyen.Persistence.Tests;

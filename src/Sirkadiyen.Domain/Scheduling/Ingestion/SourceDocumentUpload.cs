@@ -1,6 +1,6 @@
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Domain.ScheduleIngestion;
+namespace Sirkadiyen.Domain.Scheduling.Ingestion;
 
 /// <summary>
 /// One append-only record of an administrator uploading a source document.

@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using Sirkadiyen.Application.ScheduleIngestion;
-using Sirkadiyen.Domain.ScheduleIngestion;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Application.Scheduling.Ingestion;
+using Sirkadiyen.Domain.Scheduling.Ingestion;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Scheduling.Stores;
 
 /// <summary>Append-only storage for administrative document uploads (ADR-080).</summary>
 public sealed class SourceDocumentUploadAuditStore(SirkadiyenDbContext dbContext)

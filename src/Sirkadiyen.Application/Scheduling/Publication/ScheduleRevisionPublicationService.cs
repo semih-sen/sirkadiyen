@@ -1,6 +1,6 @@
 using Sirkadiyen.Application.Operations;
 
-namespace Sirkadiyen.Application.SchedulePublication;
+namespace Sirkadiyen.Application.Scheduling.Publication;
 
 /// <summary>
 /// Publishes validated revisions, and approves quarantined ones on an

@@ -1,6 +1,6 @@
 using System.Net;
 
-namespace Sirkadiyen.Infrastructure.ScheduleParsing;
+namespace Sirkadiyen.Infrastructure.Scheduling.Parsing;
 
 public sealed class ParserClientException(HttpStatusCode statusCode, string responseBody)
     : Exception($"Parser HTTP request failed with status {(int)statusCode}: {responseBody}")

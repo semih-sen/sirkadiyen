@@ -1,6 +1,6 @@
 using Google.Apis.Auth.OAuth2;
 using Microsoft.Extensions.DependencyInjection;
-using Sirkadiyen.Application.ScheduleIngestion;
+using Sirkadiyen.Application.Scheduling.Ingestion;
 
 namespace Sirkadiyen.Infrastructure.Google;
 

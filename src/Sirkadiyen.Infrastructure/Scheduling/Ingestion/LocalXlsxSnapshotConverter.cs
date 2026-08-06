@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
-using Sirkadiyen.Application.ScheduleIngestion;
+using Sirkadiyen.Application.Scheduling.Ingestion;
 using Sirkadiyen.Contracts.Spreadsheets;
 using ContractGridRange = Sirkadiyen.Contracts.Spreadsheets.GridRange;
 using ContractIndexRange = Sirkadiyen.Contracts.Spreadsheets.IndexRange;
@@ -11,7 +11,7 @@ using OpenXmlCell = DocumentFormat.OpenXml.Spreadsheet.Cell;
 using OpenXmlCellFormat = DocumentFormat.OpenXml.Spreadsheet.CellFormat;
 using OpenXmlFont = DocumentFormat.OpenXml.Spreadsheet.Font;
 
-namespace Sirkadiyen.Infrastructure.ScheduleIngestion;
+namespace Sirkadiyen.Infrastructure.Scheduling.Ingestion;
 
 public sealed partial class LocalXlsxSnapshotConverter
 {

@@ -1,8 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Sirkadiyen.Application.ScheduleSources;
-using Sirkadiyen.Domain.ScheduleSources;
-using Sirkadiyen.Infrastructure.ScheduleSources;
+using Sirkadiyen.Application.Scheduling.Sources;
+using Sirkadiyen.Domain.Scheduling.Sources;
+using Sirkadiyen.Infrastructure.Scheduling.Sources;
 using Sirkadiyen.Worker.Configuration;
 
 namespace Sirkadiyen.Worker.Sources;

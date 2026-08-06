@@ -9,7 +9,7 @@ using Sirkadiyen.Application.Finance;
 using Sirkadiyen.Contracts.Serialization;
 using Sirkadiyen.Domain.Finance;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Finance.Stores;
 
 /// <summary>
 /// Transactional PostgreSQL store for profit distributions: the six-step preview/execute/reverse

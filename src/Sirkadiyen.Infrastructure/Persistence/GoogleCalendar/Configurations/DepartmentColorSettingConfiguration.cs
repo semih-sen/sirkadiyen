@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Sirkadiyen.Domain.GoogleCalendar;
 
-namespace Sirkadiyen.Infrastructure.Persistence.Configurations;
+namespace Sirkadiyen.Infrastructure.Persistence.GoogleCalendar.Configurations;
 
 public sealed class DepartmentColorSettingConfiguration
     : IEntityTypeConfiguration<DepartmentColorSetting>

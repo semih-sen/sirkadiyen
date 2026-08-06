@@ -1,4 +1,4 @@
-namespace Sirkadiyen.Application.ScheduleIngestion;
+namespace Sirkadiyen.Application.Scheduling.Ingestion;
 
 public sealed record AcquireSpreadsheetSnapshotRequest
 {

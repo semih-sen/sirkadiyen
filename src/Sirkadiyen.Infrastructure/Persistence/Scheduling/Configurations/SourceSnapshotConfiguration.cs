@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Sirkadiyen.Domain.ScheduleIngestion;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Ingestion;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Infrastructure.Persistence.Configurations;
+namespace Sirkadiyen.Infrastructure.Persistence.Scheduling.Configurations;
 
 internal sealed class SourceSnapshotConfiguration : IEntityTypeConfiguration<SourceSnapshot>
 {
@@ -31,7 +31,7 @@ internal sealed class SourceSnapshotConfiguration : IEntityTypeConfiguration<Sou
         // parse/revision/diff evidence.
         builder.Property(snapshot => snapshot.Payload).HasColumnType("jsonb");
 
-        builder.HasOne<Domain.ScheduleSources.ScheduleSource>()
+        builder.HasOne<Domain.Scheduling.Sources.ScheduleSource>()
             .WithMany()
             .HasForeignKey(snapshot => snapshot.ScheduleSourceId)
             .OnDelete(DeleteBehavior.Restrict);

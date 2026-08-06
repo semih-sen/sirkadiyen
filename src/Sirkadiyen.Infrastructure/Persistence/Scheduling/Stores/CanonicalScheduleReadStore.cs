@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Sirkadiyen.Application.GoogleCalendar;
-using Sirkadiyen.Domain.SchedulePublication;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Scheduling.Stores;
 
 /// <summary>
 /// Reads the live canonical schedule for a program from PostgreSQL, for initial sync (ADR-058).

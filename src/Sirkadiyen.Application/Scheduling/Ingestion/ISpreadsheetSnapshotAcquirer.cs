@@ -1,6 +1,6 @@
 using Sirkadiyen.Contracts.Spreadsheets;
 
-namespace Sirkadiyen.Application.ScheduleIngestion;
+namespace Sirkadiyen.Application.Scheduling.Ingestion;
 
 public interface ISpreadsheetSnapshotAcquirer
 {

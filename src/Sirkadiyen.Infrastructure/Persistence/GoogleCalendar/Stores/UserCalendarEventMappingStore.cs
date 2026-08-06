@@ -2,9 +2,9 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Domain.GoogleCalendar;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.GoogleCalendar.Stores;
 
 /// <summary>PostgreSQL ledger of the calendar events written for each user (ADR-058, ADR-059).</summary>
 public sealed class UserCalendarEventMappingStore(SirkadiyenDbContext dbContext)

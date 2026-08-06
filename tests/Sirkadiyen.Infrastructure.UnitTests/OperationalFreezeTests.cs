@@ -1,7 +1,7 @@
 using Sirkadiyen.Application.Operations;
-using Sirkadiyen.Application.SchedulePublication;
+using Sirkadiyen.Application.Scheduling.Publication;
 using Sirkadiyen.Domain.Operations;
-using Sirkadiyen.Domain.SchedulePublication;
+using Sirkadiyen.Domain.Scheduling.Publication;
 using Xunit;
 
 namespace Sirkadiyen.Infrastructure.UnitTests;

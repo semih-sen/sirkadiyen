@@ -1,9 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Sirkadiyen.Application.ScheduleSources;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Application.Scheduling.Sources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Infrastructure.ScheduleSources;
+namespace Sirkadiyen.Infrastructure.Scheduling.Sources;
 
 public sealed class ScheduleSourceCatalogLoader
 {

@@ -1,17 +1,18 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
-using Sirkadiyen.Application.ScheduleParsing;
+using Sirkadiyen.Application.Scheduling.Parsing;
 using Sirkadiyen.Contracts.Parsing;
-using Sirkadiyen.Domain.ScheduleIngestion;
-using Sirkadiyen.Domain.ScheduleParsing;
-using Sirkadiyen.Domain.SchedulePublication;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Ingestion;
+using Sirkadiyen.Domain.Scheduling.Parsing;
+using Sirkadiyen.Domain.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Sources;
 using Sirkadiyen.Infrastructure.Persistence;
+using Sirkadiyen.Infrastructure.Persistence.Scheduling.Stores;
 using Xunit;
 using ContractAudienceScope = Sirkadiyen.Contracts.Parsing.AudienceScope;
 using ContractEventType = Sirkadiyen.Contracts.Parsing.ScheduleEventType;
 using ContractLanguage = Sirkadiyen.Contracts.Parsing.ProgramLanguage;
-using DomainLanguage = Sirkadiyen.Domain.ScheduleSources.ProgramLanguage;
+using DomainLanguage = Sirkadiyen.Domain.Scheduling.Sources.ProgramLanguage;
 
 namespace Sirkadiyen.Persistence.Tests;
 

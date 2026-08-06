@@ -3,7 +3,7 @@ using Sirkadiyen.Application.Common;
 using Sirkadiyen.Application.Finance;
 using Sirkadiyen.Domain.Finance;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Finance.Stores;
 
 /// <summary>Read-only listings over finance accounts and transactions, deriving balances on read.</summary>
 public sealed class FinanceReadStore(SirkadiyenDbContext dbContext) : IFinanceReadStore

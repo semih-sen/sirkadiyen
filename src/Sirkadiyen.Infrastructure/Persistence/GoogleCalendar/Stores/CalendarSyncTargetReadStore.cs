@@ -2,10 +2,11 @@ using Microsoft.EntityFrameworkCore;
 using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.StudentProfiles;
 using Sirkadiyen.Domain.GoogleCalendar;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 using Sirkadiyen.Domain.StudentProfiles;
+using Sirkadiyen.Infrastructure.Persistence.Licensing.Stores;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.GoogleCalendar.Stores;
 
 /// <summary>
 /// Finds synchronization-ready users by joining Calendar connections to student profiles from

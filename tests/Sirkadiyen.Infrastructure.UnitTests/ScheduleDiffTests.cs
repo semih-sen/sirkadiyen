@@ -1,6 +1,6 @@
 using System.Globalization;
-using Sirkadiyen.Domain.ScheduleDiffing;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Diffing;
+using Sirkadiyen.Domain.Scheduling.Sources;
 using Xunit;
 
 namespace Sirkadiyen.Infrastructure.UnitTests;

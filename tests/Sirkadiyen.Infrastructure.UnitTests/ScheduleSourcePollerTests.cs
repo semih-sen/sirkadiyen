@@ -1,16 +1,16 @@
 using Sirkadiyen.Application.Operations;
-using Sirkadiyen.Application.ScheduleIngestion;
-using Sirkadiyen.Application.ScheduleParsing;
-using Sirkadiyen.Application.SchedulePublication;
+using Sirkadiyen.Application.Scheduling.Ingestion;
+using Sirkadiyen.Application.Scheduling.Parsing;
+using Sirkadiyen.Application.Scheduling.Publication;
 using Sirkadiyen.Contracts.Parsing;
 using Sirkadiyen.Contracts.Spreadsheets;
-using Sirkadiyen.Domain.ScheduleIngestion;
-using Sirkadiyen.Domain.ScheduleParsing;
-using Sirkadiyen.Domain.SchedulePublication;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Ingestion;
+using Sirkadiyen.Domain.Scheduling.Parsing;
+using Sirkadiyen.Domain.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Sources;
 using Xunit;
 using ContractLanguage = Sirkadiyen.Contracts.Parsing.ProgramLanguage;
-using DomainLanguage = Sirkadiyen.Domain.ScheduleSources.ProgramLanguage;
+using DomainLanguage = Sirkadiyen.Domain.Scheduling.Sources.ProgramLanguage;
 
 namespace Sirkadiyen.Infrastructure.UnitTests;
 

@@ -1,4 +1,4 @@
-namespace Sirkadiyen.Application.ScheduleIngestion;
+namespace Sirkadiyen.Application.Scheduling.Ingestion;
 
 /// <summary>
 /// Controls how long non-anchor normalized snapshot documents remain online.

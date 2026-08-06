@@ -1,11 +1,11 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Sirkadiyen.Application.Operations;
-using Sirkadiyen.Application.ScheduleIngestion;
-using Sirkadiyen.Application.ScheduleParsing;
-using Sirkadiyen.Application.ScheduleSources;
-using Sirkadiyen.Domain.ScheduleSources;
-using Sirkadiyen.Infrastructure.ScheduleSources;
+using Sirkadiyen.Application.Scheduling.Ingestion;
+using Sirkadiyen.Application.Scheduling.Parsing;
+using Sirkadiyen.Application.Scheduling.Sources;
+using Sirkadiyen.Domain.Scheduling.Sources;
+using Sirkadiyen.Infrastructure.Scheduling.Sources;
 
 namespace Sirkadiyen.Worker.Sources;
 

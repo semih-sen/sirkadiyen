@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Sirkadiyen.Domain.Identity;
 using Sirkadiyen.Domain.StudentProfiles;
 
-namespace Sirkadiyen.Infrastructure.Persistence.Configurations;
+namespace Sirkadiyen.Infrastructure.Persistence.StudentProfiles.Configurations;
 
 internal sealed class StudentProfileConfiguration : IEntityTypeConfiguration<StudentProfile>
 {

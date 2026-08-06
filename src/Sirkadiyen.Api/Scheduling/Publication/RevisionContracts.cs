@@ -1,6 +1,6 @@
-using Sirkadiyen.Application.SchedulePublication;
+using Sirkadiyen.Application.Scheduling.Publication;
 
-namespace Sirkadiyen.Api.Administration;
+namespace Sirkadiyen.Api.Scheduling.Publication;
 
 /// <summary>
 /// Why the authenticated SuperAdmin is rejecting a quarantined revision.

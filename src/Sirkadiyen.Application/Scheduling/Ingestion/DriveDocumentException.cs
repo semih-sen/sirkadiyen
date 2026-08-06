@@ -1,4 +1,4 @@
-namespace Sirkadiyen.Application.ScheduleIngestion;
+namespace Sirkadiyen.Application.Scheduling.Ingestion;
 
 /// <summary>
 /// A Drive file that cannot be read as the source document it is supposed to be.

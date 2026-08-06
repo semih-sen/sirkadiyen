@@ -3,7 +3,7 @@ using System.Text.Json;
 using Sirkadiyen.Contracts.Serialization;
 using Sirkadiyen.Contracts.Spreadsheets;
 
-namespace Sirkadiyen.Infrastructure.ScheduleIngestion;
+namespace Sirkadiyen.Infrastructure.Scheduling.Ingestion;
 
 public static class SnapshotContentHasher
 {

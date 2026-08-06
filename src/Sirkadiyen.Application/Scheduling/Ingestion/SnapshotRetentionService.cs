@@ -1,6 +1,6 @@
 using Sirkadiyen.Application.Operations;
 
-namespace Sirkadiyen.Application.ScheduleIngestion;
+namespace Sirkadiyen.Application.Scheduling.Ingestion;
 
 /// <summary>
 /// Applies the active-year anchor plus recent-window snapshot retention policy.

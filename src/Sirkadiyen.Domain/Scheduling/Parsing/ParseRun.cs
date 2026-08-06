@@ -1,4 +1,4 @@
-namespace Sirkadiyen.Domain.ScheduleParsing;
+namespace Sirkadiyen.Domain.Scheduling.Parsing;
 
 /// <summary>
 /// One execution of one parser profile version against one snapshot.

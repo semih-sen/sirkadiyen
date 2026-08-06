@@ -4,6 +4,8 @@ using Sirkadiyen.Application.Identity;
 using Sirkadiyen.Domain.Auditing;
 using Sirkadiyen.Domain.Identity;
 using Sirkadiyen.Infrastructure.Persistence;
+using Sirkadiyen.Infrastructure.Persistence.Auditing.Stores;
+using Sirkadiyen.Infrastructure.Persistence.Identity.Stores;
 using Xunit;
 
 namespace Sirkadiyen.Persistence.Tests;

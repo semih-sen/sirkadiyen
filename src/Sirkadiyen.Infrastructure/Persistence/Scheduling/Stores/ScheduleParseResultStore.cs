@@ -1,20 +1,20 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
-using Sirkadiyen.Application.ScheduleParsing;
+using Sirkadiyen.Application.Scheduling.Parsing;
 using Sirkadiyen.Contracts.Parsing;
 using Sirkadiyen.Contracts.Serialization;
-using Sirkadiyen.Domain.ScheduleIngestion;
-using Sirkadiyen.Domain.ScheduleParsing;
-using Sirkadiyen.Domain.SchedulePublication;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Ingestion;
+using Sirkadiyen.Domain.Scheduling.Parsing;
+using Sirkadiyen.Domain.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Sources;
 using ContractAudienceScope = Sirkadiyen.Contracts.Parsing.AudienceScope;
 using ContractEventType = Sirkadiyen.Contracts.Parsing.ScheduleEventType;
 using ContractProgramLanguage = Sirkadiyen.Contracts.Parsing.ProgramLanguage;
-using DomainAudienceScope = Sirkadiyen.Domain.SchedulePublication.AudienceScope;
-using DomainEventType = Sirkadiyen.Domain.SchedulePublication.ScheduleEventType;
-using DomainProgramLanguage = Sirkadiyen.Domain.ScheduleSources.ProgramLanguage;
+using DomainAudienceScope = Sirkadiyen.Domain.Scheduling.Publication.AudienceScope;
+using DomainEventType = Sirkadiyen.Domain.Scheduling.Publication.ScheduleEventType;
+using DomainProgramLanguage = Sirkadiyen.Domain.Scheduling.Sources.ProgramLanguage;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Scheduling.Stores;
 
 /// <summary>Persists parser attempts and atomically creates candidate revisions.</summary>
 public sealed class ScheduleParseResultStore(SirkadiyenDbContext dbContext)

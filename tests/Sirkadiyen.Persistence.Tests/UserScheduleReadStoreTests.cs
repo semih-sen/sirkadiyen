@@ -1,10 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Sirkadiyen.Application.Identity;
-using Sirkadiyen.Application.Schedule;
+using Sirkadiyen.Application.Scheduling.Access;
 using Sirkadiyen.Domain.GoogleCalendar;
 using Sirkadiyen.Domain.Identity;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 using Sirkadiyen.Infrastructure.Persistence;
+using Sirkadiyen.Infrastructure.Persistence.GoogleCalendar.Stores;
+using Sirkadiyen.Infrastructure.Persistence.Identity.Stores;
+using Sirkadiyen.Infrastructure.Persistence.Scheduling.Stores;
 using Xunit;
 
 namespace Sirkadiyen.Persistence.Tests;

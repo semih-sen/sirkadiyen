@@ -1,6 +1,6 @@
-using Sirkadiyen.Domain.ScheduleDiffing;
+using Sirkadiyen.Domain.Scheduling.Diffing;
 
-namespace Sirkadiyen.Application.ScheduleDiffing;
+namespace Sirkadiyen.Application.Scheduling.Diffing;
 
 /// <summary>
 /// Reads the held-diff queue and records an operator releasing one (ADR-042).

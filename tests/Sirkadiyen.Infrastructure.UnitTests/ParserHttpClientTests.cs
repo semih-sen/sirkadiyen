@@ -4,7 +4,7 @@ using System.Text.Json;
 using Sirkadiyen.Contracts.Parsing;
 using Sirkadiyen.Contracts.Serialization;
 using Sirkadiyen.Contracts.Spreadsheets;
-using Sirkadiyen.Infrastructure.ScheduleParsing;
+using Sirkadiyen.Infrastructure.Scheduling.Parsing;
 using Xunit;
 
 namespace Sirkadiyen.Infrastructure.UnitTests;

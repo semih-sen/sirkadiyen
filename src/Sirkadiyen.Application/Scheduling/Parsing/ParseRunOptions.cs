@@ -1,4 +1,4 @@
-namespace Sirkadiyen.Application.ScheduleParsing;
+namespace Sirkadiyen.Application.Scheduling.Parsing;
 
 /// <summary>
 /// How long a parse run may stay open before it is treated as abandoned.

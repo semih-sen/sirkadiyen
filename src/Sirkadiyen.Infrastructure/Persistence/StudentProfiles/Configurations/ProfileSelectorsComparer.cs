@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 
-namespace Sirkadiyen.Infrastructure.Persistence.Configurations;
+namespace Sirkadiyen.Infrastructure.Persistence.StudentProfiles.Configurations;
 
 /// <summary>Compares selector documents by key/value so change tracking is exact.</summary>
 /// <remarks>

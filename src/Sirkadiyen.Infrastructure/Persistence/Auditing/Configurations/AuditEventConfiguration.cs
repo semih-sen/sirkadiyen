@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Sirkadiyen.Domain.Auditing;
 using Sirkadiyen.Domain.Identity;
 
-namespace Sirkadiyen.Infrastructure.Persistence.Configurations;
+namespace Sirkadiyen.Infrastructure.Persistence.Auditing.Configurations;
 
 internal sealed class AuditEventConfiguration : IEntityTypeConfiguration<AuditEvent>
 {

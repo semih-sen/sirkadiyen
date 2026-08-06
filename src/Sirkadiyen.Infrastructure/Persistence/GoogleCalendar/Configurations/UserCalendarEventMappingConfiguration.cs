@@ -2,9 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Sirkadiyen.Domain.GoogleCalendar;
 using Sirkadiyen.Domain.Identity;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
+using Sirkadiyen.Infrastructure.Persistence.Scheduling.Configurations;
 
-namespace Sirkadiyen.Infrastructure.Persistence.Configurations;
+namespace Sirkadiyen.Infrastructure.Persistence.GoogleCalendar.Configurations;
 
 internal sealed class UserCalendarEventMappingConfiguration
     : IEntityTypeConfiguration<UserCalendarEventMapping>

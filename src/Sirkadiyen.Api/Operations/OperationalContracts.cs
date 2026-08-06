@@ -1,6 +1,6 @@
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Api.Administration;
+namespace Sirkadiyen.Api.Operations;
 
 public sealed record SetOperationalFreezeRequest
 {

@@ -1,10 +1,10 @@
 using Sirkadiyen.Contracts.Parsing;
-using Sirkadiyen.Domain.ScheduleIngestion;
-using Sirkadiyen.Domain.ScheduleParsing;
-using Sirkadiyen.Domain.SchedulePublication;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Ingestion;
+using Sirkadiyen.Domain.Scheduling.Parsing;
+using Sirkadiyen.Domain.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Application.ScheduleParsing;
+namespace Sirkadiyen.Application.Scheduling.Parsing;
 
 /// <summary>
 /// Owns the transactional persistence boundary between a parser response and

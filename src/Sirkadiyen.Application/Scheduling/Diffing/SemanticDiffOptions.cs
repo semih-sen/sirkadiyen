@@ -1,4 +1,4 @@
-namespace Sirkadiyen.Application.ScheduleDiffing;
+namespace Sirkadiyen.Application.Scheduling.Diffing;
 
 /// <summary>
 /// Deterministic thresholds for recognizing a lesson whose time changed.

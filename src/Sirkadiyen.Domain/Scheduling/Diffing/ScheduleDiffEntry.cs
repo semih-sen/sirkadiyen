@@ -1,4 +1,4 @@
-namespace Sirkadiyen.Domain.ScheduleDiffing;
+namespace Sirkadiyen.Domain.Scheduling.Diffing;
 
 /// <summary>
 /// One semantic change between two published schedule revisions.

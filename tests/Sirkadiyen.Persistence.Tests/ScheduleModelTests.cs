@@ -2,8 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Sirkadiyen.Domain.Operations;
-using Sirkadiyen.Domain.SchedulePublication;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Sources;
 using Sirkadiyen.Infrastructure.Persistence;
 using Xunit;
 
@@ -74,7 +74,7 @@ public sealed class ScheduleModelTests
     [Fact]
     public void OneParserProfileVersionRunsOncePerSnapshot()
     {
-        IEntityType run = Model.FindEntityType(typeof(Domain.ScheduleParsing.ParseRun))!;
+        IEntityType run = Model.FindEntityType(typeof(Domain.Scheduling.Parsing.ParseRun))!;
 
         IIndex index = Assert.Single(run.GetIndexes(), candidate => candidate.IsUnique);
 
@@ -86,7 +86,7 @@ public sealed class ScheduleModelTests
     [Fact]
     public void ParserAttemptsAndCandidateStatusArePersistedExplicitly()
     {
-        IEntityType run = Model.FindEntityType(typeof(Domain.ScheduleParsing.ParseRun))!;
+        IEntityType run = Model.FindEntityType(typeof(Domain.Scheduling.Parsing.ParseRun))!;
         IEntityType record = Model.FindEntityType(typeof(CanonicalScheduleRecord))!;
 
         Assert.NotNull(run.FindProperty("AttemptCount"));
@@ -168,7 +168,7 @@ public sealed class ScheduleModelTests
     [Fact]
     public void StaleParseRunRecoveryIsRecordedAndOptional()
     {
-        IProperty recovered = Model.FindEntityType(typeof(Domain.ScheduleParsing.ParseRun))!
+        IProperty recovered = Model.FindEntityType(typeof(Domain.Scheduling.Parsing.ParseRun))!
             .FindProperty("LastStaleRecoveryAtUtc")!;
 
         Assert.True(recovered.IsNullable);
@@ -217,7 +217,7 @@ public sealed class ScheduleModelTests
     public void SnapshotPayloadRetentionHasItsOwnMigrationAndExplicitMetadata()
     {
         IEntityType snapshot =
-            Model.FindEntityType(typeof(Domain.ScheduleIngestion.SourceSnapshot))!;
+            Model.FindEntityType(typeof(Domain.Scheduling.Ingestion.SourceSnapshot))!;
 
         Assert.Contains(
             "20260723111607_AddSnapshotPayloadRetention",
@@ -228,7 +228,7 @@ public sealed class ScheduleModelTests
     }
 
     [Theory]
-    [InlineData(typeof(Domain.ScheduleIngestion.SourceSnapshot), "Payload")]
+    [InlineData(typeof(Domain.Scheduling.Ingestion.SourceSnapshot), "Payload")]
     [InlineData(typeof(CanonicalScheduleRecord), "AudienceSelectors")]
     [InlineData(typeof(CanonicalScheduleRecord), "Evidence")]
     public void EvidenceDocumentsAreStoredAsQueryableJson(Type entityType, string propertyName)

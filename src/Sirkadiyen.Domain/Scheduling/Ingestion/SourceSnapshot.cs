@@ -1,6 +1,6 @@
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Domain.ScheduleIngestion;
+namespace Sirkadiyen.Domain.Scheduling.Ingestion;
 
 /// <summary>
 /// An immutable record of what a source contained at one moment.

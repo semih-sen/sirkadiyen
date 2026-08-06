@@ -1,6 +1,6 @@
-using Sirkadiyen.Domain.SchedulePublication;
+using Sirkadiyen.Domain.Scheduling.Publication;
 
-namespace Sirkadiyen.Application.Schedule;
+namespace Sirkadiyen.Application.Scheduling.Access;
 
 /// <summary>
 /// Reads a student's own timetable straight from what has actually been written to their calendar

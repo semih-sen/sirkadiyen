@@ -1,6 +1,6 @@
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Domain.SchedulePublication;
+namespace Sirkadiyen.Domain.Scheduling.Publication;
 
 /// <summary>
 /// A candidate version of one source's schedule, and the states it may move

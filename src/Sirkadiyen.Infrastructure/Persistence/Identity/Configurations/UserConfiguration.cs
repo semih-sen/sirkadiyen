@@ -2,7 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Sirkadiyen.Domain.Identity;
 
-namespace Sirkadiyen.Infrastructure.Persistence.Configurations;
+namespace Sirkadiyen.Infrastructure.Persistence.Identity.Configurations;
 
 internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
 {

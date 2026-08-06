@@ -1,8 +1,8 @@
 using System.Text;
-using Sirkadiyen.Application.ScheduleIngestion;
+using Sirkadiyen.Application.Scheduling.Ingestion;
 using Sirkadiyen.Contracts.Spreadsheets;
-using Sirkadiyen.Domain.ScheduleSources;
-using Sirkadiyen.Infrastructure.ScheduleIngestion;
+using Sirkadiyen.Domain.Scheduling.Sources;
+using Sirkadiyen.Infrastructure.Scheduling.Ingestion;
 using Xunit;
 
 namespace Sirkadiyen.Infrastructure.UnitTests;

@@ -1,4 +1,4 @@
-using Sirkadiyen.Domain.ScheduleParsing;
+using Sirkadiyen.Domain.Scheduling.Parsing;
 using Xunit;
 
 namespace Sirkadiyen.Infrastructure.UnitTests;

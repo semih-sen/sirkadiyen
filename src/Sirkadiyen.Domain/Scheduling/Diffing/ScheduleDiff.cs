@@ -1,7 +1,7 @@
 using System.Globalization;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Domain.ScheduleDiffing;
+namespace Sirkadiyen.Domain.Scheduling.Diffing;
 
 /// <summary>
 /// The stored semantic difference between a published revision and the revision

@@ -1,10 +1,11 @@
 using Microsoft.EntityFrameworkCore;
-using Sirkadiyen.Application.ScheduleIngestion;
-using Sirkadiyen.Application.ScheduleSources;
+using Sirkadiyen.Application.Scheduling.Ingestion;
+using Sirkadiyen.Application.Scheduling.Sources;
 using Sirkadiyen.Contracts.Spreadsheets;
-using Sirkadiyen.Domain.ScheduleIngestion;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Ingestion;
+using Sirkadiyen.Domain.Scheduling.Sources;
 using Sirkadiyen.Infrastructure.Persistence;
+using Sirkadiyen.Infrastructure.Persistence.Scheduling.Stores;
 using Xunit;
 
 namespace Sirkadiyen.Persistence.Tests;

@@ -4,7 +4,7 @@ using Npgsql;
 using Sirkadiyen.Application.Identity;
 using Sirkadiyen.Domain.Identity;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Identity.Stores;
 
 /// <summary>PostgreSQL-backed Google identity and session user store.</summary>
 public sealed class UserStore(SirkadiyenDbContext dbContext) : IUserStore

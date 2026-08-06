@@ -4,7 +4,7 @@ using Npgsql;
 using Sirkadiyen.Application.Finance;
 using Sirkadiyen.Domain.Finance;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Finance.Stores;
 
 /// <summary>Transactional PostgreSQL store for finance holders, accounts, and transactions.</summary>
 public sealed class FinanceLedgerStore(SirkadiyenDbContext dbContext) : IFinanceLedgerStore

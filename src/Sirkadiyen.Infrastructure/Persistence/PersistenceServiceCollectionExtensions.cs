@@ -7,13 +7,22 @@ using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Identity;
 using Sirkadiyen.Application.Licensing;
 using Sirkadiyen.Application.Operations;
-using Sirkadiyen.Application.Schedule;
-using Sirkadiyen.Application.ScheduleDiffing;
-using Sirkadiyen.Application.ScheduleIngestion;
-using Sirkadiyen.Application.ScheduleParsing;
-using Sirkadiyen.Application.SchedulePublication;
-using Sirkadiyen.Application.ScheduleSources;
+using Sirkadiyen.Application.Scheduling.Access;
+using Sirkadiyen.Application.Scheduling.Diffing;
+using Sirkadiyen.Application.Scheduling.Ingestion;
+using Sirkadiyen.Application.Scheduling.Parsing;
+using Sirkadiyen.Application.Scheduling.Publication;
+using Sirkadiyen.Application.Scheduling.Sources;
 using Sirkadiyen.Application.StudentProfiles;
+using Sirkadiyen.Infrastructure.Persistence.Administration.Stores;
+using Sirkadiyen.Infrastructure.Persistence.Auditing.Stores;
+using Sirkadiyen.Infrastructure.Persistence.Finance.Stores;
+using Sirkadiyen.Infrastructure.Persistence.GoogleCalendar.Stores;
+using Sirkadiyen.Infrastructure.Persistence.Identity.Stores;
+using Sirkadiyen.Infrastructure.Persistence.Licensing.Stores;
+using Sirkadiyen.Infrastructure.Persistence.Operations.Stores;
+using Sirkadiyen.Infrastructure.Persistence.Scheduling.Stores;
+using Sirkadiyen.Infrastructure.Persistence.StudentProfiles.Stores;
 
 namespace Sirkadiyen.Infrastructure.Persistence;
 

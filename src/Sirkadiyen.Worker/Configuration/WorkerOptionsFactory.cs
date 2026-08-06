@@ -1,13 +1,13 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Sirkadiyen.Application.GoogleCalendar;
-using Sirkadiyen.Application.ScheduleDiffing;
-using Sirkadiyen.Application.ScheduleIngestion;
-using Sirkadiyen.Application.ScheduleParsing;
-using Sirkadiyen.Application.SchedulePublication;
-using Sirkadiyen.Domain.ScheduleDiffing;
+using Sirkadiyen.Application.Scheduling.Diffing;
+using Sirkadiyen.Application.Scheduling.Ingestion;
+using Sirkadiyen.Application.Scheduling.Parsing;
+using Sirkadiyen.Application.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Diffing;
 using Sirkadiyen.Infrastructure.Google;
-using Sirkadiyen.Infrastructure.ScheduleIngestion;
+using Sirkadiyen.Infrastructure.Scheduling.Ingestion;
 
 namespace Sirkadiyen.Worker.Configuration;
 

@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Sirkadiyen.Application.SchedulePublication;
+namespace Sirkadiyen.Application.Scheduling.Publication;
 
 /// <summary>
 /// The thresholds revision validation applies (ADR-025, ADR-029).

@@ -1,18 +1,19 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Sirkadiyen.Application.Operations;
-using Sirkadiyen.Application.SchedulePublication;
+using Sirkadiyen.Application.Scheduling.Publication;
 using Sirkadiyen.Contracts.Parsing;
 using Sirkadiyen.Contracts.Serialization;
-using Sirkadiyen.Domain.ScheduleIngestion;
-using Sirkadiyen.Domain.ScheduleParsing;
-using Sirkadiyen.Domain.SchedulePublication;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Ingestion;
+using Sirkadiyen.Domain.Scheduling.Parsing;
+using Sirkadiyen.Domain.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Sources;
 using Sirkadiyen.Infrastructure.Persistence;
+using Sirkadiyen.Infrastructure.Persistence.Scheduling.Stores;
 using Xunit;
-using DomainAudienceScope = Sirkadiyen.Domain.SchedulePublication.AudienceScope;
-using DomainEventType = Sirkadiyen.Domain.SchedulePublication.ScheduleEventType;
-using DomainLanguage = Sirkadiyen.Domain.ScheduleSources.ProgramLanguage;
+using DomainAudienceScope = Sirkadiyen.Domain.Scheduling.Publication.AudienceScope;
+using DomainEventType = Sirkadiyen.Domain.Scheduling.Publication.ScheduleEventType;
+using DomainLanguage = Sirkadiyen.Domain.Scheduling.Sources.ProgramLanguage;
 
 namespace Sirkadiyen.Persistence.Tests;
 

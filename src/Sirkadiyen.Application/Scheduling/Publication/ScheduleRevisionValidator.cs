@@ -2,10 +2,10 @@ using System.Globalization;
 using System.Text.Json;
 using Sirkadiyen.Contracts.Parsing;
 using Sirkadiyen.Contracts.Serialization;
-using Sirkadiyen.Domain.SchedulePublication;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Domain.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
-namespace Sirkadiyen.Application.SchedulePublication;
+namespace Sirkadiyen.Application.Scheduling.Publication;
 
 /// <summary>
 /// Decides whether a candidate revision may be published, be held for review, or
@@ -383,7 +383,7 @@ public sealed class ScheduleRevisionValidator(RevisionValidationOptions options)
     }
 
     private static bool IsFreeStudy(CanonicalScheduleRecord record) =>
-        record.EventType is Sirkadiyen.Domain.SchedulePublication.ScheduleEventType.FreeStudy;
+        record.EventType is Sirkadiyen.Domain.Scheduling.Publication.ScheduleEventType.FreeStudy;
 
     // Same course when the normalized identity matches; the display title is the
     // fallback when a record has no resolved identity, so an unresolved duplicate is

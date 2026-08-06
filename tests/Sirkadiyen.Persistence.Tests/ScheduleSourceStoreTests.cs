@@ -1,8 +1,9 @@
 using Microsoft.EntityFrameworkCore;
-using Sirkadiyen.Application.ScheduleSources;
-using Sirkadiyen.Domain.ScheduleSources;
+using Sirkadiyen.Application.Scheduling.Sources;
+using Sirkadiyen.Domain.Scheduling.Sources;
 using Sirkadiyen.Infrastructure.Persistence;
-using Sirkadiyen.Infrastructure.ScheduleSources;
+using Sirkadiyen.Infrastructure.Persistence.Scheduling.Stores;
+using Sirkadiyen.Infrastructure.Scheduling.Sources;
 using Xunit;
 
 namespace Sirkadiyen.Persistence.Tests;

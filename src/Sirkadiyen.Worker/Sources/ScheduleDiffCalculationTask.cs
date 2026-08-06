@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Sirkadiyen.Application.ScheduleDiffing;
-using Sirkadiyen.Domain.ScheduleDiffing;
+using Sirkadiyen.Application.Scheduling.Diffing;
+using Sirkadiyen.Domain.Scheduling.Diffing;
 
 namespace Sirkadiyen.Worker.Sources;
 

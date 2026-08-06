@@ -1,6 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 
-namespace Sirkadiyen.Domain.ScheduleSources;
+namespace Sirkadiyen.Domain.Scheduling.Sources;
 
 /// <summary>
 /// The stable identifier of a schedule source, such as <c>G1-TR-ANNUAL</c>.

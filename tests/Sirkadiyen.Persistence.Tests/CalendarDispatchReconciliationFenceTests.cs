@@ -1,4 +1,5 @@
 using Sirkadiyen.Infrastructure.Persistence;
+using Sirkadiyen.Infrastructure.Persistence.GoogleCalendar.Stores;
 using Xunit;
 
 namespace Sirkadiyen.Persistence.Tests;

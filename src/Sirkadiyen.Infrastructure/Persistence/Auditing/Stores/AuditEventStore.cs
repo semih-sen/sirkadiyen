@@ -3,7 +3,7 @@ using Sirkadiyen.Application.Auditing;
 using Sirkadiyen.Application.Common;
 using Sirkadiyen.Domain.Auditing;
 
-namespace Sirkadiyen.Infrastructure.Persistence;
+namespace Sirkadiyen.Infrastructure.Persistence.Auditing.Stores;
 
 /// <summary>Append-only PostgreSQL store for account-access and activity events.</summary>
 public sealed class AuditEventStore(SirkadiyenDbContext dbContext) : IAuditEventStore
