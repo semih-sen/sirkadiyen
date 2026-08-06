@@ -2,33 +2,6 @@ using System.Text.RegularExpressions;
 
 namespace Sirkadiyen.Application.GoogleCalendar;
 
-public interface IDepartmentColorStore
-{
-    Task<IReadOnlyDictionary<string, string>> GetAdminDefaultsAsync(
-        CancellationToken cancellationToken);
-
-    Task<IReadOnlyDictionary<string, string>> GetUserOverridesAsync(
-        Guid userId,
-        CancellationToken cancellationToken);
-
-    Task<bool> SetAdminDefaultAsync(
-        string departmentKey,
-        string? color,
-        string actor,
-        string reason,
-        string correlationId,
-        DateTimeOffset atUtc,
-        CancellationToken cancellationToken);
-
-    Task<bool> SetUserOverrideAsync(
-        Guid userId,
-        string departmentKey,
-        string? color,
-        string correlationId,
-        DateTimeOffset atUtc,
-        CancellationToken cancellationToken);
-}
-
 public sealed partial class DepartmentColorService(
     IDepartmentColorStore store,
     TimeProvider timeProvider)
@@ -197,67 +170,4 @@ public sealed partial class DepartmentColorService(
 
     [GeneratedRegex("^#[0-9A-F]{6}$", RegexOptions.CultureInvariant)]
     private static partial Regex ColorPattern();
-}
-
-public sealed record DepartmentColorView
-{
-    public required string Key { get; init; }
-    public required string Name { get; init; }
-    public required CalendarColorKind Kind { get; init; }
-    public DepartmentDivision? Division { get; init; }
-    public string? Description { get; init; }
-    public required string SystemDefaultColor { get; init; }
-    public string? AdminDefaultColor { get; init; }
-    public string? UserColor { get; init; }
-    public required string EffectiveColor { get; init; }
-}
-
-public enum CalendarColorKind
-{
-    EventCategory,
-    Department,
-}
-
-public sealed record CalendarPresentationColorDefinition(
-    string Key,
-    string Name,
-    string Description,
-    string SystemDefaultColor);
-
-public static class CalendarPresentationColorCatalog
-{
-    public const string IntegratedSessionKey = "integrated-session";
-    public const string PracticeKey = "practice";
-
-    public static IReadOnlyList<CalendarPresentationColorDefinition> Categories { get; } =
-    [
-        new(
-            IntegratedSessionKey,
-            "Entegre oturumlar",
-            "Birden fazla anabilim dalının birlikte yürüttüğü tüm oturumlar.",
-            "#5E35B1"),
-        new(
-            PracticeKey,
-            "Uygulamalar ve diseksiyonlar",
-            "Dersinden bağımsız olarak tüm uygulama türleri ve diseksiyonlar.",
-            "#FF6D00"),
-    ];
-
-    public static bool TryGet(
-        string key,
-        out CalendarPresentationColorDefinition definition)
-    {
-        definition = Categories.FirstOrDefault(
-            item => StringComparer.Ordinal.Equals(item.Key, key))!;
-        return definition is not null;
-    }
-}
-
-internal static class DepartmentColorPaletteResolver
-{
-    public static Task<IReadOnlyDictionary<string, string>> GetAsync(
-        DepartmentColorService service,
-        Guid userId,
-        CancellationToken cancellationToken) =>
-        service.GetEffectiveColorsAsync(userId, cancellationToken);
 }

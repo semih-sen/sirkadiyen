@@ -201,7 +201,7 @@ public sealed class CalendarAuthorizationServiceTests
         public string Unprotect(string ciphertext) => ciphertext["protected:".Length..];
     }
 
-    private sealed class RecordingConnectionStore : IGoogleCalendarConnectionStore
+    private sealed class RecordingConnectionStore : IUserCalendarConnectionStore
     {
         public bool WasCalled { get; private set; }
 

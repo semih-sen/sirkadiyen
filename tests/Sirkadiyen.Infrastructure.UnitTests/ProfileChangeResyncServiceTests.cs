@@ -381,7 +381,7 @@ public sealed class ProfileChangeResyncServiceTests
     private static ProfileResyncResult Single(ProfileResyncRunResult run) => Assert.Single(run.Users);
 
     private sealed class FakeConnectionStore(params PendingProfileResync[] pending)
-        : IGoogleCalendarConnectionStore
+        : ICalendarSyncConnectionStore
     {
         public CompleteProfileResyncOutcome CompletionOutcome { get; init; } =
             CompleteProfileResyncOutcome.Completed;

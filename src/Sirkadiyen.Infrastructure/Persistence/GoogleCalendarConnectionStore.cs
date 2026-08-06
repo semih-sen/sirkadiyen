@@ -8,7 +8,7 @@ namespace Sirkadiyen.Infrastructure.Persistence;
 
 /// <summary>Transactional PostgreSQL Calendar-connection store.</summary>
 public sealed class GoogleCalendarConnectionStore(SirkadiyenDbContext dbContext)
-    : IGoogleCalendarConnectionStore
+    : IUserCalendarConnectionStore, ICalendarSyncConnectionStore
 {
     public async Task<GoogleCalendarConnectionView?> GetByUserIdAsync(
         Guid userId,

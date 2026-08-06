@@ -310,7 +310,7 @@ public sealed class CalendarReconciliationServiceTests
             CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
-    private sealed class FakeConnectionStore : IGoogleCalendarConnectionStore
+    private sealed class FakeConnectionStore : ICalendarSyncConnectionStore
     {
         public PendingCalendarReconciliation? Pending { get; set; }
 

@@ -143,7 +143,7 @@ public sealed class OnboardingStateServiceTests
         };
 
     private sealed class StubConnectionStore(GoogleCalendarConnectionView? connection)
-        : IGoogleCalendarConnectionStore
+        : IGoogleCalendarConnectionReader
     {
         public Task<GoogleCalendarConnectionView?> GetByUserIdAsync(
             Guid userId,

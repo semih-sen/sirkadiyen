@@ -16,7 +16,7 @@ namespace Sirkadiyen.Application.GoogleCalendar;
 /// per-user results and leaves logging to the worker.
 /// </remarks>
 public sealed class InitialCalendarSyncService(
-    IGoogleCalendarConnectionStore connectionStore,
+    ICalendarSyncConnectionStore connectionStore,
     IStudentProfileStore profileStore,
     ICanonicalScheduleReadStore scheduleReadStore,
     IUserCalendarEventMappingStore mappingStore,

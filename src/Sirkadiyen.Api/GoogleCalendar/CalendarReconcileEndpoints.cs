@@ -32,7 +32,7 @@ public static class CalendarReconcileEndpoints
 
     private static async Task<IResult> RequestAsync(
         ClaimsPrincipal principal,
-        IGoogleCalendarConnectionStore connectionStore,
+        IUserCalendarConnectionStore connectionStore,
         AuditEventRecorder audit,
         TimeProvider timeProvider,
         HttpContext context,
@@ -81,9 +81,4 @@ public static class CalendarReconcileEndpoints
                     statusCode: StatusCodes.Status409Conflict);
         }
     }
-}
-
-public sealed record RequestReconciliationResponse
-{
-    public required bool Requested { get; init; }
 }

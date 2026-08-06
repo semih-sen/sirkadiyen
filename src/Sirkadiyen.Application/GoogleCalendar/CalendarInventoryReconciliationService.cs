@@ -13,7 +13,7 @@ public sealed class CalendarInventoryReconciliationService(
     ICalendarSyncTargetReadStore targetStore,
     ICanonicalScheduleReadStore scheduleReadStore,
     IUserCalendarEventMappingStore mappingStore,
-    IGoogleCalendarConnectionStore connectionStore,
+    ICalendarSyncConnectionStore connectionStore,
     IUserCalendarClient calendarClient,
     ICalendarTokenProtector tokenProtector,
     IOperationalFreezeStore freezeStore,

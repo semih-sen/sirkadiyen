@@ -96,12 +96,3 @@ public static class AdminUserEndpoints
         });
     }
 }
-
-public sealed record AdminUserDetailResponse
-{
-    public required AdminUserDetail User { get; init; }
-
-    public required OnboardingState OnboardingState { get; init; }
-
-    public required IReadOnlyList<AuditEventView> RecentSignIns { get; init; }
-}

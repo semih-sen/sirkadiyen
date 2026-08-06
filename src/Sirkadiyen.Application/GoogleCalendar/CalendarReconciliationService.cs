@@ -17,7 +17,7 @@ public sealed class CalendarReconciliationService(
     IScheduleDiffStore diffStore,
     ICanonicalScheduleReadStore scheduleReadStore,
     IStudentProfileStore profileStore,
-    IGoogleCalendarConnectionStore connectionStore,
+    ICalendarSyncConnectionStore connectionStore,
     IUserCalendarEventMappingStore mappingStore,
     IUserCalendarClient calendarClient,
     ICalendarTokenProtector tokenProtector,

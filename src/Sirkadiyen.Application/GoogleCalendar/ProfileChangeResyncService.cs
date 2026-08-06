@@ -21,7 +21,7 @@ namespace Sirkadiyen.Application.GoogleCalendar;
 /// </para>
 /// </remarks>
 public sealed class ProfileChangeResyncService(
-    IGoogleCalendarConnectionStore connectionStore,
+    ICalendarSyncConnectionStore connectionStore,
     IStudentProfileStore profileStore,
     ICanonicalScheduleReadStore scheduleReadStore,
     IUserCalendarEventMappingStore mappingStore,

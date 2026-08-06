@@ -31,7 +31,7 @@ public enum CalendarAuthorizationOutcome
 public sealed class CalendarAuthorizationService(
     IGoogleCalendarAuthorizationClient authorizationClient,
     ICalendarTokenProtector tokenProtector,
-    IGoogleCalendarConnectionStore connectionStore,
+    IUserCalendarConnectionStore connectionStore,
     ILicenseStore licenseStore,
     IStudentProfileStore profileStore,
     TimeProvider timeProvider)

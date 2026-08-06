@@ -1,4 +1,3 @@
-using System.Net;
 using System.Text;
 using System.Text.Json;
 using Sirkadiyen.Application.ScheduleParsing;
@@ -75,10 +74,4 @@ public sealed class ParserHttpClient(HttpClient httpClient) : IScheduleParserCli
             : body.Trim();
         return normalized.Length <= maximumLength ? normalized : normalized[..maximumLength];
     }
-}
-
-public sealed class ParserClientException(HttpStatusCode statusCode, string responseBody)
-    : Exception($"Parser HTTP request failed with status {(int)statusCode}: {responseBody}")
-{
-    public HttpStatusCode StatusCode { get; } = statusCode;
 }

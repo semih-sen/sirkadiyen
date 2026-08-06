@@ -601,7 +601,7 @@ public sealed class IncrementalCalendarSyncServiceTests
         }
     }
 
-    private sealed class FakeConnectionStore : IGoogleCalendarConnectionStore
+    private sealed class FakeConnectionStore : ICalendarSyncConnectionStore
     {
         public List<Guid> FlaggedForReauth { get; } = [];
 

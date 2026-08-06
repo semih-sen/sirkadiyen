@@ -11,7 +11,7 @@ namespace Sirkadiyen.Application.Onboarding;
 public sealed class OnboardingStateService(
     ILicenseStore licenseStore,
     IStudentProfileStore profileStore,
-    IGoogleCalendarConnectionStore connectionStore)
+    IGoogleCalendarConnectionReader connectionStore)
 {
     public async Task<OnboardingSnapshot> GetAsync(
         Guid userId,

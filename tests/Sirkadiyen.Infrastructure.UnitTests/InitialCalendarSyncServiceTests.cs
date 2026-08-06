@@ -324,7 +324,7 @@ public sealed class InitialCalendarSyncServiceTests
     private static InitialCalendarSyncResult Single(InitialCalendarSyncRunResult run) =>
         Assert.Single(run.Users);
 
-    private sealed class FakeConnectionStore : IGoogleCalendarConnectionStore
+    private sealed class FakeConnectionStore : ICalendarSyncConnectionStore
     {
         private readonly List<PendingCalendarSync> pending;
 

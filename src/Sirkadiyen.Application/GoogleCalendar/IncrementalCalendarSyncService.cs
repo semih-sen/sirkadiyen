@@ -24,7 +24,7 @@ public sealed class IncrementalCalendarSyncService(
     IScheduleDiffStore diffStore,
     ICanonicalScheduleReadStore scheduleReadStore,
     ICalendarSyncTargetReadStore targetStore,
-    IGoogleCalendarConnectionStore connectionStore,
+    ICalendarSyncConnectionStore connectionStore,
     IUserCalendarEventMappingStore mappingStore,
     IUserCalendarClient calendarClient,
     ICalendarTokenProtector tokenProtector,

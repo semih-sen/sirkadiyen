@@ -425,7 +425,7 @@ public sealed class CalendarInventoryReconciliationServiceTests
             CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
-    private sealed class FakeConnectionStore : IGoogleCalendarConnectionStore
+    private sealed class FakeConnectionStore : ICalendarSyncConnectionStore
     {
         public bool InventoryCompleted { get; private set; }
 
