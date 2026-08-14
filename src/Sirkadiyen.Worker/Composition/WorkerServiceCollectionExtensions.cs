@@ -74,6 +74,10 @@ internal static class WorkerServiceCollectionExtensions
         services.AddScoped<ISpreadsheetSnapshotAcquirer, GoogleSheetsSnapshotAcquirer>();
         services.AddSirkadiyenGoogleDriveClient(googleOptions);
         services.AddSingleton<DocxSnapshotConverter>();
+
+        // The Drive transport publishes both Office formats: the Grade 2 calendars
+        // are documents and the Grade 3 programs are workbooks (ADR-083).
+        services.AddSingleton<LocalXlsxSnapshotConverter>();
         services.AddScoped<IDriveDocumentAcquirer, DriveDocumentAcquirer>();
         services.AddScoped<ScheduleSourcePoller>();
         services.AddSirkadiyenPersistence(options.ConnectionString);

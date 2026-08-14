@@ -53,7 +53,8 @@ public sealed class CanonicalScheduleRecord
         string? instructor = null,
         string? location = null,
         string? curriculumBlock = null,
-        IReadOnlyList<string>? departments = null)
+        IReadOnlyList<string>? departments = null,
+        string? notes = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(candidateId);
         ArgumentException.ThrowIfNullOrWhiteSpace(academicYear);
@@ -113,6 +114,7 @@ public sealed class CanonicalScheduleRecord
         Location = location;
         CurriculumBlock = curriculumBlock;
         Departments = departments is null ? [] : [.. departments];
+        Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
     }
 
     public Guid Id { get; private set; }
@@ -204,6 +206,17 @@ public sealed class CanonicalScheduleRecord
     /// </remarks>
     public string? ComparableDepartment =>
         Departments.Count == 1 ? Departments[0] : null;
+
+    /// <summary>
+    /// Free text a source states about this session that has no field of its
+    /// own — today, the topic a Grade 3 bedside session is about (ADR-088).
+    /// </summary>
+    /// <remarks>
+    /// It is content rather than identity: it is part of the parser's content
+    /// hash and of no stable identity, so a corrected topic moves the event a
+    /// student already has instead of creating a second one beside it.
+    /// </remarks>
+    public string? Notes { get; private set; }
 
     public string StableIdentity { get; private set; }
 

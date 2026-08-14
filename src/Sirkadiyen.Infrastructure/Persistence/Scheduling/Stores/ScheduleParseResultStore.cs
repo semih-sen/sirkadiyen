@@ -268,7 +268,8 @@ public sealed class ScheduleParseResultStore(SirkadiyenDbContext dbContext)
             candidate.Instructor,
             candidate.Location,
             candidate.CurriculumBlock,
-            candidate.Departments);
+            candidate.Departments,
+            candidate.Notes);
     }
 
     private static ParseRunStatus MapStatus(ParserResultStatus status) => status switch

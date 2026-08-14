@@ -46,6 +46,7 @@ internal static class CalendarTestData
         IReadOnlyList<string>? departments = null,
         ScheduleEventType eventType = ScheduleEventType.Theory,
         SourceId? sourceId = null,
+        string? notes = null,
         string contentHash = "sha256:content")
     {
         string audienceJson = JsonSerializer.Serialize(
@@ -83,6 +84,7 @@ internal static class CalendarTestData
             instructor,
             location,
             curriculumBlock,
-            departments);
+            departments,
+            notes);
     }
 }

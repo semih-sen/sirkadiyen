@@ -9,15 +9,16 @@ namespace Sirkadiyen.Infrastructure.Scheduling.Ingestion;
 /// onto the normalized snapshot contract (ADR-083).
 /// </summary>
 /// <remarks>
-/// Only DOCX is converted, because the Drive sources that have a parser profile
-/// are the two vertical-corridor calendars and both are Word documents. The
-/// Grade 3 workbooks are catalogued on the same transport and will be acquirable
-/// once they have profiles to read them; until then the poller reports the format
-/// as unsupported rather than downloading a file nothing can interpret.
+/// Both Office formats are converted onto the same normalized snapshot contract
+/// (ADR-076), so only the reader and the expected MIME type differ. The Grade 2
+/// vertical-corridor calendars are Word documents; the Grade 3 annual, faculty
+/// practice and practice-location sources are workbooks published on the same
+/// transport.
 /// </remarks>
 public sealed class DriveDocumentAcquirer(
     IGoogleDriveFileClient driveClient,
-    DocxSnapshotConverter docxConverter) : IDriveDocumentAcquirer
+    DocxSnapshotConverter docxConverter,
+    LocalXlsxSnapshotConverter xlsxConverter) : IDriveDocumentAcquirer
 {
     /// <summary>
     /// The largest source document one acquisition reads into memory. The same
@@ -29,11 +30,14 @@ public sealed class DriveDocumentAcquirer(
     private const string DocxMimeType =
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
+    private const string XlsxMimeType =
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
     // Every OOXML document is a ZIP container, and this is its local file header.
     private static readonly byte[] ZipSignature = [0x50, 0x4B, 0x03, 0x04];
 
     public bool CanAcquire(ScheduleDocumentFormat format) =>
-        format is ScheduleDocumentFormat.Docx;
+        format is ScheduleDocumentFormat.Docx or ScheduleDocumentFormat.Xlsx;
 
     public async Task<NormalizedSpreadsheetSnapshot> AcquireAsync(
         ScheduleDocumentFormat format,
@@ -55,14 +59,18 @@ public sealed class DriveDocumentAcquirer(
                 // A Drive source stores its file identifier as the external ID,
                 // and the poller carries it here.
                 FileId = request.SpreadsheetId,
-                ExpectedMimeType = DocxMimeType,
+                ExpectedMimeType = format is ScheduleDocumentFormat.Xlsx
+                    ? XlsxMimeType
+                    : DocxMimeType,
                 MaximumBytes = MaximumDocumentBytes,
             },
             cancellationToken);
 
         RequireOfficeContainer(file);
 
-        return docxConverter.ConvertDownload(file.Content, request);
+        return format is ScheduleDocumentFormat.Xlsx
+            ? xlsxConverter.ConvertDownload(file.Content, request)
+            : docxConverter.ConvertDownload(file.Content, request);
     }
 
     /// <summary>

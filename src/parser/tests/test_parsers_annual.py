@@ -12,6 +12,7 @@ import pytest
 
 from sirkadiyen_parser.contracts.parsing import (
     AudienceScope,
+    CanonicalScheduleCandidate,
     ParserResultStatus,
     ParserWarningSeverity,
     ParseSnapshotRequest,
@@ -68,6 +69,18 @@ GRADE_2_PROFILE = ParserProfileDefinition(
     group_rotation_subjects=("diseksiyon", "dissection"),
 )
 
+#: The Grade 3 annual profile, which shares this implementation and adds an
+#: audience: the class runs as two curriculum groups with separate timetables.
+GRADE_3_PROFILE = ParserProfileDefinition(
+    "grade3_yearly_v1",
+    "1.0.0",
+    "annual",
+    NumericDateOrder.UNDECLARED,
+    ("curriculumGroup",),
+    group_rotation_subjects=("ogretim uyesi uygulama",),
+    term_column_may_be_unlabelled=True,
+)
+
 TURKISH_HEADERS = [
     "Dönem",
     "TARİH",
@@ -85,6 +98,18 @@ ENGLISH_HEADERS = [
     "Subject",
     "Description",
     "Location",
+]
+
+#: The Grade 3 workbooks write no header over the column that states the term,
+#: which is also the column that states which half of the class a row belongs to.
+UNLABELLED_TERM_HEADERS = [
+    "",
+    "TARİH",
+    "Başlangıç Saati",
+    "Bitiş Saati",
+    "KONU",
+    "DİLİM ADI / ANABİLİM DALI",
+    "YER",
 ]
 
 #: 2025-10-01, as a spreadsheet date serial.
@@ -155,9 +180,12 @@ def worksheet(
     row_count: int | None = None,
     hidden_rows: list[dict[str, int]] | None = None,
 ) -> dict[str, Any]:
+    # An empty header is written as no cell at all, which is how a workbook that
+    # labels none of its first column reaches the parser.
     cells = [
         text_cell(header_row, column, header)
         for column, header in enumerate(headers if headers is not None else TURKISH_HEADERS)
+        if header
     ]
     cells.extend(rows)
     highest_row = max((cell["rowIndex"] for cell in cells), default=header_row)
@@ -177,6 +205,7 @@ def parse(
     *,
     class_year: int = 1,
     profile: ParserProfileDefinition = PROFILE,
+    program_language: str = "turkish",
 ) -> ParseSnapshotResponse:
     request = ParseSnapshotRequest.model_validate(
         {
@@ -186,7 +215,7 @@ def parse(
             "sourceContext": {
                 "academicYear": "2025-2026",
                 "classYear": class_year,
-                "programLanguage": "turkish",
+                "programLanguage": program_language,
                 "timeZoneId": "Europe/Istanbul",
             },
             "snapshot": {
@@ -754,6 +783,22 @@ def test_a_whole_number_in_a_time_column_is_refused_rather_than_read_as_midnight
             ScheduleEventType.THEORY,
         ),
         ("25-Baş-boyun kasları I", "HAREKET-1 DİLİMİ / ANATOMİ AD.", ScheduleEventType.THEORY),
+        # A bedside practice names `Uygulama` too, so it must be recognized
+        # before the general practice tokens are tried.
+        (
+            "Hasta Başı Uygulama-1 A Grubu (İç H.) B Grubu (ÇSvH)",
+            None,
+            ScheduleEventType.BEDSIDE_PRACTICE,
+        ),
+        # `hasta` on its own is an ordinary word in a clinical title, which is
+        # why the bedside rule is a phrase.
+        (
+            "1-Hasta hakları ve hekim sorumluluğu",
+            "DİKEY KORİDOR DİLİMİ / TIP TARİHİ AD.",
+            ScheduleEventType.THEORY,
+        ),
+        # An examination is an examination even at the bedside.
+        ("HASTA BAŞI UYGULAMA SINAVI", "KLİNİK BİLİMLER", ScheduleEventType.EXAM),
     ),
 )
 def test_event_type_classification(
@@ -762,3 +807,206 @@ def test_event_type_classification(
     expected: ScheduleEventType,
 ) -> None:
     assert classify_event_type(title=title, block=block) is expected
+
+
+def one_candidate(response: ParseSnapshotResponse) -> CanonicalScheduleCandidate:
+    """The only candidate a response holds, asserting that there is exactly one."""
+    assert len(response.candidates) == 1, [c.display_title for c in response.candidates]
+    return response.candidates[0]
+
+
+def test_the_grade3_profile_is_the_annual_implementation() -> None:
+    profile = get_profile("grade3_yearly_v1", "1.0.0")
+
+    assert profile is not None
+    assert get_parser(profile.name, profile.version) is parse_annual_snapshot
+
+
+def test_an_unlabelled_term_column_is_read_only_where_it_is_declared() -> None:
+    rows = lesson_row(1, term="Dönem 3A Grubu")
+
+    undeclared = parse([worksheet(rows, headers=UNLABELLED_TERM_HEADERS)], class_year=3)
+    declared = parse(
+        [worksheet(rows, headers=UNLABELLED_TERM_HEADERS)],
+        class_year=3,
+        profile=GRADE_3_PROFILE,
+    )
+
+    # Adopting an unlabelled column is a guess about layout, so a profile that
+    # has not declared the shape reports the worksheet rather than assuming one.
+    assert undeclared.candidates == []
+    assert metrics(undeclared)[METRIC_WORKSHEETS_IGNORED_NO_HEADER] == 1
+    assert len(declared.candidates) == 1
+
+
+def test_a_column_that_states_no_class_year_is_not_adopted_as_the_term() -> None:
+    """The unlabelled column holds a room, so there is no term column to adopt.
+
+    The probe only accepts a column whose first value reads as a class year. A
+    column that never does leaves the worksheet without a header rather than
+    supplying a term the source never wrote.
+    """
+    rows = lesson_row(1, term="NÖROLOJİ BİNASI")
+
+    response = parse(
+        [worksheet(rows, headers=UNLABELLED_TERM_HEADERS)],
+        class_year=3,
+        profile=GRADE_3_PROFILE,
+    )
+
+    assert response.candidates == []
+    assert metrics(response)[METRIC_WORKSHEETS_IGNORED_NO_HEADER] == 1
+
+
+def test_a_wrongly_adopted_term_column_refuses_rows_rather_than_publishing_them() -> None:
+    """The probe is a guess, so what matters is how loudly a wrong one fails.
+
+    A column holding `B Blok 2. Kat` does read as class year two, and is
+    adopted. Every row then states the wrong year for the source context and is
+    refused and counted, so the mistake surfaces as an empty result with a
+    reason rather than as lessons addressed to nobody.
+    """
+    rows = lesson_row(1, term="B Blok 2. Kat")
+
+    response = parse(
+        [worksheet(rows, headers=UNLABELLED_TERM_HEADERS)],
+        class_year=3,
+        profile=GRADE_3_PROFILE,
+    )
+
+    assert response.candidates == []
+    assert metrics(response)["rows.ignored.otherClassYear"] == 1
+
+
+def test_a_session_both_curriculum_groups_attend_states_its_year_twice() -> None:
+    response = parse(
+        [worksheet(lesson_row(1, term="Dönem 3A+3B Grubu"))],
+        class_year=3,
+        profile=GRADE_3_PROFILE,
+    )
+
+    candidate = one_candidate(response)
+    assert candidate.audience.scope is AudienceScope.SELECTED_GROUPS
+    assert [(selector.dimension, selector.value) for selector in candidate.audience.selectors] == [
+        ("curriculumGroup", "3-A"),
+        ("curriculumGroup", "3-B"),
+    ]
+
+
+@pytest.mark.parametrize(
+    "term",
+    ("Dönem 3A+3B Grubu", "Dönem 3A +3B Grubu", "Dönem 3B+3A Grubu", "Dönem 3B/3A Grubu"),
+)
+def test_every_spelling_of_a_joint_session_reaches_one_identity(term: str) -> None:
+    """The same workbook writes the pair four ways, and they are one lesson.
+
+    Sorting the groups is what makes that true; without it the four spellings
+    would produce four identities and a student would see the lesson repeated.
+    """
+    reference = one_candidate(
+        parse(
+            [worksheet(lesson_row(1, term="Dönem 3A+3B Grubu"))],
+            class_year=3,
+            profile=GRADE_3_PROFILE,
+        )
+    )
+
+    candidate = one_candidate(
+        parse([worksheet(lesson_row(1, term=term))], class_year=3, profile=GRADE_3_PROFILE)
+    )
+
+    assert candidate.stable_identity == reference.stable_identity
+    assert candidate.content_hash == reference.content_hash
+
+
+def test_two_curriculum_groups_sitting_the_same_exam_stay_two_lessons() -> None:
+    """Same date, same time, same title, different halves of the class.
+
+    Without the audience in the identity these two rows would collapse into one
+    lesson addressed to whichever group happened to be read second.
+    """
+    rows = [
+        *lesson_row(1, term="Dönem 3A Grubu", title="DÖNEM SINAVI KURAMSAL 2"),
+        *lesson_row(2, term="Dönem 3B Grubu", title="DÖNEM SINAVI KURAMSAL 2"),
+    ]
+
+    response = parse([worksheet(rows)], class_year=3, profile=GRADE_3_PROFILE)
+
+    assert len(response.candidates) == 2
+    identities = {candidate.stable_identity for candidate in response.candidates}
+    assert len(identities) == 2
+
+
+def test_two_different_class_years_in_one_term_cell_stay_unreadable() -> None:
+    # Repeating one year is not ambiguity, but naming two different ones is:
+    # nothing in the cell says which year the row belongs to.
+    response = parse(
+        [worksheet(lesson_row(1, term="Dönem 3 / Dönem 4"))],
+        class_year=3,
+        profile=GRADE_3_PROFILE,
+    )
+
+    assert response.candidates == []
+    assert metrics(response)["rows.ignored.unresolvedTerm"] == 1
+
+
+def test_a_row_that_names_no_curriculum_group_is_refused_not_widened() -> None:
+    response = parse(
+        [worksheet(lesson_row(1, term="Dönem 3"))],
+        class_year=3,
+        profile=GRADE_3_PROFILE,
+    )
+
+    # Publishing it to the whole program would put one group's lesson in the
+    # other group's calendar, which is worse than not publishing it.
+    assert response.candidates == []
+    assert metrics(response)["rows.ignored.unresolvedCurriculumGroup"] == 1
+
+
+def test_a_lecturers_academic_title_is_not_the_faculty_rotation() -> None:
+    """`Öğretim Üyesi` names a rank as well as the rotation this profile skips.
+
+    Dozens of ordinary lectures write their lecturer as `Dr. Öğretim Üyesi …`
+    in the title cell, so matching on the first word alone would take them off
+    every Grade 3 calendar.
+    """
+    rows = [
+        *lesson_row(1, term="Dönem 3A Grubu", title="Öğretim üyesi Uygulama 1"),
+        *lesson_row(
+            2,
+            term="Dönem 3A Grubu",
+            title="8-Çocuklarda vitamin eksiklikleri / Doktor Öğretim Üyesi Dilek GÜNEŞ",
+        ),
+    ]
+
+    response = parse([worksheet(rows)], class_year=3, profile=GRADE_3_PROFILE)
+
+    candidate = one_candidate(response)
+    assert candidate.display_title.startswith("8-Çocuklarda vitamin eksiklikleri")
+    assert metrics(response)[METRIC_ROWS_OUT_OF_SCOPE_GROUP_ROTATION] == 1
+
+
+def test_the_english_program_is_not_split_into_curriculum_groups() -> None:
+    """Its 49 joint-lecture rows name the Turkish A group, which it does not have.
+
+    Selecting on that group would hide those lectures from every English
+    student, none of whom can declare it (ADR-085).
+    """
+    rows = [
+        *lesson_row(1, term="Time Table 3", title="PRESENTATION OF CLASS 3"),
+        *lesson_row(2, term="Dönem 3A Grubu", title="INTEGRATED SESSION Atherosclerosis"),
+    ]
+
+    response = parse(
+        [worksheet(rows)],
+        class_year=3,
+        profile=GRADE_3_PROFILE,
+        program_language="english",
+    )
+
+    assert len(response.candidates) == 2
+    assert all(
+        candidate.audience.scope is AudienceScope.ALL_STUDENTS_IN_PROGRAM
+        and candidate.audience.selectors == []
+        for candidate in response.candidates
+    )

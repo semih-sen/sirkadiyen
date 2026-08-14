@@ -42,5 +42,13 @@
     <None Include="../../sheets/donem-2-tr/Dönem 2 Beceri uygulama takvimi güz.docx" Link="fixtures/g2-vertical-autumn.docx">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <!--
+      Matched by pattern for the same reason as the anatomy document above. This
+      workbook carries a date written in Excel's long-date format, whose
+      `[$-F800]` locale prefix the converter must not read as a currency.
+    -->
+    <None Include="../../sheets/donem-3-tr-A/*A GRUBU UYGULAMA TABLOSU*2026-2027*.xlsx" Link="fixtures/g3-tr-a-faculty.xlsx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 </Project>

@@ -20,6 +20,7 @@ from datetime import date, time
 
 from sirkadiyen_parser.contracts.parsing import (
     AudienceScope,
+    AudienceSelector,
     CandidateRecordStatus,
     CanonicalScheduleCandidate,
     ParserProfileDescriptor,
@@ -27,6 +28,7 @@ from sirkadiyen_parser.contracts.parsing import (
     ParseSnapshotRequest,
     ParseSnapshotResponse,
     ParseSourceContext,
+    ProgramLanguage,
     ScheduleAudienceCandidate,
     ScheduleEventType,
     SourceEvidence,
@@ -53,6 +55,7 @@ from sirkadiyen_parser.normalization.times import (
     duration_minutes,
     resolve_cell_time,
 )
+from sirkadiyen_parser.parsers.bedside import read_bedside_document
 from sirkadiyen_parser.profiles import ParserProfileDefinition
 
 ROLE_TERM = "term"
@@ -70,14 +73,19 @@ OPTIONAL_ROLES = (ROLE_BLOCK, ROLE_LOCATION)
 #: down than this is a structural change that must be reviewed, not guessed at.
 HEADER_SEARCH_ROW_LIMIT = 20
 
+#: How many rows below the header an unlabelled term column is probed for. A few
+#: rows are enough to find the first value a column states, and staying shallow
+#: keeps the probe from reaching data that has nothing to do with the header.
+TERM_COLUMN_PROBE_ROWS = 5
+
 #: Header text is matched on folded comparison keys, so casing, Turkish letters
 #: and spacing differences in the source do not break detection.
 HEADER_ALIASES: Mapping[str, frozenset[str]] = {
     ROLE_TERM: frozenset({"donem", "term", "time table", "timetable", "class"}),
     ROLE_DATE: frozenset({"tarih", "start date", "date"}),
-    ROLE_START_TIME: frozenset({"baslama saati", "baslangic saati", "start time"}),
-    ROLE_END_TIME: frozenset({"bitis saati", "end time"}),
-    ROLE_TITLE: frozenset({"konu", "subject", "ders", "course"}),
+    ROLE_START_TIME: frozenset({"baslama saati", "baslangic saati", "start time", "start"}),
+    ROLE_END_TIME: frozenset({"bitis saati", "end time", "end"}),
+    ROLE_TITLE: frozenset({"konu", "subject", "ders", "course", "course name"}),
     ROLE_BLOCK: frozenset(
         {
             "dilim adi / anabilim dali",
@@ -85,9 +93,13 @@ HEADER_ALIASES: Mapping[str, frozenset[str]] = {
             "dilim adi",
             "description",
             "aciklama",
+            "department",
+            # The Grade 3 English workbook misspells its own header, and matching
+            # what the source wrote is what reads the column (ADR-017).
+            "departmend",
         }
     ),
-    ROLE_LOCATION: frozenset({"yer", "location", "place"}),
+    ROLE_LOCATION: frozenset({"yer", "location", "place", "amfi"}),
 }
 
 #: Plausible lesson duration. Anything outside it is published with a warning so
@@ -128,6 +140,7 @@ REASON_OUT_OF_SCOPE_SUBJECT = "outOfScopeSubject"
 REASON_OUT_OF_SCOPE_PRACTICE_PLACEHOLDER = "outOfScopePracticePlaceholder"
 REASON_OUT_OF_SCOPE_GROUP_ROTATION = "outOfScopeGroupRotation"
 REASON_NON_TEACHING_BREAK = "nonTeachingBreak"
+REASON_UNRESOLVED_CURRICULUM_GROUP = "unresolvedCurriculumGroup"
 
 WARNING_CONFLICTING_DUPLICATE = "conflictingDuplicateLesson"
 WARNING_IMPLAUSIBLE_DURATION = "implausibleLessonDuration"
@@ -140,6 +153,9 @@ METRIC_WORKSHEETS_SCANNED = "worksheets.scanned"
 METRIC_WORKSHEETS_SELECTED = "worksheets.selected"
 METRIC_WORKSHEETS_IGNORED_NO_HEADER = "worksheets.ignored.noHeaderRow"
 METRIC_ROWS_SCANNED = "rows.scanned"
+
+#: How many bedside topics the companion documents supplied for this workbook.
+METRIC_COMPANION_TOPICS = "companion.bedsideTopics"
 METRIC_ROWS_HIDDEN = "rows.hidden"
 METRIC_CANDIDATES_EMITTED = "candidates.emitted"
 METRIC_CANDIDATES_ALL_DAY = "candidates.allDayClosure"
@@ -171,6 +187,25 @@ RULE_BLOCK_CELL = "annual.blockCell"
 RULE_LOCATION_CELL = "annual.locationCell"
 RULE_ROW = "annual.row"
 RULE_ALL_DAY_CLOSURE = "annual.allDayClosureTitle"
+RULE_CURRICULUM_GROUP_CELL = "annual.curriculumGroupCell"
+
+#: The audience dimension a class split into parallel curriculum groups selects
+#: on. Grade 3 runs two, each with its own workbook and its own timetable.
+DIMENSION_CURRICULUM_GROUP = "curriculumGroup"
+
+#: The curriculum groups this family states, bounded on purpose. The term cell is
+#: prose (``Dönem 3A+3B Grubu``), so an unbounded letter rule would read the ``A``
+#: of an ordinary word as a group and address a lesson to half the class. The same
+#: reasoning bounds the cohort alphabet in `cohort_rotation.py`.
+CURRICULUM_GROUP_LETTERS = "AB"
+
+#: A class year immediately followed by one of those letters, and not by more
+#: letters or digits, so ``3A`` reads as a group while ``3. Sınıf`` and ``A1`` do
+#: not. Both parts are kept: the group is named ``3-A``, not ``A``, because the
+#: same letter means a different cohort in a different year.
+_CURRICULUM_GROUP_PATTERN = re.compile(
+    rf"(?<!\d)(\d)\s*([{CURRICULUM_GROUP_LETTERS}])(?![A-Za-z0-9])"
+)
 
 #: Titles whose first token marks a non-teaching entry. Checked before the
 #: teaching keywords, because "SERBEST ÇALIŞMA (Dönem 2 Sınav)" is free study
@@ -202,6 +237,13 @@ BREAK_FIRST_TOKENS = frozenset({"ogle", "lunch", "ara", "arasi", "break"})
 EXAM_TOKENS = frozenset({"sinav", "exam"})
 ANATOMY_TOKENS = frozenset({"diseksiyon", "dissection"})
 INTEGRATED_TOKENS = frozenset({"entegre", "integrated"})
+
+#: A practice held at a patient's bedside on a hospital ward, which the Grade 3
+#: annual workbooks title `Hasta Başı Uygulama-N`. It is tested before the
+#: general practice tokens because that title contains `Uygulama` too, and it is
+#: a phrase because `hasta` alone is an ordinary word in a clinical title.
+BEDSIDE_TOKENS = frozenset({"hasta basi", "bedside"})
+
 PRACTICE_TOKENS = frozenset({"uygulama", "practice", "lab"})
 VERTICAL_CORRIDOR_TOKENS = frozenset({"dikey", "vertical"})
 
@@ -299,9 +341,24 @@ def parse_annual_snapshot(
     diagnostics.set_metric(METRIC_WORKSHEETS_SCANNED, len(request.snapshot.worksheets))
     selected = 0
 
+    # The English program is not divided into curriculum groups anywhere — it has
+    # one cohort and one workbook — but 49 of its rows name the Turkish A group,
+    # because those lectures are given jointly. Selecting on that group would
+    # hide them from every English student, who has no such group to declare, so
+    # for that program the term cell states only the class year (ADR-085).
+    curriculum_group_audience = (
+        DIMENSION_CURRICULUM_GROUP in profile.audience_dimensions
+        and request.source_context.program_language is not ProgramLanguage.ENGLISH
+    )
+
+    bedside_topics = _read_companion_topics(request, profile, diagnostics)
+
     for worksheet in request.snapshot.worksheets:
         grid = WorksheetGrid(worksheet)
-        columns = _detect_columns(grid)
+        columns = _detect_columns(
+            grid,
+            term_column_may_be_unlabelled=profile.term_column_may_be_unlabelled,
+        )
         if columns is None:
             diagnostics.increment(METRIC_WORKSHEETS_IGNORED_NO_HEADER)
             diagnostics.information(
@@ -322,6 +379,8 @@ def parse_annual_snapshot(
             context=request.source_context,
             numeric_date_order=profile.numeric_date_order,
             group_rotation_subjects=frozenset(profile.group_rotation_subjects),
+            curriculum_group_audience=curriculum_group_audience,
+            bedside_topics=bedside_topics,
             diagnostics=diagnostics,
             accumulator=accumulator,
         )
@@ -361,7 +420,11 @@ def _worksheet_evidence(worksheet: NormalizedWorksheet) -> SourceEvidence:
     )
 
 
-def _detect_columns(grid: WorksheetGrid) -> tuple[int, dict[str, int]] | None:
+def _detect_columns(
+    grid: WorksheetGrid,
+    *,
+    term_column_may_be_unlabelled: bool = False,
+) -> tuple[int, dict[str, int]] | None:
     """Find the header row and map roles to columns, or return ``None``."""
     worksheet = grid.worksheet
     row_limit = min(worksheet.row_count, HEADER_SEARCH_ROW_LIMIT)
@@ -379,7 +442,46 @@ def _detect_columns(grid: WorksheetGrid) -> tuple[int, dict[str, int]] | None:
         if all(role in mapping for role in REQUIRED_ROLES):
             return row_index, mapping
 
+        if term_column_may_be_unlabelled and ROLE_TERM not in mapping and all(
+            role in mapping for role in REQUIRED_ROLES if role != ROLE_TERM
+        ):
+            term_column = _unlabelled_term_column(grid, row_index, mapping[ROLE_DATE])
+            if term_column is not None:
+                mapping[ROLE_TERM] = term_column
+                return row_index, mapping
+
     return None
+
+
+def _unlabelled_term_column(
+    grid: WorksheetGrid,
+    header_row: int,
+    date_column: int,
+) -> int | None:
+    """The unlabelled column that states the term, or ``None``.
+
+    Only columns left of the date are considered, and only the first value each
+    of them states below the header is read: a term column says what it is on
+    every row, so its first value already does. Exactly one column may qualify.
+    Two would mean the layout states the term twice, or that something else in
+    the row happens to read as a class year, and adopting either would be a
+    guess about which one addresses the students.
+    """
+    candidates = [
+        column_index
+        for column_index in range(date_column)
+        if _states_a_class_year(grid, header_row, column_index)
+    ]
+    return candidates[0] if len(candidates) == 1 else None
+
+
+def _states_a_class_year(grid: WorksheetGrid, header_row: int, column: int) -> bool:
+    limit = min(grid.worksheet.row_count, header_row + 1 + TERM_COLUMN_PROBE_ROWS)
+    for row_index in range(header_row + 1, limit):
+        text = grid.text(row_index, column)
+        if text:
+            return _read_class_year(text) is not None
+    return False
 
 
 def _parse_worksheet(
@@ -391,6 +493,8 @@ def _parse_worksheet(
     context: ParseSourceContext,
     numeric_date_order: NumericDateOrder,
     group_rotation_subjects: frozenset[str],
+    curriculum_group_audience: bool,
+    bedside_topics: Mapping[tuple[str, date], str],
     diagnostics: ParseDiagnostics,
     accumulator: _Accumulator,
 ) -> None:
@@ -413,6 +517,8 @@ def _parse_worksheet(
             context=context,
             numeric_date_order=numeric_date_order,
             group_rotation_subjects=group_rotation_subjects,
+            curriculum_group_audience=curriculum_group_audience,
+            bedside_topics=bedside_topics,
             diagnostics=diagnostics,
         )
         if draft is None:
@@ -427,6 +533,8 @@ def _parse_row(
     context: ParseSourceContext,
     numeric_date_order: NumericDateOrder,
     group_rotation_subjects: frozenset[str],
+    curriculum_group_audience: bool,
+    bedside_topics: Mapping[tuple[str, date], str],
     diagnostics: ParseDiagnostics,
 ) -> _CandidateDraft | None:
     if not any(row.text(role) for role in (*REQUIRED_ROLES, *OPTIONAL_ROLES)):
@@ -437,6 +545,14 @@ def _parse_row(
         return None
 
     if not _matches_class_year(row=row, context=context, diagnostics=diagnostics):
+        return None
+
+    audience = _resolve_audience(
+        row=row,
+        curriculum_group_audience=curriculum_group_audience,
+        diagnostics=diagnostics,
+    )
+    if audience is None:
         return None
 
     title_text = row.text(ROLE_TITLE)
@@ -477,6 +593,8 @@ def _parse_row(
         title_text=title_text,
         resolved_date=resolved_date,
         schedule=schedule,
+        audience=audience,
+        bedside_topics=bedside_topics,
     )
 
 
@@ -511,18 +629,147 @@ def _matches_class_year(
     return True
 
 
+def _read_companion_topics(
+    request: ParseSnapshotRequest,
+    profile: ParserProfileDefinition,
+    diagnostics: ParseDiagnostics,
+) -> Mapping[tuple[str, date], str]:
+    """The bedside topics the companion snapshots state, keyed by group and date.
+
+    Empty whenever the profile declares no companion or none was supplied, and
+    then this profile publishes exactly what it published before companions
+    existed. That is deliberate: the annual program is the only source of these
+    sessions' times, and it must never wait on a document it merely enriches
+    from (ADR-088).
+    """
+    if not profile.companion_source_family or not request.auxiliary_snapshots:
+        return {}
+
+    topics: dict[tuple[str, date], str] = {}
+    for snapshot in request.auxiliary_snapshots:
+        document = read_bedside_document(
+            snapshot,
+            class_year=request.source_context.class_year,
+            numeric_date_order=profile.companion_numeric_date_order,
+        )
+        topics.update(document.topics_by_date())
+
+    diagnostics.set_metric(METRIC_COMPANION_TOPICS, len(topics))
+    return topics
+
+
+def _bedside_topic(
+    topics: Mapping[tuple[str, date], str],
+    audience: ScheduleAudienceCandidate,
+    resolved_date: DateResolution,
+) -> str | None:
+    """The topic stated for this session, or ``None``.
+
+    A session both curriculum groups attend would have two topics, one per
+    group, and nothing says which of them this row means — so a row that names
+    more than one group takes no topic rather than one of them.
+    """
+    if not topics or resolved_date.value is None:
+        return None
+
+    groups = [
+        selector.value
+        for selector in audience.selectors
+        if selector.dimension == DIMENSION_CURRICULUM_GROUP
+    ]
+    if len(groups) != 1:
+        return None
+
+    return topics.get((groups[0], resolved_date.value))
+
+
+def _resolve_audience(
+    *,
+    row: _RowContext,
+    curriculum_group_audience: bool,
+    diagnostics: ParseDiagnostics,
+) -> ScheduleAudienceCandidate | None:
+    """Who the row addresses, or ``None`` when it cannot be said.
+
+    A workbook written for a whole program addresses all of its students, and
+    that is every source but Grade 3. Grade 3 splits the class into two
+    curriculum groups whose timetables differ, states which one each row belongs
+    to in the same cell as the class year, and gives each group its own workbook
+    — so a row read without its group would put the A group's lessons in a B
+    student's calendar.
+
+    A row that states no group is refused rather than widened to the whole
+    program. Every row of the real workbooks that states a class year also names
+    a group, so this refuses nothing today; if the source ever stops naming one,
+    the reader must say so instead of addressing the wrong half of the class.
+    """
+    if not curriculum_group_audience:
+        return ScheduleAudienceCandidate(scope=AudienceScope.ALL_STUDENTS_IN_PROGRAM)
+
+    term_text = row.text(ROLE_TERM)
+    groups = _read_curriculum_groups(term_text)
+    if not groups:
+        diagnostics.record_ignored_row(
+            REASON_UNRESOLVED_CURRICULUM_GROUP,
+            row.evidence(ROLE_TERM, extraction_rule=RULE_CURRICULUM_GROUP_CELL),
+            severity=ParserWarningSeverity.WARNING,
+            message=(
+                f"Term cell '{term_text}' names no curriculum group, so the row could "
+                "not be addressed to one half of the class and was not published."
+            ),
+        )
+        return None
+
+    return ScheduleAudienceCandidate(
+        scope=AudienceScope.SELECTED_GROUPS,
+        selectors=[
+            AudienceSelector(dimension=DIMENSION_CURRICULUM_GROUP, value=group)
+            for group in groups
+        ],
+    )
+
+
+def _read_curriculum_groups(term_text: str) -> tuple[str, ...]:
+    """The curriculum groups a term cell names, in a stable order.
+
+    ``Dönem 3A Grubu`` names one. A session both groups attend is written
+    ``Dönem 3A+3B Grubu``, ``Dönem 3A +3B Grubu``, ``Dönem 3B+3A Grubu`` and
+    ``Dönem 3B/3A Grubu`` in the same workbook, and all four name the same pair;
+    sorting makes the four spellings produce one identity rather than four.
+    """
+    matches = _CURRICULUM_GROUP_PATTERN.findall(term_text)
+    return tuple(sorted({f"{year}-{letter}" for year, letter in matches}))
+
+
+def _audience_key(audience: ScheduleAudienceCandidate) -> str:
+    """Encode the audience for identity and content hashing.
+
+    Empty when the row addresses the whole program, which keeps the identity and
+    the hash of every source that states no audience exactly as they were.
+    """
+    return " ".join(
+        f"{selector.dimension}={selector.value}" for selector in audience.selectors
+    )
+
+
 def _read_class_year(term_text: str) -> int | None:
     """Read the class year stated by a term cell.
 
     ``Dönem 1`` and ``Time Table 1`` both state year one. A cell holding no
-    one- or two-digit number, several of them, or a number outside the
+    one- or two-digit number, several *different* ones, or a number outside the
     supported range states nothing usable and is never guessed at.
+
+    Repeating the same year is not ambiguity. The Grade 3 workbooks write a
+    session both groups attend as ``Dönem 3A+3B Grubu``, which states year three
+    twice and nothing else; reading that as two class years would refuse about
+    sixty real lessons per workbook. Two *different* years remain unreadable,
+    because nothing in the cell says which one the row belongs to.
     """
-    matches = _CLASS_YEAR_PATTERN.findall(term_text)
-    if len(matches) != 1:
+    years = {int(match) for match in _CLASS_YEAR_PATTERN.findall(term_text)}
+    if len(years) != 1:
         return None
 
-    value = int(matches[0])
+    value = years.pop()
     return value if 1 <= value <= 6 else None
 
 
@@ -695,8 +942,11 @@ def _build_draft(
     title_text: str,
     resolved_date: DateResolution,
     schedule: _Schedule,
+    audience: ScheduleAudienceCandidate,
+    bedside_topics: Mapping[tuple[str, date], str],
 ) -> _CandidateDraft:
     candidate_id = f"{row.worksheet.sheet_id}!R{row.row_index + 1}"
+    audience_key = _audience_key(audience)
 
     course_title = normalize_course_title(title_text)
     split = split_trailing_instructors(course_title.display_title)
@@ -719,6 +969,20 @@ def _build_draft(
     )
     block_departments = resolve_block_and_departments(block_text)
 
+    # The bedside document states what each of these sessions is about, and this
+    # workbook states when it is. Joining them on the date and the group is what
+    # puts the topic on the event a student actually has (ADR-088). A session
+    # whose topic the companion does not state keeps no note at all.
+    notes = (
+        _bedside_topic(bedside_topics, audience, resolved_date)
+        if event_type is ScheduleEventType.BEDSIDE_PRACTICE
+        else None
+    )
+
+    # The audience joins the identity only when the source states one. Two
+    # curriculum groups share a date, a time and a title whenever they sit the
+    # same examination, and without the audience those two rows would collapse
+    # into one lesson addressed to whichever group was read second.
     identity_components = build_identity_components(
         (
             ("academicYear", context.academic_year),
@@ -730,6 +994,7 @@ def _build_draft(
                 IDENTITY_ALL_DAY if schedule.start is None else schedule.start.isoformat(),
             ),
             ("courseIdentity", course_identity(display_title) or ""),
+            *((("audience", audience_key),) if audience_key else ()),
         )
     )
 
@@ -745,7 +1010,7 @@ def _build_draft(
         academic_year=context.academic_year,
         class_year=context.class_year,
         program_language=context.program_language,
-        audience=ScheduleAudienceCandidate(scope=AudienceScope.ALL_STUDENTS_IN_PROGRAM),
+        audience=audience,
         event_type=event_type,
         status=CandidateRecordStatus.SCHEDULED,
         normalized_course_identity=course_identity(display_title),
@@ -759,6 +1024,7 @@ def _build_draft(
         location=location_text,
         curriculum_block=block_departments.curriculum_block,
         departments=list(block_departments.departments),
+        notes=notes,
         stable_identity=stable_identity(identity_components),
         content_hash=_content_hash(
             context=context,
@@ -769,6 +1035,8 @@ def _build_draft(
             instructor=instructor,
             location=location_text,
             block_departments=block_departments,
+            audience_key=audience_key,
+            notes=notes,
         ),
         confidence=confidence,
         identity_components=identity_components,
@@ -801,9 +1069,19 @@ def _content_hash(
     instructor: str | None,
     location: str | None,
     block_departments: BlockDepartmentResolution,
+    audience_key: str,
+    notes: str | None,
 ) -> str:
+    # As in the identity: the audience is content only when the source states
+    # one, so a program-wide source hashes exactly the keys it always did. The
+    # note is added on the same terms, and for the same reason it belongs in the
+    # hash at all: a corrected topic must move the event a student has.
+    audience = {"audience": audience_key} if audience_key else {}
+    note = {"notes": notes} if notes is not None else {}
     return content_hash(
         {
+            **audience,
+            **note,
             "academicYear": context.academic_year,
             "classYear": str(context.class_year),
             "programLanguage": context.program_language.value,
@@ -1105,6 +1383,9 @@ def classify_event_type(*, title: str, block: str | None) -> ScheduleEventType:
     if _matches(title_words, INTEGRATED_TOKENS):
         return ScheduleEventType.INTEGRATED_SESSION
 
+    if _matches(title_words, BEDSIDE_TOKENS):
+        return ScheduleEventType.BEDSIDE_PRACTICE
+
     if _matches(all_words, PRACTICE_TOKENS):
         if _matches(block_words, VERTICAL_CORRIDOR_TOKENS):
             return ScheduleEventType.VERTICAL_CORRIDOR
@@ -1122,4 +1403,26 @@ def _words(value: str) -> list[str]:
 
 
 def _matches(words: Sequence[str], tokens: frozenset[str]) -> bool:
-    return any(word.startswith(token) for word in words for token in tokens)
+    """Whether the title's words contain any of the declared tokens.
+
+    A token may be several words, and then all of them must appear consecutively.
+    Grade 3 needs that: its faculty rotation is titled ``Öğretim üyesi Uygulama
+    N``, while ``Öğretim Üyesi`` on its own is how the source writes an academic
+    title, so dozens of ordinary lectures name their lecturer as
+    ``Dr. Öğretim Üyesi …`` inside the very cell this reads. Matching the first
+    word alone would exclude those lectures from the calendar.
+    """
+    return any(_matches_token(words, token.split()) for token in tokens)
+
+
+def _matches_token(words: Sequence[str], token_words: Sequence[str]) -> bool:
+    if not token_words:
+        return False
+    span = len(token_words)
+    return any(
+        all(
+            words[offset + position].startswith(token_word)
+            for position, token_word in enumerate(token_words)
+        )
+        for offset in range(len(words) - span + 1)
+    )

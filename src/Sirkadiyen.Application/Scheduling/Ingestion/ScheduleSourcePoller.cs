@@ -128,8 +128,8 @@ public sealed class ScheduleSourcePoller(
     /// <remarks>
     /// A missing transport and a missing document reader are separate answers,
     /// because they need different work. `SHARED-AMPHI` waits on an HTTP adapter
-    /// that does not exist; the Grade 3 Drive workbooks wait on a converter and a
-    /// parser profile, and their transport is already implemented.
+    /// that does not exist; the Drive transport now reads both Office formats, so
+    /// a document format it refuses is one no converter has been written for.
     /// </remarks>
     private ScheduleSourcePollOutcome? DescribeUnreadable(ScheduleSource source) =>
         source.Transport switch

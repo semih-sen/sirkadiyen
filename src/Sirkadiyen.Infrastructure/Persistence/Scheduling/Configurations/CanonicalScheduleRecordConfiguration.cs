@@ -38,6 +38,11 @@ internal sealed class CanonicalScheduleRecordConfiguration
         builder.Property(record => record.Instructor).HasMaxLength(1000);
         builder.Property(record => record.Location).HasMaxLength(1000);
         builder.Property(record => record.CurriculumBlock).HasMaxLength(500);
+
+        // A bedside topic is a paragraph the faculty wrote, not a label, so this
+        // is bounded generously rather than at the width of the other text
+        // columns (ADR-088).
+        builder.Property(record => record.Notes).HasMaxLength(4000);
         builder.Property(record => record.Departments)
             .HasConversion(new DepartmentListConverter())
             .HasColumnType("jsonb")

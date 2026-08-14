@@ -12,6 +12,11 @@ public sealed class DriveDocumentAcquirerTests
     private static readonly byte[] VerticalCorridorDocument = File.ReadAllBytes(
         Path.Combine(AppContext.BaseDirectory, "fixtures", "g2-vertical-autumn.docx"));
 
+    // Any real workbook proves the XLSX path; this one is already linked into the
+    // test output for the converter's own tests.
+    private static readonly byte[] AnnualWorkbook = File.ReadAllBytes(
+        Path.Combine(AppContext.BaseDirectory, "fixtures", "g1-tr-annual.xlsx"));
+
     [Fact]
     public async Task TheVerticalCorridorDocumentArrivesOnTheSameContractASheetProduces()
     {
@@ -97,16 +102,66 @@ public sealed class DriveDocumentAcquirerTests
     }
 
     [Fact]
-    public async Task AWorkbookPublishedOnDriveIsNotDownloadedByThisAcquirer()
+    public async Task AWorkbookPublishedOnDriveArrivesOnTheSameContractADocumentProduces()
+    {
+        FakeDriveClient client = new(AnnualWorkbook);
+        DriveDocumentAcquirer acquirer = Acquirer(client);
+
+        Assert.True(acquirer.CanAcquire(ScheduleDocumentFormat.Xlsx));
+
+        NormalizedSpreadsheetSnapshot snapshot = await acquirer.AcquireAsync(
+            ScheduleDocumentFormat.Xlsx,
+            Request("snapshot-1"),
+            CancellationToken.None);
+
+        Assert.Equal(SpreadsheetContractVersions.V1, snapshot.ContractVersion);
+        Assert.Equal("drive-file-1", snapshot.SpreadsheetId);
+        Assert.NotEmpty(snapshot.Worksheets);
+
+        // The workbook is asked for as the format the catalog declares, so a file
+        // someone converted to a document is refused rather than parsed.
+        Assert.Equal(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            client.LastRequest!.ExpectedMimeType);
+
+        // A downloaded workbook must not claim to be a repository fixture: the
+        // snapshot is the only place that records how the file arrived.
+        Assert.Contains(
+            snapshot.Diagnostics,
+            diagnostic =>
+                diagnostic.Code == LocalXlsxSnapshotConverter.GoogleDriveDownloadDiagnosticCode
+                && diagnostic.Severity == DiagnosticSeverity.Information);
+        Assert.DoesNotContain(
+            snapshot.Diagnostics,
+            diagnostic => diagnostic.Code == LocalXlsxSnapshotConverter.LocalFixtureDiagnosticCode);
+    }
+
+    [Fact]
+    public async Task APageServedInPlaceOfAWorkbookIsRefused()
+    {
+        FakeDriveClient client = new(
+            Encoding.UTF8.GetBytes("<!DOCTYPE html><html><body>Sign in</body></html>"));
+
+        DriveDocumentException exception = await Assert.ThrowsAsync<DriveDocumentException>(
+            () => Acquirer(client).AcquireAsync(
+                ScheduleDocumentFormat.Xlsx,
+                Request("snapshot-1"),
+                CancellationToken.None));
+
+        Assert.Equal(DriveDocumentFailure.CorruptContent, exception.Failure);
+    }
+
+    [Fact]
+    public async Task ATransportThisAcquirerDoesNotReadIsRefusedBeforeAnyDownload()
     {
         FakeDriveClient client = new(VerticalCorridorDocument);
         DriveDocumentAcquirer acquirer = Acquirer(client);
 
-        Assert.False(acquirer.CanAcquire(ScheduleDocumentFormat.Xlsx));
+        Assert.False(acquirer.CanAcquire(ScheduleDocumentFormat.GoogleSheet));
 
         await Assert.ThrowsAsync<NotSupportedException>(
             () => acquirer.AcquireAsync(
-                ScheduleDocumentFormat.Xlsx,
+                ScheduleDocumentFormat.GoogleSheet,
                 Request("snapshot-1"),
                 CancellationToken.None));
 
@@ -114,7 +169,7 @@ public sealed class DriveDocumentAcquirerTests
     }
 
     private static DriveDocumentAcquirer Acquirer(FakeDriveClient client) =>
-        new(client, new DocxSnapshotConverter());
+        new(client, new DocxSnapshotConverter(), new LocalXlsxSnapshotConverter());
 
     private static AcquireSpreadsheetSnapshotRequest Request(string snapshotId) => new()
     {

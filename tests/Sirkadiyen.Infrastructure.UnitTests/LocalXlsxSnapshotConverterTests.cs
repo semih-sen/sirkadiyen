@@ -61,6 +61,31 @@ public sealed class LocalXlsxSnapshotConverterTests
         Assert.Equal(first.ContentHash, second.ContentHash);
     }
 
+    [Fact]
+    public void ALongDateFormatIsADateAndNotACurrency()
+    {
+        // Excel writes its built-in long date as `[$-F800]dddd, mmmm dd, yyyy`.
+        // The `[$-…]` bracket is a locale identifier and carries no currency
+        // symbol, but reading it as one classified a real date cell as currency,
+        // which left it unresolvable and took a whole rotation row of eight
+        // sessions off the Grade 3 calendars.
+        string path = Path.Combine(AppContext.BaseDirectory, "fixtures", "g3-tr-a-faculty.xlsx");
+        AcquireSpreadsheetSnapshotRequest request = CreateRequest("G3-TR-A-FACULTY", "sheet-faculty");
+
+        NormalizedSpreadsheetSnapshot snapshot = _converter.Convert(path, request);
+
+        NormalizedWorksheet worksheet = Assert.Single(snapshot.Worksheets);
+        NormalizedCell longDate = Assert.Single(worksheet.Cells, cell => cell.A1Address == "A287");
+        Assert.Equal(CellScalarKind.Number, longDate.EffectiveValue?.Kind);
+        Assert.StartsWith("[$-F800]", longDate.EffectiveFormat?.NumberFormatPattern);
+        Assert.Equal("DATE", longDate.EffectiveFormat?.NumberFormatType);
+
+        // A bracket that does state a symbol is still a currency.
+        Assert.DoesNotContain(
+            worksheet.Cells,
+            cell => cell.EffectiveFormat?.NumberFormatType == "CURRENCY");
+    }
+
     private static AcquireSpreadsheetSnapshotRequest CreateRequest(
         string sourceId,
         string spreadsheetId) => new()

@@ -16,10 +16,10 @@ public sealed class ScheduleSourceCatalogTests
             .LoadAsync(path, CancellationToken.None);
 
         Assert.Equal("1.0", catalog.CatalogVersion);
-        Assert.Equal(22, catalog.Sources.Count);
+        Assert.Equal(23, catalog.Sources.Count);
         Assert.Equal(7, catalog.Sources.Count(
             source => source.Transport == ScheduleSourceTransport.GoogleSheets));
-        Assert.Equal(10, catalog.Sources.Count(
+        Assert.Equal(11, catalog.Sources.Count(
             source => source.Transport == ScheduleSourceTransport.GoogleDriveFile));
         Assert.Single(catalog.Sources, source => source.Transport == ScheduleSourceTransport.HttpFile);
         Assert.Equal(4, catalog.Sources.Count(
@@ -81,6 +81,22 @@ public sealed class ScheduleSourceCatalogTests
         Assert.Equal("g2-anatomy-autumn", anatomy.SharedDocumentGroup);
         Assert.Equal("g2-anatomy-autumn", anatomyEnglish.SharedDocumentGroup);
         Assert.Equal(anatomy.FixturePath, anatomyEnglish.FixturePath);
+
+        // The Grade 3 programs are workbooks on the Drive transport, and the class
+        // is split into two curriculum groups that do not share a document.
+        ScheduleSourceDefinition grade3TurkishAnnual = Assert.Single(
+            catalog.Sources,
+            source => source.SourceId == "G3-TR-A-ANNUAL");
+        Assert.Equal(ScheduleSourceTransport.GoogleDriveFile, grade3TurkishAnnual.Transport);
+        Assert.Equal(ScheduleDocumentFormat.Xlsx, grade3TurkishAnnual.DocumentFormat);
+        Assert.Equal("grade3_yearly_v1", grade3TurkishAnnual.ParserProfile);
+        Assert.Equal("2026-2027", grade3TurkishAnnual.AcademicYear);
+        Assert.Equal(3, grade3TurkishAnnual.ClassYear);
+
+        Assert.Equal(8, catalog.Sources.Count(source => source.ClassYear == 3));
+        Assert.All(
+            catalog.Sources.Where(source => source.ClassYear == 3),
+            source => Assert.Equal("2026-2027", source.AcademicYear));
 
         Assert.All(catalog.Sources, source =>
         {

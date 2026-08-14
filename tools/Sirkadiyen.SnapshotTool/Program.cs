@@ -1,11 +1,11 @@
 using System.Security.Cryptography;
 using System.Text.Json;
-using Sirkadiyen.Application.ScheduleIngestion;
-using Sirkadiyen.Application.ScheduleSources;
+using Sirkadiyen.Application.Scheduling.Ingestion;
+using Sirkadiyen.Application.Scheduling.Sources;
 using Sirkadiyen.Contracts.Serialization;
 using Sirkadiyen.Contracts.Spreadsheets;
-using Sirkadiyen.Infrastructure.ScheduleIngestion;
-using Sirkadiyen.Infrastructure.ScheduleSources;
+using Sirkadiyen.Infrastructure.Scheduling.Ingestion;
+using Sirkadiyen.Infrastructure.Scheduling.Sources;
 
 Dictionary<string, string> arguments = ParseArguments(args);
 string repositoryRoot = GetRequired(arguments, "repository-root");

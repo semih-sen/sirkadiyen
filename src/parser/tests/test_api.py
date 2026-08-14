@@ -74,8 +74,9 @@ def test_registered_but_unimplemented_profile_is_not_silent_success() -> None:
     request = json.loads(CONTRACT_FIXTURE.read_text(encoding="utf-8"))
     # Named here rather than taken from the shared contract fixture, which the
     # .NET contract tests read too: the profile it names became implemented, and
-    # this test needs one that is still only described.
-    request["parserProfile"] = {"name": "grade3_bedside_v1", "version": "1.0.0"}
+    # this test needs one that is still only described. `grade3_bedside_v1` was
+    # named here until it was implemented in turn.
+    request["parserProfile"] = {"name": "weekly_amphitheatre_v1", "version": "1.0.0"}
 
     response = client.post("/v1/parse", json=request)
 

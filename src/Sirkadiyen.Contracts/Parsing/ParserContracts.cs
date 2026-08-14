@@ -18,6 +18,16 @@ public sealed record ParseSnapshotRequest
     public required ParseSourceContext SourceContext { get; init; }
 
     public required NormalizedSpreadsheetSnapshot Snapshot { get; init; }
+
+    /// <summary>
+    /// Snapshots of companion sources the profile reads alongside its own, in
+    /// the order the catalog declares them (ADR-088). A companion is never the
+    /// subject of the parse: no record is ever published from one, it only says
+    /// more about sessions the subject already states. It is optional so that a
+    /// source whose companion has not been acquired still parses exactly as it
+    /// did before companions existed.
+    /// </summary>
+    public IReadOnlyList<NormalizedSpreadsheetSnapshot> AuxiliarySnapshots { get; init; } = [];
 }
 
 /// <summary>
@@ -126,6 +136,15 @@ public sealed record CanonicalScheduleCandidate
     /// named none.
     /// </summary>
     public IReadOnlyList<string> Departments { get; init; } = [];
+
+    /// <summary>
+    /// Free text a source states about this session that has no field of its
+    /// own — today, the topic the Grade 3 bedside document gives a session the
+    /// annual program schedules (ADR-088). It is content and not identity, so
+    /// correcting a topic changes the event a student already has rather than
+    /// replacing it with a second one.
+    /// </summary>
+    public string? Notes { get; init; }
 
     public required string StableIdentity { get; init; }
 

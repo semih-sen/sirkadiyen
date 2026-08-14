@@ -15,6 +15,15 @@ namespace Sirkadiyen.Infrastructure.Scheduling.Ingestion;
 
 public sealed partial class LocalXlsxSnapshotConverter
 {
+    /// <summary>States that the workbook was read from the repository.</summary>
+    public const string LocalFixtureDiagnosticCode = "snapshot.local_xlsx_fixture";
+
+    /// <summary>States that the workbook was downloaded from its published location.</summary>
+    public const string GoogleDriveDownloadDiagnosticCode = "snapshot.google_drive_download";
+
+    /// <summary>
+    /// Converts a workbook read from the repository, for fixture development.
+    /// </summary>
     public NormalizedSpreadsheetSnapshot Convert(
         string xlsxPath,
         AcquireSpreadsheetSnapshotRequest request)
@@ -23,6 +32,62 @@ public sealed partial class LocalXlsxSnapshotConverter
         ArgumentNullException.ThrowIfNull(request);
 
         using SpreadsheetDocument document = SpreadsheetDocument.Open(xlsxPath, false);
+        return Convert(document, request, LocalFixtureOrigin());
+    }
+
+    /// <summary>
+    /// Converts a workbook downloaded from the location the catalog publishes for
+    /// its source (ADR-083).
+    /// </summary>
+    /// <remarks>
+    /// The bytes are copied into a seekable stream because the OpenXML reader
+    /// seeks, and because one document is converted once per source it serves.
+    /// </remarks>
+    public NormalizedSpreadsheetSnapshot ConvertDownload(
+        ReadOnlyMemory<byte> content,
+        AcquireSpreadsheetSnapshotRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        using MemoryStream stream = new(content.Length);
+        stream.Write(content.Span);
+        stream.Position = 0;
+
+        using SpreadsheetDocument document = SpreadsheetDocument.Open(stream, false);
+        return Convert(document, request, GoogleDriveDownloadOrigin());
+    }
+
+    private static AcquisitionDiagnostic LocalFixtureOrigin() => new()
+    {
+        Severity = DiagnosticSeverity.Information,
+        Code = LocalFixtureDiagnosticCode,
+        Message = "Snapshot was converted from a local XLSX fixture, not acquired through Google Sheets API.",
+    };
+
+    /// <summary>
+    /// States how the workbook arrived, and deliberately states nothing else
+    /// about it.
+    /// </summary>
+    /// <remarks>
+    /// The diagnostics are part of the snapshot's content hash. A modification
+    /// time, a file name or a digest here would differ between two downloads of
+    /// an unchanged document, and every poll would store a new snapshot, parse it
+    /// and produce a revision that changes nothing (ADR-083).
+    /// </remarks>
+    private static AcquisitionDiagnostic GoogleDriveDownloadOrigin() => new()
+    {
+        Severity = DiagnosticSeverity.Information,
+        Code = GoogleDriveDownloadDiagnosticCode,
+        Message = "Snapshot was converted from an XLSX downloaded from Google Drive. The Drive file "
+            + "identifier is the snapshot's own spreadsheet ID; what the file was called and when "
+            + "it changed belong to the acquisition log, not to the content.",
+    };
+
+    private static NormalizedSpreadsheetSnapshot Convert(
+        SpreadsheetDocument document,
+        AcquireSpreadsheetSnapshotRequest request,
+        AcquisitionDiagnostic origin)
+    {
         WorkbookPart workbookPart = document.WorkbookPart
             ?? throw new InvalidDataException("The XLSX file does not contain a workbook part.");
         Workbook workbook = workbookPart.Workbook
@@ -31,15 +96,7 @@ public sealed partial class LocalXlsxSnapshotConverter
             ?? throw new InvalidDataException("The XLSX workbook does not contain worksheets.");
         Stylesheet? stylesheet = workbookPart.WorkbookStylesPart?.Stylesheet;
         SharedStringTable? sharedStrings = workbookPart.SharedStringTablePart?.SharedStringTable;
-        List<AcquisitionDiagnostic> diagnostics =
-        [
-            new AcquisitionDiagnostic
-            {
-                Severity = DiagnosticSeverity.Information,
-                Code = "snapshot.local_xlsx_fixture",
-                Message = "Snapshot was converted from a local XLSX fixture, not acquired through Google Sheets API.",
-            },
-        ];
+        List<AcquisitionDiagnostic> diagnostics = [origin];
 
         if (workbook.WorkbookProperties?.Date1904?.Value == true)
         {
@@ -510,15 +567,25 @@ public sealed partial class LocalXlsxSnapshotConverter
             return "PERCENT";
         }
 
-        if (pattern is not null
-            && (pattern.Contains('$', StringComparison.Ordinal)
-                || pattern.Contains('₺', StringComparison.Ordinal)
-                || pattern.Contains("[$", StringComparison.Ordinal)))
+        // `[$-F800]` and `[$-409]` are locale identifiers, not currencies: they
+        // are what Excel writes in front of its built-in long date and long time
+        // formats. A currency bracket always states a symbol before the hyphen
+        // (`[$₺-41F]`), so a bracket that opens straight onto the hyphen is
+        // removed here and the pattern is classified by what it actually spells.
+        // Reading one as a currency made a real date cell unresolvable, and the
+        // row it dated went unpublished.
+        string withoutLocale = pattern is null
+            ? string.Empty
+            : LocalePrefixRegex().Replace(pattern, string.Empty);
+
+        if (withoutLocale.Contains('$', StringComparison.Ordinal)
+            || withoutLocale.Contains('₺', StringComparison.Ordinal)
+            || withoutLocale.Contains("[$", StringComparison.Ordinal))
         {
             return "CURRENCY";
         }
 
-        string normalized = NumberFormatDecorationRegex().Replace(pattern ?? string.Empty, string.Empty)
+        string normalized = NumberFormatDecorationRegex().Replace(withoutLocale, string.Empty)
             .ToLowerInvariant();
         bool hasDate = id is >= 14 and <= 17 or >= 27 and <= 36 or >= 50 and <= 58
             || normalized.Contains('y', StringComparison.Ordinal)
@@ -683,4 +750,11 @@ public sealed partial class LocalXlsxSnapshotConverter
 
     [GeneratedRegex("\\[[^]]*]|\"[^\"]*\"|\\\\.", RegexOptions.CultureInvariant)]
     private static partial Regex NumberFormatDecorationRegex();
+
+    /// <summary>
+    /// A locale-only bracket such as <c>[$-F800]</c>, which carries no currency
+    /// symbol and only says which locale the pattern that follows is written for.
+    /// </summary>
+    [GeneratedRegex("\\[\\$-[^]]*]", RegexOptions.CultureInvariant)]
+    private static partial Regex LocalePrefixRegex();
 }

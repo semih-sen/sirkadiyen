@@ -52,6 +52,46 @@ public sealed class ManagedCalendarEventFactoryTests
     }
 
     [Fact]
+    public void ABedsideTopicReachesTheEventDescription()
+    {
+        // The bedside document is the only source of what a session is about,
+        // and the annual program is the only source of when it is, so the topic
+        // is read from one and published on the other (ADR-088).
+        CanonicalScheduleRecord record = CalendarTestData.Record(
+            displayTitle: "Hasta Başı Uygulama-1 A Grubu (İç H.) B Grubu (ÇSvH)",
+            eventType: ScheduleEventType.BedsidePractice,
+            curriculumBlock: "SEMİYOLOJİ DİLİMİ",
+            departments: ["İÇ HASTALIKLARI AD."],
+            notes: "Hastaya yaklaşım, anamnez alma, hastanın şikâyetleri ve hastalığın öyküsü.");
+
+        ManagedCalendarEvent result = ManagedCalendarEventFactory.ToManagedEvent(UserId, record);
+
+        Assert.Equal(
+            "Dilim: SEMİYOLOJİ DİLİMİ\n"
+            + "Anabilim dalı: İÇ HASTALIKLARI AD.\n"
+            + "\n"
+            + "Konu: Hastaya yaklaşım, anamnez alma, hastanın şikâyetleri ve hastalığın öyküsü.",
+            result.Description);
+    }
+
+    [Fact]
+    public void ASessionWithoutATopicKeepsTheDescriptionItAlreadyHad()
+    {
+        // A topic the bedside document does not state is absent, never guessed,
+        // so the event reads exactly as it did before topics existed.
+        CanonicalScheduleRecord record = CalendarTestData.Record(
+            eventType: ScheduleEventType.BedsidePractice,
+            curriculumBlock: "SEMİYOLOJİ DİLİMİ",
+            departments: ["İÇ HASTALIKLARI AD."]);
+
+        ManagedCalendarEvent result = ManagedCalendarEventFactory.ToManagedEvent(UserId, record);
+
+        Assert.Equal(
+            "Dilim: SEMİYOLOJİ DİLİMİ\nAnabilim dalı: İÇ HASTALIKLARI AD.",
+            result.Description);
+    }
+
+    [Fact]
     public void AmphitheatreProgramInstructionIsNeverAnEventLocation()
     {
         CanonicalScheduleRecord record = CalendarTestData.Record(

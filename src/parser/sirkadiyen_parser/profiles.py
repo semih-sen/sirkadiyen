@@ -23,6 +23,24 @@ class ParserProfileDefinition:
     #: that grade (ADR-073).
     group_rotation_subjects: tuple[str, ...] = ()
 
+    #: Whether this source family writes its term column without a header. The
+    #: Grade 3 workbooks do, and the column is not optional there: it states the
+    #: curriculum group, so a row read without it would reach the wrong half of
+    #: the class. Declared rather than always attempted, because adopting an
+    #: unlabelled column is a guess about layout, and every other source family
+    #: labels the column it means.
+    term_column_may_be_unlabelled: bool = False
+
+    #: The source family of the companion documents this profile enriches from,
+    #: when it has one. A companion is never published: it only says more about
+    #: sessions this profile already states, so a profile that is given none
+    #: produces exactly what it produced before companions existed (ADR-088).
+    companion_source_family: str | None = None
+
+    #: How the companion writes ``12/11/2026``, which is a property of that
+    #: document rather than of this one and so is declared separately (ADR-051).
+    companion_numeric_date_order: NumericDateOrder = NumericDateOrder.UNDECLARED
+
 
 _PROFILE_VERSION = "1.0.0"
 
@@ -129,19 +147,42 @@ _PROFILES = (
         ("Uygulama",),
         group_rotation_subjects=("anatomi", "anatomy", "diseksiyon", "dissection"),
     ),
+    # The Grade 3 class is split into two curriculum groups that each get their own
+    # workbook, and the column stating which one a row belongs to carries no header
+    # (hence `term_column_may_be_unlabelled`). The faculty-practice rotation is
+    # written into these workbooks as eight `Öğretim üyesi Uygulama N` slots per
+    # block, all eight of which a student would otherwise be booked into; the
+    # faculty source assigns each cohort exactly one (ADR-073). The bedside rows
+    # are deliberately *not* declared here: this workbook is the only source that
+    # proves a date and a time for them.
     ParserProfileDefinition(
         "grade3_yearly_v1",
         _PROFILE_VERSION,
         "annual",
         _UNDECLARED,
         ("curriculumGroup",),
+        group_rotation_subjects=("ogretim uyesi uygulama",),
+        term_column_may_be_unlabelled=True,
+        # The bedside document says what each `Hasta Başı` session is about, and
+        # only this workbook says when it is, so the topic is read from there and
+        # published here (ADR-087, ADR-088). It writes `01.10.2026`, and proves
+        # the order itself with the days above twelve it also writes.
+        companion_source_family="bedsidePractice",
+        companion_numeric_date_order=NumericDateOrder.DAY_FIRST,
     ),
+    # The bedside document writes its dates as `01.10.2026`, and proves the order
+    # itself: several of them state a day above twelve (`22.10.2026`). It is the
+    # second source after `grade2_practice_v1` to need the declaration (ADR-075).
+    # It publishes nothing of its own — the annual program states these sessions
+    # with the time each actually has — so it declares no audience dimension it
+    # does not use: the document names one curriculum group per column and no
+    # division below that (ADR-087).
     ParserProfileDefinition(
         "grade3_bedside_v1",
         _PROFILE_VERSION,
         "bedsidePractice",
-        _UNDECLARED,
-        ("curriculumGroup", "bedsideGroup"),
+        NumericDateOrder.DAY_FIRST,
+        ("curriculumGroup",),
     ),
     ParserProfileDefinition(
         "grade3_faculty_practice_v1",
@@ -149,6 +190,17 @@ _PROFILES = (
         "facultyPractice",
         _UNDECLARED,
         ("curriculumGroup", "facultyPracticeGroup"),
+    ),
+    # The practice-location workbook is a lookup, not a schedule: it states a room
+    # per department under a curriculum-block heading and no date anywhere. It is
+    # named here so the catalog stops dispatching it to the faculty matrix reader,
+    # which would refuse every row of it. It selects no audience of its own, and
+    # the rooms reach students only once the faculty practice can be joined to it.
+    ParserProfileDefinition(
+        "grade3_faculty_locations_v1",
+        _PROFILE_VERSION,
+        "facultyPracticeLocations",
+        _UNDECLARED,
     ),
     ParserProfileDefinition(
         "weekly_amphitheatre_v1", _PROFILE_VERSION, "amphitheatre", _UNDECLARED
