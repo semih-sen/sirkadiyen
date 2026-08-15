@@ -19,8 +19,68 @@ public sealed class CurrentSupportedProfileSchemaTests
     public void SchemaCarriesTheCurrentYearAndVersion()
     {
         Assert.Equal("2025-2026", Schema.AcademicYear);
-        Assert.Equal("1.1", Schema.SchemaVersion);
+        Assert.Equal("1.2", Schema.SchemaVersion);
         Assert.NotEmpty(Schema.Programs);
+    }
+
+    /// <summary>
+    /// A program states the academic year its own sources were captured for, and
+    /// during a rollover that differs from the schema's (ADR-103).
+    /// </summary>
+    /// <remarks>
+    /// This is not bookkeeping. A canonical record reaches a student only when its
+    /// academic year matches the one stamped on their profile, so a Grade 3
+    /// student stamped 2025-2026 would receive an empty calendar with every check
+    /// downstream reporting success.
+    /// </remarks>
+    [Fact]
+    public void EachProgramStatesTheYearItsOwnSourcesWereCapturedFor()
+    {
+        Assert.Equal(
+            "2026-2027",
+            Schema.FindProgram(3, ProgramLanguage.Turkish)!.AcademicYear);
+        Assert.Equal(
+            "2025-2026",
+            Schema.FindProgram(1, ProgramLanguage.Turkish)!.AcademicYear);
+    }
+
+    /// <summary>
+    /// Grade 3 Turkish declares its curriculum group and the faculty-practice
+    /// cohort that depends on it (ADR-099).
+    /// </summary>
+    [Fact]
+    public void GradeThreeTurkishDeclaresItsCurriculumGroupAndRotationCohort()
+    {
+        SupportedProfileProgram program = Assert.IsType<SupportedProfileProgram>(
+            Schema.FindProgram(3, ProgramLanguage.Turkish));
+
+        Assert.Equal(
+            ["curriculumGroup", "facultyPracticeGroup"],
+            program.Dimensions.Select(dimension => dimension.Key));
+        Assert.All(program.Dimensions, dimension => Assert.True(dimension.Required));
+
+        // The A and B rotations are separate documents, so a cohort number only
+        // means something inside its own curriculum group. Offering sixteen flat
+        // values would let a student in the A program declare a B rotation.
+        SupportedProfileDimension cohort = Assert.IsType<SupportedProfileDimension>(
+            program.FindDimension("facultyPracticeGroup"));
+        Assert.True(cohort.IsDependent);
+        Assert.Equal(
+            ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8"],
+            cohort.AllowedValuesFor("3-A"));
+        Assert.Equal(
+            ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8"],
+            cohort.AllowedValuesFor("3-B"));
+    }
+
+    /// <summary>
+    /// The Grade 3 English program has no cohort to declare, so it is absent
+    /// rather than present and empty (ADR-098).
+    /// </summary>
+    [Fact]
+    public void GradeThreeEnglishIsAbsentBecauseItStatesNoDivision()
+    {
+        Assert.Null(Schema.FindProgram(3, ProgramLanguage.English));
     }
 
     [Fact]

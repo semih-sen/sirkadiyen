@@ -23,6 +23,7 @@ const DIMENSION_LABELS: Record<string, string> = {
   practiceSubgroup: 'Uygulama alt grubu',
   anatomyGroup: 'Anatomi grubu',
   curriculumGroup: 'Müfredat grubu',
+  facultyPracticeGroup: 'Öğretim üyesi uygulama grubu',
 };
 
 function allowedValues(
@@ -138,9 +139,15 @@ function ProfileForm() {
       </div>
 
       <h1>Akademik profil</h1>
+      {/*
+        Once a program is chosen, its own academic year is shown rather than the
+        schema's. They differ during a rollover — the faculty publishes the new
+        year one grade at a time — and the year a student sees here is the one
+        their profile is stamped with (ADR-103).
+      */}
       <p className="muted" style={{ marginTop: 8 }}>
-        {options.academicYear} akademik yılı için sınıfını ve grubunu seç. Yalnızca seçtiğin
-        programa uygulanan alanlar gösterilir.
+        {program?.academicYear ?? options.academicYear} akademik yılı için sınıfını ve grubunu
+        seç. Yalnızca seçtiğin programa uygulanan alanlar gösterilir.
       </p>
 
       <form onSubmit={onSubmit} style={{ marginTop: 24 }}>

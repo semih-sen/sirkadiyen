@@ -2139,3 +2139,51 @@ dimension can be added with evidence.
 - Verification: all 15 frontend tests, frontend typecheck and production build pass. All 748 .NET
   tests pass against the running PostgreSQL test database; the six focused finance-obligation
   persistence tests also pass independently.
+
+## Latest parser session (2026-08-15, Grade 3 end to end)
+
+Grade 3 was the last catalogued class year with no parser. It now reaches a calendar.
+
+- **Acquisition was unblocked first.** `tools/Sirkadiyen.SnapshotTool` did not compile — four
+  `using`s named namespaces that commit a514693 renamed — and it is the only way to generate
+  snapshot fixtures. `DriveDocumentAcquirer` accepted DOCX only, so seven of the eight Grade 3
+  documents were unreachable; it now reads both Office formats through a new
+  `LocalXlsxSnapshotConverter.ConvertDownload` stamping `snapshot.google_drive_download`.
+- **A converter bug was found and fixed while doing it.** The number-format classifier read
+  `[$-F800]dddd\,\ mmmm\ dd\,\ yyyy` as CURRENCY because it saw the `[$` prefix. `[$-F800]` is a
+  *locale* prefix, not a currency. The effect was not cosmetic: one date row of the A rotation
+  workbook was classified as text, and its eight sessions vanished from a schedule that otherwise
+  looked complete. A .NET test now asserts `A287` of that workbook is `DATE`.
+- **Three profiles implemented.** `grade3_yearly_v1` reuses `annual.py` behind three
+  profile-gated changes (unlabelled term column, a term cell stating its class year twice,
+  `curriculumGroup` audiences), so the Grade 1 and 2 goldens did not move — verified, not assumed.
+  `grade3_faculty_practice_v1` and `grade3_bedside_v1` are new. `grade3_faculty_locations_v1` is
+  declared but unimplemented, so the room lookup stops being dispatched to the matrix parser.
+- **Four decisions were recorded:** ADR-098 (the English program has no curriculum group, so its
+  term cell states only a class year), ADR-099 (the rotation hyphen enumerates, and a
+  contradictory row is refused per cohort rather than whole), ADR-100 (the annual owns the bedside
+  slot, the bedside document owns the topic), ADR-101 (free-text `notes` on a canonical record,
+  content and never identity).
+- **Two mechanisms were added to carry the topics.** ADR-102 gives a parse optional companion
+  snapshots, named per source in the catalog, loaded by the poller, and folded into the parse
+  run's identity as a `CompanionFingerprint` so editing the bedside document alone re-parses the
+  annual. ADR-103 moves the academic year onto each supported program: the faculty published the
+  2026-2027 Grade 3 documents while Grades 1 and 2 were still on 2025-2026, and audience
+  resolution matches a record to a student on that year — a Grade 3 profile stamped 2025-2026
+  would have produced an empty calendar with every check downstream reporting success.
+- **Results against the real documents.** A annual 1119 candidates (92 bedside, 88 with a topic),
+  B annual 1110 (92 bedside, 87 with a topic), English annual 1179; A rotation 510 candidates
+  (two cells refused as ambiguous, one cohort recorded absent — the one faulty row), B rotation
+  512; both bedside documents 0 candidates by design. The 64 `Öğretim üyesi Uygulama` rows of each
+  annual are excluded under the ADR-073 rotation reason rather than published eight times over.
+- **Degradation is asserted, not described.** Two golden cases cover the same A annual with and
+  without its companion. The difference is 88 content hashes and nothing else: zero stable
+  identities move, no other event type is touched, and the warnings are identical.
+- **Verification:** 827 .NET tests (6 Contracts, 5 Api, 577 Infrastructure, 239 Persistence)
+  against the running PostgreSQL test database, with the new migration applied by the fixture;
+  487 Python tests; ruff and mypy clean over 56 files; solution builds with 0 warnings.
+- **Not done:** a live Drive acquisition was not run, because no Google source credential is
+  configured in this environment. The XLSX download path is covered by unit tests over
+  `ConvertDownload` and `DriveDocumentAcquirer`, but it has not been exercised against Drive
+  itself. The faculty-practice room join (`G3-FACULTY-LOCATIONS`) also remains unbuilt; after
+  ADR-102 it is a catalog entry and a lookup reader rather than new machinery.

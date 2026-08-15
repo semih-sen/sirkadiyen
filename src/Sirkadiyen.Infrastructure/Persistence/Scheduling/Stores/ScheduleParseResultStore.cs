@@ -28,10 +28,12 @@ public sealed class ScheduleParseResultStore(SirkadiyenDbContext dbContext)
         string correlationId,
         DateTimeOffset startedAtUtc,
         TimeSpan staleRunTimeout,
+        string companionFingerprint,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(companionFingerprint);
 
         if (snapshot.ScheduleSourceId != source.Id || snapshot.SourceId != source.SourceId)
         {
@@ -39,7 +41,11 @@ public sealed class ScheduleParseResultStore(SirkadiyenDbContext dbContext)
                 "A parse run must use the source that owns the stored snapshot.");
         }
 
-        ParseRun? existing = await FindRunAsync(snapshot.Id, source, cancellationToken);
+        ParseRun? existing = await FindRunAsync(
+            snapshot.Id,
+            source,
+            companionFingerprint,
+            cancellationToken);
         if (existing is null)
         {
             ParseRun created = new(
@@ -47,7 +53,8 @@ public sealed class ScheduleParseResultStore(SirkadiyenDbContext dbContext)
                 source.ParserProfile,
                 source.ParserProfileVersion,
                 correlationId,
-                startedAtUtc);
+                startedAtUtc,
+                companionFingerprint);
             dbContext.ParseRuns.Add(created);
 
             try
@@ -60,7 +67,11 @@ public sealed class ScheduleParseResultStore(SirkadiyenDbContext dbContext)
                 // A concurrent delivery may have inserted the deterministic run
                 // first. Read that row and treat it as the authoritative result.
                 dbContext.ChangeTracker.Clear();
-                existing = await FindRunAsync(snapshot.Id, source, cancellationToken);
+                existing = await FindRunAsync(
+                    snapshot.Id,
+                    source,
+                    companionFingerprint,
+                    cancellationToken);
                 if (existing is null)
                 {
                     throw;
@@ -180,11 +191,13 @@ public sealed class ScheduleParseResultStore(SirkadiyenDbContext dbContext)
     private Task<ParseRun?> FindRunAsync(
         Guid snapshotId,
         ScheduleSource source,
+        string companionFingerprint,
         CancellationToken cancellationToken) =>
         dbContext.ParseRuns.SingleOrDefaultAsync(
             run => run.SourceSnapshotId == snapshotId
                 && run.ParserProfile == source.ParserProfile
-                && run.ParserProfileVersion == source.ParserProfileVersion,
+                && run.ParserProfileVersion == source.ParserProfileVersion
+                && run.CompanionFingerprint == companionFingerprint,
             cancellationToken);
 
     private static BeginParseRunResult Started(

@@ -203,12 +203,22 @@ public sealed class ScheduleSourcePoller(
         CancellationToken cancellationToken)
     {
         string correlationId = Guid.CreateVersion7().ToString("N");
+
+        // Resolved before the run is opened, because the companion evidence is
+        // part of what identifies the run: an edited bedside document must open a
+        // new run rather than be short-circuited as already parsed (ADR-102).
+        IReadOnlyList<SourceSnapshot> companions = await ResolveCompanionsAsync(
+            source,
+            cancellationToken);
         BeginParseRunResult parseRun = await parseResultStore.BeginOrResumeAsync(
             stored,
             source,
             correlationId,
             timeProvider.GetUtcNow(),
             parseRunOptions.StaleRunTimeout,
+            ParseRunCompanionFingerprint.Compute(
+                [.. companions.Select(static companion =>
+                    new CompanionEvidence(companion.SourceId, companion.ContentHash))]),
             cancellationToken);
 
         if (!parseRun.ShouldInvokeParser)
@@ -236,7 +246,8 @@ public sealed class ScheduleSourcePoller(
         ParseSnapshotRequest request = CreateParseRequest(
             source,
             snapshotForParsing,
-            correlationId);
+            correlationId,
+            [.. companions.Select(Deserialize)]);
 
         try
         {
@@ -282,10 +293,57 @@ public sealed class ScheduleSourcePoller(
         }
     }
 
+    /// <summary>
+    /// The latest usable snapshot of each companion this source's parser reads
+    /// alongside its own document, in the order the source names them (ADR-102).
+    /// </summary>
+    /// <remarks>
+    /// A companion that has never been acquired, or whose payload retention has
+    /// removed the document, is simply left out. The parser is required to
+    /// degrade — the Grade 3 annual publishes its bedside sessions with no topic
+    /// line rather than not at all — so a companion that cannot be read must
+    /// never hold up the schedule it merely annotates.
+    /// <para>
+    /// The same test decides both what is sent and what the fingerprint covers,
+    /// so the run's identity always describes exactly the evidence it read.
+    /// </para>
+    /// </remarks>
+    private async Task<IReadOnlyList<SourceSnapshot>> ResolveCompanionsAsync(
+        ScheduleSource source,
+        CancellationToken cancellationToken)
+    {
+        if (source.CompanionSourceIds.Count == 0)
+        {
+            return [];
+        }
+
+        List<SourceSnapshot> companions = new(source.CompanionSourceIds.Count);
+        foreach (SourceId companionId in source.CompanionSourceIds)
+        {
+            SourceSnapshot? companion = await snapshotStore.GetLatestAsync(
+                companionId,
+                cancellationToken);
+            if (companion?.Payload is not null)
+            {
+                companions.Add(companion);
+            }
+        }
+
+        return companions;
+    }
+
+    private static NormalizedSpreadsheetSnapshot Deserialize(SourceSnapshot companion) =>
+        JsonSerializer.Deserialize<NormalizedSpreadsheetSnapshot>(
+            companion.RequirePayload(),
+            JsonOptions)
+            ?? throw new InvalidDataException(
+                $"The stored snapshot payload for companion '{companion.SourceId}' is empty.");
+
     private static ParseSnapshotRequest CreateParseRequest(
         ScheduleSource source,
         NormalizedSpreadsheetSnapshot snapshot,
-        string correlationId) => new()
+        string correlationId,
+        IReadOnlyList<NormalizedSpreadsheetSnapshot> auxiliarySnapshots) => new()
         {
             ContractVersion = ParserContractVersions.V1,
             CorrelationId = correlationId,
@@ -310,6 +368,7 @@ public sealed class ScheduleSourcePoller(
                 TimeZoneId = source.TimeZoneId,
             },
             Snapshot = snapshot,
+            AuxiliarySnapshots = auxiliarySnapshots,
         };
 
     private static string FormatFailure(Exception exception)

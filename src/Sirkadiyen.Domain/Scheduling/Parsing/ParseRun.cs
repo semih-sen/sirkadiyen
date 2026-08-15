@@ -16,6 +16,7 @@ public sealed class ParseRun
         ParserProfile = string.Empty;
         ParserProfileVersion = string.Empty;
         CorrelationId = string.Empty;
+        CompanionFingerprint = string.Empty;
     }
 
     public ParseRun(
@@ -23,17 +24,20 @@ public sealed class ParseRun
         string parserProfile,
         string parserProfileVersion,
         string correlationId,
-        DateTimeOffset startedAtUtc)
+        DateTimeOffset startedAtUtc,
+        string companionFingerprint = "")
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(parserProfile);
         ArgumentException.ThrowIfNullOrWhiteSpace(parserProfileVersion);
         ArgumentException.ThrowIfNullOrWhiteSpace(correlationId);
+        ArgumentNullException.ThrowIfNull(companionFingerprint);
 
         Id = Guid.CreateVersion7();
         SourceSnapshotId = sourceSnapshotId;
         ParserProfile = parserProfile;
         ParserProfileVersion = parserProfileVersion;
         CorrelationId = correlationId;
+        CompanionFingerprint = companionFingerprint;
         StartedAtUtc = startedAtUtc;
         Status = ParseRunStatus.Running;
         AttemptCount = 1;
@@ -48,6 +52,20 @@ public sealed class ParseRun
     public string ParserProfileVersion { get; private set; }
 
     public string CorrelationId { get; private set; }
+
+    /// <summary>
+    /// The companion evidence this run read besides its own snapshot, as one
+    /// deterministic value, or the empty string when it read none (ADR-102).
+    /// </summary>
+    /// <remarks>
+    /// A run is the execution of one profile version against one set of inputs,
+    /// and a companion document is an input. Without this the annual program
+    /// would keep the parse it already has when only the bedside document
+    /// changed, so a corrected topic would never reach a student's calendar.
+    /// It is a fingerprint rather than the list itself because it belongs to a
+    /// uniqueness key, and an unbounded list is not an index column.
+    /// </remarks>
+    public string CompanionFingerprint { get; private set; }
 
     public DateTimeOffset StartedAtUtc { get; private set; }
 

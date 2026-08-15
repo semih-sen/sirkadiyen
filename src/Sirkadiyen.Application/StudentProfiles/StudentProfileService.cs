@@ -50,9 +50,20 @@ public sealed class StudentProfileService(
             };
         }
 
+        // The program's academic year, not the schema's. Audience resolution
+        // matches a canonical record to a student on it, so stamping the schema's
+        // year on a program captured for a different one would leave that
+        // student's calendar empty with nothing reporting a fault (ADR-103).
+        // Validation has already established that the program exists.
+        SupportedProfileProgram program = schema.FindProgram(
+            submitted.ClassYear,
+            submitted.ProgramLanguage)
+            ?? throw new InvalidOperationException(
+                "A validated profile named a program the schema does not define.");
+
         StudentProfileUpsertResult stored = await profileStore.UpsertAsync(
             userId,
-            schema.AcademicYear,
+            program.AcademicYear,
             submitted.ClassYear,
             submitted.ProgramLanguage,
             submitted.StudentNumber,

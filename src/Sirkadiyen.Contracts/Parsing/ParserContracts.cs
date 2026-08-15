@@ -21,7 +21,7 @@ public sealed record ParseSnapshotRequest
 
     /// <summary>
     /// Snapshots of companion sources the profile reads alongside its own, in
-    /// the order the catalog declares them (ADR-088). A companion is never the
+    /// the order the catalog declares them (ADR-102). A companion is never the
     /// subject of the parse: no record is ever published from one, it only says
     /// more about sessions the subject already states. It is optional so that a
     /// source whose companion has not been acquired still parses exactly as it
@@ -140,7 +140,7 @@ public sealed record CanonicalScheduleCandidate
     /// <summary>
     /// Free text a source states about this session that has no field of its
     /// own — today, the topic the Grade 3 bedside document gives a session the
-    /// annual program schedules (ADR-088). It is content and not identity, so
+    /// annual program schedules (ADR-101). It is content and not identity, so
     /// correcting a topic changes the event a student already has rather than
     /// replacing it with a second one.
     /// </summary>

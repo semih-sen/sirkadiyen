@@ -48,15 +48,15 @@ _IMPLEMENTATIONS: dict[tuple[str, str], ParserImplementation] = {
     # The Grade 3 annual workbooks are the same row-oriented layout again, in both
     # languages and for both curriculum groups. What they add is an audience: the
     # class is split in two, so the profile declares `curriculumGroup` and the
-    # shared implementation reads it from the term cell (ADR-085).
+    # shared implementation reads it from the term cell (ADR-098).
     ("grade3_yearly_v1", "1.0.0"): parse_annual_snapshot,
     # The rotation those workbooks defer their `Öğretim üyesi Uygulama` rows to.
     # One implementation serves both curriculum groups: the workbooks differ only
-    # in their cohort letter and in the order they write their blocks (ADR-086).
+    # in their cohort letter and in the order they write their blocks (ADR-099).
     ("grade3_faculty_practice_v1", "1.0.0"): parse_faculty_practice_snapshot,
     # Registered even though it publishes nothing. The bedside document states no
     # per-session time, so the annual profile keeps those events and this one
-    # supplies their topics (ADR-087); reading it here is what proves the reader
+    # supplies their topics (ADR-100); reading it here is what proves the reader
     # the annual profile calls, and what accounts for the document in the metrics.
     ("grade3_bedside_v1", "1.0.0"): parse_bedside_snapshot,
 }

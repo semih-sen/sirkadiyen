@@ -5272,3 +5272,323 @@ and a failed diff is `Ready`/`Released` in that dimension.
 
 ---
 
+
+## ADR-098: The Grade 3 English program has no curriculum group, so its term cell states only a class year
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-15
+**Implements:** `grade3_yearly_v1` 1.0.0 for `G3-EN-ANNUAL`
+**Relates to:** ADR-017, ADR-048
+
+### Context
+
+The Grade 3 Turkish class year is split into two curriculum groups, A and B, each
+with its own annual workbook. `grade3_yearly_v1` reads that split out of the
+unlabelled term column (`Dönem 3A Grubu`, `Dönem 3A+3B Grubu`, `Dönem 3B/3A
+Grubu`) and publishes each row to the groups it names.
+
+The English workbook is read by the same profile and writes the same kind of term
+cell — but its program has no A/B division at all. It writes `Time Table 3` on
+most rows and `Dönem 3A Grubu` on 49 of them. Those 49 are the joint lectures
+English students attend together with the Turkish A group; they are not a
+statement that the English program has an A group.
+
+Reading the term cell literally there would publish those 49 lectures to
+`curriculumGroup: 3-A` — a cohort no English student can declare, because the
+English program has no such cohort to select. Every English student would lose 49
+real lectures, and nothing would report a fault.
+
+### Decision
+
+When `sourceContext.programLanguage` is English, `grade3_yearly_v1` uses the term
+cell **only** for its class-year check and publishes every row as
+`allStudentsInProgram`. The `curriculumGroup` audience gate is off for that
+language.
+
+This is a language branch inside a parser, which the codebase otherwise avoids.
+It is justified here because the fact being encoded is about the *program*, not
+about the *document*: the English program is not divided, so no cell in its
+workbook can name a division of it. The alternative — a second profile name
+differing only in this one gate — would duplicate an 800-line implementation to
+express one boolean.
+
+Consequently the supported-profile schema carries no Grade 3 English program: it
+would have no selector to offer.
+
+### Consequences
+
+- English Grade 3 students receive every lecture their workbook states, including
+  the joint ones.
+- A future English division would be a real change to this rule, not a
+  configuration tweak, and it would be caught by the golden file for
+  `g3-en-annual` the moment any row stopped being program-wide.
+
+---
+
+## ADR-099: The rotation hyphen enumerates, and a contradictory rotation row is refused per cohort
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-15
+**Implements:** `grade3_faculty_practice_v1` 1.0.0 for `G3-TR-A-FACULTY` and
+`G3-TR-B-FACULTY`
+**Relates to:** ADR-073
+
+### Context
+
+The Grade 3 faculty-practice workbooks are matrices: eight blocks, each with a
+department header row and eight date rows, and each cell naming the cohorts that
+sit with that department on that date. Two questions had no obvious answer.
+
+**What does `A1-A2` mean?** A hyphen between two cohort labels can plausibly mean
+"A1 and A2" or "A1 through A2". It was settled against the data rather than by
+preference: under the enumerating reading, 127 of the 128 date rows state each of
+A1-A8 exactly once, and *zero* rows require the spanning reading. Under the
+spanning reading many rows would double-book cohorts.
+
+**What happens to the one row that does not add up?** `G3-TR-A-FACULTY` row 240
+(2027-03-24) reads `A4, A1, A2, A3, A4, A5, A6, A7`. The block rotates by one per
+row, so column B should read `A8`; someone typed `A4` twice. Refusing the whole
+row — the codebase's usual response to an ambiguous row — would deny six cohorts
+a session they are unambiguously assigned.
+
+### Decision
+
+1. **The hyphen enumerates.** `A1-A2` is A1 and A2. Separators `- / + , ; &` and
+   whitespace all enumerate.
+2. **Refusal is per cohort, never per row.** Within a date row:
+   - a cohort named in exactly one cell is **published**;
+   - a cohort named in more than one cell is ambiguous, and **every** cell naming
+     it is refused with a warning citing all their addresses;
+   - a cohort named in no cell is recorded absent under its own reason.
+
+   The row itself is never refused.
+3. **The rotation pattern is not used to repair the row.** It is obvious from the
+   surrounding rows that column F holds the real A4, but inferring which of two
+   contradictory cells is correct is repairing the source. The parser refuses; it
+   does not repair.
+
+On row 240 this publishes A1, A2, A3, A5, A6 and A7, refuses both A4 cells as
+ambiguous, and records A8 absent — six of eight cohorts keep their session
+instead of none.
+
+### Consequences
+
+- 510 candidates for the A workbook and 512 for B, and the two refused cells plus
+  the absent cohort are visible as warnings in the golden file rather than as a
+  silently shorter list.
+- Faculty correcting the typo produces exactly two new candidates and no identity
+  churn for the other six.
+- A cohort's rotation is scoped to its curriculum group: `facultyPracticeGroup`
+  depends on `curriculumGroup` in the supported-profile schema, because `A5` and
+  `B5` are different rotations in different documents.
+
+---
+
+## ADR-100: The Grade 3 annual owns the bedside slot; the bedside document owns the topic
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-15
+**Implements:** `grade3_yearly_v1` 1.0.0, `grade3_bedside_v1` 1.0.0
+**Relates to:** ADR-046, ADR-075, ADR-102
+
+### Context
+
+Two Grade 3 sources describe the same 92 bedside practice sessions.
+
+The **annual** workbook states each session's date, times and each group's
+department, one row per session. Its times are 13:30-14:20 (70 sessions),
+14:00-14:50 (21, all Fridays) and 13:30-14:10 (1).
+
+The **bedside** document states one time for all of them, in a preamble heading:
+`HASTA BAŞI UYGULAMA KONULARI (13.30-14.20)`. It is therefore wrong for 22 of the
+92 sessions. What it uniquely holds is the *topic* of each session: a schedule
+table of `(date, group)` to topic code, and a prose catalogue mapping each code to
+a sentence or two describing the session.
+
+Publishing from both would produce duplicate events. Publishing from the bedside
+document alone would put 22 sessions at the wrong time.
+
+### Decision
+
+1. **The annual publishes all 92 sessions** as timed `bedsidePractice` events. It
+   is the only source that proves a date *and* a time per session.
+2. **`grade3_bedside_v1` publishes zero candidates.** It is registered and parsed
+   anyway, so the document is accounted for in metrics and so the reader the
+   annual profile calls is itself exercised by a golden file.
+3. **The topic reaches the event as `notes`**, joined on `(local date, curriculum
+   group)`, via the companion-snapshot mechanism of ADR-102.
+4. **The catalogue is joined on section and ordinal, never on the code prefix.**
+   The source writes `İçH`, `IçH` with an ASCII I, `ÇSH` and one `İÇSH` in the
+   catalogue while the table writes `İçH` and `ÇSvH`; prefix matching fails on 69
+   of 91 codes. The prose is cleanly sectioned by department heading, so the
+   catalogue is keyed by (section, ordinal) and only the schedule's two consistent
+   prefixes are mapped to sections.
+5. **A code that does not resolve leaves the event without a topic**, and is
+   counted. No topic is ever guessed.
+
+### Consequences
+
+- 88 of 92 topics resolve for the A group and 87 of 92 for B. The remainder are
+  genuine gaps: those codes have no catalogue entry in the document at all.
+- The two documents differ structurally — A has a spacer column between its
+  semester pairs and five tables, B has neither — so the reader pairs date/topic
+  columns by header rather than by index, and carries catalogue state across
+  worksheets.
+- `grade3_bedside_v1` declares `dayFirst`, the second profile after
+  `grade2_practice_v1` to need it (ADR-075). The document proves the order itself:
+  it writes days above twelve, such as `22.10.2026`.
+
+---
+
+## ADR-101: A canonical record carries free-text notes, which are content and not identity
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-15
+**Implements:** `CanonicalScheduleCandidate.notes`, `CanonicalScheduleRecord.Notes`,
+migration `AddCanonicalScheduleRecordNotes`, `CalendarEventPresentationPolicy.Description`
+**Relates to:** ADR-018, ADR-047, ADR-049, ADR-100
+
+### Context
+
+A Grade 3 bedside session's topic is a sentence or two of prose — "Hastaya
+yaklaşım, hastaya adıyla hitap, hasta ile ilk karşılaşmanın özellikleri, kendini
+tanıtma". It is not an instructor, a curriculum block, a department or a location,
+and it belongs in the event a student reads rather than in evidence nobody sees.
+The canonical record had no field that could hold it.
+
+### Decision
+
+1. **One optional `notes` field**, from the parser contract through
+   `CanonicalScheduleRecord` to a `character varying(4000)` column. It is bounded
+   generously rather than at the width of the other text columns because it holds
+   a paragraph a faculty member wrote, not a label.
+2. **It is part of the content hash and of no stable identity.** A corrected topic
+   must move the event a student already has, not create a second one beside it.
+   This was verified rather than assumed: attaching the companion changes 88
+   candidates' content hashes and **zero** stable identities.
+3. **It renders last in the description, on its own paragraph**, prefixed `Konu:`.
+   Everything above it is a short labelled value; a student wants to know what the
+   session is about after they know whose it is.
+4. **It is deliberately general.** Nothing about the field is bedside-specific, so
+   the next source with prose that has no field of its own needs no schema change.
+   It is not a dumping ground either: a value that has a field belongs in that
+   field.
+
+### Consequences
+
+- Regenerating every existing golden file after adding the field moved no
+  candidate digest, identity or content hash — only the explicit `notes: null` on
+  the two sampled candidates and the whole-response digest.
+- A record with no notes stores `NULL`, not an empty string, so "no topic stated"
+  and "an empty topic" cannot be confused.
+
+---
+
+## ADR-102: A parse may read companion snapshots, and they are part of the parse run's identity
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-15
+**Implements:** `ParseSnapshotRequest.auxiliarySnapshots`,
+`ScheduleSource.CompanionSourceIds`, `ParseRun.CompanionFingerprint`,
+migration `AddCompanionSourceEvidence`
+**Relates to:** ADR-007, ADR-014, ADR-044, ADR-080, ADR-100
+
+### Context
+
+The parser receives one snapshot per parse, so the Grade 3 annual profile could
+not see the bedside document that holds its practice topics (ADR-100). Three
+approaches were possible: publish reference records from the bedside source and
+merge them in .NET afterwards; give the parser a way to fetch a second document;
+or hand the second document to the parse as an input.
+
+A post-parse merge in .NET would need a new record status for records that are not
+schedule, would put those records into revisions and diffs where they would be
+counted and compared, and would need calendar dispatch to learn to skip them.
+Letting the parser fetch anything would break the boundary that keeps it
+deterministic and offline.
+
+### Decision
+
+1. **Companions are an input.** `ParseSnapshotRequest` carries an optional
+   `auxiliarySnapshots` list. A source names its companions in the catalog
+   (`companionSourceIds`), the poller loads each companion's latest stored
+   snapshot and attaches it, and the profile decides what to read from it.
+2. **A companion is supporting evidence, never a second schedule.** It publishes
+   nothing through the source that reads it; its own source and profile still
+   parse it separately if it has anything of its own to publish.
+3. **It must degrade, never block.** A companion that has never been acquired is
+   simply absent from the request. The annual publishes its bedside sessions with
+   no topic line — exactly the behaviour before this existed. A missing topic is
+   far cheaper than a schedule that never reaches a student, and the same test
+   decides both what is sent and what the fingerprint covers, so a run's identity
+   always describes exactly the evidence it read.
+4. **The companion set is part of the parse run's identity.** A run was keyed by
+   `(snapshot, profile, profile version)`; it is now keyed by that plus a
+   `CompanionFingerprint`, a SHA-256 digest of the ordered `(source id, content
+   hash)` pairs. Without it, editing the bedside document alone would leave the
+   annual short-circuited as "already parsed" and the corrected topic would never
+   reach a calendar. The column is non-nullable with `""` meaning "read none",
+   because PostgreSQL treats NULLs in a unique index as distinct and would permit
+   exactly the duplicate runs the key forbids.
+5. **The catalog refuses a companion it cannot resolve.** A mistyped identifier is
+   invisible at runtime — it looks identical to a companion that has not been
+   polled yet — so catalog load rejects a companion that is not a source, is the
+   source itself, is named twice, or itself declares companions. Companion
+   evidence is one level deep by construction, which disposes of cycles.
+
+### Consequences
+
+- `G3-TR-A-ANNUAL` and `G3-TR-B-ANNUAL` name their bedside documents. No other
+  source has a companion today.
+- The faculty-practice room lookup (`G3-FACULTY-LOCATIONS`) can reuse this
+  mechanism unchanged when that join is built; it is a catalog entry and a reader,
+  not new machinery.
+- Two golden cases cover the same Grade 3 A annual, with and without its
+  companion, so the degradation guarantee is asserted rather than described.
+
+---
+
+## ADR-103: Each supported program states its own academic year
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-15
+**Implements:** `SupportedProfileProgram.AcademicYear`, supported-profile schema 1.2
+**Amends:** ADR-048, ADR-055
+
+### Context
+
+The supported-profile schema stated one academic year for every program, on the
+reasoning that there is one current year at a time. The Grade 3 rollover broke
+that: the faculty published the 2026-2027 Grade 3 documents while Grades 1 and 2
+were still on 2025-2026, so the catalog now holds sources for two years at once.
+
+This is not bookkeeping. `CalendarAudienceResolver` matches a canonical record to
+a student only when the record's academic year equals the one stamped on their
+profile, and the profile is stamped from the schema at save time. A Grade 3
+student stamped 2025-2026 would match none of the 2026-2027 records published for
+them: an empty calendar, with the profile saved, the revision published, the diff
+computed and every check downstream reporting success.
+
+### Decision
+
+1. **`SupportedProfileProgram` states the academic year its own sources were
+   captured for**, and `StudentProfileService` stamps *that* year on the profile.
+2. **`SupportedProfileSchema.AcademicYear` remains**, meaning the year the schema
+   revision was cut for. The two agree except during a rollover. The onboarding
+   form shows the selected program's year once one is chosen, and the schema's
+   before that, so the year a student sees is the one their profile will carry.
+3. **Schema version 1.2.** Every stored profile records the version that validated
+   it, so a profile written under 1.1 stays identifiable as one written when all
+   programs shared a year.
+
+### Consequences
+
+- Grade 3 Turkish joins the schema with `curriculumGroup` (`3-A`, `3-B`) and a
+  dependent `facultyPracticeGroup` (`A1`-`A8` under `3-A`, `B1`-`B8` under `3-B`),
+  and is the first program whose year differs from the schema's.
+- Rollover is now incremental: a grade moves to the new year when its sources are
+  captured, rather than all grades moving on one deployment.
+- Grade 3 English is absent, having no selector to declare (ADR-098); Grade 1
+  anatomy and Grade 2 English remain absent for their own recorded reasons.
+
+---

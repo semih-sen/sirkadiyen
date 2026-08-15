@@ -34,7 +34,7 @@ class ParserProfileDefinition:
     #: The source family of the companion documents this profile enriches from,
     #: when it has one. A companion is never published: it only says more about
     #: sessions this profile already states, so a profile that is given none
-    #: produces exactly what it produced before companions existed (ADR-088).
+    #: produces exactly what it produced before companions existed (ADR-102).
     companion_source_family: str | None = None
 
     #: How the companion writes ``12/11/2026``, which is a property of that
@@ -165,7 +165,7 @@ _PROFILES = (
         term_column_may_be_unlabelled=True,
         # The bedside document says what each `Hasta Başı` session is about, and
         # only this workbook says when it is, so the topic is read from there and
-        # published here (ADR-087, ADR-088). It writes `01.10.2026`, and proves
+        # published here (ADR-100, ADR-102). It writes `01.10.2026`, and proves
         # the order itself with the days above twelve it also writes.
         companion_source_family="bedsidePractice",
         companion_numeric_date_order=NumericDateOrder.DAY_FIRST,
@@ -176,7 +176,7 @@ _PROFILES = (
     # It publishes nothing of its own — the annual program states these sessions
     # with the time each actually has — so it declares no audience dimension it
     # does not use: the document names one curriculum group per column and no
-    # division below that (ADR-087).
+    # division below that (ADR-100).
     ParserProfileDefinition(
         "grade3_bedside_v1",
         _PROFILE_VERSION,

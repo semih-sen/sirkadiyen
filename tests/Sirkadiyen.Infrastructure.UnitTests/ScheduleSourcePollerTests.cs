@@ -395,6 +395,85 @@ public sealed class ScheduleSourcePollerTests
         Assert.Equal(0, parseStore.BeginCallCount);
     }
 
+    /// <summary>
+    /// A source that names a companion hands the companion's stored evidence to
+    /// the parser alongside its own (ADR-102).
+    /// </summary>
+    [Fact]
+    public async Task ACompanionSnapshotReachesTheParserWithTheSourcesOwn()
+    {
+        ScheduleSource source = AnnualWithBedsideCompanion();
+        NormalizedSpreadsheetSnapshot snapshot = Snapshot(source);
+        SourceSnapshot bedside = CompanionSnapshot(source);
+        FakeParserClient parser = new();
+        FakeParseResultStore resultStore = new(shouldInvokeParser: true);
+        ScheduleSourcePoller poller = new(
+            new FakeSnapshotAcquirer(snapshot),
+            new FakeDriveDocumentAcquirer(snapshot),
+            new FakeSnapshotStore(StoredSnapshot(source, snapshot), changed: true)
+            {
+                OtherSources = new Dictionary<string, SourceSnapshot?>(StringComparer.Ordinal)
+                {
+                    ["G3-TR-A-BEDSIDE"] = bedside,
+                },
+            },
+            parser,
+            resultStore,
+            ValidationService(),
+            new FakeOperationalFreezeStore(),
+            new ParseRunOptions(),
+            new FixedTimeProvider(new DateTimeOffset(2026, 8, 15, 9, 0, 0, TimeSpan.Zero)));
+
+        ScheduleSourcePollResult result = await poller.PollAsync(source, CancellationToken.None);
+
+        Assert.Equal(ScheduleSourcePollOutcome.Parsed, result.Outcome);
+        NormalizedSpreadsheetSnapshot auxiliary = Assert.Single(
+            parser.LastRequest!.AuxiliarySnapshots);
+        Assert.Equal("G3-TR-A-BEDSIDE", auxiliary.SourceId);
+
+        // The run is keyed by that evidence too, otherwise an edit to the bedside
+        // document alone would be short-circuited as already parsed.
+        Assert.NotEqual(ParseRunCompanionFingerprint.None, resultStore.CompanionFingerprint);
+    }
+
+    /// <summary>
+    /// A companion that has never been acquired must not hold up the schedule it
+    /// only annotates (ADR-102).
+    /// </summary>
+    [Fact]
+    public async Task ACompanionThatWasNeverAcquiredIsLeftOutRatherThanBlocking()
+    {
+        ScheduleSource source = AnnualWithBedsideCompanion();
+        NormalizedSpreadsheetSnapshot snapshot = Snapshot(source);
+        FakeParserClient parser = new();
+        FakeParseResultStore resultStore = new(shouldInvokeParser: true);
+        ScheduleSourcePoller poller = new(
+            new FakeSnapshotAcquirer(snapshot),
+            new FakeDriveDocumentAcquirer(snapshot),
+            new FakeSnapshotStore(StoredSnapshot(source, snapshot), changed: true)
+            {
+                OtherSources = new Dictionary<string, SourceSnapshot?>(StringComparer.Ordinal)
+                {
+                    ["G3-TR-A-BEDSIDE"] = null,
+                },
+            },
+            parser,
+            resultStore,
+            ValidationService(),
+            new FakeOperationalFreezeStore(),
+            new ParseRunOptions(),
+            new FixedTimeProvider(new DateTimeOffset(2026, 8, 15, 9, 0, 0, TimeSpan.Zero)));
+
+        ScheduleSourcePollResult result = await poller.PollAsync(source, CancellationToken.None);
+
+        Assert.Equal(ScheduleSourcePollOutcome.Parsed, result.Outcome);
+        Assert.Empty(parser.LastRequest!.AuxiliarySnapshots);
+
+        // The fingerprint describes what was actually read, so a run that read no
+        // companion says so rather than claiming evidence it never saw.
+        Assert.Equal(ParseRunCompanionFingerprint.None, resultStore.CompanionFingerprint);
+    }
+
     private static ScheduleSource Source() => new(
         SourceId.Parse("G1-TR-ANNUAL"),
         "Grade 1 Turkish annual",
@@ -443,6 +522,55 @@ public sealed class ScheduleSourcePollerTests
         2,
         DomainLanguage.Turkish,
         "Europe/Istanbul");
+
+    /// <summary>
+    /// The Grade 3 Turkish A annual as the catalog declares it: its parser reads
+    /// the bedside document for the topic of each practice session (ADR-102).
+    /// </summary>
+    private static ScheduleSource AnnualWithBedsideCompanion() => new(
+        SourceId.Parse("G3-TR-A-ANNUAL"),
+        "Grade 3 Turkish A annual",
+        ScheduleSourceTransport.GoogleDriveFile,
+        ScheduleDocumentFormat.Docx,
+        "https://example.invalid/annual",
+        "grade3_yearly_v1",
+        "1.0.0",
+        "2026-2027",
+        3,
+        DomainLanguage.Turkish,
+        "Europe/Istanbul",
+        "drive-annual-1",
+        companionSourceIds: [SourceId.Parse("G3-TR-A-BEDSIDE")]);
+
+    private static SourceSnapshot CompanionSnapshot(ScheduleSource owner)
+    {
+        NormalizedSpreadsheetSnapshot document = new()
+        {
+            ContractVersion = SpreadsheetContractVersions.V1,
+            SourceId = "G3-TR-A-BEDSIDE",
+            SnapshotId = "bedside-snapshot-1",
+            SpreadsheetId = "drive-bedside-1",
+            AcquiredAtUtc = new DateTimeOffset(2026, 8, 14, 9, 0, 0, TimeSpan.Zero),
+            ContentHash = "sha256:bedside",
+            ContentHashAlgorithm = "SHA-256",
+        };
+
+        return new SourceSnapshot(
+            Guid.CreateVersion7(),
+            SourceId.Parse(document.SourceId),
+            document.SnapshotId,
+            document.SpreadsheetId,
+            owner.AcademicYear,
+            document.AcquiredAtUtc,
+            document.ContentHash,
+            document.ContractVersion,
+            System.Text.Json.JsonSerializer.Serialize(
+                document,
+                Sirkadiyen.Contracts.Serialization.ContractJson.CreateOptions()),
+            0,
+            0,
+            0);
+    }
 
     private static NormalizedSpreadsheetSnapshot Snapshot(ScheduleSource source) => new()
     {
@@ -558,6 +686,14 @@ public sealed class ScheduleSourcePollerTests
         /// <summary>Whether the source already holds evidence, as an upload source may not.</summary>
         public bool HasLatest { get; init; } = true;
 
+        /// <summary>
+        /// Evidence held for sources other than the one under test, so a
+        /// companion lookup answers for itself rather than for the primary
+        /// source. A null value is a companion that has never been acquired.
+        /// </summary>
+        public IReadOnlyDictionary<string, SourceSnapshot?> OtherSources { get; init; } =
+            new Dictionary<string, SourceSnapshot?>(StringComparer.Ordinal);
+
         public Task<StoreSnapshotResult> StoreIfChangedAsync(
             SourceId sourceId,
             NormalizedSpreadsheetSnapshot acquired,
@@ -570,7 +706,9 @@ public sealed class ScheduleSourcePollerTests
         public Task<SourceSnapshot?> GetLatestAsync(
             SourceId sourceId,
             CancellationToken cancellationToken) =>
-            Task.FromResult(HasLatest ? snapshot : null);
+            OtherSources.ContainsKey(sourceId.Value)
+                ? Task.FromResult(OtherSources[sourceId.Value])
+                : Task.FromResult<SourceSnapshot?>(HasLatest ? snapshot : null);
     }
 
     private sealed class FakeParserClient : IScheduleParserClient
@@ -619,16 +757,20 @@ public sealed class ScheduleSourcePollerTests
 
         public TimeSpan? StaleRunTimeout { get; private set; }
 
+        public string? CompanionFingerprint { get; private set; }
+
         public Task<BeginParseRunResult> BeginOrResumeAsync(
             SourceSnapshot snapshot,
             ScheduleSource source,
             string correlationId,
             DateTimeOffset startedAtUtc,
             TimeSpan staleRunTimeout,
+            string companionFingerprint,
             CancellationToken cancellationToken)
         {
             BeginCallCount++;
             StaleRunTimeout = staleRunTimeout;
+            CompanionFingerprint = companionFingerprint;
             return Task.FromResult(new BeginParseRunResult
             {
                 ParseRunId = runId,

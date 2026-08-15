@@ -3,9 +3,18 @@
 Both sources of each annual profile are covered, because the Turkish and English
 workbooks differ in header wording, worksheet count and the shape of their
 data-entry mistakes. A change that fixes one and breaks the other has to be
-visible. The class year comes from the case rather than from a constant: the two
-annual profiles share an implementation, and reading a Grade 2 workbook as
+visible. The class year comes from the case rather than from a constant: the
+three annual profiles share an implementation, and reading a Grade 2 workbook as
 Grade 1 would silently drop every row.
+
+The academic year is per case for the same reason it is per source: the faculty
+published the 2026-2027 Grade 3 documents while Grades 1 and 2 were still on
+2025-2026, and the year is source context the workbook never states (ADR-017).
+
+Companion snapshots are part of a case because they are part of the input. The
+Grade 3 Turkish annual is covered twice — once with its bedside companion and
+once without — so the file proves both that the topics arrive and that the
+schedule is identical when they do not (ADR-102).
 """
 
 from typing import Any
@@ -35,12 +44,23 @@ def _registered_version(profile_name: str) -> str:
     return versions[0]
 
 
+#: The year Grades 1 and 2 were captured for.
+_Y2025 = "2025-2026"
+
+#: The year the Grade 3 rollover captured (ADR-103).
+_Y2026 = "2026-2027"
+
+#: No companion evidence, which is the case for every source but two.
+_ALONE: tuple[str, ...] = ()
+
 CASES = (
     (
         "grade1_yearly_v1",
         "real/g1-tr-annual.snapshot.json",
         1,
         "turkish",
+        _Y2025,
+        _ALONE,
         "parse/g1-tr-annual.json",
     ),
     (
@@ -48,6 +68,8 @@ CASES = (
         "real/g1-en-annual.snapshot.json",
         1,
         "english",
+        _Y2025,
+        _ALONE,
         "parse/g1-en-annual.json",
     ),
     (
@@ -55,6 +77,8 @@ CASES = (
         "real/g1-tr-practice.snapshot.json",
         1,
         "turkish",
+        _Y2025,
+        _ALONE,
         "parse/g1-tr-practice.json",
     ),
     (
@@ -62,6 +86,8 @@ CASES = (
         "real/g2-tr-annual.snapshot.json",
         2,
         "turkish",
+        _Y2025,
+        _ALONE,
         "parse/g2-tr-annual.json",
     ),
     (
@@ -69,6 +95,8 @@ CASES = (
         "real/g2-en-annual.snapshot.json",
         2,
         "english",
+        _Y2025,
+        _ALONE,
         "parse/g2-en-annual.json",
     ),
     (
@@ -76,6 +104,8 @@ CASES = (
         "real/g2-tr-practice.snapshot.json",
         2,
         "turkish",
+        _Y2025,
+        _ALONE,
         "parse/g2-tr-practice.json",
     ),
     (
@@ -83,6 +113,8 @@ CASES = (
         "real/g2-en-practice.snapshot.json",
         2,
         "english",
+        _Y2025,
+        _ALONE,
         "parse/g2-en-practice.json",
     ),
     # Both semesters, because the same programme is written as one 60-row table
@@ -92,6 +124,8 @@ CASES = (
         "real/g2-vertical-autumn.snapshot.json",
         2,
         "turkish",
+        _Y2025,
+        _ALONE,
         "parse/g2-vertical-autumn.json",
     ),
     (
@@ -99,6 +133,8 @@ CASES = (
         "real/g2-vertical-spring.snapshot.json",
         2,
         "turkish",
+        _Y2025,
+        _ALONE,
         "parse/g2-vertical-spring.json",
     ),
     # Both semesters again, because the autumn document writes most of its days
@@ -108,6 +144,8 @@ CASES = (
         "real/g2-anatomy-autumn.snapshot.json",
         2,
         "turkish",
+        _Y2025,
+        _ALONE,
         "parse/g2-anatomy-autumn.json",
     ),
     (
@@ -115,11 +153,107 @@ CASES = (
         "real/g2-anatomy-spring.snapshot.json",
         2,
         "turkish",
+        _Y2025,
+        _ALONE,
         "parse/g2-anatomy-spring.json",
+    ),
+    # Grade 3, both curriculum groups, each with the bedside document its own
+    # annual names as a companion. These are the cases where a practice topic
+    # reaches an event's notes (ADR-100, ADR-102).
+    (
+        "grade3_yearly_v1",
+        "real/g3-tr-a-annual.snapshot.json",
+        3,
+        "turkish",
+        _Y2026,
+        ("real/g3-tr-a-bedside.snapshot.json",),
+        "parse/g3-tr-a-annual.json",
+    ),
+    (
+        "grade3_yearly_v1",
+        "real/g3-tr-b-annual.snapshot.json",
+        3,
+        "turkish",
+        _Y2026,
+        ("real/g3-tr-b-bedside.snapshot.json",),
+        "parse/g3-tr-b-annual.json",
+    ),
+    # The same annual with no companion, which is what the pipeline does before
+    # the bedside document has ever been acquired. Its golden must differ from
+    # the case above in the notes alone: the schedule may not move because a
+    # document that only annotates it is missing (ADR-102).
+    (
+        "grade3_yearly_v1",
+        "real/g3-tr-a-annual.snapshot.json",
+        3,
+        "turkish",
+        _Y2026,
+        _ALONE,
+        "parse/g3-tr-a-annual-without-companion.json",
+    ),
+    # The English program states no A/B division, so its term cell is read only
+    # for the class year and every row stays program-wide (ADR-098).
+    (
+        "grade3_yearly_v1",
+        "real/g3-en-annual.snapshot.json",
+        3,
+        "english",
+        _Y2026,
+        _ALONE,
+        "parse/g3-en-annual.json",
+    ),
+    # Both rotation workbooks. The A file is the one carrying the contradictory
+    # row that publishes six cohorts and refuses two (ADR-099).
+    (
+        "grade3_faculty_practice_v1",
+        "real/g3-tr-a-faculty.snapshot.json",
+        3,
+        "turkish",
+        _Y2026,
+        _ALONE,
+        "parse/g3-tr-a-faculty.json",
+    ),
+    (
+        "grade3_faculty_practice_v1",
+        "real/g3-tr-b-faculty.snapshot.json",
+        3,
+        "turkish",
+        _Y2026,
+        _ALONE,
+        "parse/g3-tr-b-faculty.json",
+    ),
+    # Both bedside documents, which publish nothing and whose goldens therefore
+    # assert on their metrics: they are the reader the annual profile calls, and
+    # the metrics are how much of each catalogue it could resolve (ADR-100).
+    (
+        "grade3_bedside_v1",
+        "real/g3-tr-a-bedside.snapshot.json",
+        3,
+        "turkish",
+        _Y2026,
+        _ALONE,
+        "parse/g3-tr-a-bedside.json",
+    ),
+    (
+        "grade3_bedside_v1",
+        "real/g3-tr-b-bedside.snapshot.json",
+        3,
+        "turkish",
+        _Y2026,
+        _ALONE,
+        "parse/g3-tr-b-bedside.json",
     ),
 )
 
-CASE_FIELDS = ("profile_name", "fixture", "class_year", "program_language", "golden")
+CASE_FIELDS = (
+    "profile_name",
+    "fixture",
+    "class_year",
+    "program_language",
+    "academic_year",
+    "auxiliary_fixtures",
+    "golden",
+)
 
 
 def run_profile(
@@ -127,6 +261,8 @@ def run_profile(
     fixture: str,
     class_year: int,
     program_language: str,
+    academic_year: str,
+    auxiliary_fixtures: tuple[str, ...],
 ) -> ParseSnapshotResponse:
     """Parse a fixture through the registered profile implementation."""
     version = _registered_version(profile_name)
@@ -139,9 +275,10 @@ def run_profile(
         fixture=fixture,
         profile_name=profile_name,
         profile_version=version,
-        academic_year="2025-2026",
+        academic_year=academic_year,
         class_year=class_year,
         program_language=program_language,
+        auxiliary_fixtures=auxiliary_fixtures,
     )
     return parser(request, profile)
 
@@ -151,12 +288,21 @@ def build_document(
     fixture: str,
     class_year: int,
     program_language: str,
+    academic_year: str,
+    auxiliary_fixtures: tuple[str, ...],
 ) -> dict[str, Any]:
     return build_golden_document(
         fixture=fixture,
         subject="parseResponse",
         payload=build_response_projection(
-            run_profile(profile_name, fixture, class_year, program_language)
+            run_profile(
+                profile_name,
+                fixture,
+                class_year,
+                program_language,
+                academic_year,
+                auxiliary_fixtures,
+            )
         ),
     )
 
@@ -167,11 +313,20 @@ def test_parse_matches_its_golden_file(
     fixture: str,
     class_year: int,
     program_language: str,
+    academic_year: str,
+    auxiliary_fixtures: tuple[str, ...],
     golden: str,
 ) -> None:
     assert_matches_golden(
         golden,
-        build_document(profile_name, fixture, class_year, program_language),
+        build_document(
+            profile_name,
+            fixture,
+            class_year,
+            program_language,
+            academic_year,
+            auxiliary_fixtures,
+        ),
     )
 
 
@@ -181,8 +336,17 @@ def test_parse_is_deterministic(
     fixture: str,
     class_year: int,
     program_language: str,
+    academic_year: str,
+    auxiliary_fixtures: tuple[str, ...],
     golden: str,
 ) -> None:
     assert_deterministic(
-        lambda: build_document(profile_name, fixture, class_year, program_language)
+        lambda: build_document(
+            profile_name,
+            fixture,
+            class_year,
+            program_language,
+            academic_year,
+            auxiliary_fixtures,
+        )
     )

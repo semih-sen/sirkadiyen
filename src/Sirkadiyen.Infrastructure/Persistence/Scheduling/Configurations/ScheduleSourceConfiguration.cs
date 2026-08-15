@@ -52,6 +52,16 @@ internal sealed class ScheduleSourceConfiguration : IEntityTypeConfiguration<Sch
         builder.HasIndex(source => source.SharedDocumentGroup)
             .HasFilter("\"SharedDocumentGroup\" IS NOT NULL");
 
+        // Companions are read with their source and never queried on their own,
+        // so they are a JSONB array on the row rather than a join table. Empty is
+        // the normal case and is stored as an empty array, so "no companions" and
+        // "companions not yet reconciled" cannot be confused (ADR-102).
+        builder.Property(source => source.CompanionSourceIds)
+            .HasConversion(new SourceIdListConverter())
+            .HasColumnType("jsonb")
+            .IsRequired()
+            .Metadata.SetValueComparer(new SourceIdListComparer());
+
         // PostgreSQL maintains xmin itself, which gives optimistic concurrency
         // without an application-managed version column.
         builder.Property(source => source.RowVersion).IsRowVersion();

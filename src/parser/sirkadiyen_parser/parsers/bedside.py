@@ -12,7 +12,7 @@ anywhere is a heading over its topic catalogue::
 That heading is wrong for twenty-two of the sessions — the annual puts the
 Friday ones at 14:00-14:50 — so publishing from here would either move real
 lessons or duplicate the ones the annual already publishes correctly. The annual
-owns the slot, and this document owns the *topic* (ADR-087).
+owns the slot, and this document owns the *topic* (ADR-100).
 
 What it is, then, is a reader: it turns the document into the two tables the
 annual profile needs to put a topic on an event it already publishes.

@@ -93,6 +93,72 @@ public sealed class ScheduleSourceCatalogLoader
         }
 
         ValidateSharedDocumentGroups(catalog);
+        ValidateCompanionSourceIds(catalog, sourceIds);
+    }
+
+    /// <summary>
+    /// Rejects a companion declaration that would silently read nothing, or read
+    /// something twice (ADR-102).
+    /// </summary>
+    /// <remarks>
+    /// A companion is optional evidence, and the pipeline degrades when it has
+    /// never been acquired — which is exactly why a mistyped identifier here can
+    /// never be noticed at runtime. It would look identical to a companion that
+    /// simply has not been polled yet, and the bedside topics would be missing
+    /// from every event forever without a single warning. Catalog load is the
+    /// only place the mistake is still visible, so it fails here.
+    /// <para>
+    /// A companion that itself declares companions is refused too. Evidence is
+    /// one level deep by construction: resolving a chain would raise questions
+    /// about cycles and about whose fingerprint covers what, and no source needs
+    /// it.
+    /// </para>
+    /// </remarks>
+    private static void ValidateCompanionSourceIds(
+        ScheduleSourceCatalog catalog,
+        HashSet<string> sourceIds)
+    {
+        Dictionary<string, ScheduleSourceDefinition> byId = catalog.Sources.ToDictionary(
+            static source => source.SourceId,
+            StringComparer.Ordinal);
+
+        foreach (ScheduleSourceDefinition source in catalog.Sources)
+        {
+            if (source.CompanionSourceIds is not { } companions)
+            {
+                continue;
+            }
+
+            HashSet<string> seen = new(StringComparer.Ordinal);
+            foreach (string companionId in companions)
+            {
+                if (string.Equals(companionId, source.SourceId, StringComparison.Ordinal))
+                {
+                    throw new InvalidDataException(
+                        $"Source '{source.SourceId}' names itself as its own companion.");
+                }
+
+                if (!sourceIds.Contains(companionId))
+                {
+                    throw new InvalidDataException(
+                        $"Source '{source.SourceId}' names companion '{companionId}', which is "
+                        + "not a source in this catalog.");
+                }
+
+                if (!seen.Add(companionId))
+                {
+                    throw new InvalidDataException(
+                        $"Source '{source.SourceId}' names companion '{companionId}' twice.");
+                }
+
+                if (byId[companionId].CompanionSourceIds is { Count: > 0 })
+                {
+                    throw new InvalidDataException(
+                        $"Source '{source.SourceId}' names companion '{companionId}', which "
+                        + "declares companions of its own; companion evidence is one level deep.");
+                }
+            }
+        }
     }
 
     /// <summary>

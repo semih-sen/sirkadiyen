@@ -71,16 +71,42 @@ public sealed class ScheduleModelTests
             index.Properties.Select(property => property.Name));
     }
 
+    /// <summary>
+    /// One parser profile version runs once per set of inputs, and a companion
+    /// document is an input (ADR-102).
+    /// </summary>
+    /// <remarks>
+    /// The fingerprint has to be part of the key rather than beside it. Without
+    /// it, an edited bedside document would leave the annual program short
+    /// circuited as already parsed and the corrected topic would never reach a
+    /// calendar; and it must be non-nullable, because PostgreSQL treats NULLs in
+    /// a unique index as distinct and would permit two runs for one snapshot.
+    /// </remarks>
     [Fact]
-    public void OneParserProfileVersionRunsOncePerSnapshot()
+    public void OneParserProfileVersionRunsOncePerSnapshotAndCompanionSet()
     {
         IEntityType run = Model.FindEntityType(typeof(Domain.Scheduling.Parsing.ParseRun))!;
 
         IIndex index = Assert.Single(run.GetIndexes(), candidate => candidate.IsUnique);
 
         Assert.Equal(
-            ["SourceSnapshotId", "ParserProfile", "ParserProfileVersion"],
+            ["SourceSnapshotId", "ParserProfile", "ParserProfileVersion", "CompanionFingerprint"],
             index.Properties.Select(property => property.Name));
+        Assert.False(run.FindProperty("CompanionFingerprint")!.IsNullable);
+    }
+
+    /// <summary>
+    /// The companion list is stored as a JSON array, so "names no companion" and
+    /// "has not been reconciled" cannot be confused (ADR-102).
+    /// </summary>
+    [Fact]
+    public void CompanionSourceIdsAreStoredAsARequiredJsonArray()
+    {
+        IProperty companions = Model.FindEntityType(typeof(ScheduleSource))!
+            .FindProperty("CompanionSourceIds")!;
+
+        Assert.False(companions.IsNullable);
+        Assert.Equal("jsonb", companions.GetColumnType());
     }
 
     [Fact]

@@ -16,12 +16,20 @@ public interface IScheduleParseResultStore
     /// How long a run may stay open before it is treated as abandoned by a worker
     /// that no longer exists. The policy is the caller's, not the store's.
     /// </param>
+    /// <param name="companionFingerprint">
+    /// The companion evidence this parse will read besides <paramref name="snapshot"/>,
+    /// reduced to one value by <see cref="ParseRunCompanionFingerprint"/>, or
+    /// <see cref="ParseRunCompanionFingerprint.None"/> when it will read none. It
+    /// is part of the run's identity, so a changed companion opens a new run
+    /// instead of being reported as already parsed (ADR-102).
+    /// </param>
     Task<BeginParseRunResult> BeginOrResumeAsync(
         SourceSnapshot snapshot,
         ScheduleSource source,
         string correlationId,
         DateTimeOffset startedAtUtc,
         TimeSpan staleRunTimeout,
+        string companionFingerprint,
         CancellationToken cancellationToken);
 
     Task<ScheduleRevision?> CompleteAsync(

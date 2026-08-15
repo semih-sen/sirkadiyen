@@ -41,7 +41,7 @@ internal sealed class CanonicalScheduleRecordConfiguration
 
         // A bedside topic is a paragraph the faculty wrote, not a label, so this
         // is bounded generously rather than at the width of the other text
-        // columns (ADR-088).
+        // columns (ADR-101).
         builder.Property(record => record.Notes).HasMaxLength(4000);
         builder.Property(record => record.Departments)
             .HasConversion(new DepartmentListConverter())

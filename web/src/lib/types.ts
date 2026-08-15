@@ -53,6 +53,12 @@ export interface SupportedProfileOptions {
 }
 
 export interface SupportedProfileProgram {
+  /**
+   * The academic year this program's own sources were captured for. It may
+   * differ from the schema's during a rollover, because the faculty publishes
+   * one grade at a time (ADR-103).
+   */
+  academicYear: string;
   classYear: number;
   programLanguage: ProgramLanguage;
   dimensions: SupportedProfileDimension[];

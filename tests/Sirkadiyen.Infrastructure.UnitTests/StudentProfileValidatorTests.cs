@@ -93,7 +93,61 @@ public sealed class StudentProfileValidatorTests
     [Fact]
     public void AClassYearWithNoConfirmedProfileIsUnsupported()
     {
-        StudentProfileValidationResult result = Validate(3, ProgramLanguage.Turkish);
+        // Grade 4 has no captured source at all, so it is the honest example of a
+        // class year nothing publishes for.
+        StudentProfileValidationResult result = Validate(4, ProgramLanguage.Turkish);
+
+        StudentProfileValidationError error = Assert.Single(result.Errors);
+        Assert.Equal(StudentProfileValidationErrorCode.UnsupportedProgram, error.Code);
+    }
+
+    [Fact]
+    public void AConfirmedGradeThreeTurkishCohortIsValid()
+    {
+        StudentProfileValidationResult result = Validate(
+            3,
+            ProgramLanguage.Turkish,
+            ("curriculumGroup", "3-A"),
+            ("facultyPracticeGroup", "A5"));
+
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
+    }
+
+    /// <summary>
+    /// A cohort belongs to one curriculum group's rotation, so the pair has to be
+    /// consistent (ADR-099).
+    /// </summary>
+    /// <remarks>
+    /// The A and B faculty-practice programs are separate documents with separate
+    /// rotations. A student in <c>3-A</c> who declared <c>B5</c> would match no
+    /// published session at all, and nothing downstream would report why.
+    /// </remarks>
+    [Fact]
+    public void AGradeThreeCohortFromTheOtherCurriculumGroupIsRejected()
+    {
+        StudentProfileValidationResult result = Validate(
+            3,
+            ProgramLanguage.Turkish,
+            ("curriculumGroup", "3-A"),
+            ("facultyPracticeGroup", "B5"));
+
+        StudentProfileValidationError error = Assert.Single(result.Errors);
+        Assert.Equal(StudentProfileValidationErrorCode.UnsupportedValue, error.Code);
+        Assert.Equal("facultyPracticeGroup", error.Key);
+    }
+
+    /// <summary>
+    /// The Grade 3 English program states no A/B division, so nothing can be
+    /// onboarded for it yet (ADR-098).
+    /// </summary>
+    [Fact]
+    public void GradeThreeEnglishHasNoConfirmedProfileYet()
+    {
+        StudentProfileValidationResult result = ValidateWith(
+            3,
+            ProgramLanguage.English,
+            "0102240048");
 
         StudentProfileValidationError error = Assert.Single(result.Errors);
         Assert.Equal(StudentProfileValidationErrorCode.UnsupportedProgram, error.Code);

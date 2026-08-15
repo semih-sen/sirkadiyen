@@ -209,7 +209,7 @@ public sealed class CanonicalScheduleRecord
 
     /// <summary>
     /// Free text a source states about this session that has no field of its
-    /// own — today, the topic a Grade 3 bedside session is about (ADR-088).
+    /// own — today, the topic a Grade 3 bedside session is about (ADR-101).
     /// </summary>
     /// <remarks>
     /// It is content rather than identity: it is part of the parser's content

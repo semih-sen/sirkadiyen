@@ -37,6 +37,7 @@ def build_parse_request(
     academic_year: str,
     class_year: int,
     program_language: str,
+    auxiliary_fixtures: tuple[str, ...] = (),
     correlation_id: str = "golden-run",
     time_zone_id: str = "Europe/Istanbul",
 ) -> ParseSnapshotRequest:
@@ -44,6 +45,10 @@ def build_parse_request(
 
     The request is validated through the camel-case wire path, so the test
     exercises the same validation a real producer would.
+
+    ``auxiliary_fixtures`` names the companion snapshots the poller would attach
+    for this source. They are supporting evidence and never a second schedule:
+    the profile decides what, if anything, to read from them.
     """
     return ParseSnapshotRequest.model_validate(
         {
@@ -57,6 +62,9 @@ def build_parse_request(
                 "timeZoneId": time_zone_id,
             },
             "snapshot": load_fixture_json(fixture),
+            "auxiliarySnapshots": [
+                load_fixture_json(auxiliary) for auxiliary in auxiliary_fixtures
+            ],
         }
     )
 

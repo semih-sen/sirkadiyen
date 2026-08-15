@@ -10,25 +10,37 @@ namespace Sirkadiyen.Application.StudentProfiles;
 /// is defined in code, unit-tested against the source catalog, and changes only
 /// at academic-year rollover, which is a deployment anyway (ADR-055).
 /// <para>
-/// Only cohorts confirmed by a committed, current-year fixture appear here
-/// (ADR-048). Grade 1 anatomy and Grade 3 selectors are deliberately absent
-/// until their sources are captured and their profiles implemented. Grade 2
-/// English practice is now evidenced, but that program stays absent until its
-/// annual group-labelled rows and shared vertical-corridor sessions have safe
-/// audience handling (ADR-084); adding it sooner would expose an incomplete or
-/// over-broad calendar as complete.
+/// Only cohorts confirmed by a committed fixture appear here (ADR-048). Grade 1
+/// anatomy is deliberately absent until its source is captured. Grade 2 English
+/// practice is now evidenced, but that program stays absent until its annual
+/// group-labelled rows and shared vertical-corridor sessions have safe audience
+/// handling (ADR-084); adding it sooner would expose an incomplete or over-broad
+/// calendar as complete. The Grade 3 English program is absent for the reason
+/// its parser records: that program states no A/B division at all, so it has no
+/// selector to declare and nothing to onboard beyond class year (ADR-098).
+/// </para>
+/// <para>
+/// The programs no longer share one academic year. The faculty published the
+/// 2026-2027 Grade 3 documents while Grades 1 and 2 were still on 2025-2026, so
+/// each program states the year its own sources were captured for (ADR-103).
 /// </para>
 /// </remarks>
 public static class CurrentSupportedProfileSchema
 {
+    /// <summary>The year this schema revision was cut for.</summary>
     public const string AcademicYear = "2025-2026";
 
+    /// <summary>The year the Grade 3 rollover captured (ADR-103).</summary>
+    public const string Grade3AcademicYear = "2026-2027";
+
     /// <summary>
-    /// Bumped to 1.1 when Grade 2 Turkish was added (ADR-079). It is recorded on
-    /// every stored profile, so a profile written under 1.0 stays identifiable as
-    /// one validated before Grade 2 existed.
+    /// Bumped to 1.1 when Grade 2 Turkish was added (ADR-079), and to 1.2 when
+    /// Grade 3 Turkish arrived and each program began stating its own academic
+    /// year (ADR-103). It is recorded on every stored profile, so a profile
+    /// written under an earlier version stays identifiable as one validated
+    /// before those programs existed.
     /// </summary>
-    public const string SchemaVersion = "1.1";
+    public const string SchemaVersion = "1.2";
 
     public static SupportedProfileSchema Create() => new()
     {
@@ -39,11 +51,13 @@ public static class CurrentSupportedProfileSchema
             Grade1Turkish(),
             Grade1English(),
             Grade2Turkish(),
+            Grade3Turkish(),
         ],
     };
 
     private static SupportedProfileProgram Grade1Turkish() => new()
     {
+        AcademicYear = AcademicYear,
         ClassYear = 1,
         ProgramLanguage = ProgramLanguage.Turkish,
         Dimensions =
@@ -66,6 +80,7 @@ public static class CurrentSupportedProfileSchema
 
     private static SupportedProfileProgram Grade1English() => new()
     {
+        AcademicYear = AcademicYear,
         ClassYear = 1,
         ProgramLanguage = ProgramLanguage.English,
         Dimensions =
@@ -103,6 +118,7 @@ public static class CurrentSupportedProfileSchema
     /// </remarks>
     private static SupportedProfileProgram Grade2Turkish() => new()
     {
+        AcademicYear = AcademicYear,
         ClassYear = 2,
         ProgramLanguage = ProgramLanguage.Turkish,
         Dimensions =
@@ -128,6 +144,54 @@ public static class CurrentSupportedProfileSchema
             },
         ],
     };
+
+    /// <summary>
+    /// Grade 3 Turkish: the curriculum group the whole class year is split into,
+    /// and the faculty-practice cohort within it.
+    /// </summary>
+    /// <remarks>
+    /// The two dimensions are dependent, not independent, and this is the one
+    /// place that matters: the A and B programs are separate documents with
+    /// separate rotations, and a cohort number means a different rotation in
+    /// each. A student in <c>3-A</c> may only be one of <c>A1</c>-<c>A8</c>, so
+    /// the cohort is offered per group rather than as sixteen flat values that
+    /// would let someone in the A program declare a B rotation (ADR-099).
+    /// <para>
+    /// Both are required. Every Grade 3 lesson is published to one curriculum
+    /// group or both, and every faculty-practice session to exactly one cohort,
+    /// so a student who declared neither would receive nothing.
+    /// </para>
+    /// </remarks>
+    private static SupportedProfileProgram Grade3Turkish() => new()
+    {
+        AcademicYear = Grade3AcademicYear,
+        ClassYear = 3,
+        ProgramLanguage = ProgramLanguage.Turkish,
+        Dimensions =
+        [
+            new SupportedProfileDimension
+            {
+                Key = "curriculumGroup",
+                Required = true,
+                Values = ["3-A", "3-B"],
+            },
+            new SupportedProfileDimension
+            {
+                Key = "facultyPracticeGroup",
+                Required = true,
+                DependsOn = "curriculumGroup",
+                ValuesByParent = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal)
+                {
+                    ["3-A"] = [.. EightCohorts("A")],
+                    ["3-B"] = [.. EightCohorts("B")],
+                },
+            },
+        ],
+    };
+
+    /// <summary>The eight faculty-practice cohorts of one curriculum group.</summary>
+    private static IEnumerable<string> EightCohorts(string letter) =>
+        Enumerable.Range(1, 8).Select(index => $"{letter}{index}");
 
     /// <summary>Builds the two-subgroup-per-group map, for example A → A1, A2.</summary>
     private static IReadOnlyDictionary<string, IReadOnlyList<string>> TwoSubgroupsEach(

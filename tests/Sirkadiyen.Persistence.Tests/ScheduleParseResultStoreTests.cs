@@ -34,6 +34,7 @@ public sealed class ScheduleParseResultStoreTests(PostgresFixture fixture)
             "correlation-1",
             now,
             StaleAfter,
+            ParseRunCompanionFingerprint.None,
             Token);
         ScheduleRevision? revision = await store.CompleteAsync(
             begun.ParseRunId,
@@ -88,6 +89,7 @@ public sealed class ScheduleParseResultStoreTests(PostgresFixture fixture)
             "correlation-1",
             now,
             StaleAfter,
+            ParseRunCompanionFingerprint.None,
             Token);
         ScheduleRevision? revision = await store.CompleteAsync(
             begun.ParseRunId,
@@ -133,6 +135,7 @@ public sealed class ScheduleParseResultStoreTests(PostgresFixture fixture)
             "correlation-1",
             now,
             StaleAfter,
+            ParseRunCompanionFingerprint.None,
             Token);
         ScheduleRevision? revision = await store.CompleteAsync(
             begun.ParseRunId,
@@ -171,6 +174,7 @@ public sealed class ScheduleParseResultStoreTests(PostgresFixture fixture)
             "correlation-1",
             now,
             StaleAfter,
+            ParseRunCompanionFingerprint.None,
             Token);
 
         // No Complete and no Fail: this is what a killed worker leaves behind.
@@ -180,6 +184,7 @@ public sealed class ScheduleParseResultStoreTests(PostgresFixture fixture)
             "correlation-2",
             now.Add(StaleAfter),
             StaleAfter,
+            ParseRunCompanionFingerprint.None,
             Token);
 
         Assert.Equal(abandoned.ParseRunId, recovered.ParseRunId);
@@ -211,6 +216,7 @@ public sealed class ScheduleParseResultStoreTests(PostgresFixture fixture)
             "correlation-1",
             now,
             StaleAfter,
+            ParseRunCompanionFingerprint.None,
             Token);
         var second = await store.BeginOrResumeAsync(
             snapshot,
@@ -218,6 +224,7 @@ public sealed class ScheduleParseResultStoreTests(PostgresFixture fixture)
             "correlation-2",
             now.Add(StaleAfter) - TimeSpan.FromSeconds(1),
             StaleAfter,
+            ParseRunCompanionFingerprint.None,
             Token);
 
         Assert.Equal(running.ParseRunId, second.ParseRunId);
@@ -248,6 +255,7 @@ public sealed class ScheduleParseResultStoreTests(PostgresFixture fixture)
             "correlation-1",
             now,
             StaleAfter,
+            ParseRunCompanionFingerprint.None,
             Token);
         await store.BeginOrResumeAsync(
             snapshot,
@@ -255,6 +263,7 @@ public sealed class ScheduleParseResultStoreTests(PostgresFixture fixture)
             "correlation-2",
             now.Add(StaleAfter),
             StaleAfter,
+            ParseRunCompanionFingerprint.None,
             Token);
 
         // The original worker was slow rather than dead and answers after the
@@ -288,6 +297,7 @@ public sealed class ScheduleParseResultStoreTests(PostgresFixture fixture)
             "correlation-1",
             now,
             StaleAfter,
+            ParseRunCompanionFingerprint.None,
             Token);
         await store.FailAsync(first.ParseRunId, now.AddSeconds(1), "HTTP timeout", Token);
         var resumed = await store.BeginOrResumeAsync(
@@ -296,6 +306,7 @@ public sealed class ScheduleParseResultStoreTests(PostgresFixture fixture)
             "correlation-2",
             now.AddMinutes(1),
             StaleAfter,
+            ParseRunCompanionFingerprint.None,
             Token);
 
         Assert.Equal(first.ParseRunId, resumed.ParseRunId);
@@ -307,6 +318,72 @@ public sealed class ScheduleParseResultStoreTests(PostgresFixture fixture)
         Assert.Equal(2, run.AttemptCount);
         Assert.Equal("correlation-2", run.CorrelationId);
         Assert.Null(run.LastStaleRecoveryAtUtc);
+    }
+
+    /// <summary>
+    /// An edited companion document is new evidence, so the same snapshot must be
+    /// parsed again rather than reported as already parsed (ADR-102).
+    /// </summary>
+    /// <remarks>
+    /// Without this the Grade 3 annual would keep the parse it already has when
+    /// only the bedside document changed, and a corrected practice topic would
+    /// never reach a student's calendar. The unchanged snapshot short circuit is
+    /// what makes polling cheap, so the companion has to be part of what the
+    /// short circuit compares.
+    /// </remarks>
+    [Fact]
+    public async Task AChangedCompanionDocumentOpensItsOwnParseRun()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        (ScheduleSource source, SourceSnapshot snapshot) = await AddSourceAndSnapshotAsync(context);
+        ScheduleParseResultStore store = new(context);
+        DateTimeOffset now = new(2026, 7, 22, 9, 0, 0, TimeSpan.Zero);
+        SourceId companionId = SourceId.Parse("G3-TR-A-BEDSIDE");
+
+        var first = await store.BeginOrResumeAsync(
+            snapshot,
+            source,
+            "correlation-1",
+            now,
+            StaleAfter,
+            ParseRunCompanionFingerprint.Compute(
+                [new CompanionEvidence(companionId, "sha256:bedside-1")]),
+            Token);
+        await store.CompleteAsync(
+            first.ParseRunId,
+            Response(source, snapshot, "correlation-1"),
+            now.AddSeconds(2),
+            Token);
+
+        // Same snapshot, same profile version, faculty edited the bedside file.
+        var afterEdit = await store.BeginOrResumeAsync(
+            snapshot,
+            source,
+            "correlation-2",
+            now.AddMinutes(5),
+            StaleAfter,
+            ParseRunCompanionFingerprint.Compute(
+                [new CompanionEvidence(companionId, "sha256:bedside-2")]),
+            Token);
+
+        Assert.NotEqual(first.ParseRunId, afterEdit.ParseRunId);
+        Assert.True(afterEdit.ShouldInvokeParser);
+
+        // The unchanged case still short circuits, which is what keeps polling
+        // cheap for every source that has a companion.
+        var unchanged = await store.BeginOrResumeAsync(
+            snapshot,
+            source,
+            "correlation-3",
+            now.AddMinutes(10),
+            StaleAfter,
+            ParseRunCompanionFingerprint.Compute(
+                [new CompanionEvidence(companionId, "sha256:bedside-1")]),
+            Token);
+
+        Assert.Equal(first.ParseRunId, unchanged.ParseRunId);
+        Assert.False(unchanged.ShouldInvokeParser);
     }
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;

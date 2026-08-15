@@ -113,7 +113,7 @@ class CanonicalScheduleCandidate(OutboundContractModel):
 
     #: Free text a source states about this session that has no field of its own
     #: — today, the topic the Grade 3 bedside document gives a session the annual
-    #: program schedules (ADR-088). It is content, not identity: correcting a
+    #: program schedules (ADR-101). It is content, not identity: correcting a
     #: topic must change the event a student already has rather than replace it
     #: with a second one, so it is part of the content hash and never of the
     #: stable identity.
@@ -189,7 +189,7 @@ class ParseSnapshotRequest(ContractModel):
     snapshot: NormalizedSpreadsheetSnapshot
 
     #: Snapshots of companion sources this profile reads alongside its own, in
-    #: the order the catalog declares them (ADR-088). A companion is never the
+    #: the order the catalog declares them (ADR-102). A companion is never the
     #: subject of the parse: no candidate is ever published from one, and a
     #: profile that receives none must produce exactly what it produced before
     #: companions existed. That is why this is optional rather than required —

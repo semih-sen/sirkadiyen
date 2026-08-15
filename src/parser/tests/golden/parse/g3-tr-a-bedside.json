@@ -1,0 +1,84 @@
+{
+  "fixture": "real/g3-tr-a-bedside.snapshot.json",
+  "parserEngineVersion": "0.2.0",
+  "payload": {
+    "candidateCount": 0,
+    "candidateDigests": [],
+    "confidenceIndicators": [],
+    "firstCandidate": null,
+    "lastCandidate": null,
+    "metrics": [
+      {
+        "name": "candidates.emitted",
+        "unit": null,
+        "value": 0.0
+      },
+      {
+        "name": "catalogue.topics",
+        "unit": null,
+        "value": 89.0
+      },
+      {
+        "name": "cells.ignored",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "cells.ignored.unresolvedTopicCode",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "schedule.entries",
+        "unit": null,
+        "value": 91.0
+      },
+      {
+        "name": "schedule.entries.withTopic",
+        "unit": null,
+        "value": 88.0
+      },
+      {
+        "name": "schedule.rows",
+        "unit": null,
+        "value": 56.0
+      },
+      {
+        "name": "worksheets.scanned",
+        "unit": null,
+        "value": 9.0
+      }
+    ],
+    "parserProfile": {
+      "name": "grade3_bedside_v1",
+      "version": "1.0.0"
+    },
+    "responseDigest": "sha256:aed5db798b4df43060065d2750269d4d4908ad4a9f2fe0a654778acd5f4fde7f",
+    "snapshotId": "fixture:sha256:453521d505df277547af5e5929583c1f219808632cb70e1d957cd596a4426f73",
+    "sourceId": "G3-TR-A-BEDSIDE",
+    "status": "completed",
+    "warnings": [
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "bedside.topicCode",
+          "range": "B46",
+          "rawText": "ÇSvH 21",
+          "sheetId": "9",
+          "sheetTitle": "Table 5"
+        },
+        "message": "Cell 'ÇSvH 21' does not name a topic code, so the session on 2026-12-22 was read without one.",
+        "severity": "information"
+      },
+      {
+        "candidateId": null,
+        "code": "bedsideDocumentPublishesNoSessions",
+        "evidence": null,
+        "message": "Read 91 dated bedside sessions and 89 catalogue topics, of which 88 sessions could be given a topic. No session is published from this document: it states no per-session time, and the annual program publishes these events with the time each of them actually has.",
+        "severity": "information"
+      }
+    ]
+  },
+  "subject": "parseResponse"
+}

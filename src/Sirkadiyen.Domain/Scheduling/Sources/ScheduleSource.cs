@@ -39,7 +39,8 @@ public sealed class ScheduleSource
         string? externalId = null,
         long? sheetGid = null,
         IReadOnlyDictionary<string, IReadOnlyList<string>>? supportedAudienceSelectors = null,
-        string? sharedDocumentGroup = null)
+        string? sharedDocumentGroup = null,
+        IReadOnlyList<SourceId>? companionSourceIds = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceUri);
@@ -49,6 +50,24 @@ public sealed class ScheduleSource
         ArgumentException.ThrowIfNullOrWhiteSpace(timeZoneId);
         ArgumentOutOfRangeException.ThrowIfLessThan(classYear, 1);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(classYear, 6);
+
+        IReadOnlyList<SourceId> companions = companionSourceIds is null ? [] : [.. companionSourceIds];
+        if (companions.Contains(sourceId))
+        {
+            throw new ArgumentException(
+                $"Source '{sourceId}' names itself as its own companion.",
+                nameof(companionSourceIds));
+        }
+
+        if (companions.Distinct().Count() != companions.Count)
+        {
+            // A repeated companion would be attached to the parse request twice
+            // and counted twice in the companion fingerprint, so the same
+            // document would look like two pieces of evidence (ADR-102).
+            throw new ArgumentException(
+                $"Source '{sourceId}' names the same companion more than once.",
+                nameof(companionSourceIds));
+        }
 
         Id = Guid.CreateVersion7();
         SourceId = sourceId;
@@ -66,6 +85,7 @@ public sealed class ScheduleSource
         SheetGid = sheetGid;
         SupportedAudienceSelectors = supportedAudienceSelectors;
         SharedDocumentGroup = sharedDocumentGroup;
+        CompanionSourceIds = companions;
         IsPollingEnabled = true;
     }
 
@@ -128,6 +148,25 @@ public sealed class ScheduleSource
     /// to upload the identical file once per program (ADR-080).
     /// </remarks>
     public string? SharedDocumentGroup { get; private set; }
+
+    /// <summary>
+    /// Other sources whose latest snapshot this source's parser reads alongside
+    /// its own, in catalog order (ADR-102).
+    /// </summary>
+    /// <remarks>
+    /// A companion is supporting evidence, never a second schedule: the Grade 3
+    /// annual program states the date and time of every bedside session, and the
+    /// bedside document is the only source of what each session is about. The
+    /// companion publishes nothing of its own here — its own source and profile
+    /// still parse it separately if it has anything to publish.
+    /// <para>
+    /// Empty is the normal case and means the parser sees only this source's
+    /// document. A companion that has never been acquired is simply absent from
+    /// the parse request: the parser must degrade rather than wait, because a
+    /// missing topic is far cheaper than a schedule that never reaches a student.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<SourceId> CompanionSourceIds { get; private set; } = [];
 
     public bool IsPollingEnabled { get; private set; }
 

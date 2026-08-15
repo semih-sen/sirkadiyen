@@ -1,0 +1,61 @@
+{
+  "fixture": "real/g3-tr-b-bedside.snapshot.json",
+  "parserEngineVersion": "0.2.0",
+  "payload": {
+    "candidateCount": 0,
+    "candidateDigests": [],
+    "confidenceIndicators": [],
+    "firstCandidate": null,
+    "lastCandidate": null,
+    "metrics": [
+      {
+        "name": "candidates.emitted",
+        "unit": null,
+        "value": 0.0
+      },
+      {
+        "name": "catalogue.topics",
+        "unit": null,
+        "value": 87.0
+      },
+      {
+        "name": "schedule.entries",
+        "unit": null,
+        "value": 92.0
+      },
+      {
+        "name": "schedule.entries.withTopic",
+        "unit": null,
+        "value": 87.0
+      },
+      {
+        "name": "schedule.rows",
+        "unit": null,
+        "value": 53.0
+      },
+      {
+        "name": "worksheets.scanned",
+        "unit": null,
+        "value": 2.0
+      }
+    ],
+    "parserProfile": {
+      "name": "grade3_bedside_v1",
+      "version": "1.0.0"
+    },
+    "responseDigest": "sha256:f04f7531e6faf762a999e8f754377ebef1bdbd810ab26ace3b38272346e1fa43",
+    "snapshotId": "fixture:sha256:eefefe7e88a4d646cdfb98c4976cc8510874b0f6922954c09aedb4f1f5417b56",
+    "sourceId": "G3-TR-B-BEDSIDE",
+    "status": "completed",
+    "warnings": [
+      {
+        "candidateId": null,
+        "code": "bedsideDocumentPublishesNoSessions",
+        "evidence": null,
+        "message": "Read 92 dated bedside sessions and 87 catalogue topics, of which 87 sessions could be given a topic. No session is published from this document: it states no per-session time, and the annual program publishes these events with the time each of them actually has.",
+        "severity": "information"
+      }
+    ]
+  },
+  "subject": "parseResponse"
+}

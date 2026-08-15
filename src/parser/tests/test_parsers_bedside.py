@@ -160,7 +160,7 @@ def test_the_document_publishes_no_sessions_of_its_own() -> None:
     """The annual program owns these events, because it proves each one's time.
 
     This document's only time is a heading over its catalogue, and that heading
-    is wrong for the sessions the annual puts at 14:00 (ADR-087).
+    is wrong for the sessions the annual puts at 14:00 (ADR-100).
     """
     response = parse(
         [worksheet("Text 1", CATALOGUE), worksheet("Table 1", SPACED_SCHEDULE, index=1)]

@@ -990,7 +990,7 @@ def test_the_english_program_is_not_split_into_curriculum_groups() -> None:
     """Its 49 joint-lecture rows name the Turkish A group, which it does not have.
 
     Selecting on that group would hide those lectures from every English
-    student, none of whom can declare it (ADR-085).
+    student, none of whom can declare it (ADR-098).
     """
     rows = [
         *lesson_row(1, term="Time Table 3", title="PRESENTATION OF CLASS 3"),

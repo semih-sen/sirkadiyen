@@ -56,7 +56,7 @@ public sealed class ManagedCalendarEventFactoryTests
     {
         // The bedside document is the only source of what a session is about,
         // and the annual program is the only source of when it is, so the topic
-        // is read from one and published on the other (ADR-088).
+        // is read from one and published on the other (ADR-100).
         CanonicalScheduleRecord record = CalendarTestData.Record(
             displayTitle: "Hasta Başı Uygulama-1 A Grubu (İç H.) B Grubu (ÇSvH)",
             eventType: ScheduleEventType.BedsidePractice,

@@ -345,7 +345,7 @@ def parse_annual_snapshot(
     # one cohort and one workbook — but 49 of its rows name the Turkish A group,
     # because those lectures are given jointly. Selecting on that group would
     # hide them from every English student, who has no such group to declare, so
-    # for that program the term cell states only the class year (ADR-085).
+    # for that program the term cell states only the class year (ADR-098).
     curriculum_group_audience = (
         DIMENSION_CURRICULUM_GROUP in profile.audience_dimensions
         and request.source_context.program_language is not ProgramLanguage.ENGLISH
@@ -640,7 +640,7 @@ def _read_companion_topics(
     then this profile publishes exactly what it published before companions
     existed. That is deliberate: the annual program is the only source of these
     sessions' times, and it must never wait on a document it merely enriches
-    from (ADR-088).
+    from (ADR-102).
     """
     if not profile.companion_source_family or not request.auxiliary_snapshots:
         return {}
@@ -971,7 +971,7 @@ def _build_draft(
 
     # The bedside document states what each of these sessions is about, and this
     # workbook states when it is. Joining them on the date and the group is what
-    # puts the topic on the event a student actually has (ADR-088). A session
+    # puts the topic on the event a student actually has (ADR-100). A session
     # whose topic the companion does not state keeps no note at all.
     notes = (
         _bedside_topic(bedside_topics, audience, resolved_date)

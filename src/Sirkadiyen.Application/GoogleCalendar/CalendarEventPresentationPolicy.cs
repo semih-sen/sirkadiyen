@@ -52,7 +52,7 @@ public static partial class CalendarEventPresentationPolicy
         // The topic goes last and on its own paragraph: it is a sentence or two
         // of prose, while everything above it is a short labelled value, and a
         // student reading the event wants to know what the session is about
-        // after they know whose it is (ADR-088).
+        // after they know whose it is (ADR-101).
         if (!string.IsNullOrWhiteSpace(record.Notes))
         {
             if (lines.Count > 0)

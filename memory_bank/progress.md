@@ -73,12 +73,12 @@
 
 - [ ] Add first-year source fixtures
 - [x] Add second-year annual and Turkish practice source fixtures (`g2-{tr,en}-annual`, `g2-tr-practice`)
-- [ ] Add third-year source fixtures
+- [x] Add third-year source fixtures (all eight 2026-2027 documents, `g3-*.snapshot.json`)
 - [ ] Add weekly amphitheatre fixtures
 - [ ] Document every source
 - [x] Add confirmed mixed-transport source catalog
 - [x] Implement Google Sheets client
-- [x] Implement Google Drive client (Drive v3 REST download, verified, DOCX only — ADR-083)
+- [x] Implement Google Drive client (Drive v3 REST download, verified, DOCX and XLSX — ADR-083)
 - [x] Implement value acquisition
 - [x] Implement merge and metadata acquisition
 - [x] Implement normalized snapshot contract
@@ -130,13 +130,14 @@
 - [x] Second-year anatomy autumn (`grade2_anatomy_autumn_v1`, ADR-078)
 - [x] Second-year anatomy spring (`grade2_anatomy_spring_v1`, same implementation)
 - [x] Second-year vertical corridor (`grade2_vertical_corridor_v1`, ADR-077)
-- [ ] Third-year Turkish A annual
-- [ ] Third-year Turkish A bedside
-- [ ] Third-year Turkish A faculty practice
-- [ ] Third-year Turkish B annual
-- [ ] Third-year Turkish B bedside
-- [ ] Third-year Turkish B faculty practice
-- [ ] Third-year English source profiles
+- [x] Third-year Turkish A annual (`grade3_yearly_v1`, ADR-098/100)
+- [x] Third-year Turkish A bedside (`grade3_bedside_v1`, publishes nothing by design, ADR-100)
+- [x] Third-year Turkish A faculty practice (`grade3_faculty_practice_v1`, ADR-099)
+- [x] Third-year Turkish B annual (same profile)
+- [x] Third-year Turkish B bedside (same profile)
+- [x] Third-year Turkish B faculty practice (same profile)
+- [x] Third-year English annual (same profile; its program states no A/B division, ADR-098)
+- [ ] Third-year faculty-practice room lookup (`grade3_faculty_locations_v1` declared, unimplemented)
 - [ ] Weekly amphitheatre enrichment
 
 ## Phase 7: Revision and validation pipeline
@@ -457,8 +458,9 @@ length, digest or container Drive stated for it, rather than converting a bad ac
 into a snapshot. The snapshot records only that it was downloaded: acquisition diagnostics
 are part of the content hash, so a name or a modification time recorded as provenance would
 make an unedited re-save look like a change. Drive metadata is therefore not a change
-signal; the converted content hash is. A poll now separates `UnsupportedTransport` from
-`UnsupportedDocumentFormat`, which is what the Drive-published Grade 3 workbooks report.
+signal; the converted content hash is. A poll separates `UnsupportedTransport` from
+`UnsupportedDocumentFormat`; since Drive learned to read XLSX (2026-08-15) the only
+source reporting either is `SHARED-AMPHI`, which waits on an HTTP adapter.
 
 Every Grade 2 source now has a parser profile, including the verified English practice
 source. Grade 2 English itself is not yet admitted to the supported-profile schema:
@@ -522,10 +524,9 @@ verified session.
 The Google source credential is resolved; a service account is configured. It now
 carries the Drive read-only scope beside the Sheets one, so the Cloud project needs
 the Drive API enabled and the vertical-corridor documents shared with the account
-(ADR-083). An HTTP acquisition adapter, a workbook converter for the Drive-published
-Grade 3 sources, and the remaining source fixtures/parser profiles are still required.
-DOCX conversion, administrative DOCX acquisition and Drive DOCX acquisition are
-implemented.
+(ADR-083). DOCX conversion, administrative DOCX acquisition, Drive DOCX acquisition
+and — since 2026-08-15 — Drive XLSX acquisition are implemented. An HTTP acquisition
+adapter is still required, and `SHARED-AMPHI` is the only source waiting on it.
 
 ADR-087 separates the admin information architecture into dedicated routes; the
 overview no longer embeds operational forms. Live source, revision, color, freeze and
@@ -684,3 +685,51 @@ enter and never leave.
   "endpoint exists, UI not built". A profile change is still not written to the cross-cutting
   `AuditEvent` log, so the trail for a resync deletion is the ledger and the worker log.
 
+
+## Grade 3 is parsed and onboardable (2026-08-15)
+
+Grade 3 was the last catalogued class year with no parser. Three profiles are now
+implemented and registered, all eight 2026-2027 documents are committed and snapshotted, and
+a Grade 3 student can declare a profile.
+
+- **`grade3_yearly_v1`** reuses `annual.py` behind three profile-gated changes: an unlabelled
+  term column, a term cell that states its class year twice (`Dönem 3A+3B Grubu`), and
+  `curriculumGroup` audiences. Grade 1 and 2 goldens are byte-identical, which was verified
+  rather than assumed. It publishes all 92 bedside sessions with the times the annual states,
+  and excludes the 64 `Öğretim üyesi Uygulama` rotation rows under ADR-073.
+- **`grade3_faculty_practice_v1`** reads the eight-block rotation matrix. The hyphen enumerates
+  (settled against the data: 127 of 128 rows state each cohort exactly once under that reading,
+  and zero rows require the alternative), and a contradictory row is refused **per cohort**, not
+  whole — the one faulty row publishes six cohorts, refuses two ambiguous cells and records one
+  cohort absent (ADR-099).
+- **`grade3_bedside_v1`** publishes nothing by design. It is the reader the annual profile calls
+  for practice topics, and it is registered and golden-tested so the document is accounted for.
+- **`grade3_faculty_locations_v1`** is declared but unimplemented, so the room lookup returns
+  501 instead of being dispatched to the matrix parser. The room join itself is still unbuilt.
+- **Bedside topics reach the event description.** A canonical record now carries free-text
+  `notes`, part of the content hash and of no stable identity (ADR-101), rendered as a trailing
+  `Konu:` paragraph. 88 of 92 topics resolve for the A group and 87 of 92 for B; the rest are
+  genuine gaps in the documents' own catalogues.
+- **A parse may read companion snapshots** (ADR-102). A source names its companions in the
+  catalog, the poller attaches each companion's latest stored snapshot, and the companion set is
+  part of the parse run's identity via a `CompanionFingerprint` — without which editing the
+  bedside document alone would leave the annual short-circuited as already parsed. A companion
+  that has never been acquired is simply absent: the annual publishes with no topic line rather
+  than waiting.
+- **Each supported program states its own academic year** (ADR-103, schema 1.2). The Grade 3
+  documents are 2026-2027 while Grades 1 and 2 are still 2025-2026, and audience resolution
+  matches a record to a student on that year, so one schema-wide year would have given every
+  Grade 3 student an empty calendar with no fault reported anywhere.
+- **Two .NET fixes were prerequisites.** `tools/Sirkadiyen.SnapshotTool` did not compile, and
+  the XLSX number-format classifier read the `[$-F800]` *locale* prefix as a currency, silently
+  turning one date row into text and dropping eight sessions from an otherwise complete
+  schedule.
+- Migration `AddCompanionSourceEvidence` adds `schedule_sources.CompanionSourceIds` (jsonb,
+  default `[]`) and `parse_runs.CompanionFingerprint`, and widens the parse-run uniqueness key
+  to include it. Migration `AddCanonicalScheduleRecordNotes` adds one nullable text column.
+- 827 `.NET` tests pass (Contracts 6, Api 5, Infrastructure 577, Persistence 239 against the
+  real PostgreSQL database), 487 Python tests pass, ruff and mypy are clean over 56 files, and
+  the solution builds with 0 warnings. Eight new golden files cover every Grade 3 source, plus
+  one extra case covering the A annual **without** its companion.
+- **Not verified:** no live Drive acquisition was run, because no Google source credential is
+  configured in this environment. The XLSX download path is covered by unit tests only.

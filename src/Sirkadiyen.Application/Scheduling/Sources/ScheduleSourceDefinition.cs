@@ -66,6 +66,12 @@ public sealed record ScheduleSourceDefinition
     /// </summary>
     public string? SharedDocumentGroup { get; init; }
 
+    /// <summary>
+    /// Other source IDs whose latest snapshot is handed to this source's parser
+    /// as supporting evidence (ADR-102).
+    /// </summary>
+    public IReadOnlyList<string>? CompanionSourceIds { get; init; }
+
     public string? FixturePath { get; init; }
 
     public string? Notes { get; init; }
@@ -86,5 +92,8 @@ public sealed record ScheduleSourceDefinition
         ExternalId,
         SheetGid,
         SupportedAudienceSelectors,
-        SharedDocumentGroup);
+        SharedDocumentGroup,
+        CompanionSourceIds
+            ?.Select(Domain.Scheduling.Sources.SourceId.Parse)
+            .ToArray());
 }
