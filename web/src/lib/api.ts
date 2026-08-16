@@ -23,7 +23,14 @@ import type {
   OperationalFreezeSnapshot,
   OperationalFreezeScope,
   ProblemDetails,
+  RejectRevisionResponse,
+  ReleaseDiffResponse,
+  RetryDiffResponse,
   RevisionState,
+  CalendarDispatchState,
+  ScheduleDiffDetail,
+  ScheduleDiffState,
+  ScheduleDiffSummary,
   ScheduleRevisionDetail,
   ScheduleRevisionSummary,
   RedeemLicenseResponse,
@@ -547,6 +554,70 @@ export function approveRevision(
     method: 'POST',
     body: { approvalReason },
   });
+}
+
+/**
+ * Closes a quarantined revision terminally (ADR-097). There is no rollback: the correction is a
+ * newer revision published over this one from a corrected source (ADR-033).
+ */
+export function rejectRevision(
+  revisionId: string,
+  rejectionReason: string,
+): Promise<RejectRevisionResponse> {
+  return request<RejectRevisionResponse>(`/api/revisions/${revisionId}/reject`, {
+    method: 'POST',
+    body: { rejectionReason },
+  });
+}
+
+// ---- Diff review (SuperAdmin) --------------------------------------------
+// Two queues behind one route. Listing by `state` gives the held-review queue; listing by
+// `dispatchState` gives the failed fan-out queue, which the state filter can never show because a
+// terminally failed diff is still Ready or Released (ADR-042, ADR-097).
+
+export function listDiffs(
+  state: ScheduleDiffState = 'Held',
+  limit = 50,
+): Promise<ScheduleDiffSummary[]> {
+  return request<ScheduleDiffSummary[]>(withQuery('/api/diffs/', { state, limit }));
+}
+
+export function listDiffsByDispatchState(
+  dispatchState: CalendarDispatchState,
+  limit = 50,
+): Promise<ScheduleDiffSummary[]> {
+  return request<ScheduleDiffSummary[]>(withQuery('/api/diffs/', { dispatchState, limit }));
+}
+
+export function getDiff(scheduleDiffId: string, entryLimit = 100): Promise<ScheduleDiffDetail> {
+  return request<ScheduleDiffDetail>(
+    withQuery(`/api/diffs/${encodeURIComponent(scheduleDiffId)}`, { entryLimit }),
+  );
+}
+
+/** Releases a held diff for dispatch on a named operator's behalf. */
+export function releaseDiff(
+  scheduleDiffId: string,
+  releaseReason: string,
+): Promise<ReleaseDiffResponse> {
+  return request<ReleaseDiffResponse>(
+    `/api/diffs/${encodeURIComponent(scheduleDiffId)}/release`,
+    { method: 'POST', body: { releaseReason } },
+  );
+}
+
+/**
+ * Returns a terminally failed diff to the dispatch queue. It grants no new authority: the same
+ * idempotent, ledger-resumable fan-out re-runs against the same immutable diff.
+ */
+export function retryDiff(
+  scheduleDiffId: string,
+  retryReason: string,
+): Promise<RetryDiffResponse> {
+  return request<RetryDiffResponse>(
+    `/api/diffs/${encodeURIComponent(scheduleDiffId)}/retry`,
+    { method: 'POST', body: { retryReason } },
+  );
 }
 
 // ---- Administrative acquisition (SuperAdmin) ------------------------------

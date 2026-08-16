@@ -11,6 +11,7 @@ export type AdminNavKey =
   | 'user-warning'
   | 'sources'
   | 'revisions'
+  | 'diffs'
   | 'colors'
   | 'operations'
   | 'server'
@@ -44,6 +45,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [
       { key: 'sources', label: 'Kaynaklar', icon: '⇄', href: '/admin/sources' },
       { key: 'revisions', label: 'Revizyonlar', icon: '✓', href: '/admin/revisions' },
+      { key: 'diffs', label: 'Diff kuyrukları', icon: '⇅', href: '/admin/diffs' },
       { key: 'colors', label: 'Anabilim dalı renkleri', icon: '◐', href: '/admin/colors' },
     ],
   },

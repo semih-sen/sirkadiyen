@@ -83,6 +83,39 @@ revision can be rejected** and **a terminally failed diff can be retried**, both
 reason-required `SuperAdmin` routes, with the failed-dispatch queue made enumerable by
 `GET /api/diffs?dispatchState=Failed`.
 
+## Latest implementation session (2026-08-15, the three operator UIs)
+
+**Every backend-supported operator action now has a surface.** `web/GAPS.md` §3.2 —
+"endpoint exists, UI not built" — is empty, which closes the class of problem ADR-097 opened the
+backend half of: a state the pipeline can enter and never leave.
+
+- **`/admin/diffs` carries two queues as separate tabs, not one merged list.** Held-review
+  (`?state=Held` → release, ADR-042) and failed-dispatch (`?dispatchState=Failed` → retry,
+  ADR-097). The axes are orthogonal — a terminally failed diff is still `Ready`/`Released`, so the
+  held queue can never show it, and merging them would hide that a *released* diff can still fail
+  its fan-out.
+- **A refusal is stated in words rather than rendered as a disabled button.** An ambiguity hold
+  replaces the reason field and action entirely with why no operator may wave it through. An
+  operator has to learn the action is *wrong here*, not merely unavailable right now.
+- **The changed lessons are shown before either action is offered**, with previous and current
+  side by side and a count of how many entries are displayed. Releasing without seeing which
+  lessons disappear is exactly what the hold exists to prevent.
+- **Rejection is behind a confirmation with its own required reason**, and the confirmation says
+  the action is terminal and that the correction is a newer revision published over it, never a
+  rollback (ADR-033). The review screen also gained a `ReviewRequired`/`Rejected` queue selector.
+- **One backend gap this exposed:** `ScheduleRevisionDetail` did not project the rejection fields,
+  so `POST /api/revisions/{id}/reject` wrote an audit record no read path could return — a
+  terminal decision with no readable trail. Three fields added to the contract and the projection;
+  no migration, and the approval fields stay separate so the trail cannot state the opposite of
+  what happened.
+- 828 .NET tests pass (0 skipped, Persistence against real PostgreSQL) and 20 frontend tests, up
+  from 15. Typecheck clean, production build 24 routes, Release build 0 warnings.
+- **Not done:** alerting on `DispatchRetryCount` (now readable, still unwatched), and a terminal
+  failure state for a stuck per-user initial sync — the retry path covers diffs only.
+- **Pre-existing and untouched:** `dotnet format --verify-no-changes` flags import ordering in
+  `src/Sirkadiyen.Api/Composition/ApiEndpointRouteBuilderExtensions.cs`, a file this session never
+  edited.
+
 ### Open risks — sync gating and operator recovery (2026-08-05)
 
 - **A revoked student's calendar silently drifts.** That is the intended product behaviour (ADR-022
@@ -94,11 +127,11 @@ reason-required `SuperAdmin` routes, with the failed-dispatch queue made enumera
 - **Profile-resync deletions are scoped to the profile's academic year.** An event written under a
   previous academic year would never be cleaned up by this path. Correct while no year rollover
   exists — there is no such data — and it must be revisited when one does.
-- **Neither operator route has a UI.** `POST /api/revisions/{id}/reject` and
-  `POST /api/diffs/{id}/retry` join held-diff release in `web/GAPS.md` as "endpoint exists, UI not
-  built".
-- **A repeatedly retried diff is visible but not alerted on.** `DispatchRetryCount` makes it
-  readable; nothing watches it, which is the still-unbuilt alerting work.
+- ~~**Neither operator route has a UI.**~~ **Closed 2026-08-15.** `POST /api/revisions/{id}/reject`,
+  `POST /api/diffs/{id}/retry` and held-diff release all have surfaces; see the session note above.
+- **A repeatedly retried diff is visible but not alerted on.** `DispatchRetryCount` is now rendered
+  in `/admin/diffs` beside the failure reason, so an operator reading the queue sees it; nothing
+  *watches* it, which remains the still-unbuilt alerting work.
 - **A persistently failing per-user initial sync still has no terminal state**, so it retries every
   cycle with nothing to retry *from* — the retry path built here covers diffs only.
 
@@ -131,9 +164,9 @@ reason-required `SuperAdmin` routes, with the failed-dispatch queue made enumera
   patched-since-created are reported. The prototype's 8-stage timeline still lacks a data source.
 - **`GET /api/licenses/status` returns no "time remaining"** — Sirkadiyen access does not lapse
   after activation. A trial/expiry concept would be a new decision.
-- **Held-diff release is the remaining backend-supported admin UI gap.** Dashboard,
-  user/license, source warning/evidence, access/audit, scoped freeze and server-health
-  contracts are wired; endpointless finance/bulk-event/user-warning areas remain explicit gaps.
+- ~~**Held-diff release is the remaining backend-supported admin UI gap.**~~ **Closed 2026-08-15**
+  along with failed-diff retry and revision rejection. Finance was closed by ADR-094. Only the
+  endpointless bulk-event and user-warning areas remain explicit gaps.
 - **`GET /api/admin/metrics` is a JSON count snapshot, not a metrics exporter.** A
   Prometheus/OpenTelemetry `/metrics` endpoint and host CPU/RAM/Redis gauges (server dashboard)
   remain unbuilt and would need their own decision.

@@ -215,13 +215,15 @@
   run/revision, ADR-089)
 - [x] Snapshot inspection backend (`GET /api/admin/sources/{id}` recent snapshots, ADR-089)
 - [x] Parser warning review (latest persisted parser warnings and source evidence exposed in source detail; revision validation findings remain on `GET /api/revisions/{id}`)
-- [ ] Revision diff viewer
-- [~] Manual publish and reject (`POST /api/revisions/{id}/reject` implemented, ADR-097; manual
-  publish of a validated revision is still the worker's job only)
+- [x] Revision diff viewer (`/admin/diffs` renders each actionable entry's previous/current lesson)
+- [~] Manual publish and reject (reject implemented end to end — `POST /api/revisions/{id}/reject`
+  plus its review-queue UI, ADR-097; manual publish of a validated revision is still the worker's
+  job only)
 - [x] User sync status backend (`GET /api/admin/users(+detail)`: profile, licenses,
   managed-event count, onboarding state, recent sign-ins, ADR-089)
-- [~] Retry failed jobs (`POST /api/diffs/{id}/retry` plus `GET /api/diffs?dispatchState=Failed`,
-  ADR-097; a persistently failing per-user initial sync still has no terminal state to retry from)
+- [~] Retry failed jobs (`POST /api/diffs/{id}/retry` plus `GET /api/diffs?dispatchState=Failed`
+  and their `/admin/diffs` queue, ADR-097; a persistently failing per-user initial sync still has
+  no terminal state to retry from)
 - [x] Audit log viewer backend (`GET /api/admin/audit`, `GET /api/admin/access-logs` with
   masked IP + audited unmask, ADR-089)
 - [x] Health checks (API and internal Worker `/health/live` + `/health/ready`, parser `/health` probe, ADR-089/091)
@@ -243,8 +245,9 @@
 - [x] Onboarding route gating by authoritative backend state
 - [x] SuperAdmin routed to admin panel instead of student onboarding (ADR-067)
 - [~] Admin/operator interfaces (freeze including class/program scopes, source warning
-  evidence, user/license administration, audit/access logs and worker/parser health are
-  wired; held-diff release and endpointless product domains remain)
+  evidence, user/license administration, audit/access logs, worker/parser health, and the
+  held/failed diff queues with revision rejection are wired; only endpointless product
+  domains remain)
 - [x] Administrative document upload UI, driven by `GET /api/sources/uploadable` (ADR-081)
 - [x] Component system / design system (ported the Wise-inspired prototype design
   system into `web/src/app/globals.css` + shared `web/src/components/ui.tsx`; light
@@ -733,3 +736,48 @@ a Grade 3 student can declare a profile.
   one extra case covering the A annual **without** its companion.
 - **Not verified:** no live Drive acquisition was run, because no Google source credential is
   configured in this environment. The XLSX download path is covered by unit tests only.
+
+## The three operator UIs are wired (2026-08-15)
+
+Every backend-supported operator action now has a surface. This closes the whole of
+`web/GAPS.md` §3.2 — the "endpoint exists, UI not built" category is empty — and with it the
+class of problem ADR-097 opened the backend half of: a state the pipeline can enter with no
+way out.
+
+- **`/admin/diffs` is a new route carrying two queues as separate tabs.** *Bekletilen diff'ler*
+  reads `GET /api/diffs/?state=Held` and releases (ADR-042); *Başarısız dağıtım* reads
+  `GET /api/diffs/?dispatchState=Failed` and retries (ADR-097). They are deliberately not one
+  merged list: the axes are orthogonal, a terminally failed diff is still `Ready`/`Released`, and
+  merging would hide that a *released* diff can still fail its fan-out.
+- **A refusal is stated, never rendered as a disabled button.** An ambiguity hold
+  (`isReleasable` false) replaces the reason field and the action entirely with the explanation
+  that releasing it would leave the previous lesson in every affected calendar and never write
+  its replacement — the source has to say which lesson is which. Same shape for a dispatch state
+  that is not terminally failed.
+- **The changed lessons are shown before either action is offered.** A row expands into
+  `GET /api/diffs/{id}` and lists each actionable entry's previous and current lesson, saying how
+  many of `actionableEntryCount` are displayed. Releasing without seeing which lessons disappear
+  is what the hold exists to prevent.
+- **The retry count is surfaced beside the failure reason,** since a diff retried repeatedly is
+  the signal that the failure is not transient. Nothing watches it — alerting is still unbuilt.
+- **Revision rejection** lives in the existing review screen behind a confirmation step with its
+  own required reason, and the confirmation says in words that the action is terminal and the
+  correction is a newer revision published over it, never a rollback (ADR-033).
+- **The review screen gained a `ReviewRequired` / `Rejected` queue selector**, which rejection
+  being terminal made necessary: a rejected revision leaves the review queue, so without it the
+  recorded reason was unreachable.
+- **One backend change was required.** `ScheduleRevisionDetail` did not project `RejectedBy` /
+  `RejectionReason` / `RejectedAtUtc`, so the reject endpoint wrote a record no read path could
+  return. Three fields added to the application contract and the persistence projection. No
+  migration, no behaviour change; the approval fields stay separate so the trail can never state
+  the opposite of what happened.
+- 828 `.NET` tests pass, 0 skipped (Contracts 6, Api 5, Infrastructure 577, Persistence 240
+  against the real PostgreSQL database) — one new persistence test proving the rejection record
+  reads back. 20 frontend tests pass, up from 15: the five new ones cover the reason requirement
+  on release, the ambiguity refusal rendering as words rather than a disabled control, the failed
+  queue being fetched by `dispatchState` rather than review state, rejection's confirm-plus-reason
+  path, and a rejected revision reading back with no action offered. `npm run typecheck` is clean
+  and the production build succeeds with 24 routes.
+- **Pre-existing, untouched by this session:** `dotnet format --verify-no-changes` reports an
+  import-ordering error in `src/Sirkadiyen.Api/Composition/ApiEndpointRouteBuilderExtensions.cs`,
+  a file with no changes in this session. Every file this session touched is clean.

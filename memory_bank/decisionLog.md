@@ -5592,3 +5592,59 @@ computed and every check downstream reporting success.
   anatomy and Grade 2 English remain absent for their own recorded reasons.
 
 ---
+
+## ADR-104: The two diff operator queues are separate, and a refusal is stated
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-15
+**Implements:** `web/src/components/DiffQueues.tsx`, `/admin/diffs`, the rejection path in
+`web/src/components/RevisionReview.tsx`, `ScheduleRevisionDetail` rejection fields
+**Amends:** ADR-042, ADR-097
+
+### Context
+
+ADR-042 and ADR-097 built three operator actions with no surface: releasing a held diff,
+retrying a terminally failed one, and rejecting a quarantined revision. Each existed to give a
+stuck state a way out, and each was reachable only by an operator able to reproduce a session
+cookie and an antiforgery token by hand, which is the same practical dead end ADR-081 hit for
+administrative upload.
+
+Two things about the shape of that queue are not obvious and were decided rather than defaulted
+into.
+
+### Decision
+
+1. **The held queue and the failed-dispatch queue are separate screens.** They read the same
+   route with different filters because the axes are orthogonal: `state` answers "may this diff
+   be acted on", `dispatchState` answers "has it been". A terminally failed diff is still `Ready`
+   or `Released`, so the held queue cannot show it. One merged list would present a released diff
+   that failed its fan-out as if it were awaiting review, and would make the two very different
+   actions look interchangeable.
+2. **An action that is forbidden is replaced by the reason, not disabled.** An ambiguity hold is
+   never releasable, and a diff whose dispatch has not failed is not retriable. Both render the
+   explanation in place of the field and the button. A disabled control teaches an operator to
+   wait for it to become enabled; an ambiguity hold never will, because it is only ever fixed at
+   the source.
+3. **The changed lessons are shown before the action.** A row expands into the diff's actionable
+   entries with previous and current side by side, and states how many of the total are
+   displayed. Releasing a diff without seeing which lessons it deletes is rubber-stamping, which
+   is what the hold exists to prevent.
+4. **Rejection is confirm-then-reason, and reads back.** It is behind a confirmation step whose
+   text states the action is terminal and that the correction is a newer revision published over
+   it, never a rollback (ADR-033). `ScheduleRevisionDetail` now projects `RejectedBy` /
+   `RejectionReason` / `RejectedAtUtc`, and the review screen gained a `Rejected` queue: without
+   both, a terminal decision would leave a record no operator surface could ever return.
+
+### Consequences
+
+- `web/GAPS.md` §3.2 is empty. Every backend-supported operator action has a surface.
+- The rejection fields are additive on a read-only projection: no migration, no behaviour change,
+  and the approval fields stay separate so the trail cannot state the opposite of what happened.
+- `DispatchRetryCount` and the last retrying operator are now visible beside the failure reason,
+  because a diff retried repeatedly is the signal the failure is not transient. Nothing watches
+  it; alerting remains unbuilt.
+- Nothing new is authorized. Both writes are the existing SuperAdmin, CSRF-protected,
+  reason-required endpoints, and a retry re-runs the same immutable diff through the same
+  idempotent, ledger-resumable fan-out.
+
+---

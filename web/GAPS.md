@@ -66,7 +66,8 @@ These screens are connected to real routes and were re-skinned, not stubbed:
 | Dashboard (real modules) | `GET /api/calendar/sync`, `GET /api/profile` |
 | Admin · freeze | `GET/POST /api/operations/freeze`, `GET/POST /api/operations/freeze/scopes` |
 | Admin · document upload | `GET /api/sources/uploadable`, `POST /api/sources/{id}/document`, `GET .../uploads` |
-| Admin · revision review | `GET /api/revisions`, `GET /api/revisions/{id}`, `POST /api/revisions/{id}/approve` |
+| Admin · revision review | `GET /api/revisions`, `GET /api/revisions/{id}`, `POST /api/revisions/{id}/approve`, `POST /api/revisions/{id}/reject` |
+| Admin · diff queues | `GET /api/diffs?state=Held`, `GET /api/diffs?dispatchState=Failed`, `GET /api/diffs/{id}`, `POST /api/diffs/{id}/release`, `POST /api/diffs/{id}/retry` |
 | Admin · self-activation | `POST /api/admin/users/{id}/activate` |
 | Admin · department colors | `GET/PUT/POST /api/admin/calendar-colors` |
 | Admin · license create/revoke | `POST /api/admin/licenses`, `POST /api/admin/licenses/{id}/revoke` |
@@ -126,11 +127,8 @@ fabricate records or metrics. The sections below separate remaining gaps from wi
 
 ### 3.2 Endpoint exists, UI not built (cheapest next steps)
 
-| Screen / module | Existing routes | Notes |
-| --- | --- | --- |
-| Diff serbest bırakma (held-diff release) | `GET /api/diffs`, `GET /api/diffs/{id}`, `POST /api/diffs/{id}/release` | Backend live (ADR-042). An ambiguity hold is **not** releasable and must be shown as such. Only the UI is missing. |
-| Başarısız diff yeniden deneme (failed-diff retry) | `GET /api/diffs?dispatchState=Failed`, `POST /api/diffs/{id}/retry` | Backend live (ADR-097). A separate queue from the held one: a failed diff is still `Ready`/`Released` in its review state, so it must be listed by `dispatchState`. The summary carries `dispatchAttempts`, `dispatchFailureReason` and `dispatchRetryCount` — show the retry count, since a diff retried repeatedly is the signal. |
-| Revizyon reddi (revision rejection) | `POST /api/revisions/{id}/reject` | Backend live (ADR-097). The review queue UI already exists and offers approve only; reject needs a required reason and must be presented as terminal — the correction is a newer revision from a corrected source, never a rollback. |
+**All three entries in this section were closed on 2026-08-15** — see the update at the end of
+this document. Nothing currently sits in this category.
 
 ### 3.3 Wired read-only administration views
 
@@ -140,6 +138,8 @@ fabricate records or metrics. The sections below separate remaining gaps from wi
 - `/admin/server`: API liveness/readiness, internal worker `/health/ready`, parser `/health` probe and database-backed point-in-time counts. CPU/RAM/Redis metrics remain unavailable and are not fabricated.
 - `/admin/finance`: ten-figure summary/trends, transaction CRUD/export/history, obligation lifecycle,
   account/holder/share management, binding profit distribution and append-only finance audit.
+- `/admin/diffs`: the held and failed-dispatch diff queues with their changed lessons, plus the
+  reason-required release and retry actions (these two are write surfaces, not read-only).
 
 ---
 
@@ -165,15 +165,61 @@ ADR-095 through ADR-097 added backend behaviour with frontend consequences:
   student their calendar is being updated rather than leaving them to wonder. The work is the
   worker's; the response only says it was requested.
 - **Two new operator routes have no UI**, both listed in §3.2: revision rejection and failed-diff
-  retry.
+  retry. **Both were wired on 2026-08-15**; see the update below.
+
+---
+
+---
+
+## Update — the three operator UIs are wired (2026-08-15)
+
+The whole of §3.2 is closed. Every backend-supported operator action now has a surface, so no
+state the pipeline can enter is left without a way out of it.
+
+- **`/admin/diffs`** (new route, `DiffQueues.tsx`) carries **two** queues, deliberately as
+  separate tabs rather than one merged list:
+  - *Bekletilen diff'ler* reads `GET /api/diffs/?state=Held` and releases through
+    `POST /api/diffs/{id}/release`.
+  - *Başarısız dağıtım* reads `GET /api/diffs/?dispatchState=Failed` and retries through
+    `POST /api/diffs/{id}/retry`.
+
+  They are separate because the two axes are orthogonal: a terminally failed diff is still
+  `Ready`/`Released` in its review state, so the held queue can never show it. Merging them would
+  hide that a *released* diff can still fail its fan-out.
+- **An ambiguity hold renders as a stated refusal, not a disabled button.** `isReleasable` false
+  replaces the whole reason field and action with the explanation that releasing it would leave
+  the previous lesson in every affected calendar and never write its replacement — so the source
+  has to state which lesson is which (ADR-042). Same shape for a non-retriable dispatch state.
+- **The changed lessons are shown before either action is offered.** Expanding a row loads
+  `GET /api/diffs/{id}`, listing each actionable entry with its previous and current lesson,
+  and says how many of `actionableEntryCount` are displayed. Releasing without seeing which
+  lessons disappear is rubber-stamping, which is the whole point of the hold.
+- **The retry count is surfaced, not just the failure.** `dispatchRetryCount`, the last retrying
+  operator and their reason are rendered, because a diff retried repeatedly is the real signal
+  that the failure is not transient. Nothing alerts on it yet — that remains the unbuilt alerting
+  work, not a UI gap.
+- **Revision rejection** is in the existing review screen (`RevisionReview.tsx`), behind a
+  confirmation step with its own required reason, never reusing the approval field. The
+  confirmation states in words that the action is terminal and that the correction is a newer
+  revision published over it, never a rollback (ADR-033).
+- **The review screen gained a queue selector** (`ReviewRequired` / `Rejected`). This was
+  required by rejection being terminal: once rejected, the revision leaves the review queue, and
+  without a rejected queue the recorded reason would be unreadable from any operator surface.
+
+### One backend change was needed
+
+`ScheduleRevisionDetail` did not project `RejectedBy` / `RejectionReason` / `RejectedAtUtc`, so
+`POST /api/revisions/{id}/reject` wrote an audit record no read path could return. Three fields
+added to the application contract and the persistence projection; no migration, no behaviour
+change, and the approval fields stay separate so the trail can never state the opposite of what
+happened.
 
 ---
 
 ## 5. Suggested build order for closing gaps
 
-1. Wire **held-diff release**, **failed-diff retry** and **revision rejection** (backends already
-   exist — §3.2).
-2. Add a per-user sync activity log before exposing `GET /api/calendar/sync/history`.
-3. Decide and implement notification and contact contracts.
-4. Add exporter/host telemetry only if CPU/RAM/Redis visibility becomes a requirement; worker/parser process health is already wired.
-5. Remaining new product domains without a backend: bulk event and user warning.
+1. Add a per-user sync activity log before exposing `GET /api/calendar/sync/history`.
+2. Decide and implement notification and contact contracts.
+3. Add exporter/host telemetry only if CPU/RAM/Redis visibility becomes a requirement; worker/parser process health is already wired.
+4. Remaining new product domains without a backend: bulk event and user warning.
+5. Alerting on `DispatchRetryCount` — the value is now readable in the UI, but nothing watches it.

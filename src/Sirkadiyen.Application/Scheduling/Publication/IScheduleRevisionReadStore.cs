@@ -51,6 +51,22 @@ public sealed record ScheduleRevisionDetail
     public DateTimeOffset? ApprovedAtUtc { get; init; }
 
     public DateTimeOffset? PublishedAtUtc { get; init; }
+
+    /// <summary>
+    /// Who closed the review terminally, and why (ADR-097). Never the approval fields: a
+    /// rejection recorded under <see cref="ApprovedBy"/> would state the opposite of what
+    /// happened.
+    /// </summary>
+    /// <remarks>
+    /// Read back here because rejection is terminal. Once the revision leaves
+    /// <c>ReviewRequired</c> the queue no longer lists it, so without these the reason it never
+    /// reached a calendar would be unrecoverable from any operator surface.
+    /// </remarks>
+    public string? RejectedBy { get; init; }
+
+    public string? RejectionReason { get; init; }
+
+    public DateTimeOffset? RejectedAtUtc { get; init; }
 }
 
 public sealed record RevisionFindingView

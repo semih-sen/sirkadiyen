@@ -79,6 +79,9 @@ public sealed class ScheduleRevisionReadStore(SirkadiyenDbContext dbContext)
             ApprovalReason = revision.ApprovalReason,
             ApprovedAtUtc = revision.ApprovedAtUtc,
             PublishedAtUtc = revision.PublishedAtUtc,
+            RejectedBy = revision.RejectedBy,
+            RejectionReason = revision.RejectionReason,
+            RejectedAtUtc = revision.RejectedAtUtc,
         };
     }
 }

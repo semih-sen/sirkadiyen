@@ -442,7 +442,7 @@ export interface OperationalFreezeChangeResult {
 }
 
 // Revision review (SuperAdmin): GET /api/revisions/?state=…, GET /api/revisions/{id},
-// POST /api/revisions/{id}/approve
+// POST /api/revisions/{id}/approve, POST /api/revisions/{id}/reject (ADR-032, ADR-097)
 export type RevisionState =
   | 'Parsed'
   | 'Validated'
@@ -480,6 +480,10 @@ export interface ScheduleRevisionDetail {
   approvalReason?: string | null;
   approvedAtUtc?: string | null;
   publishedAtUtc?: string | null;
+  /** Set only on a terminally rejected revision; never the approval fields (ADR-097). */
+  rejectedBy?: string | null;
+  rejectionReason?: string | null;
+  rejectedAtUtc?: string | null;
 }
 
 // Administrative acquisition (SuperAdmin): GET /api/sources/uploadable,
@@ -532,6 +536,103 @@ export interface ApproveRevisionResponse {
   approved: boolean;
   publicationOutcome: string;
   supersededRevisionId?: string | null;
+}
+
+export interface RejectRevisionResponse {
+  revisionId: string;
+  rejected: boolean;
+}
+
+// Diff review (SuperAdmin): GET /api/diffs/?state=…|?dispatchState=…, GET /api/diffs/{id},
+// POST /api/diffs/{id}/release (ADR-042), POST /api/diffs/{id}/retry (ADR-097).
+//
+// The two operator queues are orthogonal. `state` answers "may this diff be acted on" — the
+// held-review queue. `dispatchState` answers "has it been" — the only way to find a diff whose
+// fan-out failed terminally, since such a diff is still Ready or Released in its review state.
+export type ScheduleDiffState = 'Ready' | 'Held' | 'Released' | string;
+
+export type CalendarDispatchState = 'Pending' | 'Dispatched' | 'Failed' | string;
+
+export type ScheduleDiffChange = 'Created' | 'Updated' | 'Deleted' | 'Unchanged' | 'Ambiguous' | string;
+
+export type ScheduleDiffMatch = 'None' | 'ExactStableIdentity' | 'SecondaryAttributes' | string;
+
+export interface ScheduleDiffSummary {
+  scheduleDiffId: string;
+  sourceId: string;
+  state: ScheduleDiffState;
+  currentRevisionId: string;
+  previousRevisionId?: string | null;
+  createdCount: number;
+  updatedCount: number;
+  deletedCount: number;
+  unchangedCount: number;
+  ambiguousCount: number;
+  previousRecordCount: number;
+  currentRecordCount: number;
+  createdAtUtc: string;
+  holdReason?: string | null;
+  /**
+   * Whether an operator may release it. False on an ambiguity hold, which is only ever fixed at
+   * the source (ADR-042) — the UI must present that as a refusal, not a disabled button with no
+   * explanation.
+   */
+  isReleasable: boolean;
+  releasedBy?: string | null;
+  releaseReason?: string | null;
+  releasedAtUtc?: string | null;
+  calendarDispatchState: CalendarDispatchState;
+  dispatchAttempts: number;
+  dispatchedAtUtc?: string | null;
+  /** Why the last dispatch attempt failed; the operator's evidence for a retry. */
+  dispatchFailureReason?: string | null;
+  isDispatchRetriable: boolean;
+  /** How many times an operator has already retried it. A rising count is the real signal. */
+  dispatchRetryCount: number;
+  lastDispatchRetriedBy?: string | null;
+  lastDispatchRetryReason?: string | null;
+  lastDispatchRetriedAtUtc?: string | null;
+}
+
+/** One lesson as a revision published it. Times are null on both for an all-day item. */
+export interface ScheduleDiffRecordView {
+  recordId: string;
+  displayTitle: string;
+  localDate: string;
+  startLocalTime?: string | null;
+  endLocalTime?: string | null;
+  isAllDay: boolean;
+  audienceSelectors: string;
+  instructor?: string | null;
+  location?: string | null;
+}
+
+export interface ScheduleDiffEntryView {
+  change: ScheduleDiffChange;
+  match: ScheduleDiffMatch;
+  matchScore?: number | null;
+  previous?: ScheduleDiffRecordView | null;
+  current?: ScheduleDiffRecordView | null;
+}
+
+export interface ScheduleDiffDetail {
+  summary: ScheduleDiffSummary;
+  entries: ScheduleDiffEntryView[];
+  /** How many actionable entries exist, which may exceed the returned ones. */
+  actionableEntryCount: number;
+}
+
+export interface ReleaseDiffResponse {
+  scheduleDiffId: string;
+  released: boolean;
+  releasedAtUtc?: string | null;
+}
+
+export interface RetryDiffResponse {
+  scheduleDiffId: string;
+  retried: boolean;
+  retriedAtUtc?: string | null;
+  dispatchRetryCount: number;
 }
 
 // Finance administration (SuperAdmin): /api/admin/finance/*

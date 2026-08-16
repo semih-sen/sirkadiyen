@@ -237,6 +237,41 @@ public sealed class ScheduleRevisionPublicationStoreTests(PostgresFixture fixtur
     }
 
     [Fact]
+    public async Task ARejectedRevisionReadsBackWhoDecidedAndWhy()
+    {
+        // Rejection is terminal, so the revision leaves the review queue for good. This
+        // projection is the only surface that can still answer why it never reached a calendar.
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        (_, ScheduleRevision revision) =
+            await AddRevisionAsync(context, RevisionState.ReviewRequired);
+
+        await new ScheduleRevisionPublicationStore(context).RejectAsync(
+            revision.Id,
+            "semih",
+            "The workbook was mid-edit; half the rooms are blank.",
+            Now,
+            Token);
+
+        context.ChangeTracker.Clear();
+        ScheduleRevisionDetail? detail =
+            await new ScheduleRevisionReadStore(context).FindAsync(revision.Id, Token);
+
+        Assert.NotNull(detail);
+        Assert.Equal(RevisionState.Rejected, detail.Summary.State);
+        Assert.Equal("semih", detail.RejectedBy);
+        Assert.Equal(
+            "The workbook was mid-edit; half the rooms are blank.",
+            detail.RejectionReason);
+        Assert.Equal(Now, detail.RejectedAtUtc);
+
+        // The two decisions are separate fields precisely so the trail cannot state the
+        // opposite of what happened.
+        Assert.Null(detail.ApprovedBy);
+        Assert.Null(detail.PublishedAtUtc);
+    }
+
+    [Fact]
     public async Task ARejectedRevisionIsNotQueuedForPublication()
     {
         Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
