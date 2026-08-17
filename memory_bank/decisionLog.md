@@ -5648,3 +5648,88 @@ into.
   idempotent, ledger-resumable fan-out.
 
 ---
+
+## ADR-105: A profile change is a student-reachable action and an audited one
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-16
+**Implements:** `AuditEventCategory.ProfileUpdated`, `ProfileUpdatedAuditMetadata`,
+`SaveStudentProfileResult.AudienceChanged`, `web/src/components/AcademicProfileForm.tsx`,
+`web/src/app/profile/page.tsx`
+**Amends:** ADR-055, ADR-096
+
+### Context
+
+ADR-096 made a profile change converge the student's calendar: a write that alters the resolved
+audience records `ProfileResyncRequiredSinceUtc`, and a fenced worker stage inserts what now
+applies and removes what no longer does. `PUT /api/profile` reports `calendarResyncRequested` so a
+screen can say so.
+
+Two things were missing, and they compound.
+
+**No screen could reach it.** The only academic-profile UI was `/onboarding/profile`, gated by
+`OnboardingGate` to the single onboarding state `ProfileRequired`. Once a student had a profile
+they were never in that state again, so an Active student could not change their group at all —
+the dashboard showed the profile read-only. The entire ADR-096 feature, the fenced worker stage
+included, was unreachable from the product. `web/GAPS.md` §3.2 claimed the "endpoint exists, UI
+not built" category was empty; this belonged in it. The typed browser contract had also never
+carried `calendarResyncRequested`, so the field the backend had been returning since ADR-096 was
+invisible to TypeScript.
+
+**No audit row was written.** AI_GUIDELINE §19 lists a profile change as auditable, and after
+ADR-096 the change can *delete* calendar events. The only trail was the mapping ledger and the
+worker log, so "why did these lessons disappear from my calendar" had no answer in the audit
+surface an operator actually reads.
+
+### Decision
+
+**1. A sixth `AuditEvent` category, `ProfileUpdated`, written by the endpoint.** It carries the
+resolved audience as structured metadata — academic year, class year, program language, selectors —
+plus `audienceChanged` and `calendarResyncRequested`.
+
+The two flags are recorded separately, and this is the substance of the decision rather than
+bookkeeping. They differ for a real case: an audience change on an account with no completed
+calendar connection queues nothing, because initial sync will resolve the new audience when it
+runs. Recording only the queued flag would make that indistinguishable from a change the audience
+rule does not read at all — the two have opposite meanings when reading the trail backwards from a
+calendar that lost events. `SaveStudentProfileResult` therefore gained `AudienceChanged`, which the
+store already reported and the service had been dropping.
+
+**The student number is deliberately not recorded.** It identifies the person and answers nothing
+about which lessons the profile resolves, so it has no place in a log an operator reads to explain
+a calendar change (AI_GUIDELINE §15). A test asserts its absence rather than trusting the shape of
+the record.
+
+**2. The form is shared, and the edit surface is its own route.** `AcademicProfileForm` is the
+onboarding step's form extracted unchanged, plus an `initial` prefill. `/profile` renders it for
+every onboarding state in which a profile already exists — `CalendarAuthorizationRequired`,
+`ReadyForInitialSync`, `InitialSyncInProgress`, `Active`, `ActionRequired` — and the dashboard's
+academic-profile card links to it.
+
+`ProfileRequired` is excluded because the onboarding step owns it, and `Suspended` is excluded
+because the backend refuses the write for an unactivated account (`ActivationRequired`): offering
+the form there would be a promise the API cannot keep.
+
+**3. What the save is allowed to claim is a component, not a string at the call site.**
+`ProfileSaveNotice` renders the requested re-synchronization as background work the worker will
+perform, never as a finished one — the response says it was *requested* (AI_GUIDELINE §16). When
+the flag is false it claims nothing about the calendar at all, because false has more than one
+cause and the screen cannot tell which.
+
+### Consequences
+
+- The ADR-096 worker stage now has a way to be triggered by the person it exists for. Until this,
+  it could only fire through a direct API call.
+- A prefilled form is a deliberate choice over a blank one: re-declaring an unchanged cohort by
+  hand invites a mistyped selector, and a mistyped selector silently moves a calendar.
+- A stored program the schema no longer defines is shown as an unsupported combination rather than
+  blanked, so a schema change is visible to the student instead of looking like they never chose.
+  This is the ADR-055 open risk (a profile stored under an older schema version is not
+  re-validated) becoming visible at the one moment the student can act on it.
+- The audit read path needed no change: `GET /api/admin/audit` binds the category from the enum, so
+  a new member is queryable immediately. The admin filter's hardcoded option list did need
+  extending — it had also been missing both finance categories since ADR-093.
+- Not addressed: an operator cannot yet change a student's profile on their behalf, and the audit
+  row records the student as the actor because only the student can perform the write today.
+
+---

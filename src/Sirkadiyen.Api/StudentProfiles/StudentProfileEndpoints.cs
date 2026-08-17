@@ -1,14 +1,20 @@
 using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore.Antiforgery;
 using Sirkadiyen.Api.Identity;
+using Sirkadiyen.Application.Auditing;
 using Sirkadiyen.Application.Onboarding;
 using Sirkadiyen.Application.StudentProfiles;
+using Sirkadiyen.Contracts.Serialization;
+using Sirkadiyen.Domain.Auditing;
 using Sirkadiyen.Domain.Scheduling.Sources;
 
 namespace Sirkadiyen.Api.StudentProfiles;
 
 public static class StudentProfileEndpoints
 {
+    private static readonly JsonSerializerOptions AuditMetadataOptions = ContractJson.CreateOptions();
+
     public static IEndpointRouteBuilder MapStudentProfileEndpoints(
         this IEndpointRouteBuilder builder)
     {
@@ -50,6 +56,8 @@ public static class StudentProfileEndpoints
         ClaimsPrincipal principal,
         StudentProfileService profileService,
         OnboardingStateService onboarding,
+        AuditEventRecorder audit,
+        HttpContext context,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
@@ -89,6 +97,36 @@ public static class StudentProfileEndpoints
         switch (result.Outcome)
         {
             case SaveStudentProfileOutcome.Saved:
+                // A profile change can retire calendar events the previous audience received
+                // (ADR-096), so it is auditable in its own right (AI_GUIDELINE §19). Without this,
+                // "why did these lessons disappear" is answerable only from the mapping ledger and
+                // the worker log. The student number is deliberately not recorded: it identifies
+                // the person and answers nothing about the audience.
+                await audit.RecordAsync(
+                    new AuditEventDraft
+                    {
+                        Category = AuditEventCategory.ProfileUpdated,
+                        ActorUserId = userId,
+                        ActorEmail = UserClaimsPrincipalFactory.GetRequiredEmail(principal),
+                        SubjectType = "StudentProfile",
+                        SubjectId = userId.ToString(),
+                        CorrelationId = context.CorrelationId(),
+                        ClientIp = context.ClientIp(),
+                        UserAgent = context.ClientUserAgent(),
+                        Metadata = JsonSerializer.Serialize(
+                            new ProfileUpdatedAuditMetadata
+                            {
+                                AcademicYear = result.Profile!.AcademicYear,
+                                ClassYear = result.Profile.ClassYear,
+                                ProgramLanguage = result.Profile.ProgramLanguage.ToString(),
+                                Selectors = result.Profile.Selectors,
+                                AudienceChanged = result.AudienceChanged,
+                                CalendarResyncRequested = result.CalendarResyncRequested,
+                            },
+                            AuditMetadataOptions),
+                    },
+                    cancellationToken);
+
                 OnboardingSnapshot state = await onboarding.GetAsync(userId, cancellationToken);
                 return Results.Ok(new SaveStudentProfileResponse
                 {

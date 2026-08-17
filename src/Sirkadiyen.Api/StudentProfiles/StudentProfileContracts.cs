@@ -33,6 +33,31 @@ public sealed record SaveStudentProfileResponse
     public required bool CalendarResyncRequested { get; init; }
 }
 
+/// <summary>
+/// The structured detail recorded with an <see cref="Sirkadiyen.Domain.Auditing.AuditEventCategory.ProfileUpdated"/>
+/// event: what the profile now resolves to, and whether the write changed the audience.
+/// </summary>
+/// <remarks>
+/// <see cref="AudienceChanged"/> and <see cref="CalendarResyncRequested"/> are separate because they
+/// differ for a real case — an audience change on an account with no completed calendar connection
+/// queues nothing, since initial sync will resolve the new audience when it runs. The student number
+/// is deliberately absent: it identifies the person and says nothing about the audience.
+/// </remarks>
+public sealed record ProfileUpdatedAuditMetadata
+{
+    public required string AcademicYear { get; init; }
+
+    public required int ClassYear { get; init; }
+
+    public required string ProgramLanguage { get; init; }
+
+    public required IReadOnlyDictionary<string, string> Selectors { get; init; }
+
+    public required bool AudienceChanged { get; init; }
+
+    public required bool CalendarResyncRequested { get; init; }
+}
+
 /// <summary>The supported profile options the frontend renders its form from.</summary>
 public sealed record SupportedProfileOptionsResponse
 {

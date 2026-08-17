@@ -83,7 +83,51 @@ revision can be rejected** and **a terminally failed diff can be retried**, both
 reason-required `SuperAdmin` routes, with the failed-dispatch queue made enumerable by
 `GET /api/diffs?dispatchState=Failed`.
 
-## Latest implementation session (2026-08-15, the three operator UIs)
+## Latest implementation session (2026-08-16, the profile edit surface and its audit)
+
+**A live backend feature had no way in.** ADR-096 made an audience-changing profile write converge
+the student's calendar through a fenced worker stage, and `PUT /api/profile` reported
+`calendarResyncRequested` so a screen could say so. But the only academic-profile screen was
+`/onboarding/profile`, gated to the single onboarding state `ProfileRequired` — a state a student
+leaves permanently once they have a profile. An active student therefore could not change their
+group at all, and the whole ADR-096 path was reachable only by calling the API directly. This is
+the same class of problem as the three operator UIs, found on the student side (ADR-105).
+
+- **`/profile` is a new route** rendering the shared `AcademicProfileForm`, prefilled from
+  `GET /api/profile`, for every state in which a profile already exists. The dashboard's
+  academic-profile card links to it. `ProfileRequired` stays with the onboarding step;
+  `Suspended` is excluded because the backend refuses the write for an unactivated account —
+  offering the form there would be a promise the API cannot keep.
+- **`calendarResyncRequested` was absent from the typed browser contract entirely.** The backend
+  had returned it since ADR-096 and `SaveStudentProfileResponse` never declared it, so no screen
+  could have rendered it. This is a "contract gap" that hid a whole feature rather than a field.
+- **What a save may claim is a component (`ProfileSaveNotice`), not a string at a call site.** A
+  requested re-synchronization is described as background work the worker will perform, never a
+  finished one. A false flag claims nothing about the calendar, because false has more than one
+  cause and the screen cannot tell which.
+- **A profile change now writes an `AuditEvent`** (`ProfileUpdated`, the sixth category), closing a
+  documented open risk: AI_GUIDELINE §19 lists profile changes as auditable and ADR-096 lets one
+  delete calendar events, so the trail was previously the mapping ledger and the worker log only.
+- **The two outcome flags are recorded separately, and that is the substance of it.**
+  `audienceChanged` without `calendarResyncRequested` is a real case — an account with no completed
+  calendar connection queues nothing, since initial sync resolves the new audience when it runs.
+  One flag would make that indistinguishable from a change the audience rule never reads.
+  `SaveStudentProfileResult` gained `AudienceChanged`, which the store already reported and the
+  service had been silently dropping.
+- **The student number is never recorded** in the audit metadata, and a test asserts its absence
+  rather than trusting the record's shape.
+- **The pre-existing `dotnet format` import-ordering error is fixed**;
+  `dotnet format --verify-no-changes` is now clean over the whole solution.
+- 594 .NET tests pass in the suites that could run (Contracts 6, Api 8, Infrastructure 581) and 27
+  frontend tests, up from 20. Release build 0 warnings, typecheck clean, production build 25 routes.
+- **Not run:** the Persistence integration suite. Docker is not running in this environment and
+  `localhost:15432` is unreachable, so no real PostgreSQL was available. No persistence, migration
+  or query code changed in this session; `StudentProfileStoreTests` already covers all four
+  combinations of the two flags, including audience-changed-with-no-resync.
+- **Not done:** an operator still cannot change a student's profile on their behalf, so the audit
+  row always records the student as the actor.
+
+## Previous implementation session (2026-08-15, the three operator UIs)
 
 **Every backend-supported operator action now has a surface.** `web/GAPS.md` §3.2 —
 "endpoint exists, UI not built" — is empty, which closes the class of problem ADR-097 opened the
@@ -121,9 +165,13 @@ backend half of: a state the pipeline can enter and never leave.
 - **A revoked student's calendar silently drifts.** That is the intended product behaviour (ADR-022
   preserves what was written), but nothing tells them so; the honest message belongs to the
   suspended-onboarding surface, which does not say it yet.
-- **A profile change is not written to the cross-cutting `AuditEvent` log.** AI_GUIDELINE §19 lists
-  profile changes as auditable, and a resync can delete calendar events, so the trail for "why did
-  these disappear" is currently the mapping ledger and the worker log rather than an audit row.
+- ~~**A profile change is not written to the cross-cutting `AuditEvent` log.**~~ **Closed
+  2026-08-16** (ADR-105). `PUT /api/profile` now writes a `ProfileUpdated` audit event carrying the
+  resolved audience and both outcome flags. The row records the student as the actor, because only
+  the student can perform the write today.
+- **A profile change made on a student's behalf has no path.** An operator who has to correct a
+  profile still cannot, so a wrong cohort is only fixable by the student. This became visible once
+  the student had a surface of their own.
 - **Profile-resync deletions are scoped to the profile's academic year.** An event written under a
   previous academic year would never be cleaned up by this path. Correct while no year rollover
   exists — there is no such data — and it must be revisited when one does.

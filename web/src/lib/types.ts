@@ -98,6 +98,13 @@ export interface SaveStudentProfileRequest {
 export interface SaveStudentProfileResponse {
   profile: StudentProfileView;
   onboarding: OnboardingSnapshot;
+  /**
+   * Whether the change altered the audience the profile resolves and therefore queued a calendar
+   * re-synchronization (ADR-096). It reports that the work was *requested*: the worker converges
+   * the calendar on its next cycle, so no screen may present it as a finished synchronization.
+   * It is false for a first profile and for a change the audience rule does not read.
+   */
+  calendarResyncRequested: boolean;
 }
 
 // GET /api/calendar/authorization/options
@@ -312,7 +319,14 @@ export interface SourceStatusDetail {
   recentSnapshots: SourceSnapshotSummary[];
 }
 
-export type AuditEventCategory = 'SignIn' | 'ReconcileRequested' | 'IpUnmasked' | string;
+export type AuditEventCategory =
+  | 'SignIn'
+  | 'ReconcileRequested'
+  | 'IpUnmasked'
+  | 'ProfileUpdated'
+  | 'FinanceTransactionDeleted'
+  | 'FinanceDistributionExecuted'
+  | string;
 
 export interface AuditEventView {
   id: string;

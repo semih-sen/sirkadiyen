@@ -76,6 +76,7 @@ public sealed class StudentProfileService(
         {
             Outcome = SaveStudentProfileOutcome.Saved,
             Profile = stored.Profile,
+            AudienceChanged = stored.AudienceChanged,
             CalendarResyncRequested = stored.CalendarResyncRequested,
         };
     }

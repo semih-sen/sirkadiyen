@@ -50,6 +50,15 @@ public sealed record SaveStudentProfileResult
     public IReadOnlyList<StudentProfileValidationError> ValidationErrors { get; init; } = [];
 
     /// <summary>
+    /// Whether the write changed the audience the profile resolves, regardless of whether a
+    /// re-synchronization followed. It is deliberately separate from
+    /// <see cref="CalendarResyncRequested"/>: an audience change on an account with no completed
+    /// calendar connection queues nothing, and the audit trail has to be able to say which of the
+    /// two happened.
+    /// </summary>
+    public bool AudienceChanged { get; init; }
+
+    /// <summary>
     /// Whether the save queued a calendar re-synchronization because the audience changed
     /// (ADR-096). The worker performs it; this only reports that it was requested.
     /// </summary>

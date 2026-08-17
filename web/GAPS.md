@@ -64,6 +64,7 @@ These screens are connected to real routes and were re-skinned, not stubbed:
 | Calendar step | `GET/POST /api/calendar/authorization`, `.../options` |
 | Initial-sync step | `GET/POST /api/calendar/sync` |
 | Dashboard (real modules) | `GET /api/calendar/sync`, `GET /api/profile` |
+| Profile edit (`/profile`) | `GET /api/profile`, `GET /api/profile/options`, `PUT /api/profile` (reports `calendarResyncRequested`, ADR-096/105) |
 | Admin · freeze | `GET/POST /api/operations/freeze`, `GET/POST /api/operations/freeze/scopes` |
 | Admin · document upload | `GET /api/sources/uploadable`, `POST /api/sources/{id}/document`, `GET .../uploads` |
 | Admin · revision review | `GET /api/revisions`, `GET /api/revisions/{id}`, `POST /api/revisions/{id}/approve`, `POST /api/revisions/{id}/reject` |
@@ -128,7 +129,12 @@ fabricate records or metrics. The sections below separate remaining gaps from wi
 ### 3.2 Endpoint exists, UI not built (cheapest next steps)
 
 **All three entries in this section were closed on 2026-08-15** — see the update at the end of
-this document. Nothing currently sits in this category.
+this document. Nothing currently sits in this category for the **admin** application.
+
+A fourth entry of the same kind was found in the **student** application on 2026-08-16 and closed
+the same day: `PUT /api/profile` and the whole ADR-096 calendar-resynchronization path were live,
+but the only academic-profile screen was the onboarding step, gated to the `ProfileRequired` state,
+so an active student could never reach it. See the update at the end of this document.
 
 ### 3.3 Wired read-only administration views
 
@@ -213,6 +219,42 @@ state the pipeline can enter is left without a way out of it.
 added to the application contract and the persistence projection; no migration, no behaviour
 change, and the approval fields stay separate so the trail can never state the opposite of what
 happened.
+
+---
+
+## Update — the profile edit surface is wired (2026-08-16)
+
+ADR-105. `PUT /api/profile` had been live since ADR-055 and ADR-096 made an audience-changing write
+converge the student's calendar, but the only screen rendering that form was
+`/onboarding/profile`, gated by `OnboardingGate` to the single state `ProfileRequired`. A student
+who had finished onboarding was never in that state again, so **the feature was unreachable from
+the product** — the dashboard showed the profile read-only and offered no way to change it.
+
+- **`/profile`** (new route) renders the shared `AcademicProfileForm`, prefilled from
+  `GET /api/profile`, for every state in which a profile already exists
+  (`CalendarAuthorizationRequired`, `ReadyForInitialSync`, `InitialSyncInProgress`, `Active`,
+  `ActionRequired`). The dashboard's academic-profile card links to it.
+- `ProfileRequired` stays with the onboarding step, and `Suspended` is excluded because the backend
+  refuses the write for an unactivated account — offering the form there would be a promise the API
+  cannot keep.
+- **`calendarResyncRequested` was missing from the typed contract entirely.** The backend had been
+  returning it since ADR-096; `SaveStudentProfileResponse` in `src/lib/types.ts` never declared it,
+  so no screen could have rendered it even if one had wanted to. Added, with the caveat in the type
+  itself: it says the work was *requested*, not that it happened.
+- **What a save may claim is a component,** `ProfileSaveNotice`, not a string at the call site. A
+  requested re-synchronization is described as background work the worker will perform; a false
+  flag claims nothing about the calendar, because false has more than one cause (an unchanged
+  audience, or a changed audience on an account with no completed connection).
+- **The admin audit category filter was extended** — it had been missing both finance categories
+  since ADR-093, and now also carries `ProfileUpdated`.
+
+### One backend change accompanied it
+
+A profile change now writes an `AuditEvent` (`ProfileUpdated`). AI_GUIDELINE §19 lists it as
+auditable and ADR-096 lets it delete calendar events, so the trail for "why did these lessons
+disappear" was previously only the mapping ledger and the worker log. The metadata records the
+resolved audience and **both** outcome flags separately — an audience change that queued nothing is
+a real, different case — and deliberately never the student number.
 
 ---
 

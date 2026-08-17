@@ -133,4 +133,12 @@ public enum AuditEventCategory
 
     /// <summary>A SuperAdmin executed a profit distribution (ADR-093).</summary>
     FinanceDistributionExecuted,
+
+    /// <summary>
+    /// A student created or replaced their own academic profile. Recorded because a profile change
+    /// can retire calendar events the previous audience received (ADR-096), so "why did these
+    /// lessons disappear" would otherwise be answerable only from the mapping ledger and the worker
+    /// log (AI_GUIDELINE §19).
+    /// </summary>
+    ProfileUpdated,
 }

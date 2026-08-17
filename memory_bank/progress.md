@@ -226,6 +226,8 @@
   no terminal state to retry from)
 - [x] Audit log viewer backend (`GET /api/admin/audit`, `GET /api/admin/access-logs` with
   masked IP + audited unmask, ADR-089)
+- [x] Audit a student profile change (`AuditEventCategory.ProfileUpdated` with the resolved
+  audience and both outcome flags, never the student number; ADR-105)
 - [x] Health checks (API and internal Worker `/health/live` + `/health/ready`, parser `/health` probe, ADR-089/091)
 - [x] Metrics (`GET /api/admin/metrics` JSON operational-count snapshot, ADR-089)
 - [~] Structured logs (correlation-id middleware stamps every request/log line; a full
@@ -240,6 +242,8 @@
 - [x] Google sign-in (GIS ID token)
 - [x] License redemption UI
 - [x] Academic profile UI (dynamic cohort dimensions from `/api/profile/options`)
+- [x] Academic profile **edit** surface for a student past onboarding (`/profile`, shared
+  `AcademicProfileForm`, honest `calendarResyncRequested` reporting, ADR-105)
 - [x] Calendar authorization UI (popup code flow)
 - [x] Initial-sync start and progress polling UI
 - [x] Onboarding route gating by authoritative backend state
@@ -781,3 +785,36 @@ way out.
 - **Pre-existing, untouched by this session:** `dotnet format --verify-no-changes` reports an
   import-ordering error in `src/Sirkadiyen.Api/Composition/ApiEndpointRouteBuilderExtensions.cs`,
   a file with no changes in this session. Every file this session touched is clean.
+
+## The profile edit surface and its audit (2026-08-16)
+
+A live backend feature had no way in. ADR-096 made an audience-changing profile write converge the
+student's calendar through a fenced worker stage, and `PUT /api/profile` reported
+`calendarResyncRequested` so a screen could say so — but the only academic-profile screen was
+`/onboarding/profile`, gated to `ProfileRequired`, a state a student leaves permanently once they
+have a profile. The whole ADR-096 path was reachable only by calling the API directly (ADR-105).
+
+- **`/profile`** renders the shared `AcademicProfileForm` prefilled from `GET /api/profile`, for
+  every onboarding state in which a profile already exists. The dashboard's academic-profile card
+  links to it. `Suspended` is excluded because the backend refuses the write for an unactivated
+  account; offering the form there would be a promise the API cannot keep.
+- **`calendarResyncRequested` was missing from the typed browser contract entirely** — a contract
+  gap that hid a whole feature rather than a field.
+- **A profile change now writes a `ProfileUpdated` audit event**, closing the documented gap
+  against AI_GUIDELINE §19. `audienceChanged` and `calendarResyncRequested` are recorded
+  separately because they genuinely differ: an audience change on an account with no completed
+  calendar connection queues nothing. `SaveStudentProfileResult` gained `AudienceChanged`, which
+  the store already reported and the service had been dropping. The student number is never
+  recorded, and a test asserts its absence.
+- **The admin audit category filter** had also been missing both finance categories since ADR-093;
+  it now carries all six.
+- **The pre-existing `dotnet format` import-ordering error is fixed.**
+  `dotnet format --verify-no-changes` is clean over the solution.
+- 594 .NET tests pass in the suites that could run (Contracts 6, Api 8 up from 5, Infrastructure
+  581 up from 577) and 27 frontend tests, up from 20. Release build 0 warnings, typecheck clean,
+  production build 25 routes.
+- **Not run:** the Persistence integration suite — Docker is not running here and `localhost:15432`
+  is unreachable, so no real PostgreSQL was available. No persistence, migration or query code
+  changed; `StudentProfileStoreTests` already covers all four combinations of the two flags.
+- **Not done:** an operator still cannot change a student's profile on their behalf, so the audit
+  row always records the student as the actor.
