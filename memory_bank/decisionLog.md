@@ -5877,3 +5877,103 @@ serves three interfaces with.
   medical faculty's scale; it is a scan that grows with the student body.
 
 ---
+
+## ADR-108: The account directory filters on the server, and one account is a page
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-17
+**Implements:** `AdminUserQuery` (extended), `AdminUserReadStore`, `AdminUserEndpoints`
+(`GET /api/admin/users/{id}/calendar-events`, `.../calendar-changes`),
+`AdminUserDetailResponse.RecentActivity`, `AdminUserCalendarConnection`,
+`IAnnouncementStore.ListAsync(targetUserId)`, `web/src/components/AdminUserFilterBar.tsx`,
+`web/src/components/AdminUserDetail.tsx`, `web/src/components/UserWarningForm.tsx`,
+`web/src/app/admin/users/[userId]/page.tsx`
+**Amends:** ADR-089 (the admin user read), ADR-107 (the warning composer)
+
+### Context
+
+`GET /api/admin/users` accepted an e-mail substring and a role. The screen over it was a table and
+a drawer: an operator could see that an account existed but could not answer any question about a
+*group* of accounts ("which second-years never finished initial sync", "who in practice group A has
+no licence"), and could not act on one account without leaving for another screen.
+
+Three separate problems, and the first is the one that mattered.
+
+**The questions an operator asks are conjunctions.** Every attribute needed to answer them was
+already stored — licence rows, the student profile, the Calendar connection — and none of it was
+reachable through the query. A frontend-side filter over a fetched page would have been worse than
+nothing: the record count under a filter would have described the page, not the population.
+
+**Search threw on the terms operators actually type.** The store passed the term through
+`User.NormalizeEmailValue`, which validates a whole address. `"zeyn"` or `"@ogr"` raised
+`ArgumentException` — an unhandled 500 from a search box, present since ADR-089.
+
+**The per-user operations existed but were scattered.** Manual activation lived on a self-service
+button, licence revocation in the licences tab keyed by licence id rather than by person, and the
+warning composer in a screen whose first step was searching for the user the operator was already
+looking at.
+
+### Decision
+
+**1. Every filter is a backend filter.** `AdminUserQuery` gained licence state, profile presence,
+academic year, class year, program language, selectors, Calendar-connection presence, authorization
+status, initial-sync state, created and last-signed-in ranges, and an explicit sort. The browser
+sends them and renders the page it receives. This is AI_GUIDELINE §16's "backend state is
+authoritative" applied to a count: a number under a filter has to mean the population, or it means
+nothing.
+
+**2. The selector filter resolves in memory, and says so.** EF cannot translate a lookup into the
+JSONB selector dictionary. The matching accounts are resolved first — narrowed by the academic year,
+class year and program language that *are* translatable — and the directory query is narrowed to
+that id set. Same trade ADR-107's audience query makes, recorded here rather than discovered later.
+
+**3. `LicenseState` is derived in one projection, used by list and detail.** It was already derived
+rather than stored, which is why an ADR-095 revocation needs no sweep. Extracting `Project` means
+the list, the detail and the licence-state filter cannot drift into describing the same account
+differently.
+
+**4. `ManagedEventCount` is one grouped query, not a correlated count.** A subquery per row would
+have issued up to 200 counts to render one page.
+
+**5. An account is a page, not a drawer.** The operations an operator performs on a user do not fit
+a panel, and each of them deserves an address that can be pasted into a message to a colleague.
+
+**6. The calendar tab reads the mapping ledger, through the store the student's own screen uses.**
+`IUserScheduleReadStore` already takes a user id, so the admin route is a projection of the same
+truth rather than a second definition of "what is on their calendar". It shows what was *written*,
+not what the published schedule says should be — which is the only version of the question worth
+asking when a student reports a missing lesson. The screen states that deletions cannot appear,
+because the ledger holds only events still on the calendar (the ADR-089 limit, unchanged).
+
+**7. The warning composer is shared, not copied.** `UserWarningForm` carries the composition,
+preview and confirmation; `UserWarningComposer` keeps the user search around it and the account page
+drops it in. The confirmation path — server-computed plan, binding `planHash`, hand-typed phrase,
+required reason — is the only control that stops an approved preview from writing to a different set
+of people (ADR-107). It exists once.
+
+**8. The page offers exactly the three writes the backend supports for one account**, and names the
+missing fourth. Manual activation (ADR-053), licence revocation (ADR-022) and a warning (ADR-107).
+There is no profile edit, because no operator-authored profile write exists; the page says so in
+words rather than rendering a disabled form, which would imply the capability lives somewhere.
+
+**9. "Deactivate" is not offered as its own action.** Revoking the active licence is what stops
+synchronization, and it is offered under that name with its real consequence stated: written events
+are preserved and the student is not told (ADR-022, and the open risk recorded with it).
+
+### Consequences
+
+- `GET /api/admin/announcements` gained a `targetUserId` filter, so the account page can answer
+  "what have we already told this person" from the same list the standalone screen reads.
+- `AdminUserDetailResponse` gained `RecentActivity` (every audit category, not only sign-ins) and
+  `CalendarConnection`. The connection projection deliberately omits the protected refresh token and
+  the granted scopes: one is a credential and neither helps an operator (AI_GUIDELINE §15).
+- The frontend role filter offered `Student`, which is not a member of `UserRole` (`User` /
+  `SuperAdmin`) and would have been rejected by model binding. Corrected.
+- A malformed `selector=key:value` pair is a 400, not a skipped filter: silently dropping one would
+  return a wider result set than was asked for and nothing on the screen would say so.
+- **Open risk:** the selector pre-resolution is a scan bounded only by the cohort filters applied
+  beside it. An operator filtering on a selector with no class year selected reads every profile.
+- **Open risk (unchanged, now more visible):** an operator still cannot correct a student's academic
+  profile. The account page is where that absence is now obvious.
+
+---

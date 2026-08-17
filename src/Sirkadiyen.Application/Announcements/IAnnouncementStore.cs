@@ -24,9 +24,15 @@ public interface IAnnouncementStore
         IReadOnlyList<CalendarAnnouncementDelivery> deliveries,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Announcements, newest first. <paramref name="targetUserId"/> narrows to the warnings written
+    /// to one account, which is what an operator reading that account needs — the delivery ledger
+    /// answers "did it reach them", but only this answers "what have we already told them".
+    /// </summary>
     Task<IReadOnlyList<AnnouncementSummary>> ListAsync(
         CalendarAnnouncementKind? kind,
         CalendarAnnouncementStatus? status,
+        Guid? targetUserId,
         int limit,
         CancellationToken cancellationToken);
 

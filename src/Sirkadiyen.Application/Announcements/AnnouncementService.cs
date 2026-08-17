@@ -179,9 +179,10 @@ public sealed class AnnouncementService(
     public Task<IReadOnlyList<AnnouncementSummary>> ListAsync(
         CalendarAnnouncementKind? kind,
         CalendarAnnouncementStatus? status,
+        Guid? targetUserId,
         int limit,
         CancellationToken cancellationToken) =>
-        store.ListAsync(kind, status, limit, cancellationToken);
+        store.ListAsync(kind, status, targetUserId, limit, cancellationToken);
 
     public Task<AnnouncementDetail?> FindAsync(
         Guid announcementId,

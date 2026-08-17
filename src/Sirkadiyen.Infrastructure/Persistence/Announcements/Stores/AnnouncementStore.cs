@@ -91,6 +91,7 @@ public sealed class AnnouncementStore(SirkadiyenDbContext dbContext) : IAnnounce
     public async Task<IReadOnlyList<AnnouncementSummary>> ListAsync(
         CalendarAnnouncementKind? kind,
         CalendarAnnouncementStatus? status,
+        Guid? targetUserId,
         int limit,
         CancellationToken cancellationToken)
     {
@@ -105,6 +106,11 @@ public sealed class AnnouncementStore(SirkadiyenDbContext dbContext) : IAnnounce
         if (status is { } requiredStatus)
         {
             query = query.Where(announcement => announcement.Status == requiredStatus);
+        }
+
+        if (targetUserId is { } requiredTarget)
+        {
+            query = query.Where(announcement => announcement.TargetUserId == requiredTarget);
         }
 
         List<CalendarAnnouncement> announcements = await query

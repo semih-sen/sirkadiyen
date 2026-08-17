@@ -258,10 +258,13 @@ export function AnnouncementHistory({
   kind,
   reloadToken,
   onEdit,
+  targetUserId,
 }: {
   kind: CalendarAnnouncementKind;
   reloadToken: number;
   onEdit?: (summary: AnnouncementSummary) => void;
+  /** Narrows to the warnings addressed to one account, for the account detail page. */
+  targetUserId?: string;
 }) {
   const [items, setItems] = useState<AnnouncementSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -271,11 +274,11 @@ export function AnnouncementHistory({
     setItems(null);
     setError(null);
     try {
-      setItems(await listAnnouncements({ kind, limit: 50 }));
+      setItems(await listAnnouncements({ kind, targetUserId, limit: 50 }));
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Duyurular yüklenemedi.');
     }
-  }, [kind]);
+  }, [kind, targetUserId]);
 
   useEffect(() => { void load(); }, [load, reloadToken]);
 

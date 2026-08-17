@@ -439,6 +439,7 @@ public sealed class AnnouncementDispatchServiceTests
         public Task<IReadOnlyList<AnnouncementSummary>> ListAsync(
             CalendarAnnouncementKind? kind,
             CalendarAnnouncementStatus? status,
+            Guid? targetUserId,
             int limit,
             CancellationToken cancellationToken) => throw new NotSupportedException();
 

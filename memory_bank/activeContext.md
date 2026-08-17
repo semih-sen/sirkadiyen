@@ -94,7 +94,59 @@ revision can be rejected** and **a terminally failed diff can be retried**, both
 reason-required `SuperAdmin` routes, with the failed-dispatch queue made enumerable by
 `GET /api/diffs?dispatchState=Failed`.
 
-## Latest implementation session (2026-08-17, administrator calendar announcements)
+## Latest implementation session (2026-08-17, the users module gets filters and an account page)
+
+**The admin account directory could show that an account existed and answer nothing about a group
+of them** (ADR-108). `GET /api/admin/users` accepted an e-mail substring and a role; the screen was
+a table and a drawer. Every attribute an operator's real questions are made of — licence state,
+class year, program language, practice group, Calendar authorization, initial-sync state — was
+already stored and none of it was queryable.
+
+- **Every filter is a backend filter, and that is the substance of it.** Filtering a fetched page in
+  the browser would have made the record count describe the page rather than the population, which
+  is worse than no filter at all. `AdminUserQuery` now carries licence state, profile presence,
+  academic year, class year, program language, selectors, Calendar presence/status/initial-sync
+  state, created and last-signed-in ranges, and an explicit sort.
+- **A defect the first new test found:** search passed the term through `User.NormalizeEmailValue`,
+  which validates a whole address and throws. Any partial term an operator would actually type
+  (`zeyn`, `@ogr`) was an unhandled 500 from a search box — present since ADR-089. Search now
+  matches e-mail, display name and student-number prefix, with LIKE wildcards escaped.
+- **The selector filter resolves matching profiles in memory** — narrowed first by the cohort
+  dimensions EF *can* translate — because EF cannot look into the JSONB selector dictionary. Same
+  trade ADR-107's audience query makes, recorded rather than discovered later.
+- **`/admin/users/{userId}` is a page, not a drawer**, with four tabs: account/profile/connection/
+  licences, the managed calendar, warnings, and the audit trail. The operations an operator performs
+  on a user do not fit a panel, and each deserves an address that can be pasted to a colleague.
+- **The calendar tab reads the mapping ledger through the store the student's own dashboard uses**,
+  so the admin route is a projection of the same truth rather than a second definition of "what is
+  on their calendar". It shows what was *written*, which is the only version of the question worth
+  asking when a student reports a missing lesson, and it says that deletions cannot appear there.
+- **The warning composer was extracted, not copied.** `UserWarningForm` is shared by
+  `/admin/user-warning` and the account page, so the confirmation path — server-computed plan,
+  binding `planHash`, typed phrase, required reason — exists once. `GET /api/admin/announcements`
+  gained `targetUserId` so the page can answer "what have we already told this person".
+- **The page offers exactly the three writes the backend supports for one account** and names the
+  missing fourth in words. There is no profile edit because no operator-authored profile write
+  exists; a disabled form would imply the capability lives somewhere.
+- **The role filter had offered `Student`, which is not a member of `UserRole`** (`User` /
+  `SuperAdmin`) and would have been refused by model binding.
+- 883 .NET tests pass with 0 skipped (Api 8, Contracts 6, Infrastructure 614, Persistence 255
+  against real PostgreSQL — up from 249) and 40 frontend tests, up from 34. `dotnet format
+  --verify-no-changes` clean, Release build 0 warnings, typecheck clean, production build 27 routes.
+- **Not done:** an operator-authored profile edit (still the documented gap), URL-encoded filter
+  state so a filtered directory can be linked to, and CSV export of a filtered directory.
+
+### Open risks — users module (2026-08-17)
+
+- **The selector pre-resolution is bounded only by the cohort filters beside it.** An operator
+  filtering on a practice group with no class year selected reads every student profile into memory.
+- **The audit tab lists events where the user is the actor.** Operator actions performed *on* the
+  account live in `/admin/access-logs`; the tab says so and links there, but the two trails are not
+  yet unioned into one view (the ADR-089 limit).
+- **An operator still cannot correct a student's academic profile.** Unchanged since 2026-08-05, but
+  the account page is where that absence is now obvious.
+
+## Previous implementation session (2026-08-17, administrator calendar announcements)
 
 **The last two prototype screens with no backend at all are built** (ADR-107). `web/GAPS.md` §3.1 —
 "no endpoint (new product surface)" — is now empty: the bulk calendar event and the single-user

@@ -1,32 +1,190 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ApiError, getAdminLicense, getAdminUser, listAdminLicenses, listAdminUsers, revokeLicense } from '@/lib/api';
+import Link from 'next/link';
+import {
+  ApiError,
+  getAdminLicense,
+  getProfileOptions,
+  listAdminLicenses,
+  listAdminUsers,
+  revokeLicense,
+} from '@/lib/api';
 import { DetailDrawer, LoadState, Pager, Tabs, formatDateTime, statusBadge } from '@/components/AdminData';
+import { AdminUserFilterBar } from '@/components/AdminUserFilterBar';
 import { LicenseAdministration } from '@/components/LicenseAdministration';
-import type { AdminLicenseDetail, AdminLicenseListItem, AdminUserDetailResponse, AdminUserListItem, LicenseKind, LicenseStatus, PagedResult, UserRole } from '@/lib/types';
+import type {
+  AdminLicenseDetail,
+  AdminLicenseListItem,
+  AdminUserFilters,
+  AdminUserListItem,
+  LicenseKind,
+  LicenseStatus,
+  PagedResult,
+  SupportedProfileOptions,
+} from '@/lib/types';
 
 export function AdminUserDirectory() {
   const [tab, setTab] = useState('users');
   return <><Tabs value={tab} onChange={setTab} items={[{ value: 'users', label: 'Kullanıcılar' }, { value: 'licenses', label: 'Lisanslar' }]} />{tab === 'users' ? <Users /> : <Licenses />}</>;
 }
 
+const PAGE_SIZE = 50;
+
+/**
+ * The account directory.
+ *
+ * Filtering, sorting and paging are all server-side: the row set is the page the backend selected,
+ * so the record count under a filter is the real one rather than whatever part of a page happened
+ * to be fetched. A row is a link to the account's own page, not a drawer — the operations an
+ * operator performs on a user (activation, warnings, calendar inspection) are too many to fit in a
+ * panel and each of them deserves an address that can be shared.
+ */
 function Users() {
-  const [searchInput, setSearchInput] = useState(''); const [search, setSearch] = useState('');
-  const [role, setRole] = useState<UserRole | ''>(''); const [page, setPage] = useState(1);
+  const [searchInput, setSearchInput] = useState('');
+  const [filters, setFilters] = useState<AdminUserFilters>({ sort: 'CreatedAtUtc', descending: true });
+  const [expanded, setExpanded] = useState(false);
+  const [page, setPage] = useState(1);
+  const [profileOptions, setProfileOptions] = useState<SupportedProfileOptions | null>(null);
   const [data, setData] = useState<PagedResult<AdminUserListItem> | null>(null);
-  const [selected, setSelected] = useState<AdminUserDetailResponse | null>(null);
-  const [loading, setLoading] = useState(true); const [error, setError] = useState<string | null>(null);
-  useEffect(() => { const timer = window.setTimeout(() => { setSearch(searchInput.trim()); setPage(1); }, 300); return () => window.clearTimeout(timer); }, [searchInput]);
-  const load = useCallback(async () => { setLoading(true); setError(null); try { setData(await listAdminUsers({ search, role: role || undefined, page, pageSize: 50 })); } catch (e) { setError(e instanceof ApiError ? e.message : 'Kullanıcılar alınamadı.'); } finally { setLoading(false); } }, [search, role, page]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // The typed term is debounced into the filter state; every other control applies at once,
+  // because a dropdown is one deliberate choice rather than a stream of keystrokes.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setFilters((current) => ({ ...current, search: searchInput.trim() || undefined }));
+      setPage(1);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
+    // The cohort dimensions the advanced panel offers come from the supported-profile schema, so a
+    // failure here narrows the panel rather than breaking the directory.
+    void (async () => {
+      try {
+        setProfileOptions(await getProfileOptions());
+      } catch {
+        setProfileOptions(null);
+      }
+    })();
+  }, []);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setData(await listAdminUsers({ ...filters, page, pageSize: PAGE_SIZE }));
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Kullanıcılar alınamadı.');
+    } finally {
+      setLoading(false);
+    }
+  }, [filters, page]);
+
   useEffect(() => { void load(); }, [load]);
-  async function open(user: AdminUserListItem) { setSelected(null); try { setSelected(await getAdminUser(user.id)); } catch (e) { setError(e instanceof ApiError ? e.message : 'Kullanıcı detayı alınamadı.'); } }
-  return <section className="card admin-workspace-card">
-    <div className="cluster" style={{ gap: 10, marginBottom: 16 }}><input className="text-input" value={searchInput} onChange={(e) => setSearchInput(e.target.value)} placeholder="E-posta ara…" aria-label="Kullanıcı e-postası ara" /><select className="select-input" value={role} onChange={(e) => { setRole(e.target.value); setPage(1); }} aria-label="Rol filtresi"><option value="">Tüm roller</option><option value="Student">Student</option><option value="SuperAdmin">SuperAdmin</option></select></div>
-    <LoadState loading={loading} error={error} empty={!loading && data?.items.length === 0} onRetry={() => void load()} />
-    {!loading && data && data.items.length > 0 && <><div className="table-wrap"><table className="data-table data-table--stack"><thead><tr><th>Kullanıcı</th><th>Rol</th><th>Lisans</th><th>Profil</th><th>Son giriş</th></tr></thead><tbody>{data.items.map((user) => <tr key={user.id} onClick={() => void open(user)} style={{ cursor: 'pointer' }}><td data-label="Kullanıcı"><strong>{user.displayName ?? '—'}</strong><small className="muted" style={{ display: 'block' }}>{user.email}</small></td><td data-label="Rol">{user.role}</td><td data-label="Lisans"><span className={`badge ${statusBadge(user.licenseState)}`}>{user.licenseState}</span></td><td data-label="Profil">{user.hasProfile ? 'Tamamlandı' : 'Eksik'}</td><td data-label="Son giriş">{formatDateTime(user.lastSignedInAtUtc)}</td></tr>)}</tbody></table></div><Pager page={data.page} totalPages={data.totalPages} totalCount={data.totalCount} onChange={setPage} /></>}
-    {selected && <DetailDrawer title={selected.user.summary.displayName ?? selected.user.summary.email} subtitle={selected.user.summary.email} onClose={() => setSelected(null)}><Detail title="Hesap"><Row label="Onboarding" value={selected.onboardingState} /><Row label="Lisans" value={selected.user.summary.licenseState} /><Row label="Yönetilen etkinlik" value={String(selected.user.managedEventCount)} /></Detail>{selected.user.profile ? <Detail title="Akademik profil"><Row label="Öğrenci no" value={selected.user.profile.studentNumber} /><Row label="Dönem" value={String(selected.user.profile.classYear)} /><Row label="Program" value={selected.user.profile.programLanguage} />{Object.entries(selected.user.profile.selectors).map(([k, v]) => <Row key={k} label={k} value={v} />)}</Detail> : <Detail title="Akademik profil"><p className="muted">Profil henüz tamamlanmadı.</p></Detail>}<Detail title="Lisans geçmişi">{selected.user.licenses.length ? selected.user.licenses.map((item) => <p key={item.licenseId}><span className={`badge ${statusBadge(item.status)}`}>{item.status}</span> <span className="mono">{item.licenseId}</span><small className="muted" style={{ display: 'block' }}>{formatDateTime(item.createdAtUtc)}</small></p>) : <p className="muted">Lisans kaydı yok.</p>}</Detail><Detail title="Son girişler">{selected.recentSignIns.length ? selected.recentSignIns.map((event) => <p key={event.id}>{formatDateTime(event.occurredAtUtc)} · {event.maskedIp ?? 'IP yok'}</p>) : <p className="muted">Giriş kaydı yok.</p>}</Detail></DetailDrawer>}
-  </section>;
+
+  function change(changes: Partial<AdminUserFilters>) {
+    setFilters((current) => ({ ...current, ...changes }));
+    setPage(1);
+  }
+
+  function reset() {
+    setSearchInput('');
+    setFilters({ sort: 'CreatedAtUtc', descending: true });
+    setPage(1);
+  }
+
+  return (
+    <section className="card admin-workspace-card">
+      <AdminUserFilterBar
+        filters={{ ...filters, search: searchInput }}
+        profileOptions={profileOptions}
+        onChange={({ search, ...rest }) => {
+          if (search !== undefined) setSearchInput(search);
+          if (Object.keys(rest).length > 0) change(rest);
+        }}
+        onReset={reset}
+        expanded={expanded}
+        onToggleExpanded={() => setExpanded((value) => !value)}
+      />
+
+      <LoadState
+        loading={loading}
+        error={error}
+        empty={!loading && data?.items.length === 0}
+        onRetry={() => void load()}
+      />
+
+      {!loading && data && data.items.length > 0 && (
+        <>
+          <div className="table-wrap">
+            <table className="data-table data-table--stack">
+              <thead>
+                <tr>
+                  <th>Kullanıcı</th>
+                  <th>Rol</th>
+                  <th>Lisans</th>
+                  <th>Profil</th>
+                  <th>Takvim</th>
+                  <th>Son giriş</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.items.map((user) => (
+                  <tr key={user.id}>
+                    <td data-label="Kullanıcı">
+                      <Link className="link" href={`/admin/users/${user.id}`}>
+                        <strong>{user.displayName ?? user.email}</strong>
+                      </Link>
+                      <small className="muted" style={{ display: 'block' }}>
+                        {user.email}
+                        {user.studentNumber ? ` · ${user.studentNumber}` : ''}
+                      </small>
+                    </td>
+                    <td data-label="Rol">{user.role}</td>
+                    <td data-label="Lisans">
+                      <span className={`badge ${statusBadge(user.licenseState)}`}>
+                        {user.licenseState}
+                      </span>
+                    </td>
+                    <td data-label="Profil">
+                      {user.hasProfile
+                        ? `${user.classYear}. dönem · ${user.programLanguage === 'English' ? 'İngilizce' : 'Türkçe'}`
+                        : 'Eksik'}
+                    </td>
+                    <td data-label="Takvim">
+                      {user.calendarStatus ? (
+                        <>
+                          <span className={`badge ${statusBadge(user.calendarStatus)}`}>
+                            {user.initialSyncState}
+                          </span>
+                          <small className="muted" style={{ display: 'block' }}>
+                            {user.managedEventCount} etkinlik
+                          </small>
+                        </>
+                      ) : (
+                        <span className="muted">Bağlı değil</span>
+                      )}
+                    </td>
+                    <td data-label="Son giriş">{formatDateTime(user.lastSignedInAtUtc)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <Pager
+            page={data.page}
+            totalPages={data.totalPages}
+            totalCount={data.totalCount}
+            onChange={setPage}
+          />
+        </>
+      )}
+    </section>
+  );
 }
 
 function Licenses() {

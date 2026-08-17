@@ -137,7 +137,11 @@ so an active student could never reach it. See the update at the end of this doc
 
 ### 3.3 Wired read-only administration views
 
-- `/admin/users`: paged user and license lists, user/license detail, license audit and selected-license revocation.
+- `/admin/users`: the filterable account directory (see the 2026-08-17 users-module update below)
+  plus the license list, license detail, license audit and selected-license revocation.
+- `/admin/users/{userId}`: the account page — profile, license history, Calendar connection,
+  onboarding state, the user's own audit trail, what is on their managed calendar, and the three
+  writes the backend supports for one account (manual activation, license revocation, warning).
 - `/admin/sources`: source pipeline status, the latest persisted parser warning/evidence details and retained snapshot evidence beside administrative upload.
 - `/admin/access-logs`: masked sign-in log, audited transient IP reveal and cross-category audit query.
 - `/admin/server`: API liveness/readiness, internal worker `/health/ready`, parser `/health` probe and database-backed point-in-time counts. CPU/RAM/Redis metrics remain unavailable and are not fabricated.
@@ -311,6 +315,59 @@ already-written lesson had to be rewritten to gain one.
 
 `GET /api/calendar/sync/history` (needs a per-user activity log), `GET /api/notifications`,
 `POST /api/contact`, and the articles/podcast content system.
+
+---
+
+## Update — the users module gets filters and an account page (2026-08-17)
+
+The account directory was a search box over one field and a drawer. It is now a filterable,
+sortable directory whose rows link to a page per account, and that page carries every user-scoped
+operation the backend actually supports.
+
+- **Filtering is server-side, all of it.** `GET /api/admin/users` accepts role, license state,
+  profile presence, academic year, class year, program language, repeated `selector=key:value`
+  pairs, Calendar-connection presence/status/initial-sync state, created and last-signed-in date
+  ranges, plus `sort`/`descending`. Nothing is narrowed in the browser, so the record count under a
+  filter is the real count rather than the part of a page that happened to be fetched.
+- **The cohort dimensions come from `GET /api/profile/options`,** so the advanced panel offers the
+  groups that exist in the supported-profile schema instead of a hand-written list that would drift
+  from it. A selector is dropped when its class year or program language changes, because the same
+  key carries different values in different cohorts.
+- **Free-text search now matches e-mail, display name and student-number prefix.** It previously
+  passed the term through `User.NormalizeEmailValue`, which validates a whole address and throws —
+  so any partial term an operator would actually type was an unhandled 500. Fixed, with a
+  regression test.
+- **`/admin/users/{userId}` is a real route, not a drawer.** Four tabs: *Genel* (account, academic
+  profile, Calendar connection, license history), *Takvim*, *Uyarılar*, *Denetim*.
+- **The calendar tab reads the mapping ledger** through a new
+  `GET /api/admin/users/{id}/calendar-events?from&to&limit`, so it shows what is genuinely on the
+  calendar Sirkadiyen created for that student — not what the published schedule says should be.
+  It states that deletions cannot appear there, because the ledger holds only events still on the
+  calendar. `GET /api/admin/users/{id}/calendar-changes` carries the recent creations and updates.
+- **The warning composer is shared, not copied.** `UserWarningForm` was extracted from
+  `UserWarningComposer` and is used by both screens, so the confirmation path — server-computed
+  plan, binding `planHash`, hand-typed phrase, required reason — exists once. The history on the
+  account page is scoped by a new `targetUserId` filter on `GET /api/admin/announcements`.
+- **The role filter said `Student`, which is not a role.** The backend enum is `User`/`SuperAdmin`,
+  so the old option would have been rejected by model binding. Corrected.
+
+### What the page deliberately does not offer
+
+- **No academic-profile edit.** The backend has no operator-authored profile write; only the
+  student can change their own (a documented open risk since 2026-08-05). Rendering a disabled form
+  would suggest the capability exists somewhere.
+- **No "deactivate account".** Revoking the active license is what stops synchronization
+  (ADR-022/ADR-095), and it is offered under that name with its real consequence stated: written
+  events are preserved and the student is not told.
+
+### Known limits
+
+- The selector filter resolves matching profiles in memory (narrowed first by academic year, class
+  year and program language), because EF cannot translate a lookup into the JSONB selector
+  dictionary. Same trade as the ADR-107 audience query; correct at a medical faculty's scale, and a
+  scan that grows with the student body.
+- The audit tab lists the events where the **user** is the actor. Operator actions performed *on*
+  the account are found in `/admin/access-logs`, which the tab says and links to.
 
 ---
 

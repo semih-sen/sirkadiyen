@@ -202,8 +202,48 @@ export interface AdminUserListItem {
   role: UserRole;
   licenseState: UserLicenseState;
   hasProfile: boolean;
+  /** Null when the account has no academic profile yet. */
+  academicYear?: string | null;
+  classYear?: number | null;
+  programLanguage?: ProgramLanguage | null;
+  studentNumber?: string | null;
+  /** Null when the account has never authorized Calendar access. */
+  calendarStatus?: GoogleCalendarConnectionStatus | null;
+  initialSyncState?: GoogleCalendarInitialSyncState | null;
+  /** What the mapping ledger says is on this user's managed calendar. */
+  managedEventCount: number;
   createdAtUtc: string;
   lastSignedInAtUtc: string;
+}
+
+export type AdminUserSort = 'CreatedAtUtc' | 'LastSignedInAtUtc' | 'Email';
+
+/**
+ * Every filter the account directory accepts. An absent value means "do not filter on this",
+ * never a default — a narrower result set is always explained by a filter that was chosen.
+ */
+export interface AdminUserFilters {
+  /** Matched against e-mail, display name, and the student number as a prefix. */
+  search?: string;
+  role?: UserRole;
+  licenseState?: UserLicenseState;
+  hasProfile?: boolean;
+  academicYear?: string;
+  classYear?: number;
+  programLanguage?: ProgramLanguage;
+  /** Academic-profile selectors that must all match, e.g. `{ practiceGroup: 'A' }`. */
+  selectors?: Record<string, string>;
+  hasCalendarConnection?: boolean;
+  calendarStatus?: GoogleCalendarConnectionStatus;
+  initialSyncState?: GoogleCalendarInitialSyncState;
+  createdFromUtc?: string;
+  createdToUtc?: string;
+  lastSignedInFromUtc?: string;
+  lastSignedInToUtc?: string;
+  sort?: AdminUserSort;
+  descending?: boolean;
+  page?: number;
+  pageSize?: number;
 }
 
 export interface AdminUserProfile {
@@ -213,6 +253,23 @@ export interface AdminUserProfile {
   studentNumber: string;
   selectorSchemaVersion: string;
   selectors: Record<string, string>;
+  updatedAtUtc: string;
+}
+
+/**
+ * What an operator may know about a user's Calendar authorization. The refresh token and the
+ * granted scopes are deliberately absent from the backend projection.
+ */
+export interface AdminUserCalendarConnection {
+  status: GoogleCalendarConnectionStatus;
+  initialSyncState: GoogleCalendarInitialSyncState;
+  hasManagedCalendar: boolean;
+  managedCalendarUnavailableAtUtc?: string | null;
+  lastCalendarInventoryAtUtc?: string | null;
+  /** Set while a profile change waits for the re-synchronization stage (ADR-096). */
+  profileResyncRequiredSinceUtc?: string | null;
+  /** Set while a dead credential's missed diffs wait for replay (ADR-060). */
+  reconciliationRequiredSinceUtc?: string | null;
 }
 
 export interface AdminUserLicense {
@@ -229,12 +286,33 @@ export interface AdminUserDetail {
   profile?: AdminUserProfile | null;
   managedEventCount: number;
   licenses: AdminUserLicense[];
+  calendarConnection?: AdminUserCalendarConnection | null;
 }
 
 export interface AdminUserDetailResponse {
   user: AdminUserDetail;
   onboardingState: OnboardingState;
   recentSignIns: AuditEventView[];
+  /** Recent audit events across every category, not only sign-ins. */
+  recentActivity: AuditEventView[];
+}
+
+/**
+ * What is actually on a user's managed calendar over a local-date window, read from the mapping
+ * ledger. The server echoes the window it resolved, so a caller that passed no dates does not have
+ * to guess which days it is looking at.
+ */
+export interface AdminUserCalendarEventsResponse {
+  fromLocalDate: string;
+  toLocalDate: string;
+  timeZoneId: string;
+  events: UserScheduleEventView[];
+}
+
+export interface ManualLicenseActivationResult {
+  outcome: 'Activated' | 'AlreadyActivated' | 'UserNotFound' | string;
+  licenseId?: string | null;
+  userId: string;
 }
 
 export interface AdminLicenseListItem {

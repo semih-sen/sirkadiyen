@@ -45,8 +45,11 @@ import type {
   AdminLicenseListItem,
   AdminMetricsSnapshot,
   AdminServiceHealthSnapshot,
+  AdminUserCalendarEventsResponse,
   AdminUserDetailResponse,
+  AdminUserFilters,
   AdminUserListItem,
+  ManualLicenseActivationResult,
   AuditEventCategory,
   AuditEventView,
   CalendarSyncProgressResponse,
@@ -456,11 +459,11 @@ export function resetAdminDepartmentColor(
  * point this at their own userId to give themselves a student activation for
  * testing the sync flow (ADR-053 manual activation).
  */
-export function activateUser(userId: string, reason: string): Promise<unknown> {
-  return request<unknown>(`/api/admin/users/${userId}/activate`, {
-    method: 'POST',
-    body: { reason },
-  });
+export function activateUser(userId: string, reason: string): Promise<ManualLicenseActivationResult> {
+  return request<ManualLicenseActivationResult>(
+    `/api/admin/users/${encodeURIComponent(userId)}/activate`,
+    { method: 'POST', body: { reason } },
+  );
 }
 
 export function createLicense(expiresAtUtc: string | null, notes: string | null): Promise<CreatedLicense> {
@@ -477,14 +480,48 @@ export function revokeLicense(licenseId: string, reason: string): Promise<Licens
   });
 }
 
-export function listAdminUsers(values: {
-  search?: string; role?: UserRole; page?: number; pageSize?: number;
-} = {}): Promise<PagedResult<AdminUserListItem>> {
-  return request(withQuery('/api/admin/users/', { ...values }));
+/**
+ * The account directory. Selectors travel as repeated `selector=key:value` parameters, because a
+ * nested object has no single conventional query encoding and the backend refuses a malformed pair
+ * rather than silently widening the result.
+ */
+export function listAdminUsers(
+  filters: AdminUserFilters = {},
+): Promise<PagedResult<AdminUserListItem>> {
+  const { selectors, ...rest } = filters;
+  const path = withQuery('/api/admin/users/', { ...rest });
+  const pairs = Object.entries(selectors ?? {}).filter(([key, value]) => key && value);
+  if (pairs.length === 0) return request(path);
+
+  const query = new URLSearchParams();
+  pairs.forEach(([key, value]) => query.append('selector', `${key}:${value}`));
+  return request(`${path}${path.includes('?') ? '&' : '?'}${query.toString()}`);
 }
 
 export function getAdminUser(userId: string): Promise<AdminUserDetailResponse> {
   return request(`/api/admin/users/${encodeURIComponent(userId)}`);
+}
+
+/**
+ * What is on the user's managed calendar over a local-date window, read from the mapping ledger —
+ * not what the published schedule says should be there.
+ */
+export function getAdminUserCalendarEvents(
+  userId: string,
+  values: { from?: string; to?: string; limit?: number } = {},
+): Promise<AdminUserCalendarEventsResponse> {
+  return request(
+    withQuery(`/api/admin/users/${encodeURIComponent(userId)}/calendar-events`, { ...values }),
+  );
+}
+
+export function getAdminUserCalendarChanges(
+  userId: string,
+  limit = 20,
+): Promise<UserScheduleChangeView[]> {
+  return request(
+    withQuery(`/api/admin/users/${encodeURIComponent(userId)}/calendar-changes`, { limit }),
+  );
 }
 
 export function listAdminLicenses(values: {
@@ -898,7 +935,11 @@ export function createAnnouncement(body: {
 }
 
 export function listAnnouncements(values: {
-  kind?: CalendarAnnouncementKind; status?: CalendarAnnouncementStatus; limit?: number;
+  kind?: CalendarAnnouncementKind;
+  status?: CalendarAnnouncementStatus;
+  /** Narrows to the warnings addressed to one account. */
+  targetUserId?: string;
+  limit?: number;
 } = {}): Promise<AnnouncementSummary[]> {
   return request(withQuery(`${ANNOUNCEMENT_PATH}/`, { ...values }));
 }

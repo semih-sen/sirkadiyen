@@ -181,6 +181,7 @@ public static class AnnouncementEndpoints
         CancellationToken cancellationToken,
         CalendarAnnouncementKind? kind = null,
         CalendarAnnouncementStatus? status = null,
+        Guid? targetUserId = null,
         int limit = 50)
     {
         if (limit is < 1 or > MaximumListLimit)
@@ -188,7 +189,8 @@ public static class AnnouncementEndpoints
             return Invalid($"'limit' must be between 1 and {MaximumListLimit}.");
         }
 
-        return Results.Ok(await service.ListAsync(kind, status, limit, cancellationToken));
+        return Results.Ok(
+            await service.ListAsync(kind, status, targetUserId, limit, cancellationToken));
     }
 
     private static async Task<IResult> FindAsync(

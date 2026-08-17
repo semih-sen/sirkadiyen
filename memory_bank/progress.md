@@ -221,6 +221,16 @@
   job only)
 - [x] User sync status backend (`GET /api/admin/users(+detail)`: profile, licenses,
   managed-event count, onboarding state, recent sign-ins, ADR-089)
+- [x] Account directory filtering and sorting (`GET /api/admin/users` accepts licence state,
+  profile presence, academic year, class year, program language, `selector=key:value` pairs,
+  Calendar presence/status/initial-sync state, created and last-signed-in ranges, `sort`; search
+  matches e-mail, display name and student-number prefix; ADR-108)
+- [x] Per-account operator page (`/admin/users/{id}`: profile, licences, Calendar connection,
+  onboarding, the user's audit trail, what the mapping ledger says is on their managed calendar
+  via `GET /api/admin/users/{id}/calendar-events(+changes)`, manual activation, licence revocation
+  and a warning composed in place; ADR-108)
+- [ ] Operator-authored academic profile edit (no backend write exists; a wrong cohort is still
+  fixable only by the student)
 - [~] Retry failed jobs (`POST /api/diffs/{id}/retry` plus `GET /api/diffs?dispatchState=Failed`
   and their `/admin/diffs` queue, ADR-097; a persistently failing per-user initial sync still has
   no terminal state to retry from)
@@ -254,10 +264,10 @@
 - [x] Onboarding route gating by authoritative backend state
 - [x] SuperAdmin routed to admin panel instead of student onboarding (ADR-067)
 - [~] Admin/operator interfaces (freeze including class/program scopes, source warning
-  evidence, user/license administration, audit/access logs, worker/parser health, the
-  held/failed diff queues with revision rejection, and the bulk-event / user-warning
-  announcement workspaces are wired; only endpointless product domains remain — contact,
-  notifications and per-user sync history)
+  evidence, the filterable account directory with its per-account operator page (ADR-108),
+  license administration, audit/access logs, worker/parser health, the held/failed diff queues
+  with revision rejection, and the bulk-event / user-warning announcement workspaces are wired;
+  only endpointless product domains remain — contact, notifications and per-user sync history)
 - [x] Administrative document upload UI, driven by `GET /api/sources/uploadable` (ADR-081)
 - [x] Component system / design system (ported the Wise-inspired prototype design
   system into `web/src/app/globals.css` + shared `web/src/components/ui.tsx`; light
