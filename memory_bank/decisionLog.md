@@ -5733,3 +5733,147 @@ cause and the screen cannot tell which.
   row records the student as the actor because only the student can perform the write today.
 
 ---
+
+## ADR-107: Administrator-authored calendar announcements are one domain behind two screens
+
+**Status:** Accepted (2026-08-17)
+
+### Context
+
+`web/GAPS.md` §3.1 listed the last two prototype screens with no backend at all: the bulk calendar
+event (`admin-bulk-event.html`, plan §4.4/§5.11) and the single-user warning
+(`admin-user-warning.html`, plan §4.5/§5.12). Both write an event an administrator composed onto
+students' managed calendars, which is a calendar mutation the system had no path for: every
+existing write derives from published schedule truth.
+
+Three questions had to be answered before any code:
+
+**Are they one feature or two?** The plan presents them as separate screens with different flows.
+But the recipient set is the only thing that differs: both compose an event, resolve who receives
+it, freeze that set, write idempotently, track delivery, patch on edit and remove on cancel.
+
+**Where do these events live relative to the schedule?** They are not lessons. They must not
+produce canonical records, revisions or semantic diffs, and they must not enter the mapping ledger
+that decides what published truth owes a student.
+
+**What authorizes deleting one?** AI_GUIDELINE §13 says a calendar deletion requires a published
+revision and a valid semantic diff. An announcement has neither.
+
+### Decision
+
+**1. One aggregate, `CalendarAnnouncement`, with a `Kind` of `Bulk` or `UserWarning`.** Splitting
+them would duplicate the delivery ledger, the deterministic event id, the freeze gate, the licence
+gate and the cancel path — all of it high-risk calendar code, and all of it identical. Two API
+shapes and two React screens sit on top; only the audience step and the templates differ.
+
+**2. The recipient set is frozen at confirmation, as rows.** `CalendarAnnouncementDelivery` is
+written for every resolved candidate in the same transaction as the announcement — including the
+*excluded* ones, with the reason they were excluded. An announcement is a decision about who is
+being told something, so a student who changes cohort afterwards neither gains nor loses it; that
+is what makes the count on the confirmation screen mean anything. Keeping the excluded rows is what
+keeps the approved exclusion counts explainable a day later.
+
+This is a deliberate departure from systemPatterns §27, which keeps dispatch tracking coarse because
+idempotency lives in the shared mapping ledger. Here the per-recipient row *is* the ledger, and the
+counters the operator is shown (written / pending / skipped / removed / failed) are precisely this
+table. They are always derived from it and never stored on the announcement, so the number shown
+cannot disagree with the rows it summarizes.
+
+**3. Announcement events are marked as a different kind of managed event.** They carry
+`sirkadiyenKind=announcement` in their private extended properties, and
+`CalendarInventoryReconciliationService` skips them. Without this, inventory — which groups managed
+events by `stableIdentity` — would have counted every announcement as an unexpected marked event
+and reported a conflict on every pass, making the inventory signal useless exactly when it matters.
+
+The marker is added only to the new kind. A lesson written before this ADR carries no such key, so
+its *absence* means "lesson"; giving lessons a marker would have made every existing event on every
+calendar look drifted and triggered a mass patch.
+
+**4. The event id shares the schedule's derivation but not its id space.** The deterministic id is
+`base32hex(SHA256(userId + "\n" + identity))` as before, with `identity` being
+`announcement:{id:N}`. A parser-produced stable identity is a hex digest and cannot spell that
+prefix, so the two spaces are disjoint without a second hashing scheme to maintain.
+
+**5. Deletion is authorized by a named operator, not by a diff.** AI_GUIDELINE §13's rule protects
+*schedule* events: it exists so a parser failure can never retire a lesson. An announcement was
+never schedule truth, so the authority is the operator who asked for it, recorded on the aggregate
+with their required reason and written to the cross-cutting audit log. Cancellation removes the
+written events and keeps every delivery row, so the trail still says who received what.
+
+**6. The six-step high-risk pattern, with the plan hash binding the confirmation.** Preview
+resolves the audience server-side and returns a SHA-256 over the content, the criteria *and the
+recipient identities*; execute recomputes it and refuses on mismatch. Hashing identities rather
+than the count is the point: two audiences can have the same size and different members, and
+confirming "412 recipients" must not authorize writing to a different 412 people. This is the
+`FinanceDistribution` shape from ADR-093 applied to a second high-risk operation, as plan §4.3
+intends.
+
+The confirmation phrase is the recipient count for a bulk announcement — the fact hardest to
+overlook — and the recipient's own address for a warning, whose count is always one and would
+confirm nothing.
+
+**7. Deduplication is a derived campaign key with a unique index.** A bulk key covers the audience,
+the date and the normalized title; a warning key is user + template + local date, exactly as plan
+§4.5 specifies. Body text, location and colour are outside it, because correcting the wording of a
+delivered announcement must patch the existing events rather than produce a second one. The unique
+index is the real guarantee — two operators confirming concurrently must not both win — and the
+application's earlier lookup only makes the common case cheap.
+
+**8. Account status, licence status and sync eligibility are not audience filters.** The plan lists
+them among the audience dimensions. They are not choices: an account with no active licence has
+stopped synchronizing (ADR-095) and an account with no completed initial sync has no calendar to
+write to. Offering them as toggles would promise an outcome the calendar cannot deliver, so they
+appear on the other side, as `AnnouncementExclusionReason` values the operator reads before
+confirming.
+
+**9. The audience rule is "all selectors must match", the opposite of the lesson rule.** A lesson
+lists the groups it is *for*, so a student matching any of them attends it. An announcement's
+selectors are the operator narrowing who they address, so "Dönem 2, uygulama grubu C" means
+students who are both. A dimension the profile does not carry at all is a mismatch, not a pass —
+otherwise a message meant for one anatomy group would reach every student in a programme that has
+no anatomy group.
+
+**10. The "trial ending" template was not built.** Plan §5.12 lists it. There is no such state:
+Sirkadiyen access does not lapse after activation and `GET /api/licenses/status` reports no time
+remaining (ADR-089). Shipping it would have an operator send students a deadline the product does
+not have. The four templates that exist each name a state the system can actually be in.
+
+**11. Delivery runs last inside the shared Calendar fence,** after diff dispatch, replay and
+profile convergence. The schedule is what students depend on, so an announcement campaign must
+never consume the per-cycle Calendar budget those stages need first.
+
+**12. Reminders are opt-in per event.** `ManagedCalendarEvent.ReminderMinutesBefore` is nullable and
+left null by every schedule lesson, so a student's own notification defaults keep working; a value
+replaces them with one popup reminder, which is the only way an announcement can be made to arrive
+at a chosen moment.
+
+**13. `ICalendarConnectionHealthWriter` was split out of `ICalendarSyncConnectionStore`.** Delivery
+discovers dead credentials and missing calendars like any other Calendar write, and recording them
+where they are found is what stops a student's connection staying `Authorized` until the next
+published revision happens to write to them. It needs two of that interface's fourteen members, so
+it depends on a role interface instead — the same ISP shape `GoogleCalendarConnectionStore` already
+serves three interfaces with.
+
+### Consequences
+
+- `web/GAPS.md` §3.1 is now empty. No prototype screen is left without a backend except the three
+  areas that need their own product decisions (contact, notifications, sync history).
+- Two new tables, one migration (`AddCalendarAnnouncements`), and three new `AuditEvent`
+  categories (`AnnouncementQueued`, `AnnouncementUpdated`, `AnnouncementCancelled`).
+- The audit row records counts, audience and campaign key, never the recipient list: the delivery
+  ledger already holds every recipient with their outcome, and copying hundreds of accounts into an
+  audit table nothing prunes would duplicate personal data (AI_GUIDELINE §15).
+- An announcement cannot be re-addressed. Editing changes what it says; changing who receives it is
+  a new announcement with its own confirmation, because the recipients were frozen.
+- **Not built:** a per-recipient retry for an individual failed delivery (the campaign-level retry
+  is the attempt cap and the operator's re-edit), scheduling an announcement for future delivery
+  rather than a future *event date*, and recurring announcements.
+- **Open risk:** a scoped freeze leaves an announcement in `Delivering` indefinitely, re-checked
+  every cycle. That matches every other stage's behaviour, but an announcement whose event date
+  passes while its class/program is frozen will eventually be written into the past. Nothing
+  currently warns about that.
+- **Open risk:** the audience query reads one academic year's student profiles into memory to apply
+  the JSONB selector match, because EF cannot translate a dictionary lookup. Correct and small at a
+  medical faculty's scale; it is a scan that grows with the student body.
+
+---

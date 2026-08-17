@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Sirkadiyen.Domain.Announcements;
 using Sirkadiyen.Domain.Auditing;
 using Sirkadiyen.Domain.Finance;
 using Sirkadiyen.Domain.GoogleCalendar;
@@ -85,6 +86,11 @@ public sealed class SirkadiyenDbContext(DbContextOptions<SirkadiyenDbContext> op
         Set<ScopedOperationalFreezeAudit>();
 
     public DbSet<AuditEvent> AuditEvents => Set<AuditEvent>();
+
+    public DbSet<CalendarAnnouncement> CalendarAnnouncements => Set<CalendarAnnouncement>();
+
+    public DbSet<CalendarAnnouncementDelivery> CalendarAnnouncementDeliveries =>
+        Set<CalendarAnnouncementDelivery>();
 
     public DbSet<FinanceAccountHolder> FinanceAccountHolders => Set<FinanceAccountHolder>();
 

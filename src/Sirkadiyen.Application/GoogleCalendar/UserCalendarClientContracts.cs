@@ -51,6 +51,18 @@ public sealed record ManagedCalendarEvent
     public DateOnly? EndDateExclusive { get; init; }
 
     /// <summary>
+    /// Minutes before the start at which to remind the recipient, or null to leave the
+    /// calendar's own default in place (ADR-107).
+    /// </summary>
+    /// <remarks>
+    /// Null and zero are different: null means "say nothing about reminders", which is what every
+    /// schedule lesson does, so a student's own default notification settings keep working. A
+    /// value replaces the default with exactly one popup reminder, which an announcement needs
+    /// because it is the only way a message can be made to arrive at a chosen moment.
+    /// </remarks>
+    public int? ReminderMinutesBefore { get; init; }
+
+    /// <summary>
     /// Private extended properties marking the event as Sirkadiyen-managed and carrying the
     /// identity and content it was written from (ADR-024). Only Sirkadiyen can read them.
     /// </summary>

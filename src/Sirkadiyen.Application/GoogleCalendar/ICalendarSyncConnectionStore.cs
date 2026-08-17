@@ -7,7 +7,8 @@ namespace Sirkadiyen.Application.GoogleCalendar;
 /// transitions the synchronization services advance while converging a calendar. Consumed only by
 /// the worker host; the API never calls these.
 /// </summary>
-public interface ICalendarSyncConnectionStore : IGoogleCalendarConnectionReader
+public interface ICalendarSyncConnectionStore
+    : IGoogleCalendarConnectionReader, ICalendarConnectionHealthWriter
 {
     /// <summary>
     /// Lists connections whose initial synchronization is in progress, oldest first, for the
@@ -27,15 +28,6 @@ public interface ICalendarSyncConnectionStore : IGoogleCalendarConnectionReader
 
     /// <summary>Marks the user's initial synchronization finished.</summary>
     Task MarkInitialSyncCompletedAsync(
-        Guid userId,
-        DateTimeOffset atUtc,
-        CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Records that Google rejected a user's credential during synchronization, moving the connection
-    /// to <see cref="GoogleCalendarConnectionStatus.NeedsReauthorization"/> (ADR-059). Idempotent.
-    /// </summary>
-    Task MarkNeedsReauthorizationAsync(
         Guid userId,
         DateTimeOffset atUtc,
         CancellationToken cancellationToken);
@@ -85,15 +77,6 @@ public interface ICalendarSyncConnectionStore : IGoogleCalendarConnectionReader
 
     /// <summary>Records one successful non-destructive Calendar/ledger inventory pass.</summary>
     Task MarkCalendarInventoryCompletedAsync(
-        Guid userId,
-        DateTimeOffset atUtc,
-        CancellationToken cancellationToken);
-
-    /// <summary>
-    /// Marks the attached calendar unavailable so ordinary synchronization stops and the user
-    /// sees an explicit repair-required state.
-    /// </summary>
-    Task MarkManagedCalendarUnavailableAsync(
         Guid userId,
         DateTimeOffset atUtc,
         CancellationToken cancellationToken);

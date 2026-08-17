@@ -2,6 +2,7 @@ using Google.Apis.Sheets.v4;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Sirkadiyen.Application.Announcements;
 using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Scheduling.Diffing;
 using Sirkadiyen.Application.Scheduling.Ingestion;
@@ -58,6 +59,7 @@ internal static class WorkerServiceCollectionExtensions
         services.AddSingleton(options.CreateProfileResyncOptions());
         services.AddSingleton(options.CreateReconciliationOptions());
         services.AddSingleton(options.CreateInventoryOptions());
+        services.AddSingleton(options.CreateAnnouncementDispatchOptions());
         services.AddSirkadiyenDataProtection(options.DataProtectionKeyRingPath);
         services.AddSingleton<ICalendarTokenProtector, DataProtectionCalendarTokenProtector>();
         services.AddSingleton<IUserCalendarClient, GoogleCalendarClient>();
@@ -67,6 +69,7 @@ internal static class WorkerServiceCollectionExtensions
         services.AddScoped<ProfileChangeResyncService>();
         services.AddScoped<CalendarReconciliationService>();
         services.AddScoped<CalendarInventoryReconciliationService>();
+        services.AddScoped<AnnouncementDispatchService>();
         services.AddSingleton<GoogleSheetsServiceFactory>();
         services.AddSingleton<SheetsService>(provider =>
             provider.GetRequiredService<GoogleSheetsServiceFactory>().Create(googleOptions));
@@ -93,6 +96,7 @@ internal static class WorkerServiceCollectionExtensions
         services.AddSingleton<PendingDiffDispatchTask>();
         services.AddSingleton<CalendarReconciliationTask>();
         services.AddSingleton<ProfileResyncTask>();
+        services.AddSingleton<AnnouncementDispatchTask>();
         services.AddSingleton<CalendarInventoryTask>();
         services.AddSingleton<FencedCalendarMaintenanceTask>();
         services.AddHostedService<Worker>();

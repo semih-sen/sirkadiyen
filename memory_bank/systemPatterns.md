@@ -971,3 +971,62 @@ instructor, curriculum block, then department(s). A source instruction to consul
 separate amphitheatre program is source-quality evidence, not a physical location:
 the parser counts it but publishes `null`, and the Calendar presentation policy also
 suppresses legacy canonical values as a defence in depth.
+
+## 29. Administrator-authored calendar objects beside schedule truth
+
+Some calendar events are not claims about what the faculty published: they are the product
+speaking to its users (ADR-107). They must reach the same managed calendars without entering the
+machinery that decides what published truth owes a student.
+
+Keep them in **their own aggregate with their own ledger**. They produce no canonical record, no
+revision and no semantic diff, and they never appear in the calendar-event mapping. A per-recipient
+delivery row is both the idempotency ledger and the operator-visible delivery state, which is the
+one case where §27's "keep dispatch tracking coarse" does not apply — the fine-grained rows *are*
+what the screen reports, so they must exist anyway. Derive every counter from those rows rather
+than storing a copy on the parent, so a summary can never contradict what it summarizes.
+
+**Mark the new kind, never the old one.** Managed events of a second kind carry an explicit
+`sirkadiyenKind` private property; the absence of the key means the original kind. Every scan that
+groups managed events by a schedule concept must skip the new kind explicitly, or it will report
+each one as an unexpected object forever. Adding a marker to already-written events instead would
+make all of them look drifted and trigger a mass rewrite.
+
+**Share the id derivation, not the id space.** Reuse the deterministic
+`base32hex(SHA256(user + "\n" + identity))` key, and give the new kind a namespaced identity whose
+literal prefix the existing identities cannot spell. One derivation, two disjoint spaces, no second
+scheme to keep in step.
+
+**Name the deletion authority.** AI_GUIDELINE §13 requires a published revision and a valid diff to
+delete an event; that rule exists so a parser failure can never retire a lesson. An object that was
+never schedule truth has a different authority — a named operator with a required, audited reason —
+and stating which authority applies is part of the design rather than an exemption from it.
+
+**Freeze the recipient set at confirmation.** When the operation is "tell these people something",
+the set is part of what was decided. Resolve it server-side, hash the *identities* into the plan
+the confirmation is bound to (§30 below), and materialize it; a later cohort change must neither
+add nor remove a recipient. Record the ineligible candidates too, with the reason, or the exclusion
+counts the operator approved become unexplainable.
+
+**Eligibility is not a filter.** Conditions that decide whether a calendar exists to write to — an
+active licence, a healthy grant, a completed initial sync — are never offered as audience options.
+They are reported as exclusion reasons before confirmation, because offering them as choices would
+promise an outcome the provider cannot deliver.
+
+## 30. Binding a confirmation to a server-computed plan
+
+Every high-risk operation that acts on a computed set (profit distribution, ADR-093; announcement
+delivery, ADR-107) follows one shape: **preview → plan hash → confirmation phrase → execute**.
+
+The server computes the plan and returns a hash over everything that made it what it is —
+including the identities of the affected records, not merely their count. Execute recomputes the
+hash and refuses on mismatch, so an operator can never approve one plan and execute another. Two
+sets can have the same size and different members; a count-only hash would authorize the wrong one.
+
+The confirmation phrase is chosen for what it makes hard to overlook: the number of affected
+subjects when there are many, and the subject's own identifier when there is exactly one, where a
+count would confirm nothing.
+
+Deduplication is a **derived key with a unique index**, not an application check. The key covers
+what makes two drafts the same operation and deliberately omits what a correction may change, so
+editing patches the existing objects instead of producing a second set. The index is the guarantee
+under concurrency; the application's earlier lookup only makes the common case cheap.

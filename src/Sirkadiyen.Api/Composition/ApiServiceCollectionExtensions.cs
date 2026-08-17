@@ -5,6 +5,7 @@ using Sirkadiyen.Api.Health;
 using Sirkadiyen.Api.Identity;
 using Sirkadiyen.Api.Observability;
 using Sirkadiyen.Application.Administration;
+using Sirkadiyen.Application.Announcements;
 using Sirkadiyen.Application.Auditing;
 using Sirkadiyen.Application.Finance;
 using Sirkadiyen.Application.GoogleCalendar;
@@ -133,6 +134,10 @@ internal static class ApiServiceCollectionExtensions
         services.AddScoped<ScheduleRevisionPublicationService>();
         services.AddScoped<ScheduleDiffReviewService>();
         services.AddScoped<DepartmentColorService>();
+
+        // Announcement composition and confirmation are the API's; delivery is the worker's
+        // (ADR-107), so no dispatch service is registered here.
+        services.AddScoped<AnnouncementService>();
 
         // Administrative acquisition. The API stores the uploaded evidence; the worker
         // still owns parsing, validation and publication (ADR-080).

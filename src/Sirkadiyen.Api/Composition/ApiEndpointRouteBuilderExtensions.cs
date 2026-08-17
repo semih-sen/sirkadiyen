@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Sirkadiyen.Api.Administration;
+using Sirkadiyen.Api.Announcements;
 using Sirkadiyen.Api.Auditing;
 using Sirkadiyen.Api.Finance;
 using Sirkadiyen.Api.GoogleCalendar;
@@ -44,6 +45,7 @@ internal static class ApiEndpointRouteBuilderExtensions
         app.MapDiffEndpoints();
         app.MapOperationalEndpoints();
         app.MapAdminUserEndpoints();
+        app.MapAnnouncementEndpoints();
         app.MapSourceStatusEndpoints();
         app.MapAuditEndpoints();
         app.MapFinanceEndpoints();

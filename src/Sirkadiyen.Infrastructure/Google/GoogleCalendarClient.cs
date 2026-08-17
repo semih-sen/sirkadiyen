@@ -545,6 +545,17 @@ public sealed class GoogleCalendarClient : IUserCalendarClient, IDisposable
             },
         };
 
+        // Left null unless a reminder was asked for, so a lesson keeps whatever notification
+        // defaults the student configured on their own calendar (ADR-107).
+        if (calendarEvent.ReminderMinutesBefore is { } reminderMinutes)
+        {
+            googleEvent.Reminders = new Event.RemindersData
+            {
+                UseDefault = false,
+                Overrides = [new EventReminder { Method = "popup", Minutes = reminderMinutes }],
+            };
+        }
+
         if (calendarEvent.IsAllDay)
         {
             googleEvent.Start = new EventDateTime { Date = FormatDate(calendarEvent.StartDate!.Value) };

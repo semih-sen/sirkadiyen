@@ -71,6 +71,17 @@ a CSV transaction export. 742 `.NET` tests pass across the Infrastructure unit, 
 Persistence integration suites (0 skipped when `SIRKADIYEN_TEST_DATABASE__CONNECTION_STRING` is
 set), all verified against a real PostgreSQL database in this session, not just compiled.
 
+**Administrator-authored calendar announcements are now implemented end to end** (ADR-107), which
+empties `web/GAPS.md` §3.1. A `CalendarAnnouncement` addressed either to an academic cohort or to
+one named user resolves its recipients server-side, freezes them as a delivery ledger at
+confirmation (excluded candidates included, with their reason), and is written by a freeze-gated,
+budget-bounded worker stage that runs last inside the shared Calendar fence. The write is
+idempotent on a deterministic event id in an id space disjoint from lessons; an edit patches every
+copy already written rather than producing a second one; a cancellation removes them on a named
+operator's authority, which is what a diff provides for schedule events and cannot provide here.
+Announcement events carry `sirkadiyenKind=announcement` so periodic inventory ignores them instead
+of reporting every one as a conflict.
+
 **Four backend gaps between the documented design and the code are now closed** (ADR-095 through
 ADR-097). **License revocation stops synchronization**: every query that selects a user for Calendar
 work — cohort fan-out, ledger-holder targets, inventory, initial sync, replay — now requires an
@@ -83,7 +94,78 @@ revision can be rejected** and **a terminally failed diff can be retried**, both
 reason-required `SuperAdmin` routes, with the failed-dispatch queue made enumerable by
 `GET /api/diffs?dispatchState=Failed`.
 
-## Latest implementation session (2026-08-16, the profile edit surface and its audit)
+## Latest implementation session (2026-08-17, administrator calendar announcements)
+
+**The last two prototype screens with no backend at all are built** (ADR-107). `web/GAPS.md` §3.1 —
+"no endpoint (new product surface)" — is now empty: the bulk calendar event and the single-user
+warning both have a domain, a persistence layer, an API, a worker delivery stage and a React
+workspace.
+
+- **One aggregate serves both screens.** `CalendarAnnouncement` carries a `Kind` of `Bulk` or
+  `UserWarning`, because the recipient set is the *only* thing that differs between them. Two
+  parallel domains would have meant two copies of the idempotent write, the delivery ledger, the
+  freeze gate, the licence gate, the edit-as-patch path and the cancel-as-removal path — all
+  high-risk calendar code.
+- **The recipient set is frozen at confirmation, including the people who could not receive it.**
+  A delivery row is written for every resolved candidate in the same transaction as the
+  announcement; an excluded one carries the reason. Keeping those rows is what makes the exclusion
+  counts the operator approved still explainable a day later, and freezing the set is what makes
+  the number on the confirmation screen mean anything.
+- **This is a deliberate departure from systemPatterns §27.** That pattern keeps dispatch tracking
+  coarse *because* idempotency lives in the shared mapping ledger. Here the per-recipient row is
+  the ledger, and the counters shown to the operator are precisely that table — always derived from
+  it, never stored on the announcement, so the two cannot disagree.
+- **An inventory defect this would have caused, found before it shipped.**
+  `CalendarInventoryReconciliationService` groups Sirkadiyen-marked events by `stableIdentity`. An
+  announcement is marked and has none, so it would have been counted as an unexpected marked event
+  and reported as a conflict on *every* pass — destroying the signal exactly when a real conflict
+  appears. Announcement events now carry `sirkadiyenKind=announcement` and inventory skips them.
+  The marker is on the new kind only: giving lessons one would have made every already-written
+  event look drifted and triggered a mass patch.
+- **Deleting an announcement is authorized by a named operator, not by a diff.** AI_GUIDELINE §13's
+  rule protects *schedule* events — it exists so a parser failure can never retire a lesson. An
+  announcement was never schedule truth, so cancellation is authorized by the operator who asked
+  for it, with a required reason, audited, and it keeps every delivery row.
+- **The plan hash covers recipient identities, not just their count.** Two audiences can be the
+  same size and different people, so confirming "412 recipients" must not authorize writing to a
+  different 412. Same shape as ADR-093's finance distribution, applied to the second high-risk
+  operation the design plan §4.3 lists.
+- **Two things the plan asks for were deliberately not built, and both are stated rather than
+  approximated.** The "hesap durumu / lisans durumu / senkronizasyon uygunluğu" audience filters
+  are not choices — a revoked licence has already stopped synchronization and an account with no
+  completed initial sync has no calendar — so they appear as exclusion reasons instead. The
+  "deneme bitiyor" warning template names a state the product does not have (ADR-089: access does
+  not lapse), so shipping it would have an operator send students a fictional deadline.
+- **`ICalendarConnectionHealthWriter` was split out of `ICalendarSyncConnectionStore`.** Delivery
+  discovers dead credentials like any other Calendar write and records them where they are found,
+  but it needs two of that interface's fourteen members — so it depends on a role interface, the
+  same ISP shape `GoogleCalendarConnectionStore` already serves three interfaces with.
+- **Reminders now exist on `ManagedCalendarEvent`,** nullable and left null by every lesson, so a
+  student's own notification defaults keep working and only an announcement replaces them.
+- 614 Infrastructure unit tests (up from 581), 249 Persistence tests against real PostgreSQL (up
+  from 240, all 9 new ones green), 8 Api, 6 Contracts, and 34 frontend tests (up from 27).
+  `dotnet format --verify-no-changes` clean, Release build 0 warnings, typecheck clean, production
+  build 27 routes.
+- **Not done:** a per-recipient retry for one failed delivery (the campaign-level attempt cap and a
+  re-edit are the only paths), scheduling an announcement for *future delivery* rather than a
+  future event date, and recurring announcements.
+
+### Open risks — calendar announcements (2026-08-17)
+
+- **A scoped freeze can push an announcement past its own event date.** Frozen recipients stay
+  queued and are re-checked every cycle, which matches every other stage — but an announcement
+  whose date passes while its class/program is frozen will eventually be written into the past.
+  Nothing warns about this.
+- **An announcement that hits the delivery attempt cap is visible but not alerted on**, the same
+  gap `DispatchRetryCount` has had since ADR-097.
+- **The audience query reads one academic year's profiles into memory** to apply the JSONB selector
+  match, because EF cannot translate a dictionary lookup. Correct and small at a medical faculty's
+  scale; it is a scan that grows with the student body.
+- **A cancelled announcement whose recipient lost their Calendar grant keeps the event.** The row
+  records the failure rather than claiming a removal, which is the honest outcome, but the student
+  keeps a message the operator withdrew and no path re-attempts it after re-authorization.
+
+## Previous implementation session (2026-08-16, the profile edit surface and its audit)
 
 **A live backend feature had no way in.** ADR-096 made an audience-changing profile write converge
 the student's calendar through a fenced worker stage, and `PUT /api/profile` reported

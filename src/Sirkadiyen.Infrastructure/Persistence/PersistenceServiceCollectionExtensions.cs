@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Sirkadiyen.Application.Administration;
+using Sirkadiyen.Application.Announcements;
 using Sirkadiyen.Application.Auditing;
 using Sirkadiyen.Application.Finance;
 using Sirkadiyen.Application.GoogleCalendar;
@@ -15,6 +16,7 @@ using Sirkadiyen.Application.Scheduling.Publication;
 using Sirkadiyen.Application.Scheduling.Sources;
 using Sirkadiyen.Application.StudentProfiles;
 using Sirkadiyen.Infrastructure.Persistence.Administration.Stores;
+using Sirkadiyen.Infrastructure.Persistence.Announcements.Stores;
 using Sirkadiyen.Infrastructure.Persistence.Auditing.Stores;
 using Sirkadiyen.Infrastructure.Persistence.Finance.Stores;
 using Sirkadiyen.Infrastructure.Persistence.GoogleCalendar.Stores;
@@ -76,6 +78,8 @@ public static class PersistenceServiceCollectionExtensions
             provider => provider.GetRequiredService<GoogleCalendarConnectionStore>());
         services.AddScoped<ICalendarSyncConnectionStore>(
             provider => provider.GetRequiredService<GoogleCalendarConnectionStore>());
+        services.AddScoped<ICalendarConnectionHealthWriter>(
+            provider => provider.GetRequiredService<GoogleCalendarConnectionStore>());
         services.AddScoped<IUserCalendarEventMappingStore, UserCalendarEventMappingStore>();
         services.AddScoped<ICanonicalScheduleReadStore, CanonicalScheduleReadStore>();
         services.AddScoped<ICalendarSyncTargetReadStore, CalendarSyncTargetReadStore>();
@@ -92,6 +96,8 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IFinanceObligationStore, FinanceObligationStore>();
         services.AddScoped<IFinanceSummaryReadStore, FinanceSummaryReadStore>();
         services.AddScoped<IFinanceDistributionStore, FinanceDistributionStore>();
+        services.AddScoped<IAnnouncementStore, AnnouncementStore>();
+        services.AddScoped<IAnnouncementAudienceReadStore, AnnouncementAudienceReadStore>();
 
         return services;
     }

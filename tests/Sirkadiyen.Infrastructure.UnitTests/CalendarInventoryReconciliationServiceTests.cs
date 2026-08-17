@@ -157,6 +157,39 @@ public sealed class CalendarInventoryReconciliationServiceTests
     }
 
     [Fact]
+    public async Task AnAdministratorAnnouncementIsIgnoredRatherThanReportedAsAConflict()
+    {
+        Harness harness = new();
+        CanonicalScheduleRecord record = CalendarTestData.Record(stableIdentity: "lesson");
+        harness.Records.Add(record);
+        ManagedCalendarEvent lesson =
+            ManagedCalendarEventFactory.ToManagedEvent(harness.UserId, record);
+        harness.Mappings.Seed(Mapping(harness.UserId, record, lesson.EventId));
+        harness.Client.Events.Add(Snapshot(lesson));
+
+        // An announcement is Sirkadiyen-managed and carries no stable identity, so before ADR-107
+        // added the kind marker this scan counted it as an unexpected marked event and reported a
+        // conflict on every pass — which would make the inventory signal useless.
+        harness.Client.Events.Add(Snapshot(lesson) with
+        {
+            EventId = "announcement-event",
+            PrivateProperties = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                [ManagedCalendarEventFactory.ManagedMarkerKey] = "1",
+                [ManagedCalendarEventFactory.KindKey] = ManagedCalendarEventFactory.AnnouncementKind,
+                ["announcementId"] = Guid.CreateVersion7().ToString("N"),
+            },
+        });
+
+        CalendarInventoryUserResult result = await harness.RunSingleAsync();
+
+        Assert.Equal(CalendarInventoryOutcome.Completed, result.Outcome);
+        Assert.Equal(0, result.Conflicts);
+        Assert.Equal(0, result.UnexpectedEvents);
+        Assert.Empty(harness.Client.Deletes);
+    }
+
+    [Fact]
     public async Task AnUnavailableManagedCalendarBecomesExplicitRepairRequired()
     {
         Harness harness = new();

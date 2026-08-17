@@ -341,6 +341,21 @@ public sealed class CalendarInventoryReconciliationService(
             new(StringComparer.Ordinal);
         foreach (ManagedCalendarEventSnapshot calendarEvent in events)
         {
+            // An administrator-authored announcement is Sirkadiyen-managed but is not schedule
+            // truth, so this scan has nothing to say about it (ADR-107). Without this it would be
+            // counted as an unexpected marked event and reported as a conflict on every pass,
+            // which would make the inventory signal useless exactly when it matters.
+            if (calendarEvent.PrivateProperties.TryGetValue(
+                    ManagedCalendarEventFactory.KindKey,
+                    out string? kind)
+                && string.Equals(
+                    kind,
+                    ManagedCalendarEventFactory.AnnouncementKind,
+                    StringComparison.Ordinal))
+            {
+                continue;
+            }
+
             if (!calendarEvent.PrivateProperties.TryGetValue(
                     "stableIdentity",
                     out string? stableIdentity)

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using Sirkadiyen.Application.Announcements;
 using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Scheduling.Diffing;
 using Sirkadiyen.Application.Scheduling.Ingestion;
@@ -94,6 +95,23 @@ internal sealed class WorkerOptionsFactory(
                 configuration["SIRKADIYEN_SYNC:RECONCILIATION_CONNECTION_BATCH_SIZE"], 5),
             DiffsPerConnectionPerCycle = ConfigurationValueParser.Integer(
                 configuration["SIRKADIYEN_SYNC:RECONCILIATION_DIFFS_PER_CONNECTION"], 10),
+        }, static options => options.Validate());
+
+    public AnnouncementDispatchOptions CreateAnnouncementDispatchOptions() =>
+        Validate(new AnnouncementDispatchOptions
+        {
+            AnnouncementBatchSize = ConfigurationValueParser.Integer(
+                configuration["SIRKADIYEN_SYNC:ANNOUNCEMENT_BATCH_SIZE"], 3),
+            CalendarOperationsPerAnnouncementPerCycle = ConfigurationValueParser.Integer(
+                configuration["SIRKADIYEN_SYNC:ANNOUNCEMENT_OPERATIONS_PER_CYCLE"], 200),
+            MaximumDeliveryAttempts = ConfigurationValueParser.Integer(
+                configuration["SIRKADIYEN_SYNC:ANNOUNCEMENT_MAX_ATTEMPTS"], 8),
+            InitialBackoff = ConfigurationValueParser.Duration(
+                configuration["SIRKADIYEN_SYNC:ANNOUNCEMENT_RETRY_INITIAL_BACKOFF"],
+                TimeSpan.FromMinutes(2)),
+            MaximumBackoff = ConfigurationValueParser.Duration(
+                configuration["SIRKADIYEN_SYNC:ANNOUNCEMENT_RETRY_MAX_BACKOFF"],
+                TimeSpan.FromHours(2)),
         }, static options => options.Validate());
 
     public CalendarInventoryReconciliationOptions CreateInventoryOptions() =>

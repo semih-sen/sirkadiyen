@@ -141,4 +141,23 @@ public enum AuditEventCategory
     /// log (AI_GUIDELINE §19).
     /// </summary>
     ProfileUpdated,
+
+    /// <summary>
+    /// A SuperAdmin confirmed an administrator-authored calendar announcement, freezing its
+    /// recipient set and queueing it for delivery (ADR-107).
+    /// </summary>
+    AnnouncementQueued,
+
+    /// <summary>
+    /// A SuperAdmin changed what a queued or delivered announcement says, which patches every
+    /// copy already written to a calendar.
+    /// </summary>
+    AnnouncementUpdated,
+
+    /// <summary>
+    /// A SuperAdmin cancelled an announcement, which removes every copy already written. This is
+    /// a calendar deletion an operator authorized directly rather than one a published revision
+    /// derived, so it is recorded here in its own right (AI_GUIDELINE §19).
+    /// </summary>
+    AnnouncementCancelled,
 }

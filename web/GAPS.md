@@ -77,6 +77,7 @@ These screens are connected to real routes and were re-skinned, not stubbed:
 | Admin · source status | `GET /api/admin/sources` and `GET /api/admin/sources/{id}` |
 | Admin · access/audit | `GET /api/admin/access-logs`, `POST .../unmask`, `GET /api/admin/audit` |
 | Admin · health/metrics | `/health/live`, `/health/ready`, `GET /api/admin/metrics`, `GET /api/admin/services/health` |
+| Admin · bulk event / user warning | `GET /api/admin/announcements/options`, `POST .../preview`, `POST .../`, `GET .../`, `GET .../{id}`, `GET .../{id}/deliveries`, `PUT .../{id}`, `POST .../{id}/cancel` |
 
 ---
 
@@ -121,10 +122,8 @@ fabricate records or metrics. The sections below separate remaining gaps from wi
 
 ### 3.1 No endpoint (new product surface)
 
-| Prototype screen | File | Notes |
-| --- | --- | --- |
-| Toplu takvim etkinliği | `admin-bulk-event.html` | Audience resolution → estimated recipients → dedup campaign key → queued delivery tracking (plan §4.4, §5.11). |
-| Tek kullanıcı uyarısı | `admin-user-warning.html` | Idempotent `warning-key` per user+template+date (plan §4.5, §5.12). |
+**This section is empty as of 2026-08-17.** Both entries were built full-stack (ADR-107); see the
+update at the end of this document. No prototype admin screen is left without a backend.
 
 ### 3.2 Endpoint exists, UI not built (cheapest next steps)
 
@@ -146,6 +145,8 @@ so an active student could never reach it. See the update at the end of this doc
   account/holder/share management, binding profit distribution and append-only finance audit.
 - `/admin/diffs`: the held and failed-dispatch diff queues with their changed lessons, plus the
   reason-required release and retry actions (these two are write surfaces, not read-only).
+- `/admin/bulk-event` and `/admin/user-warning`: server-resolved audience, exclusions with reasons,
+  binding plan-hash confirmation, delivery ledger, content edit and cancellation (write surfaces).
 
 ---
 
@@ -258,10 +259,68 @@ a real, different case — and deliberately never the student number.
 
 ---
 
+---
+
+## Update — the announcement domain is built, and §3.1 is empty (2026-08-17)
+
+ADR-107. The bulk calendar event and the single-user warning were the last two prototype screens
+with no backend at all. They are now one backend domain behind two screens, because the recipient
+set was the only thing that differed between them — everything else (idempotent write, delivery
+ledger, freeze gate, licence gate, edit-patches-not-duplicates, cancel-removes) is identical, and
+duplicating it would have meant two copies of high-risk calendar code.
+
+- **`/admin/bulk-event`** (`BulkEventComposer.tsx`) is a three-step wizard over the six-step
+  high-risk pattern: audience → content → review and confirm. The server resolves the audience,
+  lists the exclusions with their reasons, and returns a **plan hash** covering the recipient
+  *identities*, not just their count. The confirmation carries the hash back and the write is
+  refused if the audience moved, so an approved preview can never queue a different set of people.
+- **`/admin/user-warning`** (`UserWarningComposer.tsx`) searches a user, shows the account state the
+  warning is usually *about* before offering a template, then previews and confirms the same way.
+  The warning key is user + template + local date, so a second send of the same template on the
+  same day is a replay that writes nothing.
+- **Delivery is tracked, never claimed.** The confirmation says the announcement was *queued*; the
+  worker writes it. The counters (written / pending / skipped / removed / failed) come from the
+  per-recipient ledger and are never stored on the announcement, so the number shown cannot
+  disagree with the rows behind it.
+
+### Three things the screens deliberately do not offer
+
+- **No "hesap durumu / lisans durumu / senkronizasyon uygunluğu" filters**, though plan §5.11 lists
+  them as audience dimensions. They are not choices: a revoked licence has already stopped
+  synchronization (ADR-095) and an account with no completed initial sync has no calendar to write
+  to. They appear instead as exclusion reasons the operator reads *before* confirming — which is
+  the honest place for them, and is what §4.4's "hariç bırakılanlar ve gerekçeleri" asks for.
+- **No "deneme bitiyor" warning template**, though plan §5.12 lists one. Sirkadiyen access does not
+  lapse after activation and `GET /api/licenses/status` reports no time remaining (ADR-089), so the
+  template would have an operator send students a deadline the product does not have. The four
+  templates that ship each name a state the system can actually be in.
+- **No re-addressing.** Editing an announcement changes what it says and patches every copy already
+  written. Changing *who* receives it is a new announcement with its own confirmation, because the
+  recipients were frozen when the count on the confirmation screen was approved.
+
+### One inventory change this required
+
+`CalendarInventoryReconciliationService` groups Sirkadiyen-marked Google events by their
+`stableIdentity`. An announcement is marked but has no stable identity, so it would have been
+counted as an unexpected marked event and reported as a conflict on **every** inventory pass —
+making the signal useless exactly when a real conflict appears. Announcement events now carry
+`sirkadiyenKind=announcement` and inventory skips them. The marker is on the new kind only, so no
+already-written lesson had to be rewritten to gain one.
+
+### Still no endpoint (unchanged)
+
+`GET /api/calendar/sync/history` (needs a per-user activity log), `GET /api/notifications`,
+`POST /api/contact`, and the articles/podcast content system.
+
+---
+
 ## 5. Suggested build order for closing gaps
 
 1. Add a per-user sync activity log before exposing `GET /api/calendar/sync/history`.
 2. Decide and implement notification and contact contracts.
 3. Add exporter/host telemetry only if CPU/RAM/Redis visibility becomes a requirement; worker/parser process health is already wired.
-4. Remaining new product domains without a backend: bulk event and user warning.
+4. ~~Remaining new product domains without a backend: bulk event and user warning.~~ **Done
+   2026-08-17** (ADR-107).
 5. Alerting on `DispatchRetryCount` — the value is now readable in the UI, but nothing watches it.
+   The same gap now exists for an announcement that reached its delivery attempt cap: it is visible
+   in `/admin/bulk-event`, but nothing alerts on it.

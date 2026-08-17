@@ -228,11 +228,16 @@
   masked IP + audited unmask, ADR-089)
 - [x] Audit a student profile change (`AuditEventCategory.ProfileUpdated` with the resolved
   audience and both outcome flags, never the student number; ADR-105)
+- [x] Administrator calendar announcements — bulk cohort event and single-user warning as one
+  domain (`/api/admin/announcements/*`, server-resolved audience with exclusion reasons, binding
+  plan hash, deterministic campaign/warning key, per-recipient delivery ledger, freeze-gated worker
+  delivery, audited edit and cancellation; ADR-107)
 - [x] Health checks (API and internal Worker `/health/live` + `/health/ready`, parser `/health` probe, ADR-089/091)
 - [x] Metrics (`GET /api/admin/metrics` JSON operational-count snapshot, ADR-089)
 - [~] Structured logs (correlation-id middleware stamps every request/log line; a full
   structured-logging/OpenTelemetry stack is still pending)
-- [ ] Alerts
+- [ ] Alerts (nothing watches `ScheduleDiff.DispatchRetryCount` or an announcement that reached
+  its delivery attempt cap; both are readable in the UI, neither is alerted on)
 
 ## Phase 11: Consumer frontend
 
@@ -249,9 +254,10 @@
 - [x] Onboarding route gating by authoritative backend state
 - [x] SuperAdmin routed to admin panel instead of student onboarding (ADR-067)
 - [~] Admin/operator interfaces (freeze including class/program scopes, source warning
-  evidence, user/license administration, audit/access logs, worker/parser health, and the
-  held/failed diff queues with revision rejection are wired; only endpointless product
-  domains remain)
+  evidence, user/license administration, audit/access logs, worker/parser health, the
+  held/failed diff queues with revision rejection, and the bulk-event / user-warning
+  announcement workspaces are wired; only endpointless product domains remain — contact,
+  notifications and per-user sync history)
 - [x] Administrative document upload UI, driven by `GET /api/sources/uploadable` (ADR-081)
 - [x] Component system / design system (ported the Wise-inspired prototype design
   system into `web/src/app/globals.css` + shared `web/src/components/ui.tsx`; light
@@ -552,6 +558,32 @@ department combination. All application types, including vertical-corridor activ
 and dissections, share a configurable attention color; visible titles use the
 `UYGULAMA - ...` and `DİSEKSİYON` presentation rules. The canonical schedule remains
 source-faithful, and ordinary inventory patches existing Calendar events in place.
+
+## Latest full-stack session (2026-08-17, calendar announcements)
+
+- **The last two backendless prototype screens are built** (ADR-107): the bulk calendar event and
+  the single-user warning, as one `CalendarAnnouncement` domain behind two React workspaces. The
+  recipient set is the only thing that differed between them, so a second domain would have
+  duplicated the idempotent write, the delivery ledger, the freeze gate and the cancel path.
+- Domain (`CalendarAnnouncement`, `CalendarAnnouncementDelivery`, `AnnouncementCampaignKey`) →
+  persistence (`AddCalendarAnnouncements`, two tables, a unique campaign-key index and two check
+  constraints) → API (`/api/admin/announcements/*`, SuperAdmin, CSRF, three new audit categories)
+  → worker (`AnnouncementDispatchTask`, last inside the shared Calendar fence) → frontend
+  (`BulkEventComposer`, `UserWarningComposer`, `AnnouncementShared`).
+- **Inventory had to learn about the new kind.** An announcement is Sirkadiyen-marked but has no
+  stable identity, so the three-way inventory scan would have reported every one as an unexpected
+  marked event on every pass. Announcement events carry `sirkadiyenKind=announcement` and are
+  skipped; lessons keep no marker, so nothing already written had to change.
+- **`ManagedCalendarEvent` gained a nullable reminder**, left null by every lesson so students'
+  own notification defaults keep working.
+- **`ICalendarConnectionHealthWriter`** was split out of `ICalendarSyncConnectionStore` so a
+  service that only writes calendars depends on two members rather than fourteen.
+- 614 Infrastructure unit tests (up from 581), 249 Persistence tests against real PostgreSQL (up
+  from 240), 8 Api, 6 Contracts, 34 frontend tests (up from 27). Format clean, Release build 0
+  warnings, frontend typecheck clean, production build 27 routes.
+- **Not done:** per-recipient retry of one failed delivery, scheduled (future-dated) delivery as
+  opposed to a future event date, recurring announcements, and alerting on an announcement that
+  reached its attempt cap.
 
 ## Latest frontend session (2026-08-04, ADR-089 API integration)
 

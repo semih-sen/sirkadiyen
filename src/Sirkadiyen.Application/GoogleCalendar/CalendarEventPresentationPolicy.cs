@@ -92,7 +92,7 @@ public static partial class CalendarEventPresentationPolicy
         PresentationCategory category = ResolveCategory(record);
         return new ManagedCalendarEventLabel
         {
-            Id = DeterministicLabelId(category.Key),
+            Id = CalendarLabelId.For(category.Key),
             Name = Truncate(category.Name, 50),
             BackgroundColor = ResolveColor(category, departmentColors),
         };
@@ -232,14 +232,6 @@ public static partial class CalendarEventPresentationPolicy
         string cleaned = value.Trim().TrimEnd('.');
         cleaned = DepartmentSuffix().Replace(cleaned, string.Empty).Trim();
         return string.IsNullOrWhiteSpace(cleaned) ? value.Trim() : cleaned;
-    }
-
-    private static string DeterministicLabelId(string key)
-    {
-        byte[] bytes = SHA256.HashData(Encoding.UTF8.GetBytes($"sirkadiyen-label\n{key}"))[..16];
-        bytes[6] = (byte)((bytes[6] & 0x0F) | 0x50);
-        bytes[8] = (byte)((bytes[8] & 0x3F) | 0x80);
-        return new Guid(bytes).ToString();
     }
 
     private static string DerivedColor(string key)

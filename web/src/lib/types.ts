@@ -896,3 +896,204 @@ export interface ProblemDetails {
   detail?: string;
   errors?: Record<string, string[]>;
 }
+
+// ---- Calendar announcements (ADR-107) --------------------------------------
+// One backend domain behind two screens: a bulk cohort event and a single-user
+// warning. They differ only in how the recipient set is decided, so the delivery
+// ledger, the deduplication key and the cancel path are shared.
+
+export type CalendarAnnouncementKind = 'Bulk' | 'UserWarning';
+
+export type CalendarAnnouncementStatus =
+  | 'Queued'
+  | 'Delivering'
+  | 'Delivered'
+  | 'Cancelling'
+  | 'Cancelled'
+  | 'Failed';
+
+export type CalendarAnnouncementDeliveryState =
+  | 'Pending'
+  | 'Written'
+  | 'Skipped'
+  | 'Removed'
+  | 'Failed';
+
+/**
+ * Why a candidate cannot receive an announcement. These are facts about the account,
+ * not filters an operator chose: none can be waived, because there is no calendar to
+ * write to.
+ */
+export type AnnouncementExclusionReason =
+  | 'NoStudentProfile'
+  | 'LicenseInactive'
+  | 'NoCalendarConnection'
+  | 'CalendarAuthorizationRevoked'
+  | 'InitialSyncIncomplete'
+  | 'ManagedCalendarUnavailable';
+
+export interface AnnouncementCategoryView {
+  key: string;
+  name: string;
+  backgroundColor: string;
+}
+
+export interface AnnouncementTemplateView {
+  key: string;
+  name: string;
+  suggestedTitle: string;
+  suggestedBody: string;
+  categoryKey: string;
+}
+
+/** GET /api/admin/announcements/options */
+export interface AnnouncementCompositionOptions {
+  categories: AnnouncementCategoryView[];
+  templates: AnnouncementTemplateView[];
+  /** Not operator-selectable; the server interprets every announcement in this zone. */
+  timeZoneId: string;
+  earliestLocalDate: string;
+}
+
+/** What the operator composed. The time zone is deliberately absent — the server owns it. */
+export interface AnnouncementComposition {
+  kind: CalendarAnnouncementKind;
+  academicYear?: string | null;
+  classYear?: number | null;
+  programLanguage?: ProgramLanguage | null;
+  selectors?: Record<string, string>;
+  targetUserId?: string | null;
+  templateKey?: string | null;
+  title: string;
+  body: string;
+  location?: string | null;
+  isAllDay: boolean;
+  localDate: string;
+  startLocalTime?: string | null;
+  endLocalTime?: string | null;
+  reminderMinutesBefore?: number | null;
+  categoryKey: string;
+  internalNote?: string | null;
+}
+
+export interface AnnouncementAudienceCandidate {
+  userId: string;
+  email: string;
+  displayName?: string | null;
+  classYear?: number | null;
+  programLanguage?: ProgramLanguage | null;
+  managedCalendarId?: string | null;
+  exclusionReason?: AnnouncementExclusionReason | null;
+}
+
+export interface AnnouncementExclusionGroup {
+  reason: AnnouncementExclusionReason;
+  count: number;
+}
+
+export interface AnnouncementDeliveryCounts {
+  pending: number;
+  written: number;
+  skipped: number;
+  removed: number;
+  failed: number;
+  total: number;
+}
+
+export interface AnnouncementSummary {
+  announcementId: string;
+  kind: CalendarAnnouncementKind;
+  campaignKey: string;
+  title: string;
+  status: CalendarAnnouncementStatus;
+  contentVersion: number;
+  localDate: string;
+  isAllDay: boolean;
+  startLocalTime?: string | null;
+  endLocalTime?: string | null;
+  recipientCount: number;
+  counts: AnnouncementDeliveryCounts;
+  createdBy: string;
+  createdAtUtc: string;
+  completedAtUtc?: string | null;
+  lastFailureReason?: string | null;
+  cancelledBy?: string | null;
+  cancellationReason?: string | null;
+}
+
+export interface AnnouncementDetail {
+  summary: AnnouncementSummary;
+  body: string;
+  location?: string | null;
+  timeZoneId: string;
+  reminderMinutesBefore?: number | null;
+  categoryKey: string;
+  templateKey?: string | null;
+  internalNote?: string | null;
+  audienceAcademicYear: string;
+  audienceClassYear?: number | null;
+  audienceProgramLanguage?: ProgramLanguage | null;
+  audienceSelectors: Record<string, string>;
+  targetUserId?: string | null;
+  creationReason: string;
+  lastUpdatedBy?: string | null;
+  lastUpdateReason?: string | null;
+  updatedAtUtc: string;
+  planHash?: string | null;
+  deliveryAttempts: number;
+  exclusions: AnnouncementExclusionGroup[];
+}
+
+/**
+ * The server-computed plan a confirmation is bound to. `planHash` covers the recipient
+ * identities, not merely their count, so approving "412 recipients" cannot authorize
+ * writing to a different 412 people.
+ */
+export interface AnnouncementPreview {
+  campaignKey: string;
+  planHash: string;
+  recipientCount: number;
+  excludedCount: number;
+  exclusions: AnnouncementExclusionGroup[];
+  recipients: AnnouncementAudienceCandidate[];
+  excludedRecipients: AnnouncementAudienceCandidate[];
+  /** Set when this campaign key already exists: confirming would be a replay. */
+  existingAnnouncement?: AnnouncementSummary | null;
+  confirmationPhrase: string;
+}
+
+export type CreateAnnouncementOutcome =
+  | 'Queued'
+  | 'AlreadyExists'
+  | 'PlanChangedSincePreview'
+  | 'ConfirmationMismatch'
+  | 'NoRecipients'
+  | 'Invalid';
+
+export interface CreateAnnouncementResult {
+  outcome: CreateAnnouncementOutcome;
+  announcement?: AnnouncementSummary | null;
+  detail?: string | null;
+}
+
+export interface UpdateAnnouncementResult {
+  outcome: 'Updated' | 'NotFound' | 'Cancelled' | 'Invalid' | 'ConcurrentChange';
+  announcement?: AnnouncementSummary | null;
+  detail?: string | null;
+}
+
+export interface CancelAnnouncementResult {
+  outcome: 'CancellationRequested' | 'AlreadyCancelled' | 'NotFound' | 'ConcurrentChange';
+  announcement?: AnnouncementSummary | null;
+}
+
+export interface AnnouncementDeliveryView {
+  userId: string;
+  email: string;
+  displayName?: string | null;
+  state: CalendarAnnouncementDeliveryState;
+  skipReason?: AnnouncementExclusionReason | null;
+  appliedContentVersion?: number | null;
+  failureReason?: string | null;
+  updatedAtUtc: string;
+}

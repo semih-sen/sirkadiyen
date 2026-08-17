@@ -86,6 +86,18 @@ import type {
   FinanceTransactionListItem,
   FinanceTransactionMutationResult,
   FinanceTrendPoint,
+  AnnouncementComposition,
+  AnnouncementCompositionOptions,
+  AnnouncementDeliveryView,
+  AnnouncementDetail,
+  AnnouncementPreview,
+  AnnouncementSummary,
+  CalendarAnnouncementDeliveryState,
+  CalendarAnnouncementKind,
+  CalendarAnnouncementStatus,
+  CancelAnnouncementResult,
+  CreateAnnouncementResult,
+  UpdateAnnouncementResult,
 } from './types';
 
 export class ApiError extends Error {
@@ -853,4 +865,74 @@ export function listFinanceAudit(values: {
   from?: string; to?: string; page?: number; pageSize?: number;
 } = {}): Promise<PagedResult<FinanceAuditListItem>> {
   return request(withQuery(`${FINANCE_PATH}/audit`, values));
+}
+
+// ---- Calendar announcements (SuperAdmin) ----------------------------------
+// The audience is resolved and the plan hashed on the server; the browser only carries
+// the hash back with a hand-typed confirmation phrase, so it can neither choose
+// recipients nor confirm a plan the server did not compute (ADR-107).
+
+const ANNOUNCEMENT_PATH = '/api/admin/announcements';
+
+export function getAnnouncementOptions(): Promise<AnnouncementCompositionOptions> {
+  return request(`${ANNOUNCEMENT_PATH}/options`);
+}
+
+export function previewAnnouncement(
+  announcement: AnnouncementComposition,
+): Promise<AnnouncementPreview> {
+  return request(`${ANNOUNCEMENT_PATH}/preview`, { method: 'POST', body: { announcement } });
+}
+
+/**
+ * Confirms an announcement. A repeated confirmation of the same campaign key returns
+ * `AlreadyExists` rather than a second copy on every recipient's calendar.
+ */
+export function createAnnouncement(body: {
+  announcement: AnnouncementComposition;
+  planHash: string;
+  confirmationPhrase: string;
+  reason: string;
+}): Promise<CreateAnnouncementResult> {
+  return request(`${ANNOUNCEMENT_PATH}/`, { method: 'POST', body });
+}
+
+export function listAnnouncements(values: {
+  kind?: CalendarAnnouncementKind; status?: CalendarAnnouncementStatus; limit?: number;
+} = {}): Promise<AnnouncementSummary[]> {
+  return request(withQuery(`${ANNOUNCEMENT_PATH}/`, { ...values }));
+}
+
+export function getAnnouncement(announcementId: string): Promise<AnnouncementDetail> {
+  return request(`${ANNOUNCEMENT_PATH}/${encodeURIComponent(announcementId)}`);
+}
+
+export function listAnnouncementDeliveries(
+  announcementId: string,
+  values: { state?: CalendarAnnouncementDeliveryState; page?: number; pageSize?: number } = {},
+): Promise<PagedResult<AnnouncementDeliveryView>> {
+  return request(
+    withQuery(`${ANNOUNCEMENT_PATH}/${encodeURIComponent(announcementId)}/deliveries`, { ...values }),
+  );
+}
+
+/** Corrects what an announcement says; every copy already written is patched, not duplicated. */
+export function updateAnnouncement(
+  announcementId: string,
+  announcement: AnnouncementComposition,
+  reason: string,
+): Promise<UpdateAnnouncementResult> {
+  return request(`${ANNOUNCEMENT_PATH}/${encodeURIComponent(announcementId)}`, {
+    method: 'PUT', body: { announcement, reason },
+  });
+}
+
+/** Removes every copy already written to a calendar. */
+export function cancelAnnouncement(
+  announcementId: string,
+  reason: string,
+): Promise<CancelAnnouncementResult> {
+  return request(`${ANNOUNCEMENT_PATH}/${encodeURIComponent(announcementId)}/cancel`, {
+    method: 'POST', body: { reason },
+  });
 }

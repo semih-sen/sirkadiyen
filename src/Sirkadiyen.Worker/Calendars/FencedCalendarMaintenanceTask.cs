@@ -9,6 +9,7 @@ internal sealed class FencedCalendarMaintenanceTask(
     PendingDiffDispatchTask dispatch,
     CalendarReconciliationTask reconciliation,
     ProfileResyncTask profileResync,
+    AnnouncementDispatchTask announcements,
     CalendarInventoryTask inventory,
     ILogger<FencedCalendarMaintenanceTask> logger)
 {
@@ -36,6 +37,12 @@ internal sealed class FencedCalendarMaintenanceTask(
             // inventory sees the calendar the new profile expects rather than reporting the old
             // cohort's events as unexpected.
             catchUpRequired |= await profileResync.RunAsync(cancellationToken);
+
+            // After every schedule stage: an announcement is the product speaking, and it must
+            // never take the Calendar budget the schedule itself needs (ADR-107). Inventory still
+            // runs afterwards and ignores announcement events, so it reports neither them nor a
+            // conflict about them.
+            catchUpRequired |= await announcements.RunAsync(cancellationToken);
 
             await inventory.RunAsync(cancellationToken);
             return catchUpRequired;
