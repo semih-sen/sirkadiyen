@@ -202,13 +202,10 @@ jobs:
       - name: Generate the idempotent migration script
         if: needs.changes.outputs.migrations == 'true'
         run: |
+          set -euo pipefail
           dotnet tool install --global dotnet-ef --version 10.*
-          export PATH="$PATH:$HOME/.dotnet/tools"
           mkdir -p artifacts/migrations
-          # Infrastructure is both the migrations project and the startup
-          # project: SirkadiyenDbContextFactory is a design-time factory, so no
-          # host project and no reachable database are needed here.
-          dotnet ef migrations script \
+          "$HOME/.dotnet/tools/dotnet-ef" migrations script \
             --idempotent \
             --project src/Sirkadiyen.Infrastructure/Sirkadiyen.Infrastructure.csproj \
             --startup-project src/Sirkadiyen.Infrastructure/Sirkadiyen.Infrastructure.csproj \
