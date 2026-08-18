@@ -2457,7 +2457,8 @@ The two open items from ADR-109/110 are closed (ADR-111). 909 .NET tests pass; f
   to delete for some user, those rows become unpublished leftovers, which the repair counts and never
   touches. That is ADR-089 working as designed, but it means a failed publication needs its own
   follow-up rather than being swept up by a repair.
-- **No frontend for the repair**, so it is an API-only capability today.
+- ~~No frontend for the repair~~ **Done 2026-08-18:** `CalendarRepairControl` on `/admin/operations`.
+  It has not been run against a live backend, so the wiring is proven by tests and the build only.
 - **Preview cost is unbounded in cohort size** — a linear scan over published records × users.
 - **The admin audit-category dropdown is four categories behind** (pre-existing drift since ADR-107,
   now including `CalendarRepairRequested`). The audit API itself filters on any category.

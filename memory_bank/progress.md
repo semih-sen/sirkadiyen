@@ -917,3 +917,24 @@ Infrastructure 636, Persistence 259 against real PostgreSQL); `dotnet format` cl
   wrote.
 - **Not done:** no frontend for the repair; the admin audit-category dropdown remains four categories
   behind (pre-existing drift since ADR-107).
+
+## The calendar repair gets an operator screen (2026-08-18)
+
+ADR-111 shipped API-only; the repair is now a control on `/admin/operations` beside the freeze.
+
+- **`CalendarRepairControl`** is a two-step control: preview, then a confirmation carrying the
+  `planHash` the backend computed. Editing any part of the scope drops the previewed plan, because
+  the hash belongs to the cohort it was computed for and a stale one attached to a changed form is
+  precisely what the hash exists to prevent.
+- **The plan is shown in the terms the backend planned it**: how many events are deleted, how many
+  written, how many students are affected out of the whole cohort, and how many rows are
+  deliberately left alone. That last figure makes the ADR-089 boundary visible instead of hiding it
+  — an operator seeing "3 rows untouched" can ask why, which is the point of reporting it at all.
+- A per-student breakdown sits behind a `<details>`, so the summary stays readable for a cohort of
+  hundreds while the detail is one click away.
+- The 409 from a stale plan hash clears the plan and asks for a fresh preview rather than letting
+  the operator retry a confirmation that cannot succeed.
+- 52 frontend tests pass (up from 46), typecheck clean, production build compiles with 25 routes and
+  no warnings. `GAPS.md` records the new wiring.
+- **Not done:** the screen has not been exercised against a live backend — that needs PostgreSQL,
+  the API and a SuperAdmin session. Behaviour is covered by tests against a mocked client only.

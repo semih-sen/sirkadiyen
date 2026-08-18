@@ -1175,3 +1175,50 @@ export interface AnnouncementDeliveryView {
   failureReason?: string | null;
   updatedAtUtc: string;
 }
+
+/** The program a calendar repair is scoped to (ADR-111). */
+export interface CohortRepairScope {
+  academicYear: string;
+  classYear: number;
+  programLanguage: ProgramLanguage;
+}
+
+/** What a repair would converge for one student. */
+export interface CohortRepairUserPlan {
+  userId: string;
+  /** Still-published events the student holds that are no longer theirs. These get deleted. */
+  surplusEventCount: number;
+  /** Events that apply to them and are not on the calendar. These get written. */
+  missingEventCount: number;
+  /** Rows whose lesson is no longer published; counted, never touched (ADR-089). */
+  untouchableRetiredCount: number;
+}
+
+/**
+ * The server-computed plan a confirmation is bound to. `planHash` covers the per-user counts,
+ * not only the totals, so confirming one plan cannot authorize repairing a different set of
+ * students.
+ */
+export interface CohortRepairPlan {
+  scope: CohortRepairScope;
+  users: CohortRepairUserPlan[];
+  cohortUserCount: number;
+  totalSurplusEvents: number;
+  totalMissingEvents: number;
+  /** Cohort-wide, and deliberately not the sum of `users` — see ADR-111. */
+  totalUntouchableRetired: number;
+  planHash: string;
+}
+
+export type CohortRepairOutcome =
+  | 'Requested'
+  | 'PlanChanged'
+  | 'NothingToRepair'
+  | 'Frozen'
+  | string;
+
+export interface CohortRepairRequestResult {
+  outcome: CohortRepairOutcome;
+  usersRequested: number;
+  plan?: CohortRepairPlan | null;
+}

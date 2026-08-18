@@ -19,6 +19,9 @@ import type {
   GoogleCalendarConnectionView,
   OnboardingSnapshot,
   ApproveRevisionResponse,
+  CohortRepairPlan,
+  CohortRepairRequestResult,
+  CohortRepairScope,
   OperationalFreezeChangeResult,
   OperationalFreezeSnapshot,
   OperationalFreezeScope,
@@ -411,6 +414,29 @@ export function setFreeze(isFrozen: boolean, reason: string): Promise<Operationa
   return request<OperationalFreezeChangeResult>('/api/operations/freeze', {
     method: 'POST',
     body: { isFrozen, reason },
+  });
+}
+
+/** Computes what repairing one program's calendars would converge, changing nothing (ADR-111). */
+export function previewCalendarRepair(scope: CohortRepairScope): Promise<CohortRepairPlan> {
+  return request<CohortRepairPlan>('/api/operations/calendar-repairs/preview', {
+    method: 'POST',
+    body: scope,
+  });
+}
+
+/**
+ * Authorizes the repair that was previewed. The `planHash` binds the confirmation to that plan;
+ * the backend replans and refuses with 409 if the cohort has moved since.
+ */
+export function requestCalendarRepair(
+  scope: CohortRepairScope,
+  planHash: string,
+  reason: string,
+): Promise<CohortRepairRequestResult> {
+  return request<CohortRepairRequestResult>('/api/operations/calendar-repairs', {
+    method: 'POST',
+    body: { ...scope, planHash, reason },
   });
 }
 

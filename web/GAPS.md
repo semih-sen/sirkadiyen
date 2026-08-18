@@ -66,6 +66,7 @@ These screens are connected to real routes and were re-skinned, not stubbed:
 | Dashboard (real modules) | `GET /api/calendar/sync`, `GET /api/profile` |
 | Profile edit (`/profile`) | `GET /api/profile`, `GET /api/profile/options`, `PUT /api/profile` (reports `calendarResyncRequested`, ADR-096/105) |
 | Admin · freeze | `GET/POST /api/operations/freeze`, `GET/POST /api/operations/freeze/scopes` |
+| Admin · calendar repair | `POST /api/operations/calendar-repairs/preview`, `POST /api/operations/calendar-repairs` (ADR-111, plan-hash bound and audited) |
 | Admin · document upload | `GET /api/sources/uploadable`, `POST /api/sources/{id}/document`, `GET .../uploads` |
 | Admin · revision review | `GET /api/revisions`, `GET /api/revisions/{id}`, `POST /api/revisions/{id}/approve`, `POST /api/revisions/{id}/reject` |
 | Admin · diff queues | `GET /api/diffs?state=Held`, `GET /api/diffs?dispatchState=Failed`, `GET /api/diffs/{id}`, `POST /api/diffs/{id}/release`, `POST /api/diffs/{id}/retry` |
