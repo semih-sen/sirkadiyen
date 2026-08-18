@@ -17,6 +17,7 @@ once without — so the file proves both that the topics arrive and that the
 schedule is identical when they do not (ADR-102).
 """
 
+from collections.abc import Mapping
 from typing import Any
 
 import pytest
@@ -53,6 +54,16 @@ _Y2026 = "2026-2027"
 #: No companion evidence, which is the case for every source but two.
 _ALONE: tuple[str, ...] = ()
 
+#: The source narrows nothing, which is the case for every source but the two
+#: Grade 3 Turkish annual workbooks (ADR-110).
+_UNNARROWED: dict[str, list[str]] = {}
+
+#: Each Grade 3 Turkish workbook publishes only its own half of the class. Both
+#: state the sessions both halves attend, in different wordings, so without this
+#: a student receives every shared session twice (ADR-110).
+_OWNS_3A = {"curriculumGroup": ["3-A"]}
+_OWNS_3B = {"curriculumGroup": ["3-B"]}
+
 CASES = (
     (
         "grade1_yearly_v1",
@@ -61,6 +72,7 @@ CASES = (
         "turkish",
         _Y2025,
         _ALONE,
+        _UNNARROWED,
         "parse/g1-tr-annual.json",
     ),
     (
@@ -70,6 +82,7 @@ CASES = (
         "english",
         _Y2025,
         _ALONE,
+        _UNNARROWED,
         "parse/g1-en-annual.json",
     ),
     (
@@ -79,6 +92,7 @@ CASES = (
         "turkish",
         _Y2025,
         _ALONE,
+        _UNNARROWED,
         "parse/g1-tr-practice.json",
     ),
     (
@@ -88,6 +102,7 @@ CASES = (
         "turkish",
         _Y2025,
         _ALONE,
+        _UNNARROWED,
         "parse/g2-tr-annual.json",
     ),
     (
@@ -97,6 +112,7 @@ CASES = (
         "english",
         _Y2025,
         _ALONE,
+        _UNNARROWED,
         "parse/g2-en-annual.json",
     ),
     (
@@ -106,6 +122,7 @@ CASES = (
         "turkish",
         _Y2025,
         _ALONE,
+        _UNNARROWED,
         "parse/g2-tr-practice.json",
     ),
     (
@@ -115,6 +132,7 @@ CASES = (
         "english",
         _Y2025,
         _ALONE,
+        _UNNARROWED,
         "parse/g2-en-practice.json",
     ),
     # Both semesters, because the same programme is written as one 60-row table
@@ -126,6 +144,7 @@ CASES = (
         "turkish",
         _Y2025,
         _ALONE,
+        _UNNARROWED,
         "parse/g2-vertical-autumn.json",
     ),
     (
@@ -135,6 +154,7 @@ CASES = (
         "turkish",
         _Y2025,
         _ALONE,
+        _UNNARROWED,
         "parse/g2-vertical-spring.json",
     ),
     # Both semesters again, because the autumn document writes most of its days
@@ -146,6 +166,7 @@ CASES = (
         "turkish",
         _Y2025,
         _ALONE,
+        _UNNARROWED,
         "parse/g2-anatomy-autumn.json",
     ),
     (
@@ -155,6 +176,7 @@ CASES = (
         "turkish",
         _Y2025,
         _ALONE,
+        _UNNARROWED,
         "parse/g2-anatomy-spring.json",
     ),
     # Grade 3, both curriculum groups, each with the bedside document its own
@@ -167,6 +189,7 @@ CASES = (
         "turkish",
         _Y2026,
         ("real/g3-tr-a-bedside.snapshot.json",),
+        _OWNS_3A,
         "parse/g3-tr-a-annual.json",
     ),
     (
@@ -176,6 +199,7 @@ CASES = (
         "turkish",
         _Y2026,
         ("real/g3-tr-b-bedside.snapshot.json",),
+        _OWNS_3B,
         "parse/g3-tr-b-annual.json",
     ),
     # The same annual with no companion, which is what the pipeline does before
@@ -189,6 +213,7 @@ CASES = (
         "turkish",
         _Y2026,
         _ALONE,
+        _OWNS_3A,
         "parse/g3-tr-a-annual-without-companion.json",
     ),
     # The English program states no A/B division, so its term cell is read only
@@ -200,6 +225,7 @@ CASES = (
         "english",
         _Y2026,
         _ALONE,
+        _UNNARROWED,
         "parse/g3-en-annual.json",
     ),
     # Both rotation workbooks. The A file is the one carrying the contradictory
@@ -211,6 +237,7 @@ CASES = (
         "turkish",
         _Y2026,
         _ALONE,
+        _UNNARROWED,
         "parse/g3-tr-a-faculty.json",
     ),
     (
@@ -220,6 +247,7 @@ CASES = (
         "turkish",
         _Y2026,
         _ALONE,
+        _UNNARROWED,
         "parse/g3-tr-b-faculty.json",
     ),
     # Both bedside documents, which publish nothing and whose goldens therefore
@@ -232,6 +260,7 @@ CASES = (
         "turkish",
         _Y2026,
         _ALONE,
+        _UNNARROWED,
         "parse/g3-tr-a-bedside.json",
     ),
     (
@@ -241,6 +270,7 @@ CASES = (
         "turkish",
         _Y2026,
         _ALONE,
+        _UNNARROWED,
         "parse/g3-tr-b-bedside.json",
     ),
 )
@@ -252,6 +282,7 @@ CASE_FIELDS = (
     "program_language",
     "academic_year",
     "auxiliary_fixtures",
+    "authoritative_selectors",
     "golden",
 )
 
@@ -263,6 +294,7 @@ def run_profile(
     program_language: str,
     academic_year: str,
     auxiliary_fixtures: tuple[str, ...],
+    authoritative_selectors: Mapping[str, list[str]],
 ) -> ParseSnapshotResponse:
     """Parse a fixture through the registered profile implementation."""
     version = _registered_version(profile_name)
@@ -279,6 +311,7 @@ def run_profile(
         class_year=class_year,
         program_language=program_language,
         auxiliary_fixtures=auxiliary_fixtures,
+        authoritative_selectors=authoritative_selectors,
     )
     return parser(request, profile)
 
@@ -290,6 +323,7 @@ def build_document(
     program_language: str,
     academic_year: str,
     auxiliary_fixtures: tuple[str, ...],
+    authoritative_selectors: Mapping[str, list[str]],
 ) -> dict[str, Any]:
     return build_golden_document(
         fixture=fixture,
@@ -302,6 +336,7 @@ def build_document(
                 program_language,
                 academic_year,
                 auxiliary_fixtures,
+                authoritative_selectors,
             )
         ),
     )
@@ -315,6 +350,7 @@ def test_parse_matches_its_golden_file(
     program_language: str,
     academic_year: str,
     auxiliary_fixtures: tuple[str, ...],
+    authoritative_selectors: Mapping[str, list[str]],
     golden: str,
 ) -> None:
     assert_matches_golden(
@@ -326,6 +362,7 @@ def test_parse_matches_its_golden_file(
             program_language,
             academic_year,
             auxiliary_fixtures,
+            authoritative_selectors,
         ),
     )
 
@@ -338,6 +375,7 @@ def test_parse_is_deterministic(
     program_language: str,
     academic_year: str,
     auxiliary_fixtures: tuple[str, ...],
+    authoritative_selectors: Mapping[str, list[str]],
     golden: str,
 ) -> None:
     assert_deterministic(
@@ -348,5 +386,6 @@ def test_parse_is_deterministic(
             program_language,
             academic_year,
             auxiliary_fixtures,
+            authoritative_selectors,
         )
     )

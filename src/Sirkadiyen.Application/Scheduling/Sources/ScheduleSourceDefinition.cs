@@ -61,6 +61,28 @@ public sealed record ScheduleSourceDefinition
     }
 
     /// <summary>
+    /// The audience values this source is the authority for, keyed by selector
+    /// dimension (ADR-110).
+    /// </summary>
+    /// <remarks>
+    /// The Grade 3 A and B workbooks both state the sessions both halves of the class
+    /// attend, each in its own wording, so neither copy can be recognized as the
+    /// other's and a student receives the session twice. Naming the half each workbook
+    /// owns makes exactly one of them publish it.
+    /// <para>
+    /// An absent dimension is not narrowed, so every source that declares nothing here
+    /// keeps publishing exactly what it published before. This is narrower than
+    /// <see cref="SupportedAudienceSelectors"/>, which says what the source may state
+    /// at all.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>>? AuthoritativeAudienceSelectors
+    {
+        get;
+        init;
+    }
+
+    /// <summary>
     /// Names the set of sources whose document is literally the same file, so one
     /// administrative upload becomes evidence for all of them (ADR-080).
     /// </summary>
@@ -95,5 +117,6 @@ public sealed record ScheduleSourceDefinition
         SharedDocumentGroup,
         CompanionSourceIds
             ?.Select(Domain.Scheduling.Sources.SourceId.Parse)
-            .ToArray());
+            .ToArray(),
+        AuthoritativeAudienceSelectors);
 }

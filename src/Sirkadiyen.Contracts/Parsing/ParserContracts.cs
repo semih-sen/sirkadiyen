@@ -43,6 +43,27 @@ public sealed record ParseSourceContext
     public required ProgramLanguage ProgramLanguage { get; init; }
 
     public required string TimeZoneId { get; init; }
+
+    /// <summary>
+    /// The audience values this source is the authority for, keyed by selector
+    /// dimension (ADR-110).
+    /// </summary>
+    /// <remarks>
+    /// Two documents may state the same session — the Grade 3 A and B workbooks both
+    /// carry the sessions both halves of the class attend, each in its own wording —
+    /// so neither copy can be recognized as the other's. Naming the half each document
+    /// owns is what makes exactly one of them publish it.
+    /// <para>
+    /// A dimension absent from this mapping is not narrowed at all, which is
+    /// deliberately different from a dimension mapped to an empty list. Almost every
+    /// source declares nothing here and must keep publishing exactly what it did.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> AuthoritativeAudienceSelectors
+    {
+        get;
+        init;
+    } = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
 }
 
 public sealed record ParseSnapshotResponse

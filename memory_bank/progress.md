@@ -860,3 +860,31 @@ have a profile. The whole ADR-096 path was reachable only by calling the API dir
   changed; `StudentProfileStoreTests` already covers all four combinations of the two flags.
 - **Not done:** an operator still cannot change a student's profile on their behalf, so the audit
   row always records the student as the actor.
+
+## Two Grade 3 duplication bugs, from a student's calendar back to their causes (2026-08-18)
+
+A Grade 3 student saw the faculty-practice rotation eight times per slot, and every session both
+halves of the class attend twice. Two unrelated causes; each fixed and committed on its own.
+
+- **Eight faculty practices (ADR-109).** `CalendarAudienceResolver` matched a record if *any*
+  selector matched the student, whatever dimension it belonged to. A faculty-practice record states
+  `curriculumGroup=3-A` *and* `facultyPracticeGroup=A3`, so a student in cohort A5 matched the
+  curriculum-group half of all eight records. Selectors now enumerate within a dimension and narrow
+  across dimensions. One pure function; every write path already routed through it.
+  Verified first against every committed real snapshot that faculty practice is the *only* source
+  family emitting more than one dimension per candidate, so no other program's audience moves.
+- **Duplicate joint sessions (ADR-110).** Both Turkish Grade 3 workbooks state the joint sessions,
+  in different wordings (`Simüle Hasta Uygulaması` vs `Simüle Hasta FM Uygulaması` on 11 Jan 2027),
+  so their stable identities differ and nothing could recognize them as one lesson. Each source now
+  declares the audience it owns and publishes only that; the A workbook's joint rows address `3-A`,
+  the B workbook's `3-B`. Configuration in `ParseSourceContext`, applied by the parser before
+  identity is computed, refused-and-counted when a row addresses only an unowned group.
+- 891 .NET tests pass (Contracts 6, Api 8, Infrastructure 622, Persistence 255) and 490 parser tests,
+  with `ruff` and `mypy --strict` clean. Persistence *did* run this time.
+- Goldens regenerated deliberately and read before committing: 60 identity changes in the A annual,
+  46 in the B, version-and-digest only in the English one. No candidate added or removed anywhere.
+- **Required follow-up, not done:** existing Grade 3 calendars are not repaired. Inventory
+  reconciliation never deletes from absence (ADR-089), so the seven surplus faculty-practice events
+  per slot and the duplicate joint sessions stay until an audited repair runs. Recorded in
+  `activeContext.md` as an open risk.
+- **Open risk:** nothing checks that each curriculum group is owned by exactly one source.

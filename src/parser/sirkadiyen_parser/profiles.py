@@ -155,9 +155,12 @@ _PROFILES = (
     # faculty source assigns each cohort exactly one (ADR-073). The bedside rows
     # are deliberately *not* declared here: this workbook is the only source that
     # proves a date and a time for them.
+    # 1.1.0 narrows a row's curriculum groups to the ones the source owns, so the
+    # sessions both halves of the class attend are published once by the workbook
+    # written for each half instead of twice, in two wordings (ADR-110).
     ParserProfileDefinition(
         "grade3_yearly_v1",
-        _PROFILE_VERSION,
+        "1.1.0",
         "annual",
         _UNDECLARED,
         ("curriculumGroup",),

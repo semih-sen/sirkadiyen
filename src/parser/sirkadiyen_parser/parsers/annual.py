@@ -141,6 +141,7 @@ REASON_OUT_OF_SCOPE_PRACTICE_PLACEHOLDER = "outOfScopePracticePlaceholder"
 REASON_OUT_OF_SCOPE_GROUP_ROTATION = "outOfScopeGroupRotation"
 REASON_NON_TEACHING_BREAK = "nonTeachingBreak"
 REASON_UNRESOLVED_CURRICULUM_GROUP = "unresolvedCurriculumGroup"
+REASON_AUDIENCE_NOT_OWNED = "audienceNotOwnedBySource"
 
 WARNING_CONFLICTING_DUPLICATE = "conflictingDuplicateLesson"
 WARNING_IMPLAUSIBLE_DURATION = "implausibleLessonDuration"
@@ -549,6 +550,7 @@ def _parse_row(
 
     audience = _resolve_audience(
         row=row,
+        context=context,
         curriculum_group_audience=curriculum_group_audience,
         diagnostics=diagnostics,
     )
@@ -686,6 +688,7 @@ def _bedside_topic(
 def _resolve_audience(
     *,
     row: _RowContext,
+    context: ParseSourceContext,
     curriculum_group_audience: bool,
     diagnostics: ParseDiagnostics,
 ) -> ScheduleAudienceCandidate | None:
@@ -702,6 +705,12 @@ def _resolve_audience(
     program. Every row of the real workbooks that states a class year also names
     a group, so this refuses nothing today; if the source ever stops naming one,
     the reader must say so instead of addressing the wrong half of the class.
+
+    The groups a row names are then narrowed to the ones this source owns
+    (ADR-110). Both Grade 3 workbooks carry the sessions both halves of the class
+    attend, each in its own wording, so publishing both copies puts the same
+    session twice on a student's calendar. Narrowing leaves each workbook
+    addressing only its own half, which is the half it was written for.
     """
     if not curriculum_group_audience:
         return ScheduleAudienceCandidate(scope=AudienceScope.ALL_STUDENTS_IN_PROGRAM)
@@ -720,13 +729,46 @@ def _resolve_audience(
         )
         return None
 
+    owned = _narrow_to_owned(groups, context)
+    if not owned:
+        diagnostics.record_ignored_row(
+            REASON_AUDIENCE_NOT_OWNED,
+            row.evidence(ROLE_TERM, extraction_rule=RULE_CURRICULUM_GROUP_CELL),
+            severity=ParserWarningSeverity.INFORMATION,
+            message=(
+                f"Term cell '{term_text}' addresses only curriculum group(s) "
+                f"{', '.join(groups)}, which this source does not own, so the row was "
+                "not published. The owning source states this session itself."
+            ),
+        )
+        return None
+
     return ScheduleAudienceCandidate(
         scope=AudienceScope.SELECTED_GROUPS,
         selectors=[
             AudienceSelector(dimension=DIMENSION_CURRICULUM_GROUP, value=group)
-            for group in groups
+            for group in owned
         ],
     )
+
+
+def _narrow_to_owned(
+    groups: tuple[str, ...],
+    context: ParseSourceContext,
+) -> tuple[str, ...]:
+    """The stated groups this source is the authority for (ADR-110).
+
+    A source that declares no authority over the dimension keeps every group it
+    states, so a profile given no configuration produces exactly what it produced
+    before ownership existed. Order follows the stated groups, which
+    `_read_curriculum_groups` has already sorted, so the audience key stays stable.
+    """
+    owned = context.authoritative_audience_selectors.get(DIMENSION_CURRICULUM_GROUP)
+    if owned is None:
+        return groups
+
+    permitted = frozenset(owned)
+    return tuple(group for group in groups if group in permitted)
 
 
 def _read_curriculum_groups(term_text: str) -> tuple[str, ...]:

@@ -98,6 +98,8 @@ public sealed class ScheduleSourceStore(SirkadiyenDbContext dbContext) : ISchedu
         // too. Omitting them here would let an edited allowlist or a corrected
         // group name apply to a fresh database and silently not to a running one.
         [nameof(ScheduleSource.SupportedAudienceSelectors)] = source.SupportedAudienceSelectors,
+        [nameof(ScheduleSource.AuthoritativeAudienceSelectors)] =
+            source.AuthoritativeAudienceSelectors,
         [nameof(ScheduleSource.SharedDocumentGroup)] = source.SharedDocumentGroup,
     };
 }

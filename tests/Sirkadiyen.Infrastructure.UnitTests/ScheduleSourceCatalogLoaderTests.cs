@@ -153,6 +153,91 @@ public sealed class ScheduleSourceCatalogLoaderTests : IDisposable
     }
 
     /// <summary>A one-source catalog whose transport and URI are under test.</summary>
+    [Fact]
+    public async Task ASourceMayOwnPartOfWhatItSupports()
+    {
+        // The Grade 3 shape: the workbook states both halves of the class and
+        // publishes only its own (ADR-110).
+        ScheduleSourceCatalog catalog = await LoadAsync(SelectorJson(
+            supported: """{ "curriculumGroup": ["3-A", "3-B"] }""",
+            authoritative: """{ "curriculumGroup": ["3-A"] }"""));
+
+        ScheduleSourceDefinition source = Assert.Single(catalog.Sources);
+        Assert.Equal(
+            ["3-A"],
+            source.AuthoritativeAudienceSelectors!["curriculumGroup"]);
+    }
+
+    [Fact]
+    public async Task ASourceMayNotOwnAValueItDoesNotSupport()
+    {
+        // Authority narrows what a source publishes out of what it states, so a
+        // value it may not state narrows every row to nothing and silently
+        // unpublishes the lot.
+        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
+            () => LoadAsync(SelectorJson(
+                supported: """{ "curriculumGroup": ["3-A", "3-B"] }""",
+                authoritative: """{ "curriculumGroup": ["3-C"] }""")));
+
+        Assert.Contains("'3-C'", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ASourceMayNotOwnADimensionItDoesNotSupport()
+    {
+        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
+            () => LoadAsync(SelectorJson(
+                supported: """{ "curriculumGroup": ["3-A"] }""",
+                authoritative: """{ "practiceGroup": ["A"] }""")));
+
+        Assert.Contains("practiceGroup", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AnAuthorityDeclaredWithoutASupportedListIsLeftUnchecked()
+    {
+        // A source that declares no cohorts has not stated them yet, and silence
+        // must not be read as "nothing is permitted" (ADR-048).
+        ScheduleSourceCatalog catalog = await LoadAsync(SelectorJson(
+            supported: null,
+            authoritative: """{ "curriculumGroup": ["3-A"] }"""));
+
+        Assert.Single(catalog.Sources);
+    }
+
+    /// <summary>A catalog whose one source declares the given selector maps.</summary>
+    private static string SelectorJson(string? supported, string? authoritative)
+    {
+        string supportedLine = supported is null
+            ? string.Empty
+            : $",{Environment.NewLine}      \"supportedAudienceSelectors\": {supported}";
+        string authoritativeLine = authoritative is null
+            ? string.Empty
+            : $",{Environment.NewLine}      \"authoritativeAudienceSelectors\": {authoritative}";
+
+        return $$"""
+        {
+          "catalogVersion": "1.0",
+          "sources": [
+            {
+              "sourceId": "G3-TR-A-ANNUAL",
+              "displayName": "Grade 3 A annual",
+              "transport": "googleDriveFile",
+              "documentFormat": "xlsx",
+              "sourceUri": "https://drive.google.com/file/d/1abc/view",
+              "externalId": "1abc",
+              "parserProfile": "grade3_yearly_v1",
+              "parserProfileVersion": "1.1.0",
+              "academicYear": "2026-2027",
+              "classYear": 3,
+              "programLanguage": "turkish",
+              "timeZoneId": "Europe/Istanbul"{{supportedLine}}{{authoritativeLine}}
+            }
+          ]
+        }
+        """;
+    }
+
     private static string SourceJson(string transport, string sourceUri) =>
         $$"""
         {

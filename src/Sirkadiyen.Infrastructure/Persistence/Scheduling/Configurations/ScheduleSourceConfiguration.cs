@@ -45,6 +45,13 @@ internal sealed class ScheduleSourceConfiguration : IEntityTypeConfiguration<Sch
             .Metadata.SetValueComparer(new AudienceSelectorMapComparer());
         builder.Property(source => source.SupportedAudienceSelectors).HasColumnType("jsonb");
 
+        // Which half of a shared session this source publishes is catalog configuration of
+        // the same shape, stored the same way, and null means "not narrowed" (ADR-110).
+        builder.Property(source => source.AuthoritativeAudienceSelectors)
+            .HasConversion(new AudienceSelectorMapConverter())
+            .Metadata.SetValueComparer(new AudienceSelectorMapComparer());
+        builder.Property(source => source.AuthoritativeAudienceSelectors).HasColumnType("jsonb");
+
         // One administrative upload resolves its targets by this name, so it is
         // indexed for that lookup rather than scanned (ADR-080).
         builder.Property(source => source.SharedDocumentGroup)

@@ -366,6 +366,12 @@ public sealed class ScheduleSourcePoller(
                         $"Unsupported program language '{source.ProgramLanguage}'."),
                 },
                 TimeZoneId = source.TimeZoneId,
+                // Which half of a shared session this source publishes is configuration the
+                // workbook does not state, so it travels with the rest of the source context
+                // (ADR-017, ADR-110).
+                AuthoritativeAudienceSelectors =
+                    source.AuthoritativeAudienceSelectors
+                    ?? new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal),
             },
             Snapshot = snapshot,
             AuxiliarySnapshots = auxiliarySnapshots,

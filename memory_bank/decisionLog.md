@@ -6058,3 +6058,104 @@ there is exactly one place where this could have been wrong and exactly one to f
   audience depended on the old reading.
 
 ---
+
+## ADR-110: A source publishes only the audience it owns
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-18
+**Implements:** `authoritativeAudienceSelectors` on the source catalog, the domain
+source, the parse contract and `ParseSourceContext`; audience narrowing in the annual
+parser with the `rows.ignored.audienceNotOwnedBySource` metric; `grade3_yearly_v1`
+bumped 1.0.0 → 1.1.0; migration `AddSourceAudienceAuthority`; regenerated Grade 3 goldens
+**Depends on:** ADR-017 (source context is configuration), ADR-018 (identity and
+content are separate), ADR-048 (evidence-based selector matrix), ADR-098 (the
+English program states no A/B division), ADR-109 (dimension-narrowed audiences)
+
+### Context
+
+A Grade 3 student received the sessions both halves of the class attend twice.
+
+Both Turkish Grade 3 workbooks state those sessions. On 11 January 2027 the A
+workbook writes them as `Simüle Hasta Uygulaması /Anamnez +Serbest Çalışma` under
+`ZORUNLU SEÇMELİ`, and the B workbook as `Simüle Hasta **FM** Uygulaması /Anamnez
++Serbest Çalışma` under `SEMİYOLOJİ DİLİMİ`. Same date, same 08:30–12:00 block,
+same room, same `Dönem 3A+3B Grubu` audience — different titles.
+
+The course identity is an identity component, so the two rows produce different
+stable identities, different deterministic Google event ids, and two events.
+Nothing existing could collapse them:
+
+- Sorting the group pair (`3A+3B`, `3B+3A`, `3B/3A`) already gives both rows one
+  audience key, which is necessary but not sufficient.
+- Initial sync deduplicates on stable identity, and the identities differ.
+- The `AudienceOverlap` validator sees one revision of one source, so it cannot
+  see a cross-source duplicate at all.
+
+It is not a stray case: the A workbook holds 60 joint rows and the B workbook 46.
+The sets are not even mirror images, so no content-matching rule could pair them
+without guessing which of two differently-worded rows is the copy.
+
+### Decision
+
+**A source declares the audience values it is the authority for, and publishes a
+row only to the values it owns.** `G3-TR-A-ANNUAL` owns `curriculumGroup: ["3-A"]`
+and `G3-TR-B-ANNUAL` owns `["3-B"]`. A joint row is narrowed to the owning group,
+so each workbook publishes the session to the half it was written for.
+
+**Ownership is source configuration, not a parser rule.** It travels in
+`ParseSourceContext` beside academic year and program language, for exactly the
+ADR-017 reason: the workbook does not state which half of the class it belongs to.
+The parser applies the declaration; it does not invent it, so §5's "the parser must
+not decide which users receive an event" holds.
+
+**Narrowing happens before identity.** The audience is part of the stable identity
+and the content hash, so it has to be final when they are computed — which is in
+the parser. Narrowing downstream would mean the backend recomputing hashes the
+parser owns, and golden determinism would stop meaning anything.
+
+**Absence means "not narrowed", not "narrowed to nothing".** A dimension missing
+from the mapping is untouched, so every other source publishes exactly what it did.
+This mirrors how `supportedAudienceSelectors` treats silence (ADR-048): a source
+that has not declared its cohorts must not be read as permitting none.
+
+**A row addressed only to an unowned group is refused and counted**, through the
+existing `rows.ignored.<reason>` metric, never widened and never silent (§9).
+
+**The catalog refuses authority outside support.** A source claiming a value it
+does not declare as supported would narrow every row naming it to nothing and
+silently unpublish the lot, so the catalog fails to load instead.
+
+### Rejected alternative
+
+Deduplicating at synchronization time on a semantic key (date, time, audience). It
+would silently pick a winner between two differently-worded records, be
+order-dependent across sources, and collapse the identity/content separation
+ADR-018 rests on. Ownership is decided once, in configuration, by someone who knows
+which document is which.
+
+### Consequences
+
+- A Grade 3 student receives each joint session once, worded as their own half's
+  programme committee published it.
+- **No content is lost, and this was checked rather than assumed.** The A workbook's
+  term column holds 1195 `3A` rows and 60 joint ones and *no* B-only row; the B
+  workbook 1196 `3B`, 46 joint and no A-only row. Candidate counts are unchanged at
+  1119 (A) and 1110 (B) — the joint rows are narrowed, not refused, and
+  `rows.ignored.audienceNotOwnedBySource` stays at zero for both real fixtures.
+- 60 A and 46 B stable identities changed, so the first republication after this
+  lands is a create-and-retire of those lessons rather than an update. That is a
+  real diff on real calendars: the affected joint sessions are removed and rewritten
+  once. It must go out as a deliberate publication, watched, not as a quiet
+  redeployment — ADR-018's identity guarantee is being deliberately broken here, and
+  the profile version bump is what forces the re-parse that makes it visible.
+- `grade3_yearly_v1` 1.0.0 no longer exists in the registry, so all three sources
+  using it — including the English one, whose output changes only in version and
+  digest — move to 1.1.0.
+- The English Grade 3 source is unaffected in substance: it states no A/B division
+  and declares no authority (ADR-098).
+- **Open risk:** ownership is stated per source in the catalog and nothing checks
+  that a group is owned by exactly one source. Two sources owning `3-A` would
+  reintroduce the duplicate; none owning it would publish those rows nowhere. A
+  catalog-wide coverage check is the obvious follow-up and is not built.
+
+---

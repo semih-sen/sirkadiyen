@@ -2402,3 +2402,36 @@ Grade 3 was the last catalogued class year with no parser. It now reaches a cale
   `ConvertDownload` and `DriveDocumentAcquirer`, but it has not been exercised against Drive
   itself. The faculty-practice room join (`G3-FACULTY-LOCATIONS`) also remains unbuilt; after
   ADR-102 it is a catalog entry and a lookup reader rather than new machinery.
+
+## Two Grade 3 calendar duplication bugs (2026-08-18)
+
+Reported from a real calendar: the faculty-practice rotation appearing eight times per slot, and
+every session both halves of the class attend appearing twice. Two independent causes, fixed and
+committed separately (ADR-109, ADR-110). 891 .NET and 490 parser tests pass; ruff and mypy clean.
+
+- **ADR-109** made audience selectors enumerate within a dimension and narrow across dimensions.
+  `CalendarAudienceResolver` had matched on any single selector, so a faculty-practice record's
+  `curriculumGroup` half admitted all eight cohorts. One pure function, one chokepoint.
+- **ADR-110** gave each source the audience it owns. Both Grade 3 Turkish workbooks state the joint
+  sessions in different wordings, so their stable identities differ and nothing could pair them;
+  each workbook now publishes them to its own half only. `grade3_yearly_v1` → 1.1.0, migration
+  `AddSourceAudienceAuthority`, Grade 3 goldens regenerated and read.
+
+### Open risks carried out of this session
+
+- **Existing Grade 3 calendars are not repaired, and nothing will repair them on its own.**
+  Inventory reconciliation deliberately never deletes from absence (ADR-089), so the seven surplus
+  faculty-practice events per slot and the duplicated joint sessions remain on every affected
+  student's calendar. `ProfileChangeResyncService` removes them as a side effect if a student
+  re-saves their profile, which is not a plan. An audited repair operation for the Grade 3 Turkish
+  cohort is required and unbuilt.
+- **The next Grade 3 publication moves 106 stable identities** (60 in the A annual, 46 in the B).
+  Those joint lessons will be retired and recreated rather than updated — a deliberate, one-time
+  break of the ADR-018 identity guarantee. It must be published under supervision, not shipped
+  quietly; the profile version bump forces the re-parse that makes it visible.
+- **Nothing checks that each curriculum group is owned by exactly one source.** Two owners
+  reintroduces the duplicate, zero owners publishes those rows nowhere. The catalog validates only
+  that a source's claimed authority is within what it declares as supported.
+- **A dimension added to the profile schema as optional would silently withhold lessons** from any
+  student who skipped it, under the ADR-109 undeclared-dimension rule. Every dimension is currently
+  `Required = true`, so this is latent rather than live.

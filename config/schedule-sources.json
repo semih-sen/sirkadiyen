@@ -279,13 +279,16 @@
       "sourceUri": "https://drive.google.com/file/d/1DsC72zBLz8WI_Fpurm3djUfMaAB-SQL1/view",
       "externalId": "1DsC72zBLz8WI_Fpurm3djUfMaAB-SQL1",
       "parserProfile": "grade3_yearly_v1",
-      "parserProfileVersion": "1.0.0",
+      "parserProfileVersion": "1.1.0",
       "academicYear": "2026-2027",
       "classYear": 3,
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
       "supportedAudienceSelectors": {
         "curriculumGroup": ["3-A", "3-B"]
+      },
+      "authoritativeAudienceSelectors": {
+        "curriculumGroup": ["3-A"]
       },
       "companionSourceIds": ["G3-TR-A-BEDSIDE"],
       "fixturePath": "sheets/donem-3-tr-A/2026-2027 Dönem 3 A Türkçe Tıp Ders Programı.xlsx",
@@ -299,13 +302,16 @@
       "sourceUri": "https://drive.google.com/file/d/1rVP8LfSD6T-AKUOlpVfzNSZp7oMJ0NwS/view",
       "externalId": "1rVP8LfSD6T-AKUOlpVfzNSZp7oMJ0NwS",
       "parserProfile": "grade3_yearly_v1",
-      "parserProfileVersion": "1.0.0",
+      "parserProfileVersion": "1.1.0",
       "academicYear": "2026-2027",
       "classYear": 3,
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
       "supportedAudienceSelectors": {
         "curriculumGroup": ["3-A", "3-B"]
+      },
+      "authoritativeAudienceSelectors": {
+        "curriculumGroup": ["3-B"]
       },
       "companionSourceIds": ["G3-TR-B-BEDSIDE"],
       "fixturePath": "sheets/donem-3-tr-B/2026-2027 Dönem 3 B Türkçe Tıp Ders Programı.xlsx",
@@ -403,7 +409,7 @@
       "sourceUri": "https://drive.google.com/file/d/1DW8k9xpe5MXhyOsIqFrTgyWodmM1mdY5/view",
       "externalId": "1DW8k9xpe5MXhyOsIqFrTgyWodmM1mdY5",
       "parserProfile": "grade3_yearly_v1",
-      "parserProfileVersion": "1.0.0",
+      "parserProfileVersion": "1.1.0",
       "academicYear": "2026-2027",
       "classYear": 3,
       "programLanguage": "english",

@@ -180,6 +180,21 @@ class ParseSourceContext(ContractModel):
     program_language: ProgramLanguage
     time_zone_id: str = Field(min_length=1)
 
+    #: The audience values this source is the authority for, keyed by selector
+    #: dimension (ADR-110). Two documents may state the same session — the Grade 3
+    #: A and B workbooks both carry the sessions both halves of the class attend —
+    #: and each states it in its own wording, so neither can be recognized as the
+    #: other's copy. Naming the half each document owns is what makes one of them
+    #: publish it, and that is source configuration in exactly the sense ADR-017
+    #: means: the workbook does not say which half it belongs to.
+    #:
+    #: A dimension absent from this mapping is not narrowed at all. That is
+    #: deliberately different from a dimension mapped to an empty list, which says
+    #: the source may address nobody in it. Silence must not be read as "nothing is
+    #: permitted", because almost every source declares nothing here and must keep
+    #: publishing exactly what it published before.
+    authoritative_audience_selectors: dict[str, list[str]] = Field(default_factory=dict)
+
 
 class ParseSnapshotRequest(ContractModel):
     contract_version: Literal["1.0"]

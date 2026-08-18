@@ -73,7 +73,7 @@ GRADE_2_PROFILE = ParserProfileDefinition(
 #: audience: the class runs as two curriculum groups with separate timetables.
 GRADE_3_PROFILE = ParserProfileDefinition(
     "grade3_yearly_v1",
-    "1.0.0",
+    "1.1.0",
     "annual",
     NumericDateOrder.UNDECLARED,
     ("curriculumGroup",),
@@ -206,6 +206,7 @@ def parse(
     class_year: int = 1,
     profile: ParserProfileDefinition = PROFILE,
     program_language: str = "turkish",
+    authoritative_selectors: dict[str, list[str]] | None = None,
 ) -> ParseSnapshotResponse:
     request = ParseSnapshotRequest.model_validate(
         {
@@ -217,6 +218,7 @@ def parse(
                 "classYear": class_year,
                 "programLanguage": program_language,
                 "timeZoneId": "Europe/Istanbul",
+                "authoritativeAudienceSelectors": dict(authoritative_selectors or {}),
             },
             "snapshot": {
                 "contractVersion": "1.0",
@@ -816,7 +818,7 @@ def one_candidate(response: ParseSnapshotResponse) -> CanonicalScheduleCandidate
 
 
 def test_the_grade3_profile_is_the_annual_implementation() -> None:
-    profile = get_profile("grade3_yearly_v1", "1.0.0")
+    profile = get_profile("grade3_yearly_v1", "1.1.0")
 
     assert profile is not None
     assert get_parser(profile.name, profile.version) is parse_annual_snapshot
@@ -917,6 +919,70 @@ def test_every_spelling_of_a_joint_session_reaches_one_identity(term: str) -> No
 
     assert candidate.stable_identity == reference.stable_identity
     assert candidate.content_hash == reference.content_hash
+
+
+def test_a_source_publishes_a_joint_session_only_to_the_half_it_owns() -> None:
+    """Both Grade 3 workbooks carry the sessions both halves attend (ADR-110).
+
+    Each states it in its own wording, so the two copies have different course
+    identities and nothing downstream can recognize them as one lesson. Narrowing
+    each workbook to its own half is what leaves a student with one event.
+    """
+    rows = worksheet(lesson_row(1, term="Dönem 3A+3B Grubu"))
+
+    owned_by_a = one_candidate(
+        parse(
+            [rows],
+            class_year=3,
+            profile=GRADE_3_PROFILE,
+            authoritative_selectors={"curriculumGroup": ["3-A"]},
+        )
+    )
+    owned_by_b = one_candidate(
+        parse(
+            [rows],
+            class_year=3,
+            profile=GRADE_3_PROFILE,
+            authoritative_selectors={"curriculumGroup": ["3-B"]},
+        )
+    )
+
+    assert [selector.value for selector in owned_by_a.audience.selectors] == ["3-A"]
+    assert [selector.value for selector in owned_by_b.audience.selectors] == ["3-B"]
+
+    # Narrowing changes who the lesson addresses, so it must change the identity
+    # too: the two copies are deliberately different logical lessons now.
+    assert owned_by_a.stable_identity != owned_by_b.stable_identity
+
+
+def test_a_row_addressing_only_an_unowned_group_is_refused_and_counted() -> None:
+    """Refused, never widened, and never silent (AI_GUIDELINE §9).
+
+    No committed fixture contains such a row — neither workbook addresses the
+    other half alone — but a source that started writing one must say so rather
+    than publish it to nobody or to everybody.
+    """
+    response = parse(
+        [worksheet(lesson_row(1, term="Dönem 3B Grubu"))],
+        class_year=3,
+        profile=GRADE_3_PROFILE,
+        authoritative_selectors={"curriculumGroup": ["3-A"]},
+    )
+
+    assert response.candidates == []
+    assert metrics(response)["rows.ignored.audienceNotOwnedBySource"] == 1
+
+
+def test_a_source_declaring_no_authority_publishes_every_group_it_states() -> None:
+    """The ordinary case: almost every source narrows nothing (ADR-110)."""
+    response = parse(
+        [worksheet(lesson_row(1, term="Dönem 3A+3B Grubu"))],
+        class_year=3,
+        profile=GRADE_3_PROFILE,
+    )
+
+    candidate = one_candidate(response)
+    assert [selector.value for selector in candidate.audience.selectors] == ["3-A", "3-B"]
 
 
 def test_two_curriculum_groups_sitting_the_same_exam_stay_two_lessons() -> None:

@@ -49,7 +49,7 @@ _IMPLEMENTATIONS: dict[tuple[str, str], ParserImplementation] = {
     # languages and for both curriculum groups. What they add is an audience: the
     # class is split in two, so the profile declares `curriculumGroup` and the
     # shared implementation reads it from the term cell (ADR-098).
-    ("grade3_yearly_v1", "1.0.0"): parse_annual_snapshot,
+    ("grade3_yearly_v1", "1.1.0"): parse_annual_snapshot,
     # The rotation those workbooks defer their `Öğretim üyesi Uygulama` rows to.
     # One implementation serves both curriculum groups: the workbooks differ only
     # in their cohort letter and in the order they write their blocks (ADR-099).

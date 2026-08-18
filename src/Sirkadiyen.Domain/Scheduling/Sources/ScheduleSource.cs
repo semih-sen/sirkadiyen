@@ -40,7 +40,8 @@ public sealed class ScheduleSource
         long? sheetGid = null,
         IReadOnlyDictionary<string, IReadOnlyList<string>>? supportedAudienceSelectors = null,
         string? sharedDocumentGroup = null,
-        IReadOnlyList<SourceId>? companionSourceIds = null)
+        IReadOnlyList<SourceId>? companionSourceIds = null,
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? authoritativeAudienceSelectors = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceUri);
@@ -84,6 +85,7 @@ public sealed class ScheduleSource
         ExternalId = externalId;
         SheetGid = sheetGid;
         SupportedAudienceSelectors = supportedAudienceSelectors;
+        AuthoritativeAudienceSelectors = authoritativeAudienceSelectors;
         SharedDocumentGroup = sharedDocumentGroup;
         CompanionSourceIds = companions;
         IsPollingEnabled = true;
@@ -130,6 +132,28 @@ public sealed class ScheduleSource
     /// declared dimension with an empty list means the dimension may not appear.
     /// </remarks>
     public IReadOnlyDictionary<string, IReadOnlyList<string>>? SupportedAudienceSelectors
+    {
+        get;
+        private set;
+    }
+
+    /// <summary>
+    /// The audience values this source is the authority for, keyed by selector
+    /// dimension (ADR-110).
+    /// </summary>
+    /// <remarks>
+    /// Two documents may state the same session — the Grade 3 A and B workbooks both
+    /// carry the sessions both halves of the class attend, each in its own wording, so
+    /// neither copy can be recognized as the other's. Naming the half each document owns
+    /// is what makes exactly one of them publish it.
+    /// <para>
+    /// Null or an absent dimension means "not narrowed", so a source that declares
+    /// nothing publishes exactly what it published before ownership existed. This is
+    /// distinct from <see cref="SupportedAudienceSelectors"/>, which says what a source
+    /// may legally *state*; this says which of those statements it may *publish*.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>>? AuthoritativeAudienceSelectors
     {
         get;
         private set;

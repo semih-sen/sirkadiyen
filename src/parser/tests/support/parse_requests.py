@@ -13,6 +13,7 @@ projection keeps three separate guarantees:
 """
 
 import hashlib
+from collections.abc import Mapping
 from typing import Any
 
 from sirkadiyen_parser.contracts.parsing import (
@@ -38,6 +39,7 @@ def build_parse_request(
     class_year: int,
     program_language: str,
     auxiliary_fixtures: tuple[str, ...] = (),
+    authoritative_selectors: Mapping[str, list[str]] | None = None,
     correlation_id: str = "golden-run",
     time_zone_id: str = "Europe/Istanbul",
 ) -> ParseSnapshotRequest:
@@ -49,6 +51,10 @@ def build_parse_request(
     ``auxiliary_fixtures`` names the companion snapshots the poller would attach
     for this source. They are supporting evidence and never a second schedule:
     the profile decides what, if anything, to read from them.
+
+    ``authoritative_selectors`` is the audience the catalog says this source owns
+    (ADR-110). Omitting it is the ordinary case and narrows nothing, which is what
+    every source but the two Grade 3 Turkish annual workbooks configures.
     """
     return ParseSnapshotRequest.model_validate(
         {
@@ -60,6 +66,7 @@ def build_parse_request(
                 "classYear": class_year,
                 "programLanguage": program_language,
                 "timeZoneId": time_zone_id,
+                "authoritativeAudienceSelectors": dict(authoritative_selectors or {}),
             },
             "snapshot": load_fixture_json(fixture),
             "auxiliarySnapshots": [

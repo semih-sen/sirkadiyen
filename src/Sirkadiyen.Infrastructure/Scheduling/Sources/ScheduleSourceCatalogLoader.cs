@@ -292,7 +292,17 @@ public sealed class ScheduleSourceCatalogLoader
     /// </remarks>
     private static void ValidateSupportedAudienceSelectors(ScheduleSourceDefinition source)
     {
-        if (source.SupportedAudienceSelectors is not { } declared)
+        ValidateSelectorMap(source, source.SupportedAudienceSelectors, "supported");
+        ValidateSelectorMap(source, source.AuthoritativeAudienceSelectors, "authoritative");
+        ValidateAuthorityWithinSupported(source);
+    }
+
+    private static void ValidateSelectorMap(
+        ScheduleSourceDefinition source,
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? declared,
+        string kind)
+    {
+        if (declared is null)
         {
             return;
         }
@@ -302,7 +312,7 @@ public sealed class ScheduleSourceCatalogLoader
             if (string.IsNullOrWhiteSpace(dimension))
             {
                 throw new InvalidDataException(
-                    $"Source '{source.SourceId}' declares a supported selector dimension "
+                    $"Source '{source.SourceId}' declares a {kind} selector dimension "
                     + "with no name.");
             }
 
@@ -312,15 +322,54 @@ public sealed class ScheduleSourceCatalogLoader
                 if (string.IsNullOrWhiteSpace(value))
                 {
                     throw new InvalidDataException(
-                        $"Source '{source.SourceId}' declares a blank supported selector "
+                        $"Source '{source.SourceId}' declares a blank {kind} selector "
                         + $"value for dimension '{dimension}'.");
                 }
 
                 if (!seen.Add(value))
                 {
                     throw new InvalidDataException(
-                        $"Source '{source.SourceId}' declares supported selector value "
+                        $"Source '{source.SourceId}' declares {kind} selector value "
                         + $"'{value}' twice for dimension '{dimension}'.");
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Refuses a source claiming authority over a value it may not even state (ADR-110).
+    /// </summary>
+    /// <remarks>
+    /// Authority narrows what a source publishes out of what it states, so a value outside
+    /// its supported list would narrow to nothing and silently unpublish every row that
+    /// names it. A source that declares no supported list has not declared its cohorts at
+    /// all, and nothing can be checked against it.
+    /// </remarks>
+    private static void ValidateAuthorityWithinSupported(ScheduleSourceDefinition source)
+    {
+        if (source.AuthoritativeAudienceSelectors is not { } authoritative
+            || source.SupportedAudienceSelectors is not { } supported)
+        {
+            return;
+        }
+
+        foreach ((string dimension, IReadOnlyList<string> values) in authoritative)
+        {
+            if (!supported.TryGetValue(dimension, out IReadOnlyList<string>? permitted))
+            {
+                throw new InvalidDataException(
+                    $"Source '{source.SourceId}' claims authority over selector dimension "
+                    + $"'{dimension}', which it does not declare as supported.");
+            }
+
+            foreach (string value in values)
+            {
+                if (!permitted.Contains(value, StringComparer.Ordinal))
+                {
+                    throw new InvalidDataException(
+                        $"Source '{source.SourceId}' claims authority over selector value "
+                        + $"'{value}' in dimension '{dimension}', which it does not declare "
+                        + "as supported.");
                 }
             }
         }
