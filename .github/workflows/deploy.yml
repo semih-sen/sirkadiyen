@@ -495,7 +495,7 @@ jobs:
 
       # The activation script already waits for each service it restarts; this is
       # the cross-service confirmation, and the step that turns the run red when
-      # a service comes up and then crash-loops.
+      # a service comes up and then crash-loops. 
       - name: Verify service health
         run: |
           ssh -p "${DEPLOY_PORT}" -o BatchMode=yes \
