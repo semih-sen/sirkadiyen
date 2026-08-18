@@ -41,7 +41,7 @@ public partial class AddManualLicenseActivation : Migration
             """
             UPDATE sirkadiyen.licenses
             SET "Kind" = 'Code'
-            WHERE "Kind" IS NULL
+            WHERE "Kind" IS NULL;
             """);
 
         migrationBuilder.AlterColumn<string>(
