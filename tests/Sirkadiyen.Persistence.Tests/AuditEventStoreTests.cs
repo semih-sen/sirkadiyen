@@ -101,6 +101,46 @@ public sealed class AuditEventStoreTests(PostgresFixture fixture)
         Assert.Equal(Now.AddHours(2), page.Items[0].OccurredAtUtc);
     }
 
+    [Fact]
+    public async Task MetadataMustBeAJsonDocumentBecauseTheColumnIsJsonb()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        UserSession user = await CreateUserAsync("audit-metadata");
+
+        await using SirkadiyenDbContext context = fixture.CreateProductionLikeContext();
+        AuditEventStore store = new(context);
+
+        AuditEvent recorded = WithMetadata(user, Now, """{"planHash":"abc","users":1}""");
+        await store.AppendAsync(recorded, Token);
+
+        AuditEventView? view = await store.FindAsync(recorded.Id, Token);
+        Assert.NotNull(view);
+        Assert.Contains("planHash", view!.Metadata);
+
+        // A hand-formatted delimited string compiles, since the property is a plain string, and
+        // is then rejected by the database at insert time. Callers must serialize an object.
+        await using SirkadiyenDbContext second = fixture.CreateProductionLikeContext();
+        await Assert.ThrowsAnyAsync<Exception>(() =>
+            new AuditEventStore(second).AppendAsync(
+                WithMetadata(user, Now.AddMinutes(1), "planHash=abc;users=1"),
+                Token));
+    }
+
+    private static AuditEvent WithMetadata(UserSession user, DateTimeOffset at, string metadata) =>
+        AuditEvent.Create(
+            AuditEventCategory.CalendarRepairRequested,
+            at,
+            user.UserId,
+            user.Email,
+            "CalendarRepair",
+            "2026-2027/3/Turkish",
+            "correlation-id",
+            null,
+            null,
+            null,
+            "cleaning up",
+            metadata);
+
     private static AuditEvent SignIn(UserSession user, DateTimeOffset at, string protectedIp) =>
         AuditEvent.Create(
             AuditEventCategory.SignIn,

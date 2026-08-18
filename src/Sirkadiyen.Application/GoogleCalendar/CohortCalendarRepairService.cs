@@ -137,13 +137,23 @@ public sealed class CohortCalendarRepairService(
     /// Requests the repair the operator confirmed, refusing if the cohort has moved since they
     /// saw it.
     /// </summary>
+    /// <param name="recordAuthorization">
+    /// Writes the audit record of the plan being authorized. It is called immediately before any
+    /// connection is flagged, and a throw from it abandons the repair, because the ordering is the
+    /// guarantee: this queues deletions no published revision derived, so "why did these lessons
+    /// disappear" has to be answerable from the trail alone (AI_GUIDELINE §19). Recording after the
+    /// flagging would mean a failed audit leaves work already queued and no record that anyone
+    /// asked for it.
+    /// </param>
     public async Task<CohortRepairRequestResult> RequestAsync(
         CohortRepairScope scope,
         string confirmedPlanHash,
+        Func<CohortRepairPlan, CancellationToken, Task> recordAuthorization,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(scope);
         ArgumentException.ThrowIfNullOrWhiteSpace(confirmedPlanHash);
+        ArgumentNullException.ThrowIfNull(recordAuthorization);
 
         // Every calendar-touching path reads the same authoritative switch and fails closed
         // (ADR-034/043). Queueing work a freeze exists to prevent would defer the writes rather
@@ -184,6 +194,10 @@ public sealed class CohortCalendarRepairService(
                 Plan = plan,
             };
         }
+
+        // Before the side effect, never after: if this throws, nothing has been queued yet and the
+        // operator gets an error instead of a silent, unrecorded deletion.
+        await recordAuthorization(plan, cancellationToken);
 
         int requested = await repairStore.RequestConvergenceAsync(
             [.. plan.Users.Select(user => user.UserId)],

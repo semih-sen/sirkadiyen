@@ -6250,11 +6250,40 @@ source owning half of what it supports — which is the kind of gap it exists to
 - **Open risk:** the plan is computed per user against the full published set, so a large
   program is a linear scan over records × users at preview time. It is an operator-driven
   screen rather than a hot path, but it is not free, and no bound is imposed on cohort size.
-- **Open risk:** there is no frontend for this. It is reachable only by an authenticated
-  SuperAdmin API call, which is enough to run the Grade 3 repair but not enough for it to
-  be a routine operator capability.
+- The operator screen is `CalendarRepairControl` on the admin operations panel; editing
+  any part of the scope drops the previewed plan so a stale hash can never stay attached
+  to a changed form.
 - **Pre-existing, unchanged:** the admin audit-category dropdown lists six of the ten
   categories, having drifted since ADR-107 added three; `CalendarRepairRequested` makes
   four missing. The audit API filters on any category, so the trail is complete either way.
+
+### Amendment, 2026-08-18: the audit is written before the side effect
+
+The first Grade 3 repair returned 500 and still ran. Two defects, one visible and one not.
+
+The visible one: `audit_events.Metadata` is a `jsonb` column and the endpoint built the
+value as a delimited `key=value` string, which Postgres rejected (`22P02`). The property
+is a plain `string?`, so nothing failed until insert time. It is now serialized like every
+other caller's, and the contract is stated on `AuditEventDraft.Metadata` rather than left
+to be inferred.
+
+The one that mattered more: the audit was appended **after** the convergence request. The
+flagging had already committed, so the failed insert produced a 500 over work that was
+already queued — 446 events were then deleted with no record that anyone authorized it.
+That is precisely the outcome §19 exists to prevent, and the ordering, not the serializer,
+was what made it possible.
+
+`RequestAsync` now takes the audit as a callback and invokes it after the freeze check and
+the plan-hash match but **before** flagging any connection. A throw from it abandons the
+repair. The safe failure is a repair that does not happen; a repair that happens
+unrecorded is not a failure the system may choose.
+
+The metadata records the *authorized* plan's user count rather than the number of
+connections that could take the flag, because the audit answers what was approved. How
+many were actually flagged is in the response.
+
+**Not backfilled:** the run that deleted the 446 events has no audit row and will not get
+one. Writing a record after the fact for an event that was never audited would make the
+trail assert something it did not observe.
 
 ---

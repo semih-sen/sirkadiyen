@@ -129,7 +129,7 @@ public sealed class CohortCalendarRepairServiceTests
 
         CohortRepairPlan plan = await service.PlanAsync(Grade3Turkish, CancellationToken.None);
         CohortRepairRequestResult result =
-            await service.RequestAsync(Grade3Turkish, plan.PlanHash, CancellationToken.None);
+            await service.RequestAsync(Grade3Turkish, plan.PlanHash, NoAudit, CancellationToken.None);
 
         Assert.Equal(CohortRepairOutcome.Requested, result.Outcome);
         Assert.Equal([affected.UserId], store.Requested);
@@ -150,6 +150,7 @@ public sealed class CohortCalendarRepairServiceTests
         CohortRepairRequestResult result = await service.RequestAsync(
             Grade3Turkish,
             "0000000000000000000000000000000000000000000000000000000000000000",
+            NoAudit,
             CancellationToken.None);
 
         Assert.Equal(CohortRepairOutcome.PlanChanged, result.Outcome);
@@ -192,6 +193,7 @@ public sealed class CohortCalendarRepairServiceTests
         CohortRepairRequestResult result = await service.RequestAsync(
             Grade3Turkish,
             "irrelevant-because-the-freeze-is-checked-first",
+            NoAudit,
             CancellationToken.None);
 
         Assert.Equal(CohortRepairOutcome.Frozen, result.Outcome);
@@ -207,11 +209,67 @@ public sealed class CohortCalendarRepairServiceTests
 
         CohortRepairPlan plan = await service.PlanAsync(Grade3Turkish, CancellationToken.None);
         CohortRepairRequestResult result =
-            await service.RequestAsync(Grade3Turkish, plan.PlanHash, CancellationToken.None);
+            await service.RequestAsync(Grade3Turkish, plan.PlanHash, NoAudit, CancellationToken.None);
 
         Assert.Equal(CohortRepairOutcome.NothingToRepair, result.Outcome);
         Assert.Empty(store.Requested);
     }
+
+    [Fact]
+    public async Task NothingIsFlaggedWhenTheAuthorizationCannotBeRecordedAsync()
+    {
+        // A repair queues deletions no published revision derived. If the trail cannot be
+        // written, the safe outcome is that the deletions never happen — not that they happen
+        // unrecorded (AI_GUIDELINE §19).
+        StudentProfileView profile = Grade3Profile("A3");
+        CanonicalScheduleRecord a3 = FacultyRecord("A3");
+        CanonicalScheduleRecord a5 = FacultyRecord("A5");
+
+        RecordingRepairStore store = new([Holding(profile, [a3, a5])]);
+        CohortCalendarRepairService service = Service([a3, a5], store);
+        CohortRepairPlan plan = await service.PlanAsync(Grade3Turkish, CancellationToken.None);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            service.RequestAsync(
+                Grade3Turkish,
+                plan.PlanHash,
+                (_, _) => throw new InvalidOperationException("the audit column rejected it"),
+                CancellationToken.None));
+
+        Assert.Empty(store.Requested);
+    }
+
+    [Fact]
+    public async Task TheAuthorizationIsRecordedWithThePlanThatWasConfirmedAsync()
+    {
+        StudentProfileView profile = Grade3Profile("A3");
+        CanonicalScheduleRecord a3 = FacultyRecord("A3");
+        CanonicalScheduleRecord a5 = FacultyRecord("A5");
+
+        RecordingRepairStore store = new([Holding(profile, [a3, a5])]);
+        CohortCalendarRepairService service = Service([a3, a5], store);
+        CohortRepairPlan plan = await service.PlanAsync(Grade3Turkish, CancellationToken.None);
+
+        CohortRepairPlan? audited = null;
+        await service.RequestAsync(
+            Grade3Turkish,
+            plan.PlanHash,
+            (recorded, _) =>
+            {
+                // Recorded before the flagging, so the trail can never lag the deletions.
+                Assert.Empty(store.Requested);
+                audited = recorded;
+                return Task.CompletedTask;
+            },
+            CancellationToken.None);
+
+        Assert.NotNull(audited);
+        Assert.Equal(plan.PlanHash, audited!.PlanHash);
+        Assert.Equal([profile.UserId], store.Requested);
+    }
+
+    private static Task NoAudit(CohortRepairPlan plan, CancellationToken cancellationToken) =>
+        Task.CompletedTask;
 
     private static StudentProfileView Grade3Profile(string facultyPracticeGroup) =>
         CalendarTestData.Profile(

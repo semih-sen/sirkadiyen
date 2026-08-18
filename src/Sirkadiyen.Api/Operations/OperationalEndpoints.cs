@@ -1,10 +1,12 @@
 using System.Diagnostics;
 using System.Security.Claims;
+using System.Text.Json;
 using Microsoft.AspNetCore.Antiforgery;
 using Sirkadiyen.Api.Identity;
 using Sirkadiyen.Application.Auditing;
 using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Operations;
+using Sirkadiyen.Contracts.Serialization;
 using Sirkadiyen.Domain.Auditing;
 using Sirkadiyen.Domain.Operations;
 using Sirkadiyen.Domain.Scheduling.Sources;
@@ -16,6 +18,8 @@ public static class OperationalEndpoints
 {
     /// <summary>Matches the freeze reason bound, so one operator note is not longer than another.</summary>
     private const int MaximumRepairReasonLength = OperationalFreezeControl.MaximumReasonLength;
+
+    private static readonly JsonSerializerOptions AuditMetadataOptions = ContractJson.CreateOptions();
 
     public static IEndpointRouteBuilder MapOperationalEndpoints(
         this IEndpointRouteBuilder builder)
@@ -144,33 +148,44 @@ public static class OperationalEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        CohortRepairRequestResult result =
-            await repairs.RequestAsync(scope, request.PlanHash, cancellationToken);
+        // The audit is written by the service immediately before it flags anything, so a failure
+        // to record leaves the repair unqueued rather than untraceable.
+        CohortRepairRequestResult result = await repairs.RequestAsync(
+            scope,
+            request.PlanHash,
+            (plan, token) => audit.RecordAsync(
+                new AuditEventDraft
+                {
+                    Category = AuditEventCategory.CalendarRepairRequested,
+                    ActorUserId = UserClaimsPrincipalFactory.GetRequiredUserId(principal),
+                    ActorEmail = UserClaimsPrincipalFactory.GetRequiredEmail(principal),
+                    SubjectType = "CalendarRepair",
+                    SubjectId = scope.ToString(),
+                    CorrelationId = context.CorrelationId(),
+                    ClientIp = context.ClientIp(),
+                    UserAgent = context.ClientUserAgent(),
+                    Reason = request.Reason.Trim(),
+                    // The plan hash is recorded so the trail states exactly which plan was
+                    // authorized, not merely that some repair of this cohort was. The counts are
+                    // the authorized plan's, which is what the operator agreed to; how many
+                    // connections could actually take the flag is reported in the response.
+                    Metadata = JsonSerializer.Serialize(
+                        new
+                        {
+                            planHash = plan.PlanHash,
+                            users = plan.Users.Count,
+                            surplus = plan.TotalSurplusEvents,
+                            missing = plan.TotalMissingEvents,
+                            retiredUntouched = plan.TotalUntouchableRetired,
+                        },
+                        AuditMetadataOptions),
+                },
+                token),
+            cancellationToken);
 
         switch (result.Outcome)
         {
             case CohortRepairOutcome.Requested:
-                await audit.RecordAsync(
-                    new AuditEventDraft
-                    {
-                        Category = AuditEventCategory.CalendarRepairRequested,
-                        ActorUserId = UserClaimsPrincipalFactory.GetRequiredUserId(principal),
-                        ActorEmail = UserClaimsPrincipalFactory.GetRequiredEmail(principal),
-                        SubjectType = "CalendarRepair",
-                        SubjectId = scope.ToString(),
-                        CorrelationId = context.CorrelationId(),
-                        ClientIp = context.ClientIp(),
-                        UserAgent = context.ClientUserAgent(),
-                        Reason = request.Reason.Trim(),
-                        // The plan hash is recorded so the trail states exactly which plan was
-                        // authorized, not merely that some repair of this cohort was.
-                        Metadata = $"planHash={result.Plan!.PlanHash};"
-                            + $"users={result.UsersRequested};"
-                            + $"surplus={result.Plan.TotalSurplusEvents};"
-                            + $"missing={result.Plan.TotalMissingEvents};"
-                            + $"retiredUntouched={result.Plan.TotalUntouchableRetired}",
-                    },
-                    cancellationToken);
                 return Results.Accepted("/api/operations/calendar-repairs", result);
 
             case CohortRepairOutcome.PlanChanged:

@@ -24,5 +24,10 @@ public sealed record AuditEventDraft
 
     public string? Reason { get; init; }
 
+    /// <summary>
+    /// Structured detail about the event, as a JSON document. The column is <c>jsonb</c>, so
+    /// anything else is rejected by the database at insert time rather than by the compiler:
+    /// serialize an object, never hand-format a delimited string.
+    /// </summary>
     public string? Metadata { get; init; }
 }
