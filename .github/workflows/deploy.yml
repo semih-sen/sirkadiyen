@@ -443,7 +443,7 @@ jobs:
             staged/migrations/migrate.sql \
             "${DEPLOY_USER}@${DEPLOY_HOST}:/srv/sirkadiyen/migrations/${RELEASE}.sql"
           ssh -p "${DEPLOY_PORT}" -o BatchMode=yes \
-            "${DEPLOY_USER}@${DEPLOY_HOST}" "sudo -n sirkadiyen-migrate ${RELEASE}"
+            "${DEPLOY_USER}@${DEPLOY_HOST}" "sudo -n /usr/local/bin/sirkadiyen-migrate ${RELEASE}"
 
       # --- Parser -----------------------------------------------------------
       - name: Deploy the parser
@@ -455,7 +455,7 @@ jobs:
             staged/parser/ \
             "${DEPLOY_USER}@${DEPLOY_HOST}:/srv/sirkadiyen/parser/releases/${RELEASE}/"
           ssh -p "${DEPLOY_PORT}" -o BatchMode=yes \
-            "${DEPLOY_USER}@${DEPLOY_HOST}" "sudo -n sirkadiyen-activate parser ${RELEASE}"
+            "${DEPLOY_USER}@${DEPLOY_HOST}" "sudo -n /usr/local/bin/sirkadiyen-activate parser ${RELEASE}"
 
       # --- Worker -----------------------------------------------------------
       - name: Deploy the worker
@@ -467,7 +467,7 @@ jobs:
             staged/worker/ \
             "${DEPLOY_USER}@${DEPLOY_HOST}:/srv/sirkadiyen/worker/releases/${RELEASE}/"
           ssh -p "${DEPLOY_PORT}" -o BatchMode=yes \
-            "${DEPLOY_USER}@${DEPLOY_HOST}" "sudo -n sirkadiyen-activate worker ${RELEASE}"
+            "${DEPLOY_USER}@${DEPLOY_HOST}" "sudo -n /usr/local/bin/sirkadiyen-activate worker ${RELEASE}"
 
       # --- API --------------------------------------------------------------
       - name: Deploy the API
@@ -479,7 +479,7 @@ jobs:
             staged/api/ \
             "${DEPLOY_USER}@${DEPLOY_HOST}:/srv/sirkadiyen/api/releases/${RELEASE}/"
           ssh -p "${DEPLOY_PORT}" -o BatchMode=yes \
-            "${DEPLOY_USER}@${DEPLOY_HOST}" "sudo -n sirkadiyen-activate api ${RELEASE}"
+            "${DEPLOY_USER}@${DEPLOY_HOST}" "sudo -n /usr/local/bin/sirkadiyen-activate api ${RELEASE}"
 
       # --- Frontend ---------------------------------------------------------
       - name: Deploy the frontend
@@ -491,7 +491,7 @@ jobs:
             staged/web/ \
             "${DEPLOY_USER}@${DEPLOY_HOST}:/srv/sirkadiyen/web/releases/${RELEASE}/"
           ssh -p "${DEPLOY_PORT}" -o BatchMode=yes \
-            "${DEPLOY_USER}@${DEPLOY_HOST}" "sudo -n sirkadiyen-activate web ${RELEASE}"
+            "${DEPLOY_USER}@${DEPLOY_HOST}" "sudo -n /usr/local/bin/sirkadiyen-activate web ${RELEASE}"
 
       # The activation script already waits for each service it restarts; this is
       # the cross-service confirmation, and the step that turns the run red when
@@ -499,7 +499,7 @@ jobs:
       - name: Verify service health
         run: |
           ssh -p "${DEPLOY_PORT}" -o BatchMode=yes \
-            "${DEPLOY_USER}@${DEPLOY_HOST}" 'sudo -n sirkadiyen-health'
+            "${DEPLOY_USER}@${DEPLOY_HOST}" 'sudo -n /usr/local/bin/sirkadiyen-health'
 
       - name: Summarise
         if: always()
