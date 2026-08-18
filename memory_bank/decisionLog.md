@@ -6159,3 +6159,102 @@ which document is which.
   catalog-wide coverage check is the obvious follow-up and is not built.
 
 ---
+
+## ADR-111: A corrected audience rule is repaired by an audited, scoped convergence request
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-18
+**Implements:** `CohortCalendarRepairService`, `ICohortCalendarRepairStore` and its
+PostgreSQL store, `POST /api/operations/calendar-repairs/preview` and
+`POST /api/operations/calendar-repairs`, the `CalendarRepairRequested` audit
+category, and the catalog rule requiring exactly one owner per audience share
+**Depends on:** ADR-089 (inventory never deletes from absence), ADR-096 (profile-change
+convergence), ADR-107 (plan-hash-bound confirmation), ADR-109 (dimension-narrowed
+audiences), ADR-110 (source audience ownership)
+
+### Context
+
+ADR-109 stopped eight faculty-practice cohorts reaching one Grade 3 student. It did not
+remove the seven surplus events already on every affected calendar, and nothing else
+would either:
+
+- The canonical records never changed, so no semantic diff mentions them. Diff-driven
+  sync is edge-triggered and there is no edge.
+- The periodic inventory pass repairs missing and stale events and **deliberately never
+  deletes from absence** (ADR-089), so it walks past them by design.
+- `ProfileChangeResyncService` does remove a held-but-no-longer-applicable event — but
+  only when a student happens to re-save their profile.
+
+"Wait for students to re-save their profiles" is not a cleanup strategy; it is an
+accident that fixes some accounts and not others. Meanwhile AI_GUIDELINE §13 permits
+exactly one way out: an explicit, audited repair operation.
+
+The joint-session duplicates of ADR-110 are a different matter and need no repair. Those
+records *do* change, so publishing the 1.1.0 revision emits `Deleted` for the old
+identities and incremental sync removes them. Only the ADR-109 surplus is orphaned.
+
+### Decision
+
+**The repair does not delete anything itself. It requests convergence.** It computes what
+is surplus, shows the operator that plan, and on confirmation flags the affected
+connections for the existing profile-change convergence pass.
+
+Every deletion is therefore still made by `ProfileChangeResyncService`, under the bounds
+it already has and is already tested for: publication-gated, budgeted per cycle,
+freeze-aware, resumable, and skipping a user whose credential has died. A second deletion
+path would mean a second copy of those guarantees to keep true, and the first thing such
+a path would be asked to do is bypass the ADR-089 rule that makes the first one safe.
+
+**A repair is scoped to one program.** An unscoped pass would be a whole-population
+calendar operation authorized by one click.
+
+**The confirmation is bound to the plan by hash**, with the per-user counts in the
+material and not only the totals (the ADR-107 rule): the same total surplus spread over
+a different set of students is a different repair.
+
+**Rows whose lesson is no longer published are counted and never touched.** The plan
+reports them so an operator can investigate, and the repair leaves them exactly where
+they are — removing one would be deleting from absence (ADR-089). The cohort total counts
+them for *every* user in scope, including those with nothing else to converge, because a
+student whose only anomaly is such a leftover would otherwise never appear at all. That
+total is deliberately not the sum of the per-user list.
+
+**A freeze declines the request rather than queueing it.** Queueing would defer the
+writes rather than refuse them, which is not what freezing a program asked for.
+
+**The audit entry records the plan hash, the counts and a required reason**, because
+these deletions are ones no published revision derived, and "why did these lessons
+disappear" has to be answerable from the trail alone (§19).
+
+### Ownership coverage, added here
+
+ADR-110 left an open risk: nothing checked that each audience share had exactly one owner.
+The catalog now refuses to load unless, among sources sharing one program *and* one parser
+profile, every share is owned once — no share owned twice (which reinstates the duplicate),
+none owned by nobody (which unpublishes it silently), and no sibling declaring no authority
+beside one that does (which leaves the duplicate on one side). Sources where nobody claims
+authority are left entirely alone, which is every other source in the catalog.
+
+Writing this rule immediately caught an unrealistic test fixture of ADR-110's own — a lone
+source owning half of what it supports — which is the kind of gap it exists to find.
+
+### Consequences
+
+- The Grade 3 Turkish surplus is now removable deliberately, by a named operator, with a
+  reason and a plan hash on the audit record.
+- The repair inherits its safety from the convergence path rather than restating it, so
+  ADR-089 continues to hold with no exception carved into it.
+- Convergence also *writes* what a calendar is missing. That is correct and is shown in
+  the plan, but it means a repair is not a deletion-only operation and must not be
+  described as one.
+- **Open risk:** the plan is computed per user against the full published set, so a large
+  program is a linear scan over records × users at preview time. It is an operator-driven
+  screen rather than a hot path, but it is not free, and no bound is imposed on cohort size.
+- **Open risk:** there is no frontend for this. It is reachable only by an authenticated
+  SuperAdmin API call, which is enough to run the Grade 3 repair but not enough for it to
+  be a routine operator capability.
+- **Pre-existing, unchanged:** the admin audit-category dropdown lists six of the ten
+  categories, having drifted since ADR-107 added three; `CalendarRepairRequested` makes
+  four missing. The audit API filters on any category, so the trail is complete either way.
+
+---

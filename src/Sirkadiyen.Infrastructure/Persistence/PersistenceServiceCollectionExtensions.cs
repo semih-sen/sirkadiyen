@@ -83,6 +83,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IUserCalendarEventMappingStore, UserCalendarEventMappingStore>();
         services.AddScoped<ICanonicalScheduleReadStore, CanonicalScheduleReadStore>();
         services.AddScoped<ICalendarSyncTargetReadStore, CalendarSyncTargetReadStore>();
+        services.AddScoped<ICohortCalendarRepairStore, CohortCalendarRepairStore>();
         services.AddScoped<IDepartmentColorStore, DepartmentColorStore>();
         services.AddScoped<IAuditEventStore, AuditEventStore>();
         services.AddScoped<IUserScheduleReadStore, UserScheduleReadStore>();

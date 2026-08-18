@@ -160,4 +160,12 @@ public enum AuditEventCategory
     /// derived, so it is recorded here in its own right (AI_GUIDELINE §19).
     /// </summary>
     AnnouncementCancelled,
+
+    /// <summary>
+    /// A SuperAdmin authorized the repair of a cohort's calendars (ADR-111). The convergence it
+    /// queues deletes events that a corrected audience rule shows were never that student's, which
+    /// no published revision asked for — so the operator who authorized it, the plan they were
+    /// shown and their reason are recorded here (AI_GUIDELINE §13, §19).
+    /// </summary>
+    CalendarRepairRequested,
 }

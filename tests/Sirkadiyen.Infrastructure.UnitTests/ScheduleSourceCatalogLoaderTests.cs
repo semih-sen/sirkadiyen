@@ -152,20 +152,70 @@ public sealed class ScheduleSourceCatalogLoaderTests : IDisposable
         }
     }
 
-    /// <summary>A one-source catalog whose transport and URI are under test.</summary>
     [Fact]
-    public async Task ASourceMayOwnPartOfWhatItSupports()
+    public async Task TwoWorkbooksMaySplitOneAudienceBetweenThem()
     {
-        // The Grade 3 shape: the workbook states both halves of the class and
-        // publishes only its own (ADR-110).
-        ScheduleSourceCatalog catalog = await LoadAsync(SelectorJson(
-            supported: """{ "curriculumGroup": ["3-A", "3-B"] }""",
-            authoritative: """{ "curriculumGroup": ["3-A"] }"""));
+        // The real Grade 3 shape: both workbooks state both halves of the class,
+        // and each publishes only its own (ADR-110).
+        ScheduleSourceCatalog catalog = await LoadAsync(OwnershipPairJson(
+            ownedByA: """["3-A"]""",
+            ownedByB: """["3-B"]"""));
 
-        ScheduleSourceDefinition source = Assert.Single(catalog.Sources);
-        Assert.Equal(
-            ["3-A"],
-            source.AuthoritativeAudienceSelectors!["curriculumGroup"]);
+        ScheduleSourceDefinition a = Assert.Single(
+            catalog.Sources,
+            source => source.SourceId == "G3-TR-A-ANNUAL");
+        Assert.Equal(["3-A"], a.AuthoritativeAudienceSelectors!["curriculumGroup"]);
+    }
+
+    [Fact]
+    public async Task TwoWorkbooksMayNotBothOwnTheSameShare()
+    {
+        // The exact bug ownership exists to prevent: both publish the share, and
+        // the student receives every joint session twice again.
+        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
+            () => LoadAsync(OwnershipPairJson(
+                ownedByA: """["3-A", "3-B"]""",
+                ownedByB: """["3-B"]""")));
+
+        Assert.Contains("both claim authority", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("'3-B'", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AShareOwnedByNobodyIsRejected()
+    {
+        // B declares the dimension and claims nothing in it, so every row addressing
+        // 3-B narrows to nothing and is published by no source at all — which no
+        // runtime signal distinguishes from a term in which nothing was scheduled.
+        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
+            () => LoadAsync(OwnershipPairJson(
+                ownedByA: """["3-A"]""",
+                ownedByB: """[]""")));
+
+        Assert.Contains("No source claims authority", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("'3-B'", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ASiblingThatForgotToNarrowIsRejected()
+    {
+        // The half-applied migration: A narrows and B does not, so B keeps
+        // publishing the whole class and the duplicate survives on one side.
+        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
+            () => LoadAsync(OwnershipPairJson(ownedByA: """["3-A"]""", ownedByB: null)));
+
+        Assert.Contains("claims no authority", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("G3-TR-B-ANNUAL", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PeersThatDivideNothingAreLeftAlone()
+    {
+        // Neither claims authority, which is every other source in the catalog.
+        ScheduleSourceCatalog catalog = await LoadAsync(
+            OwnershipPairJson(ownedByA: null, ownedByB: null));
+
+        Assert.Equal(2, catalog.Sources.Count);
     }
 
     [Fact]
@@ -203,6 +253,45 @@ public sealed class ScheduleSourceCatalogLoaderTests : IDisposable
             authoritative: """{ "curriculumGroup": ["3-A"] }"""));
 
         Assert.Single(catalog.Sources);
+    }
+
+    /// <summary>
+    /// The two Grade 3 Turkish annual workbooks: same program, same profile, both supporting
+    /// the whole class, each owning the share the caller gives it (<c>null</c> for none).
+    /// </summary>
+    private static string OwnershipPairJson(string? ownedByA, string? ownedByB)
+    {
+        string Entry(string sourceId, string? owned) =>
+            $$"""
+                {
+                  "sourceId": "{{sourceId}}",
+                  "displayName": "Grade 3 annual",
+                  "transport": "googleDriveFile",
+                  "documentFormat": "xlsx",
+                  "sourceUri": "https://drive.google.com/file/d/1abc/view",
+                  "externalId": "1abc",
+                  "parserProfile": "grade3_yearly_v1",
+                  "parserProfileVersion": "1.1.0",
+                  "academicYear": "2026-2027",
+                  "classYear": 3,
+                  "programLanguage": "turkish",
+                  "timeZoneId": "Europe/Istanbul",
+                  "supportedAudienceSelectors": { "curriculumGroup": ["3-A", "3-B"] }{{(
+                    owned is null
+                        ? string.Empty
+                        : $",\"authoritativeAudienceSelectors\": {{ \"curriculumGroup\": {owned} }}")}}
+                }
+            """;
+
+        return $$"""
+        {
+          "catalogVersion": "1.0",
+          "sources": [
+        {{Entry("G3-TR-A-ANNUAL", ownedByA)}},
+        {{Entry("G3-TR-B-ANNUAL", ownedByB)}}
+          ]
+        }
+        """;
     }
 
     /// <summary>A catalog whose one source declares the given selector maps.</summary>

@@ -888,3 +888,32 @@ halves of the class attend twice. Two unrelated causes; each fixed and committed
   per slot and the duplicate joint sessions stay until an audited repair runs. Recorded in
   `activeContext.md` as an open risk.
 - **Open risk:** nothing checks that each curriculum group is owned by exactly one source.
+
+## The Grade 3 repair path and the ownership coverage rule (2026-08-18)
+
+Closing the two open items ADR-109/110 left behind. 909 .NET tests pass (Contracts 6, Api 8,
+Infrastructure 636, Persistence 259 against real PostgreSQL); `dotnet format` clean.
+
+- **The repair requests convergence rather than deleting (ADR-111).** `CohortCalendarRepairService`
+  plans what a program's calendars hold that is no longer applicable, and on a hash-bound
+  confirmation flags those connections for the existing `ProfileChangeResyncService` pass. Every
+  deletion is still made there, under bounds already tested: publication-gated, budgeted,
+  freeze-aware, resumable, credential-aware. No second deletion path, and no exception carved into
+  ADR-089.
+- **Surfaces:** `POST /api/operations/calendar-repairs/preview` and `POST /api/operations/calendar-repairs`,
+  SuperAdmin + antiforgery + required reason, with a `CalendarRepairRequested` audit entry carrying
+  the plan hash and counts. No frontend.
+- **Only the ADR-109 surplus needs this.** The ADR-110 joint duplicates are handled by publishing
+  the 1.1.0 revision: those records change, so the diff emits `Deleted` and incremental sync removes
+  them. Verified against `IncrementalSyncPlanner`, which resolves a no-longer-applicable record for
+  an existing holder to `Delete`.
+- **Ownership coverage now fails the catalog load (ADR-111).** Among sources sharing one program and
+  one parser profile, every audience share must be owned exactly once — not twice, not by nobody,
+  and not by one sibling while the other declares nothing. Writing it caught an unrealistic fixture
+  in ADR-110's own tests, which was the point.
+- Two design flaws surfaced while testing and were fixed rather than papered over: a student whose
+  only anomaly was an unpublished leftover vanished from the plan entirely (the count is now
+  cohort-wide), and the gap check was unreachable behind the overlap check for the fixture I first
+  wrote.
+- **Not done:** no frontend for the repair; the admin audit-category dropdown remains four categories
+  behind (pre-existing drift since ADR-107).

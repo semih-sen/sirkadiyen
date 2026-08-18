@@ -138,6 +138,7 @@ internal static class ApiServiceCollectionExtensions
         // Announcement composition and confirmation are the API's; delivery is the worker's
         // (ADR-107), so no dispatch service is registered here.
         services.AddScoped<AnnouncementService>();
+        services.AddScoped<CohortCalendarRepairService>();
 
         // Administrative acquisition. The API stores the uploaded evidence; the worker
         // still owns parsing, validation and publication (ADR-080).

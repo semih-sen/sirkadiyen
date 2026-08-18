@@ -2,7 +2,10 @@ using System.Diagnostics;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Antiforgery;
 using Sirkadiyen.Api.Identity;
+using Sirkadiyen.Application.Auditing;
+using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Operations;
+using Sirkadiyen.Domain.Auditing;
 using Sirkadiyen.Domain.Operations;
 using Sirkadiyen.Domain.Scheduling.Sources;
 
@@ -11,6 +14,9 @@ namespace Sirkadiyen.Api.Operations;
 /// <summary>Administrative operational state.</summary>
 public static class OperationalEndpoints
 {
+    /// <summary>Matches the freeze reason bound, so one operator note is not longer than another.</summary>
+    private const int MaximumRepairReasonLength = OperationalFreezeControl.MaximumReasonLength;
+
     public static IEndpointRouteBuilder MapOperationalEndpoints(
         this IEndpointRouteBuilder builder)
     {
@@ -26,6 +32,13 @@ public static class OperationalEndpoints
         operations.MapPost("/freeze", SetFreezeAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
             .WithSummary("Freezes or unfreezes mutating pipelines with an audit entry.");
+
+        operations.MapPost("/calendar-repairs/preview", PreviewCalendarRepairAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
+            .WithSummary("Shows what repairing one cohort's calendars would converge.");
+        operations.MapPost("/calendar-repairs", RequestCalendarRepairAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
+            .WithSummary("Authorizes the shown cohort calendar repair, with an audit entry.");
 
         operations.MapGet("/freeze/scopes", ListScopedFreezesAsync)
             .WithSummary("Lists class-year/program-language operational freeze controls.");
@@ -76,6 +89,132 @@ public static class OperationalEndpoints
 
         return Results.Ok(result);
     }
+
+    private static async Task<IResult> PreviewCalendarRepairAsync(
+        PreviewCalendarRepairRequest request,
+        CohortCalendarRepairService repairs,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (Scope(request.AcademicYear, request.ClassYear, request.ProgramLanguage)
+            is not { } scope)
+        {
+            return InvalidScope();
+        }
+
+        return Results.Ok(await repairs.PlanAsync(scope, cancellationToken));
+    }
+
+    private static async Task<IResult> RequestCalendarRepairAsync(
+        RequestCalendarRepairRequest request,
+        ClaimsPrincipal principal,
+        HttpContext context,
+        CohortCalendarRepairService repairs,
+        AuditEventRecorder audit,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (Scope(request.AcademicYear, request.ClassYear, request.ProgramLanguage)
+            is not { } scope)
+        {
+            return InvalidScope();
+        }
+
+        if (string.IsNullOrWhiteSpace(request.PlanHash))
+        {
+            return Results.Problem(
+                title: "Invalid calendar repair request",
+                detail: "'planHash' is required: a repair may only be confirmed against the plan "
+                    + "it was shown for.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        // The reason is required for the same purpose it is on a freeze: this queues deletions no
+        // published revision derived, and "why did these lessons disappear" must be answerable
+        // from the audit trail alone (AI_GUIDELINE §19).
+        if (string.IsNullOrWhiteSpace(request.Reason)
+            || request.Reason.Trim().Length > MaximumRepairReasonLength)
+        {
+            return Results.Problem(
+                title: "Invalid calendar repair request",
+                detail: $"'reason' is required and must contain at most "
+                    + $"{MaximumRepairReasonLength} characters.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        CohortRepairRequestResult result =
+            await repairs.RequestAsync(scope, request.PlanHash, cancellationToken);
+
+        switch (result.Outcome)
+        {
+            case CohortRepairOutcome.Requested:
+                await audit.RecordAsync(
+                    new AuditEventDraft
+                    {
+                        Category = AuditEventCategory.CalendarRepairRequested,
+                        ActorUserId = UserClaimsPrincipalFactory.GetRequiredUserId(principal),
+                        ActorEmail = UserClaimsPrincipalFactory.GetRequiredEmail(principal),
+                        SubjectType = "CalendarRepair",
+                        SubjectId = scope.ToString(),
+                        CorrelationId = context.CorrelationId(),
+                        ClientIp = context.ClientIp(),
+                        UserAgent = context.ClientUserAgent(),
+                        Reason = request.Reason.Trim(),
+                        // The plan hash is recorded so the trail states exactly which plan was
+                        // authorized, not merely that some repair of this cohort was.
+                        Metadata = $"planHash={result.Plan!.PlanHash};"
+                            + $"users={result.UsersRequested};"
+                            + $"surplus={result.Plan.TotalSurplusEvents};"
+                            + $"missing={result.Plan.TotalMissingEvents};"
+                            + $"retiredUntouched={result.Plan.TotalUntouchableRetired}",
+                    },
+                    cancellationToken);
+                return Results.Accepted("/api/operations/calendar-repairs", result);
+
+            case CohortRepairOutcome.PlanChanged:
+                return Results.Problem(
+                    title: "The repair plan has changed",
+                    detail: "The cohort no longer resolves to the plan you confirmed. Review the "
+                        + "new preview and confirm that one instead.",
+                    statusCode: StatusCodes.Status409Conflict);
+
+            case CohortRepairOutcome.Frozen:
+                return Results.Problem(
+                    title: "Operations are frozen",
+                    detail: "No calendar work may be queued while a global or scoped freeze is in "
+                        + "force. Lift the freeze first.",
+                    statusCode: StatusCodes.Status409Conflict);
+
+            case CohortRepairOutcome.NothingToRepair:
+            default:
+                return Results.Ok(result);
+        }
+    }
+
+    /// <summary>The scope a request names, or <see langword="null"/> when it is not a real one.</summary>
+    private static CohortRepairScope? Scope(
+        string academicYear,
+        int classYear,
+        ProgramLanguage programLanguage) =>
+        string.IsNullOrWhiteSpace(academicYear)
+            || classYear is < 1 or > 6
+            || !Enum.IsDefined(programLanguage)
+                ? null
+                : new CohortRepairScope
+                {
+                    AcademicYear = academicYear.Trim(),
+                    ClassYear = classYear,
+                    ProgramLanguage = programLanguage,
+                };
+
+    private static IResult InvalidScope() =>
+        Results.Problem(
+            title: "Invalid calendar repair scope",
+            detail: "'academicYear' is required, 'classYear' must be between 1 and 6, and "
+                + "'programLanguage' must be supported.",
+            statusCode: StatusCodes.Status400BadRequest);
 
     private static async Task<IResult> SetScopedFreezeAsync(
         SetScopedOperationalFreezeRequest request,

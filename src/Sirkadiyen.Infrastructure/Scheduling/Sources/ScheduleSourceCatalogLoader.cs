@@ -94,6 +94,116 @@ public sealed class ScheduleSourceCatalogLoader
 
         ValidateSharedDocumentGroups(catalog);
         ValidateCompanionSourceIds(catalog, sourceIds);
+        ValidateAudienceOwnership(catalog);
+    }
+
+    /// <summary>
+    /// Requires the sources that split one program's audience between them to own exactly one
+    /// share each, covering the whole of it (ADR-110).
+    /// </summary>
+    /// <remarks>
+    /// Ownership is what stops two workbooks publishing the same joint session twice, and it is
+    /// declared per source. Nothing at runtime can notice that the declarations do not fit
+    /// together: a value owned twice reinstates the duplicate this rule exists to prevent, a value
+    /// owned by nobody silently unpublishes every row that names it, and a sibling that forgot to
+    /// declare authority at all keeps publishing the whole audience beside a sibling that narrowed.
+    /// All three look like ordinary output. Catalog load is the last point at which they are
+    /// visible, so it fails here rather than letting a student's calendar be the detector.
+    /// <para>
+    /// The rule engages per program and parser profile, because that is what a shared audience is:
+    /// the two Grade 3 Turkish annual workbooks divide one class between them, while the Grade 3
+    /// English annual and the faculty-practice sources are not dividing anything and declare no
+    /// authority. A group of sources where none claims authority is left alone entirely.
+    /// </para>
+    /// </remarks>
+    private static void ValidateAudienceOwnership(ScheduleSourceCatalog catalog)
+    {
+        IEnumerable<IGrouping<(string, int, ProgramLanguage, string), ScheduleSourceDefinition>>
+            peerGroups = catalog.Sources.GroupBy(source => (
+                source.AcademicYear,
+                source.ClassYear,
+                source.ProgramLanguage,
+                source.ParserProfile));
+
+        foreach (IGrouping<(string, int, ProgramLanguage, string), ScheduleSourceDefinition> peers
+            in peerGroups)
+        {
+            foreach (string dimension in ClaimedDimensions(peers))
+            {
+                ValidateDimensionOwnership(peers, dimension);
+            }
+        }
+    }
+
+    /// <summary>Every dimension at least one peer claims authority over.</summary>
+    private static IReadOnlyList<string> ClaimedDimensions(
+        IEnumerable<ScheduleSourceDefinition> peers) =>
+        [.. peers
+            .SelectMany(source =>
+                source.AuthoritativeAudienceSelectors?.Keys ?? Enumerable.Empty<string>())
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)];
+
+    private static void ValidateDimensionOwnership(
+        IGrouping<(string AcademicYear, int ClassYear, ProgramLanguage Language, string Profile),
+            ScheduleSourceDefinition> peers,
+        string dimension)
+    {
+        string program =
+            $"{peers.Key.AcademicYear} year {peers.Key.ClassYear} "
+            + $"{peers.Key.Language} '{peers.Key.Profile}'";
+
+        // Every value any peer says it may state is a value some peer has to publish.
+        HashSet<string> supported = new(StringComparer.Ordinal);
+        foreach (ScheduleSourceDefinition source in peers)
+        {
+            if (source.SupportedAudienceSelectors?.TryGetValue(
+                    dimension,
+                    out IReadOnlyList<string>? values) is true)
+            {
+                supported.UnionWith(values);
+            }
+        }
+
+        Dictionary<string, string> ownerBySelector = new(StringComparer.Ordinal);
+        foreach (ScheduleSourceDefinition source in peers)
+        {
+            if (source.AuthoritativeAudienceSelectors?.TryGetValue(
+                    dimension,
+                    out IReadOnlyList<string>? owned) is not true)
+            {
+                // A peer that narrows nothing while its sibling narrows publishes the sibling's
+                // share as well, which is the duplicate all of this exists to remove.
+                throw new InvalidDataException(
+                    $"Source '{source.SourceId}' claims no authority over selector dimension "
+                    + $"'{dimension}', but a source it shares {program} with does. Every source "
+                    + "dividing one audience must declare its own share.");
+            }
+
+            foreach (string value in owned)
+            {
+                if (ownerBySelector.TryGetValue(value, out string? existing))
+                {
+                    throw new InvalidDataException(
+                        $"Sources '{existing}' and '{source.SourceId}' both claim authority over "
+                        + $"selector value '{value}' in dimension '{dimension}' for {program}. "
+                        + "Exactly one source may publish each share of an audience.");
+                }
+
+                ownerBySelector[value] = source.SourceId;
+            }
+        }
+
+        foreach (string value in supported.Order(StringComparer.Ordinal))
+        {
+            if (!ownerBySelector.ContainsKey(value))
+            {
+                throw new InvalidDataException(
+                    $"No source claims authority over selector value '{value}' in dimension "
+                    + $"'{dimension}' for {program}, so every row addressing it would be "
+                    + "published by nobody.");
+            }
+        }
     }
 
     /// <summary>

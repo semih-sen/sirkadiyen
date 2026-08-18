@@ -2435,3 +2435,29 @@ committed separately (ADR-109, ADR-110). 891 .NET and 490 parser tests pass; ruf
 - **A dimension added to the profile schema as optional would silently withhold lessons** from any
   student who skipped it, under the ADR-109 undeclared-dimension rule. Every dimension is currently
   `Required = true`, so this is latent rather than live.
+
+## Repair path and ownership coverage (2026-08-18, same session)
+
+The two open items from ADR-109/110 are closed (ADR-111). 909 .NET tests pass; format clean.
+
+- A cohort calendar repair is an audited, program-scoped, hash-bound request that flags connections
+  for the existing convergence pass. It deletes nothing itself, so ADR-089 keeps holding without an
+  exception. Reachable at `POST /api/operations/calendar-repairs{,/preview}` as SuperAdmin.
+- The catalog now refuses to load unless every audience share has exactly one owner among the
+  sources dividing a program.
+
+### Open risks carried forward
+
+- **The Grade 3 repair has not been run.** The service and endpoints exist and are tested; nobody has
+  executed the repair against production. It is the deliberate next step, alongside the supervised
+  1.1.0 publication — and the two interact: run the publication first and the joint-session
+  duplicates retire through the ordinary diff, leaving the repair to handle only the ADR-109 surplus.
+  Running the repair first is safe but leaves the duplicates until publication.
+- **A repair whose old duplicates were already retired cannot remove them.** If the 1.1.0 diff fails
+  to delete for some user, those rows become unpublished leftovers, which the repair counts and never
+  touches. That is ADR-089 working as designed, but it means a failed publication needs its own
+  follow-up rather than being swept up by a repair.
+- **No frontend for the repair**, so it is an API-only capability today.
+- **Preview cost is unbounded in cohort size** — a linear scan over published records × users.
+- **The admin audit-category dropdown is four categories behind** (pre-existing drift since ADR-107,
+  now including `CalendarRepairRequested`). The audit API itself filters on any category.
