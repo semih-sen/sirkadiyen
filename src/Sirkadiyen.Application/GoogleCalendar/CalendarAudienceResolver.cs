@@ -19,7 +19,7 @@ public static class CalendarAudienceResolver
     /// <summary>
     /// Whether the student should have an active event for this record. A cancelled lesson
     /// yields no event; the program dimensions must match; and a cohort-scoped lesson must
-    /// name a group the student belongs to.
+    /// name, in every audience dimension it states, a group the student belongs to (ADR-109).
     /// </summary>
     public static bool Applies(CanonicalScheduleRecord record, StudentProfileView profile)
     {
@@ -48,27 +48,43 @@ public static class CalendarAudienceResolver
         {
             AudienceScope.AllStudentsInProgram => true,
             AudienceScope.SelectedGroups =>
-                TargetsAnyOf(record.AudienceSelectors, profile.Selectors),
+                TargetsProfile(record.AudienceSelectors, profile.Selectors),
             _ => false,
         };
     }
 
-    private static bool TargetsAnyOf(
+    private static bool TargetsProfile(
         string audienceSelectorsJson,
         IReadOnlyDictionary<string, string> profileSelectors)
     {
+        IReadOnlyList<AudienceSelectorEntry> selectors = Parse(audienceSelectorsJson);
+
         // A cohort-scoped lesson with no named group targets nobody we can confirm, so it is
         // deliberately excluded rather than sent to everyone.
-        foreach (AudienceSelectorEntry selector in Parse(audienceSelectorsJson))
+        if (selectors.Count == 0)
         {
-            if (profileSelectors.TryGetValue(selector.Dimension, out string? value)
-                && string.Equals(value, selector.Value, StringComparison.Ordinal))
+            return false;
+        }
+
+        // Selectors of one dimension enumerate alternatives ("curriculum group 3-A or 3-B");
+        // selectors of different dimensions each narrow the audience further ("curriculum
+        // group 3-A *and* faculty-practice cohort A3"). Reading every selector as an
+        // alternative is what put all eight faculty-practice cohorts of a curriculum group on
+        // one Grade 3 student's calendar (ADR-109).
+        foreach (IGrouping<string, AudienceSelectorEntry> dimension in
+            selectors.GroupBy(selector => selector.Dimension, StringComparer.Ordinal))
+        {
+            // A dimension the student has not declared cannot be confirmed, so the lesson is
+            // withheld rather than widened to everyone who happens to match another one.
+            if (!profileSelectors.TryGetValue(dimension.Key, out string? declared)
+                || !dimension.Any(selector =>
+                    string.Equals(selector.Value, declared, StringComparison.Ordinal)))
             {
-                return true;
+                return false;
             }
         }
 
-        return false;
+        return true;
     }
 
     private static IReadOnlyList<AudienceSelectorEntry> Parse(string audienceSelectorsJson)

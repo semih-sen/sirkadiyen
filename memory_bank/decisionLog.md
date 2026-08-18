@@ -5977,3 +5977,84 @@ are preserved and the student is not told (ADR-022, and the open risk recorded w
   profile. The account page is where that absence is now obvious.
 
 ---
+
+## ADR-109: Audience selectors enumerate within a dimension and narrow across dimensions
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-18
+**Implements:** `CalendarAudienceResolver.TargetsProfile` replacing `TargetsAnyOf`, with
+four regression tests covering the multi-dimension cases
+**Depends on:** ADR-020 (group expressions state their cohort model), ADR-027
+(validated JSONB selectors), ADR-058 (audience resolution), ADR-099 (per-cohort
+faculty-practice rotation)
+
+### Context
+
+A Grade 3 student reported the same faculty-practice session ("öğretim üyesi
+uygulaması") appearing eight times on one date and hour.
+
+`grade3_faculty_practice_v1` states two selectors per record, because a cohort
+number only means something inside its curriculum group:
+
+```text
+[ curriculumGroup=3-A , facultyPracticeGroup=A3 ]
+```
+
+`CalendarAudienceResolver.TargetsAnyOf` returned `true` on the first selector that
+matched the student's profile, whatever dimension it belonged to. A student in
+`{curriculumGroup: 3-A, facultyPracticeGroup: A5}` therefore matched the
+`curriculumGroup` half of all eight cohort records, and received the whole
+rotation instead of their own session. The `g3-tr-a-faculty` snapshot produces 510
+such candidates, eight per department slot.
+
+The rule was not merely permissive, it was unstated: nothing declared whether two
+selectors meant "either" or "both", and the two source families that state
+selectors had drifted into needing opposite answers.
+
+### Decision
+
+State the rule and enforce it: **selectors sharing a dimension enumerate
+alternatives; distinct dimensions each narrow the audience further.**
+
+A record's selectors are grouped by dimension. The student must match at least one
+value in *every* dimension the record names. A dimension the student has not
+declared fails the record rather than widening it — an unconfirmable membership is
+treated like ADR-011 treats a missing value, never guessed in the student's favour.
+
+This is the reading both sources already needed:
+
+- `Dönem 3A+3B Grubu` states `curriculumGroup` twice, and either half of the class
+  attends. One dimension, enumerated.
+- Faculty practice states a curriculum group *and* a cohort within it, and only the
+  intersection attends. Two dimensions, narrowed.
+
+The change is confined to one pure function. Every write path — initial sync,
+the incremental planner, profile-change resync and both reconciliation services —
+already routes audience decisions through `CalendarAudienceResolver.Applies`, so
+there is exactly one place where this could have been wrong and exactly one to fix.
+
+### Consequences
+
+- A Grade 3 student receives one faculty-practice session per slot instead of eight.
+- Verified against every committed real snapshot before landing: faculty practice is
+  the only source family emitting more than one dimension per candidate
+  (`curriculumGroup` + `facultyPracticeGroup`, 510 candidates). Grade 1 and Grade 2
+  practice, vertical corridor, and all annual sources emit exactly one dimension per
+  candidate, so their audiences are unchanged by construction, not by hope.
+- Every dimension in `CurrentSupportedProfileSchema` is `Required = true`, so no
+  existing student loses a lesson to the undeclared-dimension rule. A dimension added
+  as optional in future would silently withhold lessons from students who skip it;
+  that is the intended failure direction, but it must be a deliberate choice when it
+  happens.
+- **Existing users are not repaired by this change.** The seven surplus events per slot
+  are already written and mapped, and nothing sweeps them: inventory reconciliation
+  repairs missing and stale events but never deletes from absence (ADR-089), so the
+  surplus mappings survive it untouched. `ProfileChangeResyncService` *does* remove a
+  mapping that is no longer applicable while still live, so a Grade 3 student who
+  re-saves their profile is cleaned up as a side effect — which is not a plan.
+  A one-off audited repair for the affected Grade 3 cohort is required follow-up, and
+  §13 makes it an explicit operation rather than something a background job may infer.
+- The 887 existing .NET tests pass unchanged, which is the evidence that no other
+  audience depended on the old reading.
+
+---
