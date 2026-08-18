@@ -46,7 +46,7 @@ public static partial class CalendarEventPresentationPolicy
             string label = record.Departments.Count == 1
                 ? "Anabilim dalı"
                 : "Anabilim dalları";
-            lines.Add($"{label}: {string.Join(", ", record.Departments)}");
+            lines.Add($"{label}: {string.Join(", ", record.Departments.Select(DepartmentName))}");
         }
 
         // The topic goes last and on its own paragraph: it is a sentence or two
@@ -65,6 +65,23 @@ public static partial class CalendarEventPresentationPolicy
 
         return lines.Count == 0 ? null : string.Join("\n", lines);
     }
+
+    /// <summary>
+    /// How a department is named to a student: the catalog's wording when the stated value
+    /// is a department the catalog knows, and the source's own words otherwise (ADR-113).
+    /// </summary>
+    /// <remarks>
+    /// The canonical record stays source-faithful, and the sources do not agree with
+    /// themselves about how to write a department: the same one is `İÇ HASTALIKLARI AD.` in
+    /// a block cell and `İç H.` inside a Grade 3 bedside title. A student reads the second
+    /// as an abbreviation of nothing in particular, and reading the two as the same
+    /// department is exactly what the catalog is for. A department it does not know is
+    /// repeated verbatim rather than guessed at or dropped.
+    /// </remarks>
+    private static string DepartmentName(string department) =>
+        DepartmentCatalog.TryResolve(department, out DepartmentDefinition resolved)
+            ? resolved.Name
+            : department.Trim();
 
     public static string? Location(CanonicalScheduleRecord record)
     {

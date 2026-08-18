@@ -101,5 +101,14 @@ public sealed class ScheduleSourceStore(SirkadiyenDbContext dbContext) : ISchedu
         [nameof(ScheduleSource.AuthoritativeAudienceSelectors)] =
             source.AuthoritativeAudienceSelectors,
         [nameof(ScheduleSource.SharedDocumentGroup)] = source.SharedDocumentGroup,
+
+        // The companions are catalog-owned for the same reason, and their
+        // omission was invisible in a way the others would not have been: a
+        // source that reads no companion parses successfully and publishes its
+        // whole schedule, only without the topic the companion states. A
+        // database seeded before a companion was declared kept an empty list
+        // forever, and every Grade 3 bedside event reached a calendar with no
+        // description at all (ADR-112).
+        [nameof(ScheduleSource.CompanionSourceIds)] = source.CompanionSourceIds,
     };
 }

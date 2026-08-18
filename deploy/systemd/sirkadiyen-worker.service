@@ -1,0 +1,45 @@
+[Unit]
+Description=Sirkadiyen worker (polling, parsing, calendar dispatch)
+After=network-online.target postgresql.service redis-server.service sirkadiyen-parser.service
+Wants=network-online.target
+# The worker calls the parser over SIRKADIYEN_PARSER__BASE_URL.
+Wants=sirkadiyen-parser.service
+
+[Service]
+# Type=exec, not notify: the hosts do not reference
+# Microsoft.Extensions.Hosting.Systemd, so nothing would ever send READY=1 and
+# systemd would time the start out. Add that package and UseSystemd() to switch.
+Type=exec
+User=sirkadiyen
+Group=sirkadiyen
+
+# The content root matters here: the worker resolves
+# SIRKADIYEN_SOURCES__CATALOG_PATH (config/schedule-sources.json) relative to it,
+# and the workflow ships that catalog inside the artifact.
+WorkingDirectory=/srv/sirkadiyen/worker/current
+ExecStart=/srv/sirkadiyen/worker/current/Sirkadiyen.Worker
+
+EnvironmentFile=/srv/sirkadiyen/shared/env/common.env
+EnvironmentFile=/srv/sirkadiyen/shared/env/worker.env
+Environment=DOTNET_ENVIRONMENT=Production
+Environment=ASPNETCORE_ENVIRONMENT=Production
+
+Restart=always
+RestartSec=5
+# A parse run in flight deserves a chance to finish; the stale-run timeout only
+# reopens abandoned runs after 30 minutes, so a slow stop is cheap and a hard
+# kill is not.
+TimeoutStopSec=120
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/sirkadiyen/shared/dataprotection-keys
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

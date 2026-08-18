@@ -155,3 +155,57 @@ def _rule_for(departments: list[str], borrowed_marker: bool) -> str:
 def _has_department_marker(segment: str) -> bool:
     """Whether a segment ends with an explicit academic-department marker."""
     return _MARKER_PATTERN.search(comparison_key(segment)) is not None
+
+
+#: How the Grade 3 sources name the department each half of the class sits with,
+#: written inside the lesson title rather than in the block cell:
+#: ``Hasta Başı Uygulama-1 A Grubu (İç H.) B Grubu (ÇSvH)``. The English workbook
+#: writes the same construction in the same Turkish wording.
+#:
+#: The group letter has to stand alone. A Grade 1 lesson is titled
+#: ``... A-B GRUBU (İngilizce Tıp ile Ortak Ders)``, which addresses both groups
+#: at once and whose parenthesis holds a note rather than a department; without
+#: the lookbehinds its ``B`` would read as a group and that note as its
+#: department.
+_GROUP_DEPARTMENT_PATTERN = re.compile(
+    r"(?<![^\W\d_])(?<!-)(?P<letter>[A-Za-z])\s*grubu\s*\(\s*(?P<department>[^()]+?)\s*\)",
+    re.IGNORECASE,
+)
+
+
+def resolve_group_departments(title: str | None) -> tuple[tuple[str, str], ...]:
+    """The department a title states for each curriculum group, in source order.
+
+    A bedside session sits one half of the class with one department and the
+    other half with another, and the annual workbook states both in the title of
+    the single row it writes for the session. The block cell of those rows names
+    the curriculum block only, so this is the only place the department is said.
+
+    Nothing here decides which of the pairs applies to a record; that follows
+    from the audience the row was published to, and is the caller's to make.
+    Returning the pairs in source order keeps that decision explainable.
+
+    A group named twice keeps its first department: a title that contradicts
+    itself is not resolved here into whichever came last.
+
+    The construction is only recognised when the title states it for more than
+    one group, which is how both sources write it — one row carries the session
+    both halves attend, and names the department of each. A lone
+    ``X Grubu (...)`` is left alone: the parenthesis after a single group is a
+    note as often as it is a department, and a wrong department is worse on a
+    calendar than no department.
+    """
+    if not title:
+        return ()
+
+    pairs: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for match in _GROUP_DEPARTMENT_PATTERN.finditer(title):
+        letter = match.group("letter").upper()
+        department = normalize_text(match.group("department"))
+        if not department or letter in seen:
+            continue
+        seen.add(letter)
+        pairs.append((letter, department))
+
+    return tuple(pairs) if len(pairs) > 1 else ()

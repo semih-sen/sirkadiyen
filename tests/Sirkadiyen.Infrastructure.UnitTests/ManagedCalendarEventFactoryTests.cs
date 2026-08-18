@@ -47,7 +47,7 @@ public sealed class ManagedCalendarEventFactoryTests
         Assert.Equal(
             "Öğretim üyesi: Prof. Dr. Muhammet BEKTAŞ\n"
             + "Dilim: YAŞAMIN MOLEKÜLER TEMELLERİ\n"
-            + "Anabilim dalı: BİYOFİZİK AD.",
+            + "Anabilim dalı: Biyofizik",
             result.Description);
     }
 
@@ -68,7 +68,7 @@ public sealed class ManagedCalendarEventFactoryTests
 
         Assert.Equal(
             "Dilim: SEMİYOLOJİ DİLİMİ\n"
-            + "Anabilim dalı: İÇ HASTALIKLARI AD.\n"
+            + "Anabilim dalı: İç Hastalıkları\n"
             + "\n"
             + "Konu: Hastaya yaklaşım, anamnez alma, hastanın şikâyetleri ve hastalığın öyküsü.",
             result.Description);
@@ -87,8 +87,59 @@ public sealed class ManagedCalendarEventFactoryTests
         ManagedCalendarEvent result = ManagedCalendarEventFactory.ToManagedEvent(UserId, record);
 
         Assert.Equal(
-            "Dilim: SEMİYOLOJİ DİLİMİ\nAnabilim dalı: İÇ HASTALIKLARI AD.",
+            "Dilim: SEMİYOLOJİ DİLİMİ\nAnabilim dalı: İç Hastalıkları",
             result.Description);
+    }
+
+    [Fact]
+    public void ADepartmentAbbreviatedByTheSourceIsNamedInFull()
+    {
+        // The Grade 3 bedside rows state the department inside the title, once
+        // per half of the class, and abbreviate it there: `İç H.` is the same
+        // department a block cell writes as `İÇ HASTALIKLARI AD.` (ADR-113). The
+        // record keeps the source's words; the student reads the department.
+        CanonicalScheduleRecord record = CalendarTestData.Record(
+            displayTitle: "Hasta Başı Uygulama-1 A Grubu (İç H.) B Grubu (ÇSvH)",
+            eventType: ScheduleEventType.BedsidePractice,
+            curriculumBlock: "SEMİYOLOJİ DİLİMİ",
+            departments: ["İç H."]);
+
+        ManagedCalendarEvent result = ManagedCalendarEventFactory.ToManagedEvent(UserId, record);
+
+        Assert.Equal(
+            "Dilim: SEMİYOLOJİ DİLİMİ\nAnabilim dalı: İç Hastalıkları",
+            result.Description);
+    }
+
+    [Fact]
+    public void AProgramWideSessionNamesEveryDepartmentItIsStatedWith()
+    {
+        // The English program states no curriculum group, so its patient-practice
+        // rows address both halves and carry the department of each (ADR-098).
+        CanonicalScheduleRecord record = CalendarTestData.Record(
+            displayTitle: "Practice with the patient-1 A Grubu (İç H.) B Grubu (ÇSvH)",
+            eventType: ScheduleEventType.Practice,
+            departments: ["İç H.", "ÇSvH"]);
+
+        ManagedCalendarEvent result = ManagedCalendarEventFactory.ToManagedEvent(UserId, record);
+
+        Assert.Equal(
+            "Anabilim dalları: İç Hastalıkları, Çocuk Sağlığı ve Hastalıkları",
+            result.Description);
+    }
+
+    [Fact]
+    public void ADepartmentTheCatalogDoesNotKnowIsRepeatedAsTheSourceWroteIt()
+    {
+        // Sub-departments and shorthand the faculty invents are not in the
+        // catalog, and repeating them is right: the alternative is dropping a
+        // department the source stated, or guessing which one it meant.
+        CanonicalScheduleRecord record = CalendarTestData.Record(
+            departments: ["ÇOCUK GASTRO."]);
+
+        ManagedCalendarEvent result = ManagedCalendarEventFactory.ToManagedEvent(UserId, record);
+
+        Assert.Equal("Anabilim dalı: ÇOCUK GASTRO.", result.Description);
     }
 
     [Fact]

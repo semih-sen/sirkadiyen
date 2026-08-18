@@ -6287,3 +6287,145 @@ one. Writing a record after the fact for an event that was never audited would m
 trail assert something it did not observe.
 
 ---
+
+## ADR-112: The companion declaration is catalog-owned, like every other configured field
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-18
+**Implements:** `ScheduleSourceStore.ConfigurationOf` copying `CompanionSourceIds` on
+update, and a persistence regression test for a row seeded before its companion was
+declared
+**Depends on:** ADR-100 (the annual owns the bedside slot, the bedside document owns the
+topic), ADR-102 (companion snapshots and the companion fingerprint)
+
+### Context
+
+Reported from a real calendar: every Grade 3 bedside event reached students with an empty
+description. The topic the bedside document states for each of the 92 sessions was
+nowhere on them.
+
+Every part of the mechanism was in place and correct. Parsed against the real fixtures,
+`grade3_yearly_v1` puts a topic on 88 of the A group's 92 bedside sessions and 87 of the
+B group's; `CanonicalScheduleRecord.Notes` persists it; `CalendarEventPresentationPolicy`
+renders it as the `Konu:` paragraph; the content hash covers it, so a corrected topic
+moves the event. The catalog declares `companionSourceIds` on both Turkish annuals, and
+both bedside documents had been acquired with their payloads intact.
+
+The database disagreed with the catalog. Every Grade 3 row held `CompanionSourceIds = []`,
+and every annual parse run — including the ones re-parsed at profile version 1.1.0 the
+same day — carried an empty `CompanionFingerprint`.
+
+`ScheduleSourceStore.UpsertAsync` copies only the fields it names into an existing row, and
+it did not name this one. The insert path passed the whole source, so a database seeded
+after the declaration would have been right; these rows were seeded before it, so they kept
+an empty list through every redeploy. The comment above that dictionary already said the
+declared cohorts and the shared-document group are catalog-owned "so an edited allowlist
+does not apply to a fresh database and silently not to a running one". The companion is the
+same kind of field and was simply left out of it.
+
+### Decision
+
+**`CompanionSourceIds` is copied on update, like every other catalog-owned field.**
+
+### Consequences
+
+The reason this hid for as long as it did is worth stating, because it generalizes past
+this field. A missing companion is *designed* to be survivable: ADR-102 requires the annual
+to publish its full schedule whether or not the document that annotates it can be read, so
+the pipeline reported success at every stage. The parse completed, the revision validated,
+the diff was clean, the sync succeeded, and 184 events reached calendars — correct in date,
+time, title, room and colour, and missing only the one thing that came from the companion.
+Nothing in the pipeline can distinguish "no companion is declared" from "the declared
+companion did not arrive", because by the time the poller has the row, the declaration is
+gone.
+
+Recovering is ordinary operation rather than repair. The worker reseeds the catalog at
+startup, which writes the companions onto the two annual rows; the next poll resolves them,
+the changed companion fingerprint opens a new parse run over the same snapshot, and the
+published revision changes the content hash of exactly the bedside records. Incremental
+sync updates those events in place. No stable identity moves and nothing is deleted.
+
+**Open risk, not addressed here:** a declared companion that cannot be resolved at poll
+time is still silent. `ResolveCompanionsAsync` leaves it out, which is the required
+degradation, but neither the poll result nor a log says it happened, so the same class of
+fault would again be visible only as an empty description on a student's calendar.
+
+---
+
+## ADR-113: The department a title states for a group belongs to the record addressed to it
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-18
+**Implements:** `resolve_group_departments` in the parser's department normalization,
+`_stated_departments` in the annual profile, `grade3_yearly_v1` 1.2.0, the two source
+abbreviations as `DepartmentCatalog` aliases, and department naming in
+`CalendarEventPresentationPolicy.Description`
+**Depends on:** ADR-098 (the English program states no curriculum group), ADR-100 (the
+annual owns the bedside slot), ADR-110 (a source publishes only the audience it owns)
+
+### Context
+
+Grade 3 bedside events carried no department. The description rendered the curriculum
+block and nothing else, while the department a student sits the session with — the single
+most useful thing about a bedside practice — appeared only inside the event title.
+
+The sources state it there and nowhere else. The block cell of those rows says
+`SEMİYOLOJİ DİLİMİ`; the title says
+`Hasta Başı Uygulama-1 A Grubu (İç H.) B Grubu (ÇSvH)`. One row carries the session both
+halves of the class attend, and it names the department of each. The English workbook
+writes the same construction, in the same Turkish wording, as
+`Practice with the patient-1 A Grubu (İç H.) B Grubu (ÇSvH)`.
+
+### Decision
+
+**A record carries the departments its title states for the groups it addresses.**
+
+A row published to one curriculum group takes the department stated for that group; a
+program-wide row takes every department the title states, in the order the title states
+them, because it is published to all the groups named. Nothing is inferred for a group the
+title does not name. The block cell keeps precedence in the order, and a department stated
+in both places is kept once.
+
+The construction is recognised only when the title states it for **more than one group**.
+That is not a stylistic preference. A Grade 1 lesson is titled
+`BİLGİ KURAMI ve BİLİMSEL DÜŞÜNMEYE GİRİŞ A-B GRUBU (İngilizce Tıp ile Ortak Ders)`, where
+the parenthesis is a note about the lesson rather than a department; the first
+implementation read its `B` as a group and gave five Grade 1 lessons a department the
+source never stated. The golden files caught it. The group letter must therefore stand
+alone, and a lone `X Grubu (...)` states no department at all.
+
+**The record keeps the source's words; the calendar names the department in full.** The
+canonical value stays `İç H.`, because that is what the source wrote (§10). The
+description resolves each department through `DepartmentCatalog` and prints the catalog's
+name when it resolves, or the source's words when it does not. The two abbreviations are
+registered as aliases of the departments they abbreviate, which is what the catalog is
+for: `İç H.` in a Grade 3 title and `İÇ HASTALIKLARI AD.` in a Grade 1 block cell are one
+department, and a student should read one name for it.
+
+### Consequences
+
+Against the real workbooks this publishes a department on 91 rows of each Turkish annual
+and 92 of the English one. `grade3_yearly_v1` goes to 1.2.0 and the four Grade 3 goldens
+move; the Grade 1 and 2 goldens are unchanged, which is the assertion that the shared
+implementation did not shift under them.
+
+Departments are content, never identity, so the affected events are updated in place. The
+label is unaffected: a practice is coloured as a practice before its department is
+consulted, so no event changes colour and the multi-department English rows do not become
+integrated sessions.
+
+**Every department-bearing event is rewritten once.** Naming departments through the
+catalog changes descriptions that were already correct — `BİYOFİZİK AD.` now reads
+`Biyofizik` — across roughly eight thousand canonical records. The comparer sees a
+description that differs from the event on the calendar, and the inventory pass updates
+each in place. That is one bounded rewrite over every synchronized user, not a
+delete-and-recreate, but it is real Google API traffic and it should be expected rather
+than discovered.
+
+**The English program remains a compromise.** Its rows address all its students and carry
+both departments, so an English student reads both names and has to know which half they
+are in. Publishing one of them would be a guess. Resolving it properly means modelling the
+English program's own A/B division, which is an audience change (ADR-098) and not this
+one.
+
+---

@@ -34,6 +34,19 @@ const backendOrigin = process.env.BACKEND_ORIGIN ?? 'http://localhost:5080';
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  /**
+   * Deployment topology (.github/workflows/deploy.yml).
+   *
+   * The build happens on a GitHub-hosted runner and only the compiled output is
+   * pushed to the server, which has no Node toolchain. `standalone` traces the
+   * exact `node_modules` subset the server needs and emits a `server.js` that
+   * runs under a bare `node`, so no `npm ci` ever happens on the host.
+   *
+   * Note that `rewrites()` above is evaluated at BUILD time, so BACKEND_ORIGIN
+   * is baked into the deployed bundle by the workflow and cannot be changed by
+   * the systemd unit afterwards.
+   */
+  output: 'standalone',
   async rewrites() {
     return [
       {

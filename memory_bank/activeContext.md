@@ -2462,3 +2462,74 @@ The two open items from ADR-109/110 are closed (ADR-111). 909 .NET tests pass; f
 - **Preview cost is unbounded in cohort size** — a linear scan over published records × users.
 - **The admin audit-category dropdown is four categories behind** (pre-existing drift since ADR-107,
   now including `CalendarRepairRequested`). The audit API itself filters on any category.
+
+## Bedside events reached calendars with no topic (2026-08-18)
+
+Reported from a real calendar: Grade 3 bedside events had an empty description. The whole ADR-100 /
+ADR-102 mechanism was correct; the catalog's companion declaration was not reaching the database
+(ADR-112). One line in `ScheduleSourceStore.ConfigurationOf`.
+
+- **Diagnosed from the running system, not the code.** The parser puts a topic on 88 of 92 A-group
+  and 87 of 92 B-group bedside sessions against the real fixtures, and every downstream stage
+  carries it. The database held `notes` on none of the 368 Grade 3 bedside records, every Grade 3
+  source row held `CompanionSourceIds = []`, and every annual parse run had an empty
+  `CompanionFingerprint` — including the 1.1.0 re-parses of the same day.
+- **The update path never copied the field.** `UpsertAsync` copies only the fields it names onto an
+  existing row. The insert path passes the whole source, so a fresh database would have been right
+  and the running one could never become right, through any number of redeploys.
+- **It failed silently by design.** ADR-102 requires the annual to publish whether or not its
+  companion can be read, so the parse, validation, diff and sync all reported success while
+  publishing 184 events that were correct in every field except the one the companion supplies.
+- **Verification:** 261 persistence tests pass, including a new regression that fails on the old
+  code with `[] != [G9-BEDSIDE]`. The Infrastructure suite could not be run: the Worker and Api
+  processes were running and hold `Sirkadiyen.Infrastructure.dll`, so that project cannot relink
+  until they are stopped.
+
+### What this needs operationally
+
+Nothing was repaired in the database. Restarting the worker reseeds the catalog, which writes the
+companions onto `G3-TR-A-ANNUAL` and `G3-TR-B-ANNUAL`; the next poll then re-parses both annuals
+against a changed companion fingerprint and the topics reach the 184 bedside records and, through
+ordinary incremental sync, the events themselves. No repair operation is involved — the content
+hash of those records changes and nothing else does.
+
+### Open risk added
+
+- **An unresolvable declared companion is still invisible.** `ResolveCompanionsAsync` omits a
+  companion with no usable snapshot, which is the required degradation, but nothing reports it. The
+  next fault of this shape would again surface only as an empty description on a student's calendar.
+  A poll result field or a structured log would close it; neither exists yet.
+
+## The department reaches the bedside description (2026-08-18, same session)
+
+Grade 3 bedside events named no department, because the sources state it inside the title
+rather than in the block cell (ADR-113). `grade3_yearly_v1` → 1.2.0.
+
+- **The rule is the audience, not the event type.** A record carries the departments its title
+  states for the groups it addresses: one group takes its own department, a program-wide row takes
+  every department the title names, in source order. 91 rows of each Turkish annual and 92 of the
+  English one now carry one.
+- **The first implementation was wrong and the goldens said so.** A Grade 1 title reads
+  `... A-B GRUBU (İngilizce Tıp ile Ortak Ders)`, and reading its `B` as a group gave five Grade 1
+  lessons a parenthetical note as their department. The letter must stand alone, and the
+  construction now counts only when the title states it for more than one group.
+- **The record keeps the source's words and the calendar names the department in full.** `İç H.`
+  and `ÇSvH` are registered as `DepartmentCatalog` aliases; `Description` resolves every department
+  through the catalog and repeats the source verbatim when it does not resolve.
+- **Verification:** 502 parser tests pass (up from 490), ruff and mypy clean, Grade 1 and 2 goldens
+  unchanged. The .NET side is **not verified**: the Worker and Api processes hold
+  `Sirkadiyen.Application.dll` and `Sirkadiyen.Infrastructure.dll`, so neither the Infrastructure
+  suite nor the solution can relink. `Sirkadiyen.Application` alone compiles with 0 warnings.
+
+### Open risks added
+
+- **Every department-bearing event is rewritten once**, because naming departments through the
+  catalog also changes descriptions that were already correct (`BİYOFİZİK AD.` → `Biyofizik`). The
+  inventory pass updates them in place — no deletion — but it is real Google API traffic across
+  every synchronized user and should be expected rather than discovered.
+- **An English student reads both departments**, since the English rows address the whole program
+  and state one department per half. Fixing it means modelling that program's own A/B division,
+  which is an audience change (ADR-098), not a department one.
+- **The .NET tests for this change have not been run.** The expectations in
+  `ManagedCalendarEventFactoryTests` were updated by hand for the new naming, and three cases were
+  added; none has executed.

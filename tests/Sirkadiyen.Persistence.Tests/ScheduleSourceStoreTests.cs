@@ -85,7 +85,38 @@ public sealed class ScheduleSourceStoreTests(PostgresFixture fixture)
         Assert.Equal(polledAt, stored.LastChangedAtUtc);
     }
 
-    private static ScheduleSource Definition(SourceId sourceId, string displayName) => new(
+    [Fact]
+    public async Task ADeclaredCompanionReachesARowThatWasSeededWithoutOne()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        SourceId sourceId = SourceId.Parse("G9-ANNUAL");
+        SourceId companionId = SourceId.Parse("G9-BEDSIDE");
+
+        await using (SirkadiyenDbContext seed = fixture.CreateContext())
+        {
+            seed.ScheduleSources.Add(Definition(sourceId, "Annual"));
+            await seed.SaveChangesAsync(Token);
+        }
+
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        await new ScheduleSourceStore(context).UpsertAsync(
+            [Definition(sourceId, "Annual", companions: [companionId])],
+            Token);
+
+        ScheduleSource stored = await context.ScheduleSources
+            .SingleAsync(source => source.SourceId == sourceId, Token);
+
+        // A companion declared after the row was seeded must reach it. Nothing
+        // downstream reports its absence: the parse succeeds, the schedule is
+        // published in full, and only the topic the companion states is
+        // silently missing from every event (ADR-112).
+        Assert.Equal([companionId], stored.CompanionSourceIds);
+    }
+
+    private static ScheduleSource Definition(
+        SourceId sourceId,
+        string displayName,
+        IReadOnlyList<SourceId>? companions = null) => new(
         sourceId,
         displayName,
         ScheduleSourceTransport.GoogleSheets,
@@ -96,7 +127,8 @@ public sealed class ScheduleSourceStoreTests(PostgresFixture fixture)
         "2025-2026",
         1,
         ProgramLanguage.Turkish,
-        "Europe/Istanbul");
+        "Europe/Istanbul",
+        companionSourceIds: companions);
 
     private static async Task<IReadOnlyList<ScheduleSource>> LoadCatalogAsync()
     {

@@ -46,6 +46,7 @@ from sirkadiyen_parser.normalization.departments import (
     RULE_DEPARTMENT_LIST_MEMBER,
     BlockDepartmentResolution,
     resolve_block_and_departments,
+    resolve_group_departments,
 )
 from sirkadiyen_parser.normalization.grid import WorksheetGrid
 from sirkadiyen_parser.normalization.instructors import split_trailing_instructors
@@ -168,6 +169,11 @@ METRIC_DATE_RULE_PREFIX = "dates.rule."
 METRIC_LOCATION_DEFERRED = "location.deferredToOtherProgram"
 METRIC_CURRICULUM_BLOCK_STATED = "curriculumBlock.stated"
 METRIC_DEPARTMENTS_STATED = "departments.stated"
+
+#: Departments taken from the title rather than from the block cell, which is
+#: where the Grade 3 sources state the department each half of the class sits
+#: with (ADR-113).
+METRIC_DEPARTMENTS_FROM_TITLE = "departments.statedInTitle"
 METRIC_DEPARTMENTS_INTEGRATED_SESSION = "departments.integratedSession"
 METRIC_DEPARTMENTS_LIST_MEMBER = "departments.unmarkedListMember"
 METRIC_DEPARTMENTS_IGNORED_UNMARKED = "departments.ignored.unmarkedSegment"
@@ -316,6 +322,7 @@ class _CandidateDraft:
     title_confidence: float
     deferred_location: bool
     block_departments: BlockDepartmentResolution
+    title_departments: tuple[str, ...]
 
 
 @dataclass(slots=True)
@@ -685,6 +692,66 @@ def _bedside_topic(
     return topics.get((groups[0], resolved_date.value))
 
 
+def _stated_departments(
+    *,
+    block_departments: BlockDepartmentResolution,
+    title_text: str,
+    audience: ScheduleAudienceCandidate,
+) -> tuple[str, ...]:
+    """Every department the source states for this record, in source order.
+
+    Most rows state their department in the block cell and nowhere else. The
+    Grade 3 bedside and patient-practice rows state it in the title instead, once
+    per half of the class — ``... A Grubu (İç H.) B Grubu (ÇSvH)`` — because one
+    row carries the session both halves attend, each with its own department
+    (ADR-113).
+
+    Which of those pairs belongs on the record follows from who the record
+    addresses, and is not a guess: a row published to one curriculum group takes
+    the department stated for that group, and a program-wide row takes every
+    department the title states, in the order the title states them, because it
+    is published to all the groups named. Nothing is inferred for a group the
+    title does not mention.
+
+    The block cell keeps precedence in the order because it is where the
+    convention puts the department; a department stated in both places is kept
+    once.
+    """
+    stated = resolve_group_departments(title_text)
+    if not stated:
+        return block_departments.departments
+
+    letters = _audience_group_letters(audience)
+    departments = list(block_departments.departments)
+    seen = {comparison_key(department) for department in departments}
+    for letter, department in stated:
+        if letters is not None and letter not in letters:
+            continue
+        key = comparison_key(department)
+        if key in seen:
+            continue
+        seen.add(key)
+        departments.append(department)
+
+    return tuple(departments)
+
+
+def _audience_group_letters(audience: ScheduleAudienceCandidate) -> frozenset[str] | None:
+    """The curriculum-group letters a record is addressed to.
+
+    ``None`` when it names no group, which means the record addresses the whole
+    program rather than that it addresses nobody — the two must not be confused,
+    because a title's departments apply to every group when no group narrows
+    them.
+    """
+    letters = {
+        selector.value.rpartition("-")[2].upper()
+        for selector in audience.selectors
+        if selector.dimension == DIMENSION_CURRICULUM_GROUP
+    }
+    return frozenset(letters) if letters else None
+
+
 def _resolve_audience(
     *,
     row: _RowContext,
@@ -746,8 +813,7 @@ def _resolve_audience(
     return ScheduleAudienceCandidate(
         scope=AudienceScope.SELECTED_GROUPS,
         selectors=[
-            AudienceSelector(dimension=DIMENSION_CURRICULUM_GROUP, value=group)
-            for group in owned
+            AudienceSelector(dimension=DIMENSION_CURRICULUM_GROUP, value=group) for group in owned
         ],
     )
 
@@ -789,9 +855,7 @@ def _audience_key(audience: ScheduleAudienceCandidate) -> str:
     Empty when the row addresses the whole program, which keeps the identity and
     the hash of every source that states no audience exactly as they were.
     """
-    return " ".join(
-        f"{selector.dimension}={selector.value}" for selector in audience.selectors
-    )
+    return " ".join(f"{selector.dimension}={selector.value}" for selector in audience.selectors)
 
 
 def _read_class_year(term_text: str) -> int | None:
@@ -1010,6 +1074,11 @@ def _build_draft(
         else classify_event_type(title=display_title, block=block_text)
     )
     block_departments = resolve_block_and_departments(block_text)
+    departments = _stated_departments(
+        block_departments=block_departments,
+        title_text=title_text,
+        audience=audience,
+    )
 
     # The bedside document states what each of these sessions is about, and this
     # workbook states when it is. Joining them on the date and the group is what
@@ -1065,7 +1134,7 @@ def _build_draft(
         instructor=instructor,
         location=location_text,
         curriculum_block=block_departments.curriculum_block,
-        departments=list(block_departments.departments),
+        departments=list(departments),
         notes=notes,
         stable_identity=stable_identity(identity_components),
         content_hash=_content_hash(
@@ -1076,7 +1145,8 @@ def _build_draft(
             schedule=schedule,
             instructor=instructor,
             location=location_text,
-            block_departments=block_departments,
+            curriculum_block=block_departments.curriculum_block,
+            departments=departments,
             audience_key=audience_key,
             notes=notes,
         ),
@@ -1092,6 +1162,7 @@ def _build_draft(
         title_confidence=course_title.confidence,
         deferred_location=deferred_location,
         block_departments=block_departments,
+        title_departments=departments[len(block_departments.departments) :],
     )
 
 
@@ -1110,7 +1181,8 @@ def _content_hash(
     schedule: _Schedule,
     instructor: str | None,
     location: str | None,
-    block_departments: BlockDepartmentResolution,
+    curriculum_block: str | None,
+    departments: tuple[str, ...],
     audience_key: str,
     notes: str | None,
 ) -> str:
@@ -1136,8 +1208,8 @@ def _content_hash(
             "timeZoneId": context.time_zone_id,
             "instructor": instructor,
             "location": location,
-            "curriculumBlock": block_departments.curriculum_block,
-            "departments": join_departments(block_departments.departments),
+            "curriculumBlock": curriculum_block,
+            "departments": join_departments(departments),
         }
     )
 
@@ -1260,6 +1332,8 @@ def _record_block_department_diagnostics(
 
     if resolution.resolved:
         diagnostics.increment(METRIC_DEPARTMENTS_STATED)
+    if draft.title_departments:
+        diagnostics.increment(METRIC_DEPARTMENTS_FROM_TITLE)
     if resolution.names_several_departments:
         diagnostics.increment(METRIC_DEPARTMENTS_INTEGRATED_SESSION)
 

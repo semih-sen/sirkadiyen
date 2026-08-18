@@ -1,0 +1,44 @@
+[Unit]
+Description=Sirkadiyen API (ASP.NET Core, Kestrel)
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target
+
+[Service]
+# Type=exec, not notify: the hosts do not reference
+# Microsoft.Extensions.Hosting.Systemd, so nothing would ever send READY=1 and
+# systemd would time the start out. Add that package and UseSystemd() to switch.
+Type=exec
+User=sirkadiyen
+Group=sirkadiyen
+
+# The symlink is swapped atomically by sirkadiyen-activate; systemd resolves it
+# at each start, so a restart is what picks up a new release.
+WorkingDirectory=/srv/sirkadiyen/api/current
+ExecStart=/srv/sirkadiyen/api/current/Sirkadiyen.Api
+
+# DotEnvFile.Load() only fills in what the process environment does not already
+# define (ADR-041), so these injected values always win and no .env file is
+# deployed to the server.
+EnvironmentFile=/srv/sirkadiyen/shared/env/common.env
+EnvironmentFile=/srv/sirkadiyen/shared/env/api.env
+Environment=DOTNET_ENVIRONMENT=Production
+Environment=ASPNETCORE_ENVIRONMENT=Production
+
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+
+# Hardening. The service writes only to the shared Data Protection key ring,
+# which the API and the worker must share (ADR-058).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/sirkadiyen/shared/dataprotection-keys
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

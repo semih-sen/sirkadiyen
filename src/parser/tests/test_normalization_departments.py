@@ -15,6 +15,7 @@ from sirkadiyen_parser.normalization.departments import (
     RULE_EMPTY,
     RULE_MARKED_DEPARTMENT,
     resolve_block_and_departments,
+    resolve_group_departments,
 )
 
 
@@ -198,3 +199,56 @@ def test_resolution_is_deterministic() -> None:
     value = "HÜCRE DİLİMİ / BİYOFİZİK AD. - TIBBİ BİYOLOJİ AD."
 
     assert resolve_block_and_departments(value) == resolve_block_and_departments(value)
+
+
+def test_a_title_states_the_department_of_each_curriculum_group() -> None:
+    """The Grade 3 bedside construction, verbatim from the A workbook."""
+    assert resolve_group_departments("Hasta Başı Uygulama-1 A Grubu (İç H.) B Grubu (ÇSvH)") == (
+        ("A", "İç H."),
+        ("B", "ÇSvH"),
+    )
+
+
+def test_the_pairs_follow_the_order_the_title_writes_them_in() -> None:
+    """The same session on another date swaps which half sits with whom."""
+    assert resolve_group_departments("Hasta Başı Uygulama-1 A Grubu (ÇSvH) B Grubu (İç H.)") == (
+        ("A", "ÇSvH"),
+        ("B", "İç H."),
+    )
+
+
+def test_the_english_workbook_writes_the_same_construction() -> None:
+    assert resolve_group_departments(
+        "Practice with the patient-3 A Grubu (ÇSvH) B Grubu (İç H.)"
+    ) == (("A", "ÇSvH"), ("B", "İç H."))
+
+
+def test_a_joined_group_with_a_parenthetical_note_states_no_department() -> None:
+    """A Grade 1 title, and the reason the group letter must stand alone.
+
+    ``A-B GRUBU`` addresses both groups at once and the parenthesis holds a note
+    about the lesson, so reading its ``B`` as a group would give five Grade 1
+    lessons a department the source never stated.
+    """
+    assert (
+        resolve_group_departments(
+            "BİLGİ KURAMI ve BİLİMSEL DÜŞÜNMEYE GİRİŞ A-B GRUBU (İngilizce Tıp ile Ortak Ders)"
+        )
+        == ()
+    )
+
+
+def test_one_group_alone_states_no_department() -> None:
+    assert resolve_group_departments("Uygulama A Grubu (İç H.)") == ()
+
+
+def test_a_title_without_the_construction_states_nothing() -> None:
+    assert resolve_group_departments("Hasta Başı Uygulama-1") == ()
+    assert resolve_group_departments(None) == ()
+
+
+def test_a_group_named_twice_keeps_its_first_department() -> None:
+    assert resolve_group_departments("X A Grubu (İç H.) B Grubu (ÇSvH) A Grubu (ÇSvH)") == (
+        ("A", "İç H."),
+        ("B", "ÇSvH"),
+    )

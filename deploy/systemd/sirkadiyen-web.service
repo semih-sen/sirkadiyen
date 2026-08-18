@@ -1,0 +1,36 @@
+[Unit]
+Description=Sirkadiyen frontend (Next.js standalone server)
+After=network-online.target sirkadiyen-api.service
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=sirkadiyen
+Group=sirkadiyen
+
+WorkingDirectory=/srv/sirkadiyen/web/current
+ExecStart=/usr/bin/node /srv/sirkadiyen/web/current/server.js
+
+EnvironmentFile=/srv/sirkadiyen/shared/env/web.env
+Environment=NODE_ENV=production
+Environment=NEXT_TELEMETRY_DISABLED=1
+# The standalone server reads these two; keep it on loopback behind the reverse
+# proxy that terminates TLS.
+Environment=PORT=3000
+Environment=HOSTNAME=127.0.0.1
+
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target

@@ -73,7 +73,7 @@ GRADE_2_PROFILE = ParserProfileDefinition(
 #: audience: the class runs as two curriculum groups with separate timetables.
 GRADE_3_PROFILE = ParserProfileDefinition(
     "grade3_yearly_v1",
-    "1.1.0",
+    "1.2.0",
     "annual",
     NumericDateOrder.UNDECLARED,
     ("curriculumGroup",),
@@ -818,7 +818,7 @@ def one_candidate(response: ParseSnapshotResponse) -> CanonicalScheduleCandidate
 
 
 def test_the_grade3_profile_is_the_annual_implementation() -> None:
-    profile = get_profile("grade3_yearly_v1", "1.1.0")
+    profile = get_profile("grade3_yearly_v1", "1.2.0")
 
     assert profile is not None
     assert get_parser(profile.name, profile.version) is parse_annual_snapshot
@@ -983,6 +983,117 @@ def test_a_source_declaring_no_authority_publishes_every_group_it_states() -> No
 
     candidate = one_candidate(response)
     assert [selector.value for selector in candidate.audience.selectors] == ["3-A", "3-B"]
+
+
+BEDSIDE_TITLE = "Hasta Başı Uygulama-1 A Grubu (İç H.) B Grubu (ÇSvH)"
+
+#: What the bedside rows of both Grade 3 workbooks write in the block cell: the
+#: curriculum block and no department at all.
+BEDSIDE_BLOCK = "SEMİYOLOJİ DİLİMİ"
+
+
+def test_a_bedside_row_takes_the_department_stated_for_its_own_half() -> None:
+    """The department is in the title, once per half of the class (ADR-113).
+
+    The A workbook publishes this session to the A group, and the A group sits it
+    with internal medicine. Publishing both departments would tell a student they
+    are in two places at once.
+    """
+    response = parse(
+        [worksheet(lesson_row(1, term="Dönem 3A Grubu", title=BEDSIDE_TITLE, block=BEDSIDE_BLOCK))],
+        class_year=3,
+        profile=GRADE_3_PROFILE,
+        authoritative_selectors={"curriculumGroup": ["3-A"]},
+    )
+
+    candidate = one_candidate(response)
+    assert candidate.departments == ["İç H."]
+    assert candidate.curriculum_block == BEDSIDE_BLOCK
+    assert metrics(response)["departments.statedInTitle"] == 1
+
+
+def test_the_other_workbook_takes_the_other_department_from_the_same_title() -> None:
+    response = parse(
+        [worksheet(lesson_row(1, term="Dönem 3B Grubu", title=BEDSIDE_TITLE, block=BEDSIDE_BLOCK))],
+        class_year=3,
+        profile=GRADE_3_PROFILE,
+        authoritative_selectors={"curriculumGroup": ["3-B"]},
+    )
+
+    assert one_candidate(response).departments == ["ÇSvH"]
+
+
+def test_a_program_wide_row_takes_every_department_its_title_states() -> None:
+    """The English program states no curriculum group (ADR-098).
+
+    Its rows address every English student, and the title names the department of
+    each half, so both are published in the order the title writes them. Picking
+    one of them would be a guess about which half a reader belongs to.
+    """
+    response = parse(
+        [
+            worksheet(
+                lesson_row(
+                    1,
+                    term="Time Table 3",
+                    title="Practice with the patient-1 A Grubu (İç H.) B Grubu (ÇSvH)",
+                    block=BEDSIDE_BLOCK,
+                )
+            )
+        ],
+        class_year=3,
+        profile=GRADE_3_PROFILE,
+        program_language="english",
+    )
+
+    candidate = one_candidate(response)
+    assert candidate.audience.scope is AudienceScope.ALL_STUDENTS_IN_PROGRAM
+    assert candidate.departments == ["İç H.", "ÇSvH"]
+
+
+def test_a_stated_block_department_keeps_its_place_before_a_title_department() -> None:
+    """A cell that states one and a title that states another state both."""
+    response = parse(
+        [
+            worksheet(
+                lesson_row(
+                    1,
+                    term="Dönem 3A Grubu",
+                    title=BEDSIDE_TITLE,
+                    block="SEMİYOLOJİ DİLİMİ / TIP EĞİTİMİ AD.",
+                )
+            )
+        ],
+        class_year=3,
+        profile=GRADE_3_PROFILE,
+        authoritative_selectors={"curriculumGroup": ["3-A"]},
+    )
+
+    assert one_candidate(response).departments == ["TIP EĞİTİMİ AD.", "İç H."]
+
+
+def test_a_department_read_from_a_title_moves_the_content_hash_only() -> None:
+    """A department is content, never identity — as it is from the block cell."""
+    without = one_candidate(
+        parse(
+            [worksheet(lesson_row(1, term="Dönem 3A Grubu", title="Hasta Başı Uygulama-1"))],
+            class_year=3,
+            profile=GRADE_3_PROFILE,
+            authoritative_selectors={"curriculumGroup": ["3-A"]},
+        )
+    )
+    with_department = one_candidate(
+        parse(
+            [worksheet(lesson_row(1, term="Dönem 3A Grubu", title=BEDSIDE_TITLE))],
+            class_year=3,
+            profile=GRADE_3_PROFILE,
+            authoritative_selectors={"curriculumGroup": ["3-A"]},
+        )
+    )
+
+    # The titles differ, so this pins only that the department reached the hash;
+    # the identity assertion below is the one that matters for the calendar.
+    assert without.content_hash != with_department.content_hash
 
 
 def test_two_curriculum_groups_sitting_the_same_exam_stay_two_lessons() -> None:

@@ -1,0 +1,520 @@
+# ---------------------------------------------------------------------------
+# Sirkadiyen production deployment.
+#
+# Strategy (the server side is in deploy/README.md):
+#
+#   * Every build runs on a GitHub-hosted runner. The Ubuntu server carries no
+#     SDK, no Node toolchain, no pip build chain and no .git directory.
+#   * The server never talks to GitHub. GitHub pushes artifacts to the server
+#     over SSH (rsync), then runs one fixed activation command per component.
+#   * A component is built and deployed only when its own inputs changed. The
+#     four deployables are the .NET API, the .NET worker, the Python parser and
+#     the Next.js frontend. Database migrations are a fifth, ordered first.
+#
+# Everything the server needs at runtime (connection strings, Google secrets)
+# lives in /srv/sirkadiyen/shared/env/*.env on the server itself. No application
+# secret is stored in GitHub - only the deploy SSH key and the host identity.
+# ---------------------------------------------------------------------------
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy_everything:
+        description: "Build and deploy every component, ignoring the path filters"
+        type: boolean
+        default: false
+
+# A deployment must never overlap another one: two concurrent runs would race on
+# the release symlinks and on the migration history table. Queue rather than
+# cancel, so an artifact that was already pushed always gets activated.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+# The workflow only reads the repository. It needs no write scope at all, which
+# is what makes the runner's GITHUB_TOKEN uninteresting to an attacker here.
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: "true"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+
+jobs:
+  # -------------------------------------------------------------------------
+  # 1. Work out what actually changed.
+  #
+  # Implemented with plain `git diff` rather than a third-party filter action:
+  # no external dependency inside the security-sensitive part of the pipeline,
+  # and the rules stay readable next to the layout they describe.
+  # -------------------------------------------------------------------------
+  changes:
+    name: Detect changed components
+    runs-on: ubuntu-latest
+    outputs:
+      api: ${{ steps.filter.outputs.api }}
+      worker: ${{ steps.filter.outputs.worker }}
+      migrations: ${{ steps.filter.outputs.migrations }}
+      parser: ${{ steps.filter.outputs.parser }}
+      web: ${{ steps.filter.outputs.web }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history: `github.event.before` can be many commits back when a
+          # branch is pushed with several commits at once, or after a force push.
+          fetch-depth: 0
+
+      - id: filter
+        name: Compare the pushed range
+        shell: bash
+        env:
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+          FORCE_ALL: ${{ inputs.deploy_everything }}
+        run: |
+          set -euo pipefail
+
+          # Fall back to "everything" when there is no usable base commit:
+          # a manual dispatch, the first push to a branch (all-zero SHA), or a
+          # base that a force push garbage-collected away.
+          force_all=false
+          if [ "${FORCE_ALL:-}" = "true" ]; then
+            force_all=true
+          elif [ -z "${BEFORE:-}" ] || [ "${BEFORE}" = "0000000000000000000000000000000000000000" ]; then
+            force_all=true
+          elif ! git rev-parse --verify --quiet "${BEFORE}^{commit}" > /dev/null; then
+            force_all=true
+          fi
+
+          if [ "${force_all}" = "true" ]; then
+            changed_files=""
+            echo "No usable diff base (or forced): deploying every component."
+          else
+            changed_files="$(git diff --name-only "${BEFORE}" "${AFTER}")"
+            echo "Changed files:"
+            echo "${changed_files}" | sed 's/^/  /'
+          fi
+
+          # A change to the deployment mechanism itself forces a full deploy, so
+          # the new mechanism is always exercised end to end.
+          if [ "${force_all}" != "true" ] &&
+             echo "${changed_files}" | grep -qE '^\.github/workflows/deploy\.yml$|^deploy/'; then
+            force_all=true
+            echo "The deployment mechanism changed: deploying every component."
+          fi
+
+          # matches <regex> -> "true" / "false"
+          matches() {
+            if [ "${force_all}" = "true" ]; then
+              echo true
+            elif echo "${changed_files}" | grep -qE "$1"; then
+              echo true
+            else
+              echo false
+            fi
+          }
+
+          # Shared .NET code. Application, Contracts, Domain and Infrastructure
+          # are referenced by BOTH hosts, so touching any of them redeploys both.
+          # So do the repository-wide build inputs.
+          shared='^src/Sirkadiyen\.(Application|Contracts|Domain|Infrastructure)/|^Directory\.Build\.props$|^global\.json$|^Sirkadiyen\.slnx$'
+
+          {
+            echo "api=$(matches "${shared}|^src/Sirkadiyen\.Api/")"
+            # WorkerOptionsFactory resolves SIRKADIYEN_SOURCES__CATALOG_PATH
+            # against the worker's content root, so config/schedule-sources.json
+            # ships inside the worker artifact and a catalog edit is a worker
+            # deployment.
+            echo "worker=$(matches "${shared}|^src/Sirkadiyen\.Worker/|^config/")"
+            echo "migrations=$(matches '^src/Sirkadiyen\.Infrastructure/Persistence/Migrations/')"
+            echo "parser=$(matches '^src/parser/')"
+            echo "web=$(matches '^web/')"
+          } | tee -a "$GITHUB_OUTPUT"
+
+  # -------------------------------------------------------------------------
+  # 2a. .NET build.
+  #
+  # One job for the API, the worker and the migration script, because all three
+  # come out of the same restore of the same solution. Published SELF-CONTAINED
+  # for linux-x64, so the server needs no .NET runtime package at all - which
+  # matters, because net10.0 is not in Ubuntu's own archive.
+  # -------------------------------------------------------------------------
+  build-dotnet:
+    name: Build .NET
+    needs: changes
+    if: needs.changes.outputs.api == 'true' || needs.changes.outputs.worker == 'true' || needs.changes.outputs.migrations == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          # Honours the pinned SDK in global.json (10.0.301, latestPatch).
+          global-json-file: global.json
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'Directory.Build.props', 'global.json') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: dotnet restore Sirkadiyen.slnx
+
+      # A deployment gate, not a full CI run. The database integration tests skip
+      # themselves unless SIRKADIYEN_TEST_DATABASE__CONNECTION_STRING is set, so
+      # this stays hermetic on the runner.
+      - name: Test
+        run: dotnet test Sirkadiyen.slnx --configuration Release --no-restore
+
+      - name: Publish the API
+        if: needs.changes.outputs.api == 'true'
+        run: |
+          dotnet publish src/Sirkadiyen.Api/Sirkadiyen.Api.csproj \
+            --configuration Release \
+            --runtime linux-x64 \
+            --self-contained true \
+            -p:DebugType=none \
+            --output artifacts/api
+
+      - name: Publish the worker
+        if: needs.changes.outputs.worker == 'true'
+        run: |
+          dotnet publish src/Sirkadiyen.Worker/Sirkadiyen.Worker.csproj \
+            --configuration Release \
+            --runtime linux-x64 \
+            --self-contained true \
+            -p:DebugType=none \
+            --output artifacts/worker
+
+          # The worker resolves its source catalog against its content root,
+          # which is the deployed directory. Ship the catalog inside it.
+          mkdir -p artifacts/worker/config
+          cp config/schedule-sources.json artifacts/worker/config/schedule-sources.json
+
+      # An idempotent script wraps every migration in a check against
+      # sirkadiyen.__ef_migrations_history, so applying it repeatedly is safe and
+      # the server needs only psql - never the EF tooling and never the SDK.
+      - name: Generate the idempotent migration script
+        if: needs.changes.outputs.migrations == 'true'
+        run: |
+          dotnet tool install --global dotnet-ef --version 10.*
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          mkdir -p artifacts/migrations
+          # Infrastructure is both the migrations project and the startup
+          # project: SirkadiyenDbContextFactory is a design-time factory, so no
+          # host project and no reachable database are needed here.
+          dotnet ef migrations script \
+            --idempotent \
+            --project src/Sirkadiyen.Infrastructure/Sirkadiyen.Infrastructure.csproj \
+            --startup-project src/Sirkadiyen.Infrastructure/Sirkadiyen.Infrastructure.csproj \
+            --configuration Release \
+            --output artifacts/migrations/migrate.sql
+
+      # actions/upload-artifact does not preserve the executable bit, which would
+      # leave the published apphost unrunnable. So tar first, everywhere.
+      - name: Pack
+        run: |
+          set -euo pipefail
+          mkdir -p packed
+          for component in api worker migrations; do
+            if [ -d "artifacts/${component}" ]; then
+              tar -czf "packed/${component}.tar.gz" -C "artifacts/${component}" .
+            fi
+          done
+          ls -la packed
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dotnet
+          path: packed/
+          retention-days: 7
+
+  # -------------------------------------------------------------------------
+  # 2b. Python parser build.
+  #
+  # The server gets a wheelhouse, not a virtualenv: a virtualenv hard-codes the
+  # absolute path of the interpreter that created it and does not survive rsync.
+  # The server installs offline from these wheels (`pip install --no-index`),
+  # which needs only the python3.13 runtime - no compiler, no network, no build
+  # backend. Runner and server are both linux-x86_64/cp313, so the binary wheels
+  # for pydantic and uvicorn match.
+  # -------------------------------------------------------------------------
+  build-parser:
+    name: Build the parser
+    needs: changes
+    if: needs.changes.outputs.parser == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          # Must match the server interpreter; pyproject pins >=3.13,<3.14.
+          python-version: "3.13"
+
+      - name: Install the development toolchain
+        working-directory: src/parser
+        run: python -m pip install --upgrade pip ".[dev]"
+
+      - name: Lint, type-check and test
+        working-directory: src/parser
+        run: |
+          ruff check .
+          mypy
+          pytest
+
+      - name: Build the wheelhouse
+        working-directory: src/parser
+        run: |
+          set -euo pipefail
+          # `pip wheel .` builds sirkadiyen_parser itself plus every runtime
+          # dependency (fastapi, pydantic, uvicorn) into one directory.
+          python -m pip wheel . --wheel-dir "${GITHUB_WORKSPACE}/artifacts/parser/wheelhouse"
+          ls -la "${GITHUB_WORKSPACE}/artifacts/parser/wheelhouse"
+
+      - name: Pack
+        run: |
+          mkdir -p packed
+          tar -czf packed/parser.tar.gz -C artifacts/parser .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: parser
+          path: packed/
+          retention-days: 7
+
+  # -------------------------------------------------------------------------
+  # 2c. Next.js build.
+  #
+  # `output: 'standalone'` traces exactly the node_modules the server needs and
+  # emits a self-contained server.js, so the server runs `node server.js` and
+  # never sees npm, a lockfile or a devDependency.
+  #
+  # IMPORTANT: web/next.config.mjs reads BACKEND_ORIGIN to build its /api and
+  # /health rewrites, and Next evaluates rewrites at BUILD time. The production
+  # backend origin therefore has to be set here, not in the systemd unit.
+  # -------------------------------------------------------------------------
+  build-web:
+    name: Build the frontend
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        working-directory: web
+        run: npm ci
+
+      - name: Type-check and test
+        working-directory: web
+        run: |
+          npm run typecheck
+          npm run test
+
+      - name: Build
+        working-directory: web
+        env:
+          # Repository or environment variable, for example http://127.0.0.1:5080
+          # when Kestrel and Next share the host. Baked into the rewrite table.
+          BACKEND_ORIGIN: ${{ vars.BACKEND_ORIGIN }}
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: |
+          test -n "${BACKEND_ORIGIN}" || { echo "::error::The BACKEND_ORIGIN repository variable is not set"; exit 1; }
+          npm run build
+
+      - name: Assemble the standalone bundle
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/web
+          # The traced server plus its minimal node_modules.
+          cp -R web/.next/standalone/. artifacts/web/
+          # Static assets are deliberately NOT traced into standalone; they have
+          # to be copied next to it or every hashed chunk 404s.
+          mkdir -p artifacts/web/.next
+          cp -R web/.next/static artifacts/web/.next/static
+          # public/ does not exist in this repository today; copy it if added.
+          if [ -d web/public ]; then cp -R web/public artifacts/web/public; fi
+          mkdir -p packed
+          tar -czf packed/web.tar.gz -C artifacts/web .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web
+          path: packed/
+          retention-days: 7
+
+  # -------------------------------------------------------------------------
+  # 3. Push to the server.
+  #
+  # One job, so the ordering across components is explicit and the SSH agent is
+  # set up exactly once:
+  #     migrations -> parser -> worker -> api -> web
+  # Migrations first, because new code must never meet an old schema; the parser
+  # before the worker, because the worker calls it; the frontend last, because it
+  # is the only user-visible surface.
+  #
+  # `always()` plus per-step conditions: build jobs that path filtering skipped
+  # must not block the components that did build.
+  # -------------------------------------------------------------------------
+  deploy:
+    name: Deploy
+    needs: [changes, build-dotnet, build-parser, build-web]
+    if: |
+      always()
+      && needs.changes.result == 'success'
+      && needs.build-dotnet.result != 'failure' && needs.build-dotnet.result != 'cancelled'
+      && needs.build-parser.result != 'failure' && needs.build-parser.result != 'cancelled'
+      && needs.build-web.result != 'failure' && needs.build-web.result != 'cancelled'
+      && (needs.changes.outputs.migrations == 'true'
+          || needs.changes.outputs.parser == 'true'
+          || needs.changes.outputs.worker == 'true'
+          || needs.changes.outputs.api == 'true'
+          || needs.changes.outputs.web == 'true')
+    runs-on: ubuntu-latest
+    # Binding the deployment secrets to a protected environment keeps them out of
+    # reach of any run that is not this workflow on this branch.
+    environment: production
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+      RELEASE: ${{ github.sha }}
+    steps:
+      - name: Download the built artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: incoming
+          merge-multiple: true
+
+      - name: Unpack
+        run: |
+          set -euo pipefail
+          mkdir -p staged
+          shopt -s nullglob
+          for archive in incoming/*.tar.gz; do
+            component="$(basename "${archive}" .tar.gz)"
+            mkdir -p "staged/${component}"
+            tar -xzf "${archive}" -C "staged/${component}"
+          done
+          find staged -mindepth 1 -maxdepth 1 -type d | sort
+
+      # The private key lives only in the agent for the life of the job, and the
+      # host key is pinned from a secret rather than trusted blindly - there is
+      # no StrictHostKeyChecking=no anywhere in this pipeline.
+      - name: Start the SSH agent and pin the host key
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${DEPLOY_KNOWN_HOSTS}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+          eval "$(ssh-agent -s)" > /dev/null
+          printf '%s\n' "${DEPLOY_SSH_KEY}" | ssh-add - > /dev/null
+          # Hand the agent to the remaining steps of this job.
+          echo "SSH_AUTH_SOCK=${SSH_AUTH_SOCK}" >> "$GITHUB_ENV"
+          echo "SSH_AGENT_PID=${SSH_AGENT_PID}" >> "$GITHUB_ENV"
+
+      - name: Verify connectivity
+        run: |
+          ssh -p "${DEPLOY_PORT}" -o BatchMode=yes \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" 'echo "connected to $(hostname)"'
+
+      # --- Migrations -------------------------------------------------------
+      # The SQL is pushed, then applied by a server-side script that reads the
+      # connection details from the server's own environment file. The database
+      # password therefore never exists as a GitHub secret.
+      - name: Apply database migrations
+        if: needs.changes.outputs.migrations == 'true'
+        run: |
+          set -euo pipefail
+          rsync -az --mkpath \
+            -e "ssh -p ${DEPLOY_PORT} -o BatchMode=yes" \
+            staged/migrations/migrate.sql \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:/srv/sirkadiyen/migrations/${RELEASE}.sql"
+          ssh -p "${DEPLOY_PORT}" -o BatchMode=yes \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" "sudo -n sirkadiyen-migrate ${RELEASE}"
+
+      # --- Parser -----------------------------------------------------------
+      - name: Deploy the parser
+        if: needs.changes.outputs.parser == 'true'
+        run: |
+          set -euo pipefail
+          rsync -az --delete --mkpath \
+            -e "ssh -p ${DEPLOY_PORT} -o BatchMode=yes" \
+            staged/parser/ \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:/srv/sirkadiyen/parser/releases/${RELEASE}/"
+          ssh -p "${DEPLOY_PORT}" -o BatchMode=yes \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" "sudo -n sirkadiyen-activate parser ${RELEASE}"
+
+      # --- Worker -----------------------------------------------------------
+      - name: Deploy the worker
+        if: needs.changes.outputs.worker == 'true'
+        run: |
+          set -euo pipefail
+          rsync -az --delete --mkpath \
+            -e "ssh -p ${DEPLOY_PORT} -o BatchMode=yes" \
+            staged/worker/ \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:/srv/sirkadiyen/worker/releases/${RELEASE}/"
+          ssh -p "${DEPLOY_PORT}" -o BatchMode=yes \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" "sudo -n sirkadiyen-activate worker ${RELEASE}"
+
+      # --- API --------------------------------------------------------------
+      - name: Deploy the API
+        if: needs.changes.outputs.api == 'true'
+        run: |
+          set -euo pipefail
+          rsync -az --delete --mkpath \
+            -e "ssh -p ${DEPLOY_PORT} -o BatchMode=yes" \
+            staged/api/ \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:/srv/sirkadiyen/api/releases/${RELEASE}/"
+          ssh -p "${DEPLOY_PORT}" -o BatchMode=yes \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" "sudo -n sirkadiyen-activate api ${RELEASE}"
+
+      # --- Frontend ---------------------------------------------------------
+      - name: Deploy the frontend
+        if: needs.changes.outputs.web == 'true'
+        run: |
+          set -euo pipefail
+          rsync -az --delete --mkpath \
+            -e "ssh -p ${DEPLOY_PORT} -o BatchMode=yes" \
+            staged/web/ \
+            "${DEPLOY_USER}@${DEPLOY_HOST}:/srv/sirkadiyen/web/releases/${RELEASE}/"
+          ssh -p "${DEPLOY_PORT}" -o BatchMode=yes \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" "sudo -n sirkadiyen-activate web ${RELEASE}"
+
+      # The activation script already waits for each service it restarts; this is
+      # the cross-service confirmation, and the step that turns the run red when
+      # a service comes up and then crash-loops.
+      - name: Verify service health
+        run: |
+          ssh -p "${DEPLOY_PORT}" -o BatchMode=yes \
+            "${DEPLOY_USER}@${DEPLOY_HOST}" 'sudo -n sirkadiyen-health'
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "### Deployment \`${RELEASE}\`"
+            echo ""
+            echo "| Component | Deployed |"
+            echo "| --- | --- |"
+            echo "| migrations | ${{ needs.changes.outputs.migrations }} |"
+            echo "| parser | ${{ needs.changes.outputs.parser }} |"
+            echo "| worker | ${{ needs.changes.outputs.worker }} |"
+            echo "| api | ${{ needs.changes.outputs.api }} |"
+            echo "| web | ${{ needs.changes.outputs.web }} |"
+          } >> "$GITHUB_STEP_SUMMARY"

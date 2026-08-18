@@ -938,3 +938,33 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
   no warnings. `GAPS.md` records the new wiring.
 - **Not done:** the screen has not been exercised against a live backend — that needs PostgreSQL,
   the API and a SuperAdmin session. Behaviour is covered by tests against a mocked client only.
+
+## Grade 3 bedside topics reach the calendar (2026-08-18)
+
+- **Fixed (ADR-112):** `ScheduleSourceStore.UpsertAsync` now copies `CompanionSourceIds` onto an
+  existing row. Without it the catalog's companion declaration applied only to a database seeded
+  after it was written, so both Grade 3 annuals parsed with no companion and every bedside event
+  reached students with an empty description.
+- **Regression test:** `ADeclaredCompanionReachesARowThatWasSeededWithoutOne` seeds a row without a
+  companion, upserts one that declares it, and asserts the row carries it. Verified to fail on the
+  unfixed store.
+- **Tests executed:** 261 persistence tests pass. The Infrastructure suite was not run — the running
+  Worker and Api processes lock `Sirkadiyen.Infrastructure.dll` and the project cannot relink.
+- **Not done:** the worker has not been restarted, so the two annual rows still hold an empty
+  companion list and the 368 bedside records still have no `notes`. No code change can do that part.
+
+## Bedside and patient-practice events name their department (2026-08-18)
+
+- **Added (ADR-113):** the annual profile publishes the department a title states for the groups a
+  record addresses. `resolve_group_departments` reads the `A Grubu (İç H.) B Grubu (ÇSvH)`
+  construction; `_stated_departments` selects from it by audience. `grade3_yearly_v1` → 1.2.0,
+  catalog versions bumped, four Grade 3 goldens regenerated.
+- **Added:** `DepartmentCatalog` aliases for the two source abbreviations, and
+  `CalendarEventPresentationPolicy.Description` now names every department through the catalog,
+  falling back to the source's words.
+- **Tests added:** seven parser cases (six for the resolver including the Grade 1 false positive,
+  five at profile level) and three calendar-presentation cases.
+- **Tests executed:** 502 parser tests, ruff and mypy clean. **No .NET test was run** — the running
+  Worker and Api lock the assemblies, so the Infrastructure suite cannot build.
+- **Not done:** the .NET side is unverified, and the one-time description rewrite of every
+  department-bearing event has not been performed or scheduled.

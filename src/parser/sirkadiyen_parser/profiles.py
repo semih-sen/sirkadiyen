@@ -158,9 +158,11 @@ _PROFILES = (
     # 1.1.0 narrows a row's curriculum groups to the ones the source owns, so the
     # sessions both halves of the class attend are published once by the workbook
     # written for each half instead of twice, in two wordings (ADR-110).
+    # 1.2.0 publishes the department a bedside or patient-practice title states for
+    # the half of the class the row is addressed to (ADR-113).
     ParserProfileDefinition(
         "grade3_yearly_v1",
-        "1.1.0",
+        "1.2.0",
         "annual",
         _UNDECLARED,
         ("curriculumGroup",),

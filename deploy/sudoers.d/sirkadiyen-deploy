@@ -1,0 +1,13 @@
+# Install as /etc/sudoers.d/sirkadiyen-deploy (root:root, 0440), and always
+# validate with `visudo -c -f` before trusting it - a broken file here can lock
+# every sudo user out of the machine.
+#
+# The deploy account may run three fixed scripts and nothing else. It has no
+# shell privileges beyond them, cannot restart arbitrary units, and cannot read
+# the environment files that hold the application secrets. The scripts
+# themselves validate their arguments, so a stolen deploy key buys an attacker
+# the ability to activate an already-transferred release - not root.
+deploy ALL=(root) NOPASSWD: /usr/local/bin/sirkadiyen-activate, /usr/local/bin/sirkadiyen-migrate, /usr/local/bin/sirkadiyen-health
+
+# Never let sudo require a TTY for this account: the pipeline runs non-interactively.
+Defaults:deploy !requiretty

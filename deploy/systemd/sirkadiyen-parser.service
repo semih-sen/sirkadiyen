@@ -1,0 +1,38 @@
+[Unit]
+Description=Sirkadiyen parser (FastAPI, uvicorn)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=sirkadiyen
+Group=sirkadiyen
+
+# `current` points at a release directory holding a virtualenv that
+# sirkadiyen-activate built from the pushed wheelhouse. Nothing outside this
+# directory is Python-specific.
+WorkingDirectory=/srv/sirkadiyen/parser/current
+ExecStart=/srv/sirkadiyen/parser/current/venv/bin/uvicorn \
+    sirkadiyen_parser.api:app \
+    --host 127.0.0.1 \
+    --port 8000 \
+    --workers 2 \
+    --no-access-log
+
+EnvironmentFile=/srv/sirkadiyen/shared/env/parser.env
+
+Restart=always
+RestartSec=5
+TimeoutStopSec=30
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+[Install]
+WantedBy=multi-user.target
