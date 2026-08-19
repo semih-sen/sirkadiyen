@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import type { FormEvent } from 'react';
 import Link from 'next/link';
-import { Banner, Brand, ImplNote, SiteFooter } from '@/components/ui';
+import { Banner, Brand, SiteFooter } from '@/components/ui';
+import { CONTACT_EMAILS, OPERATORS, whatsappLink } from '@/lib/contact';
 
 const CATEGORIES: { value: string; label: string }[] = [
   { value: 'lisans', label: 'Lisans / etkinleştirme' },
@@ -66,7 +67,7 @@ export default function ContactPage() {
     ]
       .filter(Boolean)
       .join('\n');
-    const href = `mailto:destek@sirkadiyen.app?subject=${encodeURIComponent(
+    const href = `mailto:${CONTACT_EMAILS}?subject=${encodeURIComponent(
       `[${categoryLabel}] ${subject.trim()}`,
     )}&body=${encodeURIComponent(body)}`;
     window.location.href = href;
@@ -191,21 +192,34 @@ export default function ContactPage() {
                   Talebi e-posta ile hazırla
                 </button>
               </form>
-
-              <ImplNote>
-                Hedef arayüz: <code>POST /api/contact</code> (henüz yok). Kategoriler ve alanlar plan
-                §5.4’e göre hazırdır; bağlanınca yalnızca gönderim değişir.
-              </ImplNote>
             </div>
 
             <div className="stack" style={{ gap: 20 }}>
               <div className="card card-content">
                 <h3 style={{ fontSize: 16 }}>Doğrudan iletişim</h3>
-                <div className="summary-row" style={{ marginTop: 8 }}>
-                  <span className="muted">E-posta</span>
-                  <strong>destek@sirkadiyen.app</strong>
-                </div>
-                <div className="summary-row">
+                {OPERATORS.map((operator) => (
+                  <div key={operator.email} style={{ marginTop: 14 }}>
+                    <strong style={{ fontSize: 14 }}>{operator.name}</strong>
+                    <div className="summary-row" style={{ marginTop: 6 }}>
+                      <span className="muted">E-posta</span>
+                      <a href={`mailto:${operator.email}`}>{operator.email}</a>
+                    </div>
+                    <div className="summary-row">
+                      <span className="muted">Telefon</span>
+                      <a href={`tel:+${operator.phoneDigits}`}>{operator.phone}</a>
+                    </div>
+                    <a
+                      className="btn btn-tertiary btn-sm"
+                      href={whatsappLink(operator, 'Merhaba, Sirkadiyen hakkında bir sorum var.')}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ marginTop: 8 }}
+                    >
+                      WhatsApp’tan yaz
+                    </a>
+                  </div>
+                ))}
+                <div className="summary-row" style={{ marginTop: 14 }}>
                   <span className="muted">Beklenen yanıt</span>
                   <strong>1–2 iş günü</strong>
                 </div>

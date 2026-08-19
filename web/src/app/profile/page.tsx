@@ -8,7 +8,7 @@ import { useSession } from '@/components/SessionProvider';
 import { AcademicProfileForm, ProfileSaveNotice } from '@/components/AcademicProfileForm';
 import { ApiError, getProfile, logout } from '@/lib/api';
 import { ROUTES } from '@/lib/onboarding';
-import { ImplNote, StudentTopbar } from '@/components/ui';
+import { StudentTopbar } from '@/components/ui';
 import type { StudentProfileView } from '@/lib/types';
 
 /**
@@ -80,12 +80,6 @@ function ProfileEditor() {
                 }}
               />
             )}
-
-            <ImplNote>
-              <code>PUT /api/profile</code> yanıtındaki <code>calendarResyncRequested</code> alanı,
-              değişikliğin takvim yeniden senkronizasyonu tetikleyip tetiklemediğini bildirir
-              (ADR-096). Değişiklik denetim kaydına yazılır.
-            </ImplNote>
           </section>
         </div>
       </main>

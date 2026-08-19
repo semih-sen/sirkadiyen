@@ -5,7 +5,7 @@ import { OnboardingGate } from '@/components/OnboardingGate';
 import { useSession } from '@/components/SessionProvider';
 import { AcademicProfileForm } from '@/components/AcademicProfileForm';
 import { routeForOnboardingState } from '@/lib/onboarding';
-import { AuthShell, Brand, ImplNote, Stepper } from '@/components/ui';
+import { AuthShell, Brand, Stepper } from '@/components/ui';
 
 function ProfileStep() {
   const router = useRouter();
@@ -28,11 +28,6 @@ function ProfileStep() {
           router.replace(routeForOnboardingState(me?.onboardingState ?? result.onboarding.state));
         }}
       />
-
-      <ImplNote>
-        Alanlar <code>GET /api/profile/options</code> şemasından dinamik üretilir;{' '}
-        <code>PUT /api/profile</code> ile kaydedilir (ADR-055, ADR-056).
-      </ImplNote>
     </AuthShell>
   );
 }

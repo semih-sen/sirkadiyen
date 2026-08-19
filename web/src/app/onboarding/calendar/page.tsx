@@ -7,16 +7,16 @@ import { useSession } from '@/components/SessionProvider';
 import { authorizeCalendar, getCalendarAuthorizationOptions, ApiError } from '@/lib/api';
 import { requestCalendarAuthorizationCode } from '@/lib/google';
 import { routeForOnboardingState } from '@/lib/onboarding';
-import { AuthShell, Banner, Brand, ImplNote, Stepper } from '@/components/ui';
+import { AuthShell, Banner, Brand, Stepper } from '@/components/ui';
 
 const CAN_ACCESS = [
-  'Yalnızca kendi oluşturduğu “Sirkadiyen Ders Programı” takvimi',
+  'Yalnızca kendi oluşturduğu “Sirkadiyen” takvimi',
   'Bu takvimde etkinlik oluşturma, güncelleme, kaldırma',
-  'Google hesap kimliğini doğrulama amaçlı okuma',
+  'Takvimlerinin yalnızca listesi — aynı takvimi ikinci kez oluşturmamak için',
 ];
 const CANNOT_ACCESS = [
-  'Mevcut kişisel veya iş takvimlerin',
-  'Diğer takvimlerdeki etkinliklerin',
+  'Diğer takvimlerindeki etkinlikler — okunmaz, değiştirilmez',
+  'Kişisel veya iş takvimlerine yazma',
   'Gmail, Drive veya başka bir Google servisi',
 ];
 
@@ -58,8 +58,8 @@ function CalendarAuthorization() {
 
       <h1>Takvim izni</h1>
       <p className="muted" style={{ marginTop: 8 }}>
-        Sirkadiyen hesabında ayrı bir takvim oluşturur; ana takvimine dokunmaz. Yetki verildikten
-        sonra takvimi senkronizasyon sırasında sunucu oluşturur.
+        Sirkadiyen hesabında ayrı bir takvim oluşturur; ana takvimine dokunmaz. Takvim, ilk
+        eşitleme sırasında otomatik olarak hazırlanır.
       </p>
 
       {needsReauth && (
@@ -110,12 +110,6 @@ function CalendarAuthorization() {
           {error}
         </div>
       )}
-
-      <ImplNote>
-        <code>GET/POST /api/calendar/authorization</code> popup kod akışı; yalnızca{' '}
-        <code>calendar.app.created</code> kapsamı istenir (ADR-057). Takvime yazan taraf .NET
-        Worker’dır.
-      </ImplNote>
     </AuthShell>
   );
 }

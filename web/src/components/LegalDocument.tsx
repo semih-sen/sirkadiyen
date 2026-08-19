@@ -12,20 +12,24 @@ export interface LegalSection {
 }
 
 /**
- * Shared layout for the privacy and terms pages (plan §5.2, §5.3): a persistent
- * legal-review banner, sticky in-page navigation with scroll-spy, and a series of
- * sections. Legal copy is prototype text and carries the review warning until a
- * lawyer has cleared it.
+ * Shared layout for the privacy and terms pages: sticky in-page navigation with
+ * scroll-spy over a series of sections.
+ *
+ * `bannerText` is optional. A document still under review carries the warning; a
+ * document in force must not, because a standing "this is prototype text" banner
+ * would undermine the terms the user is being told they accept by signing in.
  */
 export function LegalDocument({
   title,
   updated,
+  effective,
   bannerText,
   sections,
 }: {
   title: string;
   updated: string;
-  bannerText: string;
+  effective?: string;
+  bannerText?: string;
   sections: LegalSection[];
 }) {
   const [activeId, setActiveId] = useState(sections[0]?.id);
@@ -52,9 +56,11 @@ export function LegalDocument({
       <a className="skip-link" href="#legal-main">
         İçeriğe geç
       </a>
-      <div className="banner-legal" role="note">
-        ⚠ {bannerText}
-      </div>
+      {bannerText && (
+        <div className="banner-legal" role="note">
+          ⚠ {bannerText}
+        </div>
+      )}
 
       <header className="site-nav">
         <div className="container site-nav__row">
@@ -73,6 +79,7 @@ export function LegalDocument({
           <h1 style={{ marginTop: 10 }}>{title}</h1>
           <p className="muted" style={{ marginTop: 10 }}>
             Son güncelleme: {updated}
+            {effective ? ` · Yürürlük tarihi: ${effective}` : ''}
           </p>
 
           <div className="legal-layout" style={{ marginTop: 40 }}>

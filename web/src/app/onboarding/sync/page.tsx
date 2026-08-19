@@ -6,7 +6,7 @@ import { OnboardingGate } from '@/components/OnboardingGate';
 import { useSession } from '@/components/SessionProvider';
 import { getSyncStatus, startSync, ApiError } from '@/lib/api';
 import { ROUTES } from '@/lib/onboarding';
-import { AuthShell, Banner, Brand, ImplNote, Stepper } from '@/components/ui';
+import { AuthShell, Banner, Brand, Stepper } from '@/components/ui';
 import type { CalendarSyncStatusResponse, GoogleCalendarInitialSyncState } from '@/lib/types';
 
 // The worker pipeline (plan §4.2). The backend exposes one authoritative state
@@ -163,11 +163,6 @@ function InitialSync() {
           {error}
         </div>
       )}
-
-      <ImplNote>
-        <code>GET/POST /api/calendar/sync</code>. Aşamalar worker hattının açıklamasıdır; canlı
-        durum ve sayaç arka uçtan gelir (ADR-058).
-      </ImplNote>
     </AuthShell>
   );
 }

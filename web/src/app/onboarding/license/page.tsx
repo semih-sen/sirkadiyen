@@ -7,7 +7,8 @@ import { OnboardingGate } from '@/components/OnboardingGate';
 import { useSession } from '@/components/SessionProvider';
 import { redeemLicense, logout, ApiError } from '@/lib/api';
 import { routeForOnboardingState } from '@/lib/onboarding';
-import { AuthShell, Brand, ImplNote, Stepper } from '@/components/ui';
+import { AuthShell, Brand, Stepper } from '@/components/ui';
+import { LICENSE_REQUEST_MESSAGE, OPERATORS, whatsappLink } from '@/lib/contact';
 
 /** Auto-format toward SRK-XXXXX-XXXXX (ported from prototype bindLicenseInput). */
 function formatLicense(raw: string): string {
@@ -95,16 +96,42 @@ function LicenseForm() {
         </div>
       )}
 
+      <LicenseRequest />
+
       <p style={{ marginTop: 20 }}>
         <button className="btn btn-tertiary btn-sm" type="button" onClick={onSignOut}>
           Çıkış yap
         </button>
       </p>
-
-      <ImplNote>
-        <code>POST /api/licenses/redeem</code>. Düz metin kod geçmişi tutulmaz (AI_GUIDELINE §7).
-      </ImplNote>
     </AuthShell>
+  );
+}
+
+/**
+ * The way out of the one dead end this step has: a student who reaches it without a code.
+ *
+ * Codes are handed out person to person rather than sold here, so the screen has to say who to
+ * ask. The link opens WhatsApp with the request already written — the point is that nobody has to
+ * work out how to phrase it, or which of the two people to bother.
+ */
+function LicenseRequest() {
+  return (
+    <div className="license-request">
+      <p className="muted">Lisans kodun yok mu? WhatsApp’tan isteyebilirsin.</p>
+      <div className="license-request__actions">
+        {OPERATORS.map((operator) => (
+          <a
+            key={operator.phoneDigits}
+            className="btn btn-secondary btn-sm"
+            href={whatsappLink(operator, LICENSE_REQUEST_MESSAGE)}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {operator.name.split(' ').slice(-2).join(' ')} ile WhatsApp
+          </a>
+        ))}
+      </div>
+    </div>
   );
 }
 

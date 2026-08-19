@@ -218,16 +218,3 @@ export function Banner({
   );
 }
 
-// --- Implementation note strip ----------------------------------------------
-// Marks which backend surface a screen maps to (or that it has none yet). This is
-// the production analogue of the prototype's `data-od-id="impl-note"` strip; it is
-// documentation, not a user-facing control.
-
-export function ImplNote({ children }: { children: ReactNode }) {
-  return (
-    <div className="impl-note" data-impl-note>
-      <span aria-hidden="true">ℹ️</span>
-      <span>{children}</span>
-    </div>
-  );
-}

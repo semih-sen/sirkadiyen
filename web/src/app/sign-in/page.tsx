@@ -7,7 +7,7 @@ import { useSession } from '@/components/SessionProvider';
 import { signInWithGoogle, ApiError } from '@/lib/api';
 import { renderGoogleSignInButton } from '@/lib/google';
 import { routeForUser } from '@/lib/onboarding';
-import { AuthShell, Brand, ImplNote } from '@/components/ui';
+import { AuthShell, Brand } from '@/components/ui';
 
 const AUTH_CLIENT_ID = process.env.NEXT_PUBLIC_GOOGLE_AUTH_CLIENT_ID ?? '';
 
@@ -95,11 +95,6 @@ export default function SignInPage() {
         </Link>
         ’nı kabul etmiş olursun.
       </p>
-
-      <ImplNote>
-        Kimlik: <code>POST /api/auth/google</code> (GIS ID token), <code>GET /api/auth/me</code>.
-        Yetkilendirme arka uçta zorlanır (AI_GUIDELINE §6).
-      </ImplNote>
     </AuthShell>
   );
 }

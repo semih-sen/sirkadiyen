@@ -990,3 +990,20 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
   this machine.
 - **Not done:** no poll or parse can be triggered from the panel, so a corrected source is picked up
   on its next scheduled cycle.
+
+## Yasal metinler ve arayüz sadeleştirmesi (2026-08-19)
+
+- **Changed:** `web/src/app/gizlilik/page.tsx` ve `web/src/app/kosullar/page.tsx` tamamen yeniden
+  yazıldı (KVKK aydınlatma yapısı + Google Limited Use beyanı + gerçek saklama/çerez tabloları).
+  `LegalDocument` artık `bannerText` olmadan da render ediyor ve `effective` tarihi gösteriyor.
+- **Changed:** `onboarding/calendar` izin ekranı, `calendarlist.readonly` kapsamını doğru anlatacak
+  şekilde düzeltildi.
+- **Removed:** `ImplNote` bileşeni, `.impl-note` CSS'i ve sekiz sayfadaki kullanımları.
+- **Tests executed:** 53 web testi, `tsc --noEmit`, `next build`. Yeni test eklenmedi — değişiklik
+  metin ve içerik düzeyinde.
+- **Not done:** saklama sürelerini uygulayan otomatik silme işi ve kullanıcının kendi hesabını
+  silmesini sağlayan uç nokta yok; ikisi de metinde taahhüt olarak duruyor.
+
+- **Changed (aynı gün):** saklama süreleri ölçüt bazlı anlatıma çevrildi, iletişim bilgileri
+  `web/src/lib/contact.ts` üzerinden gerçek adres/telefonlarla değiştirildi, lisans adımına
+  WhatsApp ile kod isteme bağlantıları eklendi.

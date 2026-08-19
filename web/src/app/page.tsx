@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { SiteNav, SiteFooter, ImplNote } from '@/components/ui';
+import { SiteNav, SiteFooter } from '@/components/ui';
 
 // Public landing page (plan §5.1). No session required; the nav's "Giriş yap"
 // routes to /sign-in, which redirects an already-signed-in user to where they
@@ -152,10 +152,6 @@ export default function LandingPage() {
               </div>
             </div>
             <div className="container" style={{ padding: 0, marginTop: 20 }}>
-              <ImplNote>
-                Yetkilendirme <code>GET/POST /api/calendar/authorization</code> ile popup kod akışı
-                üzerinden alınır. Takvime yazma işini .NET Worker yapar, frontend değil.
-              </ImplNote>
             </div>
           </div>
         </section>

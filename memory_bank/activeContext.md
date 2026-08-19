@@ -2575,3 +2575,48 @@ and the file shipped inside the worker's release directory. Both are now differe
 - **The four persistence tests for the revision store are unverified.** They follow the existing
   fixture pattern and skip themselves without a database, so CI with a database is the first place
   they will actually execute.
+
+## Yasal metinler yürürlüğe girdi, geliştirici notları arayüzden kalktı (2026-08-19)
+
+- **Gizlilik Politikası ve Kullanım Koşulları artık gerçek metinler.** Prototip uyarı bandı
+  kaldırıldı (`LegalDocument.bannerText` isteğe bağlı hâle geldi, `effective` tarihi eklendi).
+  Veri sorumluları Halil Semih Şen ve Abdullah Ceylan; barındırma Türkiye; lisans satışı platform
+  dışında olduğundan koşullarda ödeme/iade bölümü "bu platformda ödeme alınmaz" ekseninde yazıldı.
+- **Metinler kodun kendisinden doğrulandı**, şablondan değil: saklanan alanlar (User,
+  StudentProfile, License hash, GoogleCalendarConnection, eşleme kayıtları, AuditEvent), iki OAuth
+  kapsamı, şifreli refresh token, maskeli IP + ayrı denetimli unmask, iki zorunlu çerezin adı ve
+  ömrü, Google Fonts isteğinin IP aktarımı. Google Sınırlı Kullanım (Limited Use) beyanı eklendi —
+  Google doğrulaması bunu arıyor.
+- **Takvim izni ekranındaki metin düzeltildi.** "Mevcut takvimlerin okunmaz" ifadesi
+  `calendar.calendarlist.readonly` kapsamı nedeniyle yanlıştı: takvim *listesi* (adlar) görülebiliyor,
+  etkinlikler görülemiyor. Onay ekranı ile gizlilik metni artık aynı şeyi söylüyor.
+- **ImplNote şeridi tamamen kaldırıldı** (onboarding, giriş, ana sayfa, profil, iletişim) —
+  bileşen ve CSS'i de silindi. Endpoint adları ve ADR referansları son kullanıcıya görünmüyordu
+  ki görünmesi gereksin.
+- **Tests executed:** 53 web testi, `tsc --noEmit` ve `next build` temiz.
+
+### Açık riskler
+
+- **Metinler hukukçu incelemesinden geçmedi.** İçerik sistemin gerçek davranışına sadık, ama bu
+  hukuki tavsiye değil; özellikle sorumluluk sınırı ve tüketici hükümleri için bir avukat görüşü
+  alınmalı.
+- **Saklama süreleri taahhüt, henüz mekanizma değil.** Metin giriş kayıtları için 12 ay, destek
+  yazışmaları için 2 yıl diyor; kodda otomatik silme/anonimleştirme işi yok. Bunlar ya
+  uygulanmalı ya da süreler metinden düzeltilmeli.
+- **Hesap silme akışı elle işliyor.** Kendi kendine silme uç noktası yok; talepler e-postayla
+  gelip elle karşılanacak. 30 günlük süre bu şekilde tutulabilir, ama izlenmesi gereken bir söz.
+- **gizlilik@ ve destek@sirkadiyen.app adreslerinin çalıştığı doğrulanmadı.** KVKK başvuru kanalı
+  olarak metinde geçiyorlar; kutuların gerçekten okunuyor olması gerekir.
+
+### Aynı oturumda düzeltmeler
+
+- **Sabit saklama süreleri metinden çıkarıldı.** Yerine ölçüt bazlı anlatım geldi ("amaç için
+  gerekli olduğu sürece + mevzuattaki saklama ve zamanaşımı süreleri"). Sebebi: kodda otomatik
+  silme/anonimleştirme işi yok; 12 ay / 2 yıl gibi rakamlar tutulamayacak taahhütlerdi. Hesap silme
+  de sabit 30 gün yerine KVKK'nın öngördüğü süreye bağlandı.
+- **Gerçek iletişim bilgileri girildi.** `web/src/lib/contact.ts` tek kaynak: Halil Semih Şen
+  (halil.semih.sen@gmail.com, +90 551 056 6754) ve Abdullah Ceylan (ceylanabdullah711@gmail.com,
+  +90 551 026 6718). Var olmayan gizlilik@/destek@sirkadiyen.app adresleri gizlilik, koşullar ve
+  iletişim sayfalarından kaldırıldı; iletişim formunun mailto'su artık ikisine birden gidiyor.
+- **Lisans adımına WhatsApp ile kod isteme eklendi.** Kodu olmayan öğrenci için tek çıkış yolu
+  buydu; iki bağlantı, mesaj hazır yazılmış hâlde WhatsApp'ı açıyor.
