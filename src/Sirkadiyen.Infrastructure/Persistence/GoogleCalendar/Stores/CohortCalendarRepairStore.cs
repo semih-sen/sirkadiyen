@@ -72,6 +72,42 @@ public sealed class CohortCalendarRepairStore(SirkadiyenDbContext dbContext)
         ];
     }
 
+    public async Task<CohortRepairHolding?> FindUserHoldingAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        StudentProfile? profile = await
+            (from connection in dbContext.GoogleCalendarConnections.AsNoTracking()
+             join candidate in dbContext.StudentProfiles.AsNoTracking()
+                 on connection.UserId equals candidate.UserId
+             where connection.UserId == userId
+                 && connection.Status == GoogleCalendarConnectionStatus.Authorized
+                 && connection.InitialSyncState == GoogleCalendarInitialSyncState.Completed
+                 && connection.ManagedCalendarId != null
+                 && connection.ManagedCalendarUnavailableAtUtc == null
+                 && ActiveLicenseQuery.UserIds(dbContext).Contains(connection.UserId)
+             select candidate)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (profile is null)
+        {
+            return null;
+        }
+
+        List<UserCalendarEventMapping> mappings = await dbContext.UserCalendarEventMappings
+            .AsNoTracking()
+            .Where(mapping => mapping.UserId == userId)
+            .OrderBy(mapping => mapping.StableIdentity)
+            .ToListAsync(cancellationToken);
+
+        return new CohortRepairHolding
+        {
+            UserId = userId,
+            Profile = ProfileView(profile),
+            Mappings = [.. mappings.Select(View)],
+        };
+    }
+
     public async Task<int> RequestConvergenceAsync(
         IReadOnlyCollection<Guid> userIds,
         DateTimeOffset atUtc,

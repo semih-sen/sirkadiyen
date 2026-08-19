@@ -22,6 +22,11 @@ import type {
   CohortRepairPlan,
   CohortRepairRequestResult,
   CohortRepairScope,
+  ProfileRolloverPlan,
+  ProfileRolloverRequestResult,
+  ProfileRolloverScope,
+  ManagedCalendarRebuildAssessment,
+  ManagedCalendarRebuildResult,
   OperationalFreezeChangeResult,
   OperationalFreezeSnapshot,
   OperationalFreezeScope,
@@ -443,6 +448,89 @@ export function requestCalendarRepair(
     method: 'POST',
     body: { ...scope, planHash, reason },
   });
+}
+
+/**
+ * Asks what moving a program's stored profiles onto the year its sources state would do (ADR-115).
+ * Changes nothing; the returned `planHash` is what a confirmation is bound to.
+ */
+export function previewProfileRollover(scope: ProfileRolloverScope): Promise<ProfileRolloverPlan> {
+  return request<ProfileRolloverPlan>('/api/operations/profile-rollovers/preview', {
+    method: 'POST',
+    body: scope,
+  });
+}
+
+/** Authorizes the rollover that was previewed. A 409 means the program moved since. */
+export function requestProfileRollover(
+  scope: ProfileRolloverScope,
+  planHash: string,
+  reason: string,
+): Promise<ProfileRolloverRequestResult> {
+  return request<ProfileRolloverRequestResult>('/api/operations/profile-rollovers', {
+    method: 'POST',
+    body: { ...scope, planHash, reason },
+  });
+}
+
+/**
+ * Asks what re-synchronizing one student's calendar would converge (ADR-115). It is the cohort
+ * repair narrowed to one row, so it returns the same plan shape.
+ */
+export function previewUserCalendarRecheck(userId: string): Promise<CohortRepairPlan> {
+  return request<CohortRepairPlan>(
+    `/api/admin/users/${encodeURIComponent(userId)}/calendar-recheck/preview`,
+    { method: 'POST' },
+  );
+}
+
+/** Authorizes the re-check that was previewed for one student. */
+export function requestUserCalendarRecheck(
+  userId: string,
+  planHash: string,
+  reason: string,
+): Promise<CohortRepairRequestResult> {
+  return request<CohortRepairRequestResult>(
+    `/api/admin/users/${encodeURIComponent(userId)}/calendar-recheck`,
+    { method: 'POST', body: { planHash, reason } },
+  );
+}
+
+/**
+ * Whether the signed-in user's managed calendar needs rebuilding, and since when it has been
+ * unreachable (ADR-116). Changes nothing.
+ */
+export function assessCalendarRebuild(): Promise<ManagedCalendarRebuildAssessment> {
+  return request<ManagedCalendarRebuildAssessment>('/api/calendar/rebuild');
+}
+
+/**
+ * Rebuilds the signed-in user's own managed calendar after they deleted it. It discards the event
+ * ledger and returns the connection to the state initial synchronization starts from; the user
+ * then starts that synchronization themselves.
+ */
+export function rebuildCalendar(): Promise<ManagedCalendarRebuildResult> {
+  return request<ManagedCalendarRebuildResult>('/api/calendar/rebuild', { method: 'POST' });
+}
+
+/** The operator's view of the same question, for one user. */
+export function assessUserCalendarRebuild(
+  userId: string,
+): Promise<ManagedCalendarRebuildAssessment> {
+  return request<ManagedCalendarRebuildAssessment>(
+    `/api/admin/users/${encodeURIComponent(userId)}/calendar-rebuild`,
+  );
+}
+
+/** Rebuilds one user's deleted managed calendar on their behalf. A reason is required. */
+export function rebuildUserCalendar(
+  userId: string,
+  reason: string,
+): Promise<ManagedCalendarRebuildResult> {
+  return request<ManagedCalendarRebuildResult>(
+    `/api/admin/users/${encodeURIComponent(userId)}/calendar-rebuild`,
+    { method: 'POST', body: { reason } },
+  );
 }
 
 export function listScopedFreezes(): Promise<OperationalFreezeSnapshot[]> {

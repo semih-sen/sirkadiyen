@@ -37,6 +37,7 @@ internal static class ApiEndpointRouteBuilderExtensions
         app.MapCalendarAuthorizationEndpoints();
         app.MapCalendarSyncEndpoints();
         app.MapCalendarReconcileEndpoints();
+        app.MapCalendarRebuildEndpoints();
         app.MapScheduleEndpoints();
         app.MapDepartmentColorEndpoints();
         app.MapOnboardingEndpoints();

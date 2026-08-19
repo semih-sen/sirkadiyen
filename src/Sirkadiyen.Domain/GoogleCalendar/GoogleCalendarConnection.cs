@@ -352,6 +352,60 @@ public sealed class GoogleCalendarConnection
         UpdatedAtUtc = atUtc;
     }
 
+    /// <summary>
+    /// Returns the connection to the state initial synchronization starts from, so a calendar the
+    /// user deleted can be built again (ADR-116).
+    /// </summary>
+    /// <remarks>
+    /// <see cref="MarkManagedCalendarUnavailable"/> deliberately preserves the calendar id and the
+    /// mappings as evidence and leaves what happens next to "an explicit repair flow". This is
+    /// that flow, and until it existed there was none: nothing cleared
+    /// <see cref="ManagedCalendarUnavailableAtUtc"/> — not even
+    /// <see cref="Reauthorize"/> — so a student who deleted their calendar was routed to the
+    /// consent screen, re-consented, and was routed straight back to it forever.
+    /// <para>
+    /// Detaching the calendar id is what makes the existing recovery path reachable again:
+    /// initial sync only looks for a marker-matched orphan, or creates a calendar, when there is
+    /// no id attached. That also makes this safe when the calendar turns out not to be deleted
+    /// after all — a transient 404, a permission blip — because the marker search reattaches the
+    /// same calendar and the deterministic event ids make every re-insert a harmless
+    /// already-exists.
+    /// </para>
+    /// <para>
+    /// The state is left <see cref="GoogleCalendarInitialSyncState.Pending"/> rather than
+    /// in progress: populating a calendar is the user's decision to start (ADR-058), and a
+    /// rebuild writes an entire year of events. <see cref="Status"/> is untouched, so a
+    /// connection that also needs re-authorization still passes through consent first.
+    /// </para>
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">
+    /// The calendar has not been proven unavailable, so there is nothing to rebuild.
+    /// </exception>
+    public void ResetForCalendarRebuild(DateTimeOffset atUtc)
+    {
+        if (ManagedCalendarUnavailableAtUtc is null)
+        {
+            throw new InvalidOperationException(
+                "Only a connection whose managed calendar was proven unavailable may be rebuilt.");
+        }
+
+        ManagedCalendarId = null;
+        ManagedCalendarUnavailableAtUtc = null;
+        InitialSyncState = GoogleCalendarInitialSyncState.Pending;
+
+        // Every pending piece of work below is scoped to the calendar that is gone, so carrying
+        // it across would ask the worker to converge a calendar that no longer exists. Initial
+        // sync resolves the whole audience from the profile as it stands when it runs, which
+        // subsumes all three.
+        LastCalendarInventoryAtUtc = null;
+        ReconciliationRequiredSinceUtc = null;
+        ReconciliationCursorDispatchedAtUtc = null;
+        ReconciliationCursorDiffId = null;
+        ProfileResyncRequiredSinceUtc = null;
+
+        UpdatedAtUtc = atUtc;
+    }
+
     /// <summary>Records a complete, non-destructive Calendar/ledger inventory pass.</summary>
     public void CompleteCalendarInventory(DateTimeOffset atUtc)
     {

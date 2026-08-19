@@ -45,6 +45,45 @@ public sealed class CohortCalendarRepairService(
         IReadOnlyList<CohortRepairHolding> holdings =
             await repairStore.ListCohortHoldingsAsync(scope, cancellationToken);
 
+        return await PlanForHoldingsAsync(scope, holdings, cancellationToken);
+    }
+
+    /// <summary>
+    /// The same plan, narrowed to one student: what their calendar is missing and what it holds
+    /// that is no longer theirs (ADR-115).
+    /// </summary>
+    /// <remarks>
+    /// The scope is read from the student's own profile rather than supplied, because a re-check
+    /// asks about the audience they actually resolve to. A user who is not synchronization-ready
+    /// — unauthorized, initial sync unfinished, no managed calendar, licence inactive — yields
+    /// <see langword="null"/>, which is the honest answer: there is nothing to converge onto.
+    /// </remarks>
+    public async Task<CohortRepairPlan?> PlanForUserAsync(
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        CohortRepairHolding? holding =
+            await repairStore.FindUserHoldingAsync(userId, cancellationToken);
+        if (holding is null)
+        {
+            return null;
+        }
+
+        CohortRepairScope scope = new()
+        {
+            AcademicYear = holding.Profile.AcademicYear,
+            ClassYear = holding.Profile.ClassYear,
+            ProgramLanguage = holding.Profile.ProgramLanguage,
+        };
+
+        return await PlanForHoldingsAsync(scope, [holding], cancellationToken);
+    }
+
+    private async Task<CohortRepairPlan> PlanForHoldingsAsync(
+        CohortRepairScope scope,
+        IReadOnlyList<CohortRepairHolding> holdings,
+        CancellationToken cancellationToken)
+    {
         IReadOnlyList<CanonicalScheduleRecord> published =
             await scheduleReadStore.ListCurrentPublishedRecordsAsync(
                 scope.AcademicYear,
@@ -201,6 +240,79 @@ public sealed class CohortCalendarRepairService(
 
         int requested = await repairStore.RequestConvergenceAsync(
             [.. plan.Users.Select(user => user.UserId)],
+            timeProvider.GetUtcNow(),
+            cancellationToken);
+
+        return new CohortRepairRequestResult
+        {
+            Outcome = CohortRepairOutcome.Requested,
+            UsersRequested = requested,
+            Plan = plan,
+        };
+    }
+
+    /// <summary>
+    /// Requests the re-check the operator confirmed for one student, refusing if that student's
+    /// position has moved since they saw it (ADR-115).
+    /// </summary>
+    /// <remarks>
+    /// It is the cohort path narrowed to a single row, deliberately: the freeze check, the plan
+    /// hash, the audit-before-side-effect ordering and the convergence pass that performs every
+    /// write are the same. What differs is only the blast radius, and a narrower one needs no
+    /// weaker guarantees.
+    /// </remarks>
+    public async Task<CohortRepairRequestResult> RequestForUserAsync(
+        Guid userId,
+        string confirmedPlanHash,
+        Func<CohortRepairPlan, CancellationToken, Task> recordAuthorization,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(confirmedPlanHash);
+        ArgumentNullException.ThrowIfNull(recordAuthorization);
+
+        CohortRepairPlan? plan = await PlanForUserAsync(userId, cancellationToken);
+        if (plan is null)
+        {
+            return new CohortRepairRequestResult { Outcome = CohortRepairOutcome.NothingToRepair };
+        }
+
+        OperationalFreezeSnapshot freeze = await freezeStore.GetAsync(cancellationToken);
+        if (freeze.IsFrozen
+            || await freezeStore.IsFrozenAsync(
+                new OperationalFreezeScope
+                {
+                    ClassYear = plan.Scope.ClassYear,
+                    ProgramLanguage = plan.Scope.ProgramLanguage,
+                },
+                cancellationToken))
+        {
+            return new CohortRepairRequestResult { Outcome = CohortRepairOutcome.Frozen };
+        }
+
+        if (!CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(plan.PlanHash),
+                Encoding.UTF8.GetBytes(confirmedPlanHash)))
+        {
+            return new CohortRepairRequestResult
+            {
+                Outcome = CohortRepairOutcome.PlanChanged,
+                Plan = plan,
+            };
+        }
+
+        if (plan.Users.Count == 0)
+        {
+            return new CohortRepairRequestResult
+            {
+                Outcome = CohortRepairOutcome.NothingToRepair,
+                Plan = plan,
+            };
+        }
+
+        await recordAuthorization(plan, cancellationToken);
+
+        int requested = await repairStore.RequestConvergenceAsync(
+            [userId],
             timeProvider.GetUtcNow(),
             cancellationToken);
 

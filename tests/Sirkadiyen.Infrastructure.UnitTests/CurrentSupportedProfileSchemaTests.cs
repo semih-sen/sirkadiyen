@@ -19,7 +19,7 @@ public sealed class CurrentSupportedProfileSchemaTests
     public void SchemaCarriesTheCurrentYearAndVersion()
     {
         Assert.Equal("2025-2026", Schema.AcademicYear);
-        Assert.Equal("1.2", Schema.SchemaVersion);
+        Assert.Equal("1.3", Schema.SchemaVersion);
         Assert.NotEmpty(Schema.Programs);
     }
 
@@ -40,8 +40,46 @@ public sealed class CurrentSupportedProfileSchemaTests
             "2026-2027",
             Schema.FindProgram(3, ProgramLanguage.Turkish)!.AcademicYear);
         Assert.Equal(
+            "2026-2027",
+            Schema.FindProgram(2, ProgramLanguage.Turkish)!.AcademicYear);
+        Assert.Equal(
             "2025-2026",
             Schema.FindProgram(1, ProgramLanguage.Turkish)!.AcademicYear);
+    }
+
+    /// <summary>
+    /// The year a program states must be a year the committed catalog actually publishes lessons
+    /// for in that cohort (ADR-115).
+    /// </summary>
+    /// <remarks>
+    /// This is the guard that was missing when Grade 2 Turkish was rolled over. A student's
+    /// profile is stamped with their program's year, and <c>CalendarAudienceResolver</c> matches a
+    /// canonical record to them only when the record's year equals it — so a program stating a
+    /// year no source publishes is an empty calendar for everyone in it, with the revision
+    /// published, the diff dispatched and every check downstream reporting success.
+    /// <para>
+    /// The committed catalog is only the deployment default: the running one is edited from
+    /// <c>/admin/sources</c> (ADR-114), which is how the two came apart in the first place. That
+    /// divergence is caught at runtime by <c>SupportedProfileSchemaCatalogCheck</c>; this test
+    /// keeps the committed pair honest so a fresh deployment never starts out wrong.
+    /// </para>
+    /// </remarks>
+    [Fact]
+    public async Task EveryProgramsYearIsOneTheCatalogPublishesForThatCohort()
+    {
+        ScheduleSourceCatalog catalog = await LoadCatalogAsync();
+
+        foreach (SupportedProfileProgram program in Schema.Programs)
+        {
+            Assert.True(
+                catalog.Sources.Any(source =>
+                    source.ClassYear == program.ClassYear
+                    && source.ProgramLanguage == program.ProgramLanguage
+                    && source.AcademicYear == program.AcademicYear),
+                $"The schema stamps class {program.ClassYear} {program.ProgramLanguage} profiles "
+                + $"with {program.AcademicYear}, but no committed source for that cohort states "
+                + "that year. Every student in it would receive an empty calendar.");
+        }
     }
 
     /// <summary>
@@ -193,6 +231,80 @@ public sealed class CurrentSupportedProfileSchemaTests
                 }
             }
         }
+    }
+
+    /// <summary>
+    /// The runtime check reports a cohort whose sources moved to a year the schema does not stamp,
+    /// and stays silent about everything else (ADR-115).
+    /// </summary>
+    /// <remarks>
+    /// The committed catalog and the deployed schema agree — the test above enforces that — but
+    /// the running catalog is edited from <c>/admin/sources</c> (ADR-114), so agreement at build
+    /// time proves nothing about production. This is the check that notices when they come apart.
+    /// </remarks>
+    [Fact]
+    public void TheRuntimeCheckReportsACohortWhoseSourcesMovedYearWithoutTheSchema()
+    {
+        // Exactly the Grade 2 Turkish incident: the catalog was moved, the schema was not.
+        List<CohortPublishedYear> catalog =
+        [
+            new()
+            {
+                AcademicYear = "2027-2028",
+                ClassYear = 2,
+                ProgramLanguage = ProgramLanguage.Turkish,
+            },
+        ];
+
+        AcademicYearDivergence divergence = Assert.Single(
+            SupportedProfileSchemaCatalogCheck.FindDivergences(Schema, catalog));
+
+        Assert.Equal(2, divergence.ClassYear);
+        Assert.Equal("2026-2027", divergence.SchemaAcademicYear);
+        Assert.Equal(["2027-2028"], divergence.PublishedAcademicYears);
+    }
+
+    [Fact]
+    public void TheRuntimeCheckIsSilentWhenTheSchemaYearIsOneOfTheYearsPublished()
+    {
+        // A cohort mid-rollover legitimately has sources on two years at once — Grade 2 Turkish
+        // is in that state now, with its anatomy documents still on the old one. Reporting it
+        // would train an operator to ignore the one signal this exists for.
+        List<CohortPublishedYear> catalog =
+        [
+            new()
+            {
+                AcademicYear = "2026-2027",
+                ClassYear = 2,
+                ProgramLanguage = ProgramLanguage.Turkish,
+            },
+            new()
+            {
+                AcademicYear = "2025-2026",
+                ClassYear = 2,
+                ProgramLanguage = ProgramLanguage.Turkish,
+            },
+        ];
+
+        Assert.Empty(SupportedProfileSchemaCatalogCheck.FindDivergences(Schema, catalog));
+    }
+
+    [Fact]
+    public void ACohortTheSchemaDeclaresNoProgramForIsNeverReported()
+    {
+        // Grade 2 and Grade 3 English have catalog sources and deliberately no onboarding
+        // (ADR-084, ADR-098). Nobody is stamped with anything, so nobody can be stamped wrong.
+        List<CohortPublishedYear> catalog =
+        [
+            new()
+            {
+                AcademicYear = "2099-2100",
+                ClassYear = 3,
+                ProgramLanguage = ProgramLanguage.English,
+            },
+        ];
+
+        Assert.Empty(SupportedProfileSchemaCatalogCheck.FindDivergences(Schema, catalog));
     }
 
     private static IReadOnlyDictionary<string, HashSet<string>> DeclaredSelectors(

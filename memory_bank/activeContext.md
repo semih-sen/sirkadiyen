@@ -2620,3 +2620,67 @@ and the file shipped inside the worker's release directory. Both are now differe
   iletişim sayfalarından kaldırıldı; iletişim formunun mailto'su artık ikisine birden gidiyor.
 - **Lisans adımına WhatsApp ile kod isteme eklendi.** Kodu olmayan öğrenci için tek çıkış yolu
   buydu; iki bağlantı, mesaj hazır yazılmış hâlde WhatsApp'ı açıyor.
+
+## Dönem 2 Türkçe akademik yıl taşıması (2026-08-19)
+
+Dönem 2 Türkçe yıllık ve uygulama kaynakları `/admin/sources` üzerinden 2026-2027
+dosyalarına ve `academicYear` alanı 2026-2027'ye taşındı. Revizyon yayınlandı, diff
+onaylandı — ve öğrencilerin takvimlerinden 2025-2026 dersleri silindi, yerine hiçbir
+şey yazılmadı.
+
+Sebebi bir hata değil, iki yarının anlaşmayı bırakması (ADR-115): **silme eşleşme
+defterinden sürülür ve akademik yıl sormaz**, **ekleme kohort sorgusundan sürülür ve
+profilin akademik yılına göre süzer**. Saklanan her Dönem 2 profili hâlâ 2025-2026
+diyordu, çünkü profile yıl yalnızca kayıt anında damgalanır ve hiçbir şey onu yeniden
+damgalamaz. Yeni kayıtlar kimseye denk gelmedi; diff sıfır ekleme ile `Dispatched`
+işaretlendi.
+
+Bu oturumda yapılanlar:
+
+- Şema Dönem 2 Türkçe için 2026-2027 diyor (sürüm 1.3).
+- `ProfileAcademicYearRolloverService` + `/admin/operations` ekranı: saklanan profilleri
+  denetimli, plan-hash'e bağlı bir işlemle yeni yıla taşır ve her takvimi yakınsama için
+  işaretler. Takvime hiçbir şey yazmaz — yazmayı worker'ın mevcut yakınsama adımı yapar.
+- `SupportedProfileSchemaCatalogCheck`: worker her açılışta şema ile kataloğu karşılaştırır
+  ve ayrışan kohortu, iki yılı ve çözümü söyleyerek `LogError` basar. Hiçbir şeyi
+  engellemez; bu sınıf hatanın sessiz kalmasını engeller.
+- `/admin/users/{id}` üzerinde kullanıcı bazında "takvimi yeniden kontrol et": kohort
+  onarımının tek satıra daraltılmış hâli, aynı freeze/plan-hash/denetim sırasıyla.
+
+### Sıradaki iş
+
+- **Taşıma henüz çalıştırılmadı.** Dönem 2 Türkçe profilleri `/admin/operations` →
+  "Akademik yıl taşıması" ekranından 2025-2026 → 2026-2027 taşınmalı. O yapılana kadar
+  Dönem 2 takvimleri dispatch'in bıraktığı hâlde kalır.
+- **Dönem 2 anatomi ve dikey koridor kaynakları hâlâ 2025-2026.** Taşımadan sonra bu
+  dersler 2026-2027 takvimlerinde olmayacak. Silinmezler — yakınsama kaldırmalarını yeni
+  yılın yayınlanmış kimliklerine göre ölçer, eski yıl satırı ona görünmez (ADR-089) — ama
+  o belgeler yakalanana kadar eksik kalırlar. Plan bunu "kalacak eski kayıt" olarak sayar.
+
+## Silinen yönetilen takvim artık kurtarılabiliyor (2026-08-19)
+
+Kullanıcı Google Calendar'dan Sirkadiyen takvimini silerse ne oluyordu: bağlantı
+"erişilemez" damgalanıyor, kullanıcı her yazardan düşüyor, onboarding `ActionRequired`
+diyor, frontend onu izin ekranına yolluyor — ve izni yenilemek bayrağı temizlemediği için
+aynı ekrana geri yollanıyordu. Kapalı bir döngü; kullanıcının da operatörün de çıkış yolu
+yoktu. ADR-062 bu vakayı "explicit repair flow"a bırakmıştı, o akış hiç yazılmamıştı.
+
+Bu oturumda yazıldı (ADR-116):
+
+- `ResetForCalendarRebuild`: takvimi ayırır, bayrağı temizler, `InitialSyncState`'i
+  `Pending`'e alır, silinen takvime bağlı bekleyen işleri (envanter, replay imleci, profil
+  yakınsaması) temizler. Takvim kimliğini ayırmak mekanizmanın kendisi: initial sync ancak
+  kimlik yokken marker'la eski takvimi arar ya da yenisini oluşturur.
+- Eşleşme defteri aynı transaction'da silinir — silinen takvimi tarif ediyorlar ve
+  bırakılsalardı initial sync o dersleri atlardı.
+- `/onboarding/calendar` artık doğru sebebi söylüyor ("Sirkadiyen takvimin bulunamıyor")
+  ve "Takvimimi yeniden oluştur" düğmesi veriyor. Eski metin "Google erişimi iptal edilmiş"
+  diyordu; bu hem yanlıştı hem döngünün sebebiydi.
+- `/admin/users/{id}` üzerinde gerekçeli, onay adımlı operatör karşılığı var.
+- Yazmayı ikisi de yapmaz: kullanıcı senkronizasyonu kendisi başlatır (ADR-058).
+
+### Açık kalan
+
+- **Tespit hâlâ pasif.** Bayrak, başarısız olan ilk yazma tarafından basılıyor; izleyen bir
+  iş yok. Takvimini silip Sirkadiyen'i hiç açmayan bir öğrenci, durum fark edilene kadar bir
+  envanter turu bekleyebilir.

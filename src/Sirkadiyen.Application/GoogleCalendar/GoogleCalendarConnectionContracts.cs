@@ -135,3 +135,40 @@ public enum RequestInitialSyncOutcome
     /// <summary>The user has no Calendar connection to synchronize.</summary>
     NotFound,
 }
+
+/// <summary>What rebuilding a deleted managed calendar actually changed (ADR-116).</summary>
+public sealed record ManagedCalendarRebuildResult
+{
+    public required ManagedCalendarRebuildOutcome Outcome { get; init; }
+
+    /// <summary>
+    /// Ledger rows discarded because the calendar they described no longer exists. It is also the
+    /// number of lessons the student will see written again once they start the synchronization,
+    /// which is the only honest way to say how large the rebuild is.
+    /// </summary>
+    public int DiscardedMappings { get; init; }
+}
+
+public enum ManagedCalendarRebuildOutcome
+{
+    /// <summary>
+    /// The connection is back at the state initial synchronization starts from. Nothing has been
+    /// written yet: the user still starts the synchronization themselves (ADR-058).
+    /// </summary>
+    Reset,
+
+    /// <summary>
+    /// The managed calendar has not been proven unavailable, so there is nothing to rebuild. A
+    /// calendar merely hidden from the user's list is still there, and inventory repairs it.
+    /// </summary>
+    NotEligible,
+
+    /// <summary>The user has no Calendar connection at all.</summary>
+    NoConnection,
+
+    /// <summary>
+    /// A freeze is in force. A rebuild discards durable ledger state, which is exactly what a
+    /// freeze exists to stop until someone has looked (ADR-034/043).
+    /// </summary>
+    Frozen,
+}

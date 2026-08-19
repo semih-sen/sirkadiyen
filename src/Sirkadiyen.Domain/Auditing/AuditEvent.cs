@@ -178,4 +178,22 @@ public enum AuditEventCategory
     /// change visible in the one activity log an operator actually reads (AI_GUIDELINE §19).
     /// </summary>
     ScheduleSourceCatalogUpdated,
+
+    /// <summary>
+    /// A SuperAdmin moved a program's stored student profiles onto the academic year its sources
+    /// now state (ADR-115). It rewrites data students entered about themselves and queues the
+    /// convergence that fills a year's worth of lessons back onto their calendars, neither of
+    /// which any published revision asked for — so the operator, the plan they confirmed and
+    /// their reason are recorded here (AI_GUIDELINE §13, §19).
+    /// </summary>
+    ProfileAcademicYearRolled,
+
+    /// <summary>
+    /// A student's dedicated calendar was rebuilt after being proven unavailable (ADR-116),
+    /// either by the student from the screen they were stuck on or by a SuperAdmin on their
+    /// behalf. It discards the whole event ledger for that user, so the trail records who asked
+    /// and how many rows went with it — otherwise "my calendar started over" has no answer
+    /// (AI_GUIDELINE §19).
+    /// </summary>
+    ManagedCalendarRebuilt,
 }

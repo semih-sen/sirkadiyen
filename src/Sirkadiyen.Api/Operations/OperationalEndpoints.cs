@@ -6,6 +6,7 @@ using Sirkadiyen.Api.Identity;
 using Sirkadiyen.Application.Auditing;
 using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Operations;
+using Sirkadiyen.Application.StudentProfiles;
 using Sirkadiyen.Contracts.Serialization;
 using Sirkadiyen.Domain.Auditing;
 using Sirkadiyen.Domain.Operations;
@@ -43,6 +44,13 @@ public static class OperationalEndpoints
         operations.MapPost("/calendar-repairs", RequestCalendarRepairAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
             .WithSummary("Authorizes the shown cohort calendar repair, with an audit entry.");
+
+        operations.MapPost("/profile-rollovers/preview", PreviewProfileRolloverAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
+            .WithSummary("Shows what moving a program's profiles to its sources' year would do.");
+        operations.MapPost("/profile-rollovers", RequestProfileRolloverAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
+            .WithSummary("Authorizes the shown academic-year rollover, with an audit entry.");
 
         operations.MapGet("/freeze/scopes", ListScopedFreezesAsync)
             .WithSummary("Lists class-year/program-language operational freeze controls.");
@@ -207,6 +215,149 @@ public static class OperationalEndpoints
                 return Results.Ok(result);
         }
     }
+
+    private static async Task<IResult> PreviewProfileRolloverAsync(
+        PreviewProfileRolloverRequest request,
+        ProfileAcademicYearRolloverService rollovers,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (RolloverScope(request.FromAcademicYear, request.ClassYear, request.ProgramLanguage)
+            is not { } scope)
+        {
+            return InvalidRolloverScope();
+        }
+
+        return Results.Ok(await rollovers.PlanAsync(scope, cancellationToken));
+    }
+
+    private static async Task<IResult> RequestProfileRolloverAsync(
+        RequestProfileRolloverRequest request,
+        ClaimsPrincipal principal,
+        HttpContext context,
+        ProfileAcademicYearRolloverService rollovers,
+        AuditEventRecorder audit,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (RolloverScope(request.FromAcademicYear, request.ClassYear, request.ProgramLanguage)
+            is not { } scope)
+        {
+            return InvalidRolloverScope();
+        }
+
+        if (string.IsNullOrWhiteSpace(request.PlanHash))
+        {
+            return Results.Problem(
+                title: "Invalid profile rollover request",
+                detail: "'planHash' is required: a rollover may only be confirmed against the "
+                    + "plan it was shown for.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        // Required for the same purpose it is on a repair: this rewrites data students entered
+        // about themselves, and "why did my profile change year" must be answerable from the
+        // audit trail alone (AI_GUIDELINE §19).
+        if (string.IsNullOrWhiteSpace(request.Reason)
+            || request.Reason.Trim().Length > MaximumRepairReasonLength)
+        {
+            return Results.Problem(
+                title: "Invalid profile rollover request",
+                detail: $"'reason' is required and must contain at most "
+                    + $"{MaximumRepairReasonLength} characters.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        ProfileRolloverRequestResult result = await rollovers.RequestAsync(
+            scope,
+            request.PlanHash,
+            (plan, token) => audit.RecordAsync(
+                new AuditEventDraft
+                {
+                    Category = AuditEventCategory.ProfileAcademicYearRolled,
+                    ActorUserId = UserClaimsPrincipalFactory.GetRequiredUserId(principal),
+                    ActorEmail = UserClaimsPrincipalFactory.GetRequiredEmail(principal),
+                    SubjectType = "ProfileAcademicYearRollover",
+                    SubjectId = scope.ToString(),
+                    CorrelationId = context.CorrelationId(),
+                    ClientIp = context.ClientIp(),
+                    UserAgent = context.ClientUserAgent(),
+                    Reason = request.Reason.Trim(),
+                    // Both years are recorded, not only the target: the trail has to state what a
+                    // profile was moved *from* for anyone later reconstructing which students
+                    // were on which year when a given revision published.
+                    Metadata = JsonSerializer.Serialize(
+                        new
+                        {
+                            planHash = plan.PlanHash,
+                            fromAcademicYear = scope.FromAcademicYear,
+                            toAcademicYear = plan.ToAcademicYear,
+                            toSchemaVersion = plan.ToSchemaVersion,
+                            profiles = plan.Users.Count,
+                            gainedEvents = plan.TotalGainedEvents,
+                            strandedEvents = plan.TotalStrandedEvents,
+                            withoutConnection = plan.ProfilesWithoutSyncReadyConnection,
+                            blocked = plan.BlockedByInvalidSelectors.Count,
+                        },
+                        AuditMetadataOptions),
+                },
+                token),
+            cancellationToken);
+
+        switch (result.Outcome)
+        {
+            case ProfileRolloverOutcome.Moved:
+                return Results.Accepted("/api/operations/profile-rollovers", result);
+
+            case ProfileRolloverOutcome.PlanChanged:
+                return Results.Problem(
+                    title: "The rollover plan has changed",
+                    detail: "The program no longer resolves to the plan you confirmed. Review the "
+                        + "new preview and confirm that one instead.",
+                    statusCode: StatusCodes.Status409Conflict);
+
+            case ProfileRolloverOutcome.Frozen:
+                return Results.Problem(
+                    title: "Operations are frozen",
+                    detail: "No calendar work may be queued while a global or scoped freeze is in "
+                        + "force. Lift the freeze first.",
+                    statusCode: StatusCodes.Status409Conflict);
+
+            case ProfileRolloverOutcome.NotSupportedBySchema:
+                return Results.Problem(
+                    title: "The deployed schema does not support this rollover",
+                    detail: result.Refusal,
+                    statusCode: StatusCodes.Status409Conflict);
+
+            case ProfileRolloverOutcome.NothingToMove:
+            default:
+                return Results.Ok(result);
+        }
+    }
+
+    private static ProfileRolloverScope? RolloverScope(
+        string fromAcademicYear,
+        int classYear,
+        ProgramLanguage programLanguage) =>
+        string.IsNullOrWhiteSpace(fromAcademicYear)
+            || classYear is < 1 or > 6
+            || !Enum.IsDefined(programLanguage)
+                ? null
+                : new ProfileRolloverScope
+                {
+                    FromAcademicYear = fromAcademicYear.Trim(),
+                    ClassYear = classYear,
+                    ProgramLanguage = programLanguage,
+                };
+
+    private static IResult InvalidRolloverScope() =>
+        Results.Problem(
+            title: "Invalid profile rollover scope",
+            detail: "'fromAcademicYear' is required, 'classYear' must be between 1 and 6, and "
+                + "'programLanguage' must be supported.",
+            statusCode: StatusCodes.Status400BadRequest);
 
     /// <summary>The scope a request names, or <see langword="null"/> when it is not a real one.</summary>
     private static CohortRepairScope? Scope(

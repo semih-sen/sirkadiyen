@@ -9,6 +9,9 @@ import {
   getAdminUserCalendarChanges,
   getAdminUserCalendarEvents,
   getAnnouncementOptions,
+  previewUserCalendarRecheck,
+  requestUserCalendarRecheck,
+  rebuildUserCalendar,
   revokeLicense,
 } from '@/lib/api';
 import { LoadState, Tabs, formatDateTime, statusBadge } from '@/components/AdminData';
@@ -21,17 +24,20 @@ import type {
   AdminUserDetailResponse,
   AnnouncementCompositionOptions,
   AuditEventView,
+  CohortRepairPlan,
   UserScheduleChangeView,
 } from '@/lib/types';
 
 /**
  * One account, and every operation an operator may perform on it.
  *
- * The page is a read of authoritative backend state plus the three writes the backend actually
- * supports for a single user: manual activation (ADR-053), license revocation (ADR-022) and a
- * calendar warning (ADR-107). It deliberately offers nothing else — an operator still cannot edit a
- * student's academic profile, and pretending otherwise with a disabled control would suggest the
- * capability exists somewhere.
+ * The page is a read of authoritative backend state plus the four writes the backend actually
+ * supports for a single user: manual activation (ADR-053), license revocation (ADR-022), a
+ * calendar warning (ADR-107) and a calendar re-check (ADR-115). It deliberately offers nothing
+ * else — an operator still cannot edit a student's academic profile, and pretending otherwise with
+ * a disabled control would suggest the capability exists somewhere. The re-check is not an
+ * exception: it queues convergence onto the profile as the student wrote it, and changes no field
+ * of it.
  *
  * The calendar tab reads the mapping ledger, so it shows what is genuinely on the calendar
  * Sirkadiyen created for this student, not what the published schedule says should be there.
@@ -164,10 +170,11 @@ export function AdminUserDetail({ userId }: { userId: string }) {
                   value={formatDateTime(calendarConnection.lastCalendarInventoryAtUtc)}
                 />
                 {calendarConnection.managedCalendarUnavailableAtUtc && (
-                  <Banner tone="warning">
-                    Yönetilen takvim {formatDateTime(calendarConnection.managedCalendarUnavailableAtUtc)}
-                    {' '}tarihinden beri erişilemiyor. Takvim asla kendiliğinden yeniden oluşturulmaz.
-                  </Banner>
+                  <CalendarRebuild
+                    userId={userId}
+                    unavailableSinceUtc={calendarConnection.managedCalendarUnavailableAtUtc}
+                    onRebuilt={() => void load()}
+                  />
                 )}
                 {calendarConnection.profileResyncRequiredSinceUtc && (
                   <Banner tone="info">
@@ -220,6 +227,111 @@ export function AdminUserDetail({ userId }: { userId: string }) {
 }
 
 /** The license history, and the one write it supports: revoking an active license. */
+/**
+ * The operator's door to the calendar rebuild the student also has (ADR-116), for the student who
+ * does not find theirs or writes in instead.
+ *
+ * Until this existed the panel could only describe the dead end — the banner said the calendar was
+ * unreachable and would never be recreated, and that was the whole of it. Everything destructive
+ * about the action is stated before it is offered: the ledger goes, the deleted calendar's old
+ * events do not come back, and nothing is written until the student starts their synchronization.
+ */
+function CalendarRebuild({
+  userId,
+  unavailableSinceUtc,
+  onRebuilt,
+}: {
+  userId: string;
+  unavailableSinceUtc: string;
+  onRebuilt: () => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  async function onRebuild() {
+    if (!reason.trim()) { setError('Denetim kaydı için bir gerekçe yazın.'); return; }
+    setBusy(true); setError(null);
+    try {
+      const result = await rebuildUserCalendar(userId, reason.trim());
+      setNotice(
+        `Bağlantı ilk senkronizasyon durumuna alındı; ${result.discardedMappings} eşleşme kaydı `
+        + 'silindi. Takvim, kullanıcı senkronizasyonu başlattığında yeniden kurulur.',
+      );
+      setConfirming(false);
+      setReason('');
+      onRebuilt();
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Takvim yeniden kurulamadı.');
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <>
+      <Banner tone="warning">
+        Yönetilen takvim {formatDateTime(unavailableSinceUtc)} tarihinden beri erişilemiyor —
+        kullanıcı büyük ihtimalle silmiş. Bu hâlde her yazardan düşer ve onboarding&apos;de
+        &ldquo;işlem gerekli&rdquo; görür. Takvim asla kendiliğinden yeniden oluşturulmaz.
+      </Banner>
+
+      {!confirming && (
+        <button
+          className="btn btn-secondary btn-sm"
+          type="button"
+          style={{ marginTop: 10 }}
+          onClick={() => setConfirming(true)}
+        >
+          Takvimi yeniden kur
+        </button>
+      )}
+
+      {confirming && (
+        <div style={{ marginTop: 12 }}>
+          <Banner tone="danger">
+            <strong>Bu kullanıcının eşleşme defteri tamamen silinir.</strong> Defter artık var
+            olmayan bir takvimi tarif ediyor, o yüzden hiçbir takvim etkinliği silinmiş olmuyor —
+            ama silinen takvimdeki eski etkinlikler de geri gelmez. Bağlantı ilk senkronizasyon
+            durumuna döner; <strong>yazmayı kullanıcı başlatır</strong>, bu düğme değil.
+          </Banner>
+          <div className="field" style={{ marginTop: 12 }}>
+            <label htmlFor="rebuild-reason">Gerekçe</label>
+            <textarea
+              id="rebuild-reason"
+              className="text-input"
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="Bu yeniden kurma neden gerekli? (denetim kaydına yazılır)"
+            />
+          </div>
+          <div className="cluster">
+            <button
+              className="btn btn-danger btn-sm"
+              type="button"
+              disabled={busy || !reason.trim()}
+              onClick={() => void onRebuild()}
+            >
+              {busy ? 'İşleniyor…' : 'Takvimi yeniden kur'}
+            </button>
+            <button
+              className="btn btn-tertiary btn-sm"
+              type="button"
+              disabled={busy}
+              onClick={() => { setConfirming(false); setReason(''); }}
+            >
+              Vazgeç
+            </button>
+          </div>
+        </div>
+      )}
+
+      {notice && <Banner tone="info">{notice}</Banner>}
+      {error && <div className="error" role="alert">{error}</div>}
+    </>
+  );
+}
+
 function Licenses({
   detail,
   onChanged,
@@ -385,6 +497,151 @@ const WINDOW_PRESETS: { label: string; days: number }[] = [
 ];
 
 /** What the mapping ledger says is on this user's managed calendar. */
+/**
+ * The per-user calendar re-check (ADR-115): the cohort repair narrowed to one student.
+ *
+ * It answers the question an operator actually has while looking at one person — "is this
+ * calendar right, and if not, fix it" — without authorizing a whole cohort. Everything that makes
+ * a cohort repair safe still applies: the preview is the backend's plan, the `planHash` binds the
+ * confirmation to it, a reason is recorded before anything is queued, and the freeze fails closed.
+ * No calendar is written here; the worker's convergence pass does every mutation.
+ */
+function CalendarRecheck({ userId, onConverged }: { userId: string; onConverged: () => void }) {
+  const [plan, setPlan] = useState<CohortRepairPlan | null>(null);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  async function preview() {
+    setBusy(true); setError(null); setNotice(null);
+    try {
+      setPlan(await previewUserCalendarRecheck(userId));
+    } catch (caught) {
+      setPlan(null);
+      setError(caught instanceof ApiError ? caught.message : 'Ön izleme alınamadı.');
+    } finally { setBusy(false); }
+  }
+
+  async function confirm() {
+    if (!plan || !reason.trim()) { setError('Denetim kaydı için bir gerekçe yazın.'); return; }
+    setBusy(true); setError(null);
+    try {
+      const result = await requestUserCalendarRecheck(userId, plan.planHash, reason.trim());
+      setNotice(
+        result.outcome === 'NothingToRepair'
+          ? 'Bu takvimde düzeltilecek bir şey kalmamış.'
+          : 'Takvim yakınsama için işaretlendi. Silme ve yazma işlemlerini worker sırayla yapar; '
+            + 'bu ekran onları beklemez.',
+      );
+      setPlan(null);
+      setReason('');
+      onConverged();
+    } catch (caught) {
+      setPlan(null);
+      setError(caught instanceof ApiError ? caught.message : 'Yeniden eşitleme talebi oluşturulamadı.');
+    } finally { setBusy(false); }
+  }
+
+  const user = plan?.users[0];
+  const nothingToDo = plan !== null && user === undefined;
+
+  return (
+    <Card title="Takvimi yeniden kontrol et">
+      <p className="muted" style={{ fontSize: 13 }}>
+        Bu öğrencinin takvimini yayımlanmış programla karşılaştırır: kendisine ait olup takviminde
+        olmayan dersleri ve hâlâ yayında olup artık kendisine ait olmayan etkinlikleri sayar. Hiçbir
+        şeyi bu ekran yazmaz; onaylarsanız takvim yakınsama sırasına alınır.
+      </p>
+
+      <div className="cluster" style={{ marginTop: 12 }}>
+        <button
+          className="btn btn-secondary btn-sm"
+          type="button"
+          disabled={busy}
+          onClick={() => void preview()}
+        >
+          {busy && !plan ? 'Karşılaştırılıyor…' : 'Farkı hesapla'}
+        </button>
+      </div>
+
+      {plan && (
+        <div style={{ marginTop: 14 }}>
+          <p className="muted" style={{ fontSize: 12 }}>
+            Karşılaştırma kapsamı: <strong>{plan.scope.academicYear}</strong>, Dönem
+            {' '}{plan.scope.classYear}, {plan.scope.programLanguage === 'Turkish' ? 'Türkçe' : 'İngilizce'}
+            {' '}— öğrencinin kendi profilinden okundu.
+          </p>
+          {nothingToDo ? (
+            <Banner tone="info">
+              Takvim yayımlanmış programla uyumlu. Yakınsanacak bir şey yok.
+            </Banner>
+          ) : (
+            <div className="table-wrap" style={{ marginTop: 10 }}>
+              <table className="data-table data-table--stack">
+                <thead>
+                  <tr>
+                    <th>Silinecek</th>
+                    <th>Yazılacak</th>
+                    <th>Dokunulmayan</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>{user!.surplusEventCount}</td>
+                    <td>{user!.missingEventCount}</td>
+                    <td>{user!.untouchableRetiredCount}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+                &ldquo;Dokunulmayan&rdquo;, dersi artık yayında olmayan kayıtlardır. Yokluktan
+                silmek yasaktır (ADR-089); yalnızca raporlanır.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {plan && !nothingToDo && (
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14, marginTop: 14 }}>
+          <div className="field">
+            <label htmlFor="recheck-reason">Gerekçe</label>
+            <textarea
+              id="recheck-reason"
+              className="text-input"
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder="Bu yeniden eşitleme neden gerekli? (denetim kaydına yazılır)"
+            />
+          </div>
+          <div className="cluster">
+            <button
+              className="btn btn-danger btn-sm"
+              type="button"
+              disabled={busy || !reason.trim()}
+              onClick={() => void confirm()}
+            >
+              {busy ? 'İşleniyor…' : 'Takvimi yeniden eşitle'}
+            </button>
+            <button
+              className="btn btn-tertiary btn-sm"
+              type="button"
+              disabled={busy}
+              onClick={() => { setPlan(null); setReason(''); }}
+            >
+              Vazgeç
+            </button>
+          </div>
+        </div>
+      )}
+
+      {notice && <Banner tone="info">{notice}</Banner>}
+      {error && <div className="error" role="alert">{error}</div>}
+    </Card>
+  );
+}
+
 function CalendarTab({ userId }: { userId: string }) {
   const [from, setFrom] = useState(() => todayInIstanbul());
   const [to, setTo] = useState(() => addDays(todayInIstanbul(), 30));
@@ -414,6 +671,7 @@ function CalendarTab({ userId }: { userId: string }) {
 
   return (
     <div className="stack" style={{ gap: 18 }}>
+      <CalendarRecheck userId={userId} onConverged={() => void load()} />
       <Card title="Takvimdeki dersler">
         <p className="muted" style={{ fontSize: 13 }}>
           Bu liste, öğrencinin takvimine gerçekten yazılmış etkinliklerin kaydından okunur —

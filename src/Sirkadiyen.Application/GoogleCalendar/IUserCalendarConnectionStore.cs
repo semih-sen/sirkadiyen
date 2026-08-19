@@ -35,4 +35,25 @@ public interface IUserCalendarConnectionStore : IGoogleCalendarConnectionReader
         Guid userId,
         DateTimeOffset atUtc,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Returns a connection whose managed calendar was proven unavailable to the state initial
+    /// synchronization starts from, discarding the ledger rows that described the calendar that is
+    /// gone (ADR-116).
+    /// </summary>
+    /// <remarks>
+    /// Both writes share one transaction. A connection detached from its calendar while the
+    /// ledger still claims a thousand events live on it would make initial sync skip every one of
+    /// them — it writes what the ledger does not already record — leaving the student with an
+    /// empty calendar and no state that explains it.
+    /// <para>
+    /// Deleting those rows is not deleting from absence (ADR-089): a ledger row describes an
+    /// event on a specific calendar, and that calendar no longer exists, so there is no published
+    /// decision being overridden and nothing on any calendar to remove.
+    /// </para>
+    /// </remarks>
+    Task<ManagedCalendarRebuildResult> RebuildManagedCalendarAsync(
+        Guid userId,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken);
 }

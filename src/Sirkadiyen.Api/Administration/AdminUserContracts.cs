@@ -35,3 +35,30 @@ public sealed record AdminUserCalendarEventsResponse
 
     public required IReadOnlyList<UserScheduleEventView> Events { get; init; }
 }
+
+/// <summary>
+/// Authorizes the re-check the operator was shown for one student (ADR-115).
+/// </summary>
+/// <remarks>
+/// <see cref="PlanHash"/> binds the confirmation to that plan, and <see cref="Reason"/> is
+/// recorded with it because a re-check queues calendar deletions no published revision derived —
+/// the same requirement a cohort repair carries, at a smaller blast radius.
+/// </remarks>
+public sealed record RequestUserCalendarRecheck
+{
+    public required string PlanHash { get; init; }
+
+    public required string Reason { get; init; }
+}
+
+/// <summary>
+/// An operator's request to rebuild a student's deleted managed calendar (ADR-116).
+/// </summary>
+/// <remarks>
+/// Unlike the student's own endpoint this carries a reason, because the person deciding is not
+/// the person whose event ledger is discarded.
+/// </remarks>
+public sealed record RequestManagedCalendarRebuild
+{
+    public required string Reason { get; init; }
+}

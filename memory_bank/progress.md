@@ -1007,3 +1007,57 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
 - **Changed (aynı gün):** saklama süreleri ölçüt bazlı anlatıma çevrildi, iletişim bilgileri
   `web/src/lib/contact.ts` üzerinden gerçek adres/telefonlarla değiştirildi, lisans adımına
   WhatsApp ile kod isteme bağlantıları eklendi.
+
+## Dönem 2 Türkçe akademik yıl taşıması (2026-08-19)
+
+- **Root cause:** silme eşleşme defterinden (yıl sormaz), ekleme kohort sorgusundan (yıla göre
+  süzer) sürülüyor. Kaynak 2026-2027'ye taşınınca saklanan profiller 2025-2026'da kaldı ve yeni
+  kayıtlar kimseye denk gelmedi. ADR-103 bu hatayı öngörmüştü ama yalnızca *yeni* profiller için
+  çözmüştü; Dönem 3'te mevcut öğrenci yoktu, Dönem 2'de vardı. Ayrıntı: ADR-115.
+- **Added:** `ProfileAcademicYearRolloverService`, `IProfileAcademicYearRolloverStore` +
+  PostgreSQL uygulaması, `StudentProfile.MoveToAcademicYear`,
+  `SupportedProfileSchemaCatalogCheck`, `AuditEventCategory.ProfileAcademicYearRolled`,
+  `POST /api/operations/profile-rollovers[/preview]`,
+  `POST /api/admin/users/{id}/calendar-recheck[/preview]`,
+  `ProfileRolloverControl` bileşeni.
+- **Changed:** `CurrentSupportedProfileSchema` — Dönem 2 Türkçe 2026-2027, şema sürümü 1.3,
+  `Grade3AcademicYear` → `RolledOverAcademicYear`. `CohortCalendarRepairService` tek kullanıcı
+  yoluyla genişletildi (`PlanForUserAsync` / `RequestForUserAsync`), planlayıcı holding listesi
+  üzerinden çalışacak şekilde ayrıldı. `SourceCatalogInitializer` açılışta ayrışmayı raporluyor.
+  `config/schedule-sources.json` G2-TR-ANNUAL/PRACTICE için 2026-2027.
+- **Tests executed:** 681 backend birim testi (tümü geçti), 62 web testi, `tsc --noEmit`,
+  `dotnet build`. Yeni testler: rollover servisi (11), kullanıcı bazlı yeniden kontrol (5),
+  şema/katalog ayrışma kontrolü (4), `ProfileRolloverControl` (7), `AdminUserDetail` yeniden
+  kontrol (2).
+- **Tests not executed:** `Sirkadiyen.Persistence.Tests` — PostgreSQL ayakta değildi (Docker
+  kapalı), 226 test bağlantı hatasıyla düştü. Bu düşüşler bu değişiklikten önce de vardı;
+  `ProfileAcademicYearRolloverStore` ve `CohortCalendarRepairStore.FindUserHoldingAsync` için
+  persistence testi **yazılmadı** ve yazılması gerekiyor.
+- **Not done:** taşımanın kendisi çalıştırılmadı (operatör kararı). Dönem 2 anatomi ve dikey
+  koridor kaynakları 2025-2026'da bırakıldı; 26-27 belgeleri henüz yok.
+
+## Silinen yönetilen takvimin kurtarılması (2026-08-19)
+
+- **Root cause:** `MarkManagedCalendarUnavailable` bayrağını hiçbir şey temizlemiyordu —
+  `Reauthorize` bile — ve bayrağı temizleyebilen tek metot (`AttachManagedCalendar`) takvim
+  kimliği doluyken `throw` ediyordu. Onboarding `ActionRequired` → izin ekranı → izin yenile →
+  yine `ActionRequired`. Kapalı döngü. ADR-062'nin "explicit repair flow" olarak ertelediği akış
+  hiç yazılmamıştı. Ayrıntı: ADR-116.
+- **Added:** `GoogleCalendarConnection.ResetForCalendarRebuild`, `ManagedCalendarRebuildService`,
+  `IUserCalendarConnectionStore.RebuildManagedCalendarAsync` + PostgreSQL uygulaması,
+  `ManagedCalendarRebuildResult`/`Outcome`/`Assessment`,
+  `AuditEventCategory.ManagedCalendarRebuilt`, `GET`/`POST /api/calendar/rebuild`,
+  `GET`/`POST /api/admin/users/{id}/calendar-rebuild`, `CalendarRebuildEndpoints`,
+  onboarding `RebuildCalendar` ve admin `CalendarRebuild` bileşenleri.
+- **Changed:** `/onboarding/calendar` artık `ActionRequired` için doğru sebebi gösteriyor
+  (eski metin "Google erişimi iptal edilmiş" diyordu — yanlıştı; iptal edilmiş bir izin
+  `CalendarAuthorizationRequired` üretir). `AdminUserDetail` uyarı banner'ı eyleme dönüştü.
+- **Tests executed:** 693 backend birim testi, 68 web testi, `tsc --noEmit`, `dotnet build` —
+  hepsi geçti. Yeni testler: `ManagedCalendarRebuildServiceTests` (12, domain reset dahil),
+  onboarding takvim sayfası (4), admin yeniden kurma (2).
+- **Tests not executed:** `Sirkadiyen.Persistence.Tests` — PostgreSQL ayakta değil (Docker
+  kapalı). `RebuildManagedCalendarAsync` için persistence testi **yazılmadı**: `ExecuteDeleteAsync`
+  ile domain reset'in tek transaction'da davrandığını yalnızca gerçek veritabanı doğrulayabilir.
+  Yazılması gerekiyor.
+- **Not done:** tespit hâlâ pasif — silinen takvimi arayan bir izleyici yok, bayrak ilk başarısız
+  yazmada basılıyor.

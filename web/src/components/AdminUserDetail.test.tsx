@@ -15,6 +15,9 @@ const api = vi.hoisted(() => ({
   cancelAnnouncement: vi.fn(),
   activateUser: vi.fn(),
   revokeLicense: vi.fn(),
+  previewUserCalendarRecheck: vi.fn(),
+  requestUserCalendarRecheck: vi.fn(),
+  rebuildUserCalendar: vi.fn(),
   ApiError: class extends Error {},
 }));
 vi.mock('@/lib/api', () => api);
@@ -142,6 +145,105 @@ describe('AdminUserDetail', () => {
     ));
     // The confirmation is the server's plan hash, never a count the browser recomputed.
     expect(await screen.findByText('uyar')).toBeInTheDocument();
+  });
+
+  it('re-checks one calendar and confirms with the plan hash the server returned', async () => {
+    // The per-user path exists so an operator can fix one student without authorizing a cohort
+    // (ADR-115). It must send the server's hash, not a count the browser recomputed.
+    api.previewUserCalendarRecheck.mockResolvedValue({
+      scope: { academicYear: '2026-2027', classYear: 2, programLanguage: 'Turkish' },
+      users: [{
+        userId: 'u1', surplusEventCount: 0, missingEventCount: 412, untouchableRetiredCount: 30,
+      }],
+      cohortUserCount: 1,
+      totalSurplusEvents: 0,
+      totalMissingEvents: 412,
+      totalUntouchableRetired: 30,
+      planHash: 'plan-hash-from-the-server',
+    });
+    api.requestUserCalendarRecheck.mockResolvedValue({ outcome: 'Requested', usersRequested: 1 });
+
+    render(<AdminUserDetail userId="u1" />);
+    await screen.findByRole('heading', { name: 'Zeynep' });
+    await userEvent.click(screen.getByRole('tab', { name: 'Takvim' }));
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Farkı hesapla' }));
+
+    // The 412 lessons this student is missing are exactly what an academic-year divergence looks
+    // like from one calendar's side.
+    expect(await screen.findByText('412')).toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText('Gerekçe'), 'Dönem 2 yıl taşıması sonrası.');
+    await userEvent.click(screen.getByRole('button', { name: 'Takvimi yeniden eşitle' }));
+
+    await waitFor(() => expect(api.requestUserCalendarRecheck).toHaveBeenCalledWith(
+      'u1',
+      'plan-hash-from-the-server',
+      'Dönem 2 yıl taşıması sonrası.',
+    ));
+  });
+
+  it('says a calendar is already correct rather than offering a pointless confirmation', async () => {
+    api.previewUserCalendarRecheck.mockResolvedValue({
+      scope: { academicYear: '2025-2026', classYear: 2, programLanguage: 'Turkish' },
+      users: [],
+      cohortUserCount: 1,
+      totalSurplusEvents: 0,
+      totalMissingEvents: 0,
+      totalUntouchableRetired: 0,
+      planHash: 'hash',
+    });
+
+    render(<AdminUserDetail userId="u1" />);
+    await screen.findByRole('heading', { name: 'Zeynep' });
+    await userEvent.click(screen.getByRole('tab', { name: 'Takvim' }));
+    await userEvent.click(await screen.findByRole('button', { name: 'Farkı hesapla' }));
+
+    expect(await screen.findByText(/Yakınsanacak bir şey yok/)).toBeInTheDocument();
+    expect(screen.queryByLabelText('Gerekçe')).not.toBeInTheDocument();
+  });
+
+  it('offers a rebuild when the managed calendar is unreachable, and states what it discards', async () => {
+    // Before ADR-116 the panel could only describe the dead end. The destructive part must be
+    // stated before the action is offered, not after it is taken.
+    api.getAdminUser.mockResolvedValue({
+      ...detail,
+      user: {
+        ...detail.user,
+        calendarConnection: {
+          ...detail.user.calendarConnection,
+          managedCalendarUnavailableAtUtc: '2026-08-15T00:00:00Z',
+        },
+      },
+    });
+    api.rebuildUserCalendar.mockResolvedValue({ outcome: 'Reset', discardedMappings: 412 });
+
+    render(<AdminUserDetail userId="u1" />);
+    await screen.findByRole('heading', { name: 'Zeynep' });
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Takvimi yeniden kur' }));
+    expect(await screen.findByText(/eşleşme defteri tamamen silinir/)).toBeInTheDocument();
+
+    // The reason is required, because the person deciding is not the account owner.
+    const confirm = screen.getByRole('button', { name: 'Takvimi yeniden kur' });
+    expect(confirm).toBeDisabled();
+
+    await userEvent.type(screen.getByLabelText('Gerekçe'), 'Öğrenci takvimi silmiş.');
+    await userEvent.click(confirm);
+
+    await waitFor(() => expect(api.rebuildUserCalendar).toHaveBeenCalledWith(
+      'u1',
+      'Öğrenci takvimi silmiş.',
+    ));
+    // The count is how the operator learns the size of what the student will see rewritten.
+    expect(await screen.findByText(/412 eşleşme kaydı/)).toBeInTheDocument();
+  });
+
+  it('does not offer a rebuild for a healthy calendar', async () => {
+    render(<AdminUserDetail userId="u1" />);
+    await screen.findByRole('heading', { name: 'Zeynep' });
+
+    expect(screen.queryByRole('button', { name: 'Takvimi yeniden kur' })).not.toBeInTheDocument();
   });
 });
 

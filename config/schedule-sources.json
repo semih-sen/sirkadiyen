@@ -87,11 +87,12 @@
       "sheetGid": 370969780,
       "parserProfile": "grade2_yearly_v1",
       "parserProfileVersion": "1.0.0",
-      "academicYear": "2025-2026",
+      "academicYear": "2026-2027",
       "classYear": 2,
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
-      "fixturePath": "sheets/donem-2-tr/xlsx/2025-2026 Dönem 2 Türkçe Tıp Programı Ders Programı.xlsx"
+      "fixturePath": "sheets/donem-2-tr/xlsx/2025-2026 Dönem 2 Türkçe Tıp Programı Ders Programı.xlsx",
+      "notes": "Rolled over to 2026-2027 (ADR-115). The sourceUri, externalId and fixturePath here are still the pre-rollover ones: the running catalog is edited from /admin/sources (ADR-114) and the new year's workbook is not committed, so this file states the year the cohort is published under, not the document it is published from."
     },
     {
       "sourceId": "G2-TR-PRACTICE",
@@ -103,7 +104,7 @@
       "sheetGid": 77218153,
       "parserProfile": "grade2_practice_v1",
       "parserProfileVersion": "1.2.0",
-      "academicYear": "2025-2026",
+      "academicYear": "2026-2027",
       "classYear": 2,
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
@@ -111,7 +112,7 @@
         "practiceGroup": ["A", "B", "C", "D", "E", "F", "G", "H"]
       },
       "fixturePath": "sheets/donem-2-tr/xlsx/2025-2026 Dönem 2 Türkçe Tıp Programı Uygulama Tablosu (1).xlsx",
-      "notes": "The committed 2025-2026 fixture states eight practice cohorts A-H and no subgroup values. It is also the only committed source that writes a numeric date, which is why this profile declares dayFirst (ADR-075)."
+      "notes": "Rolled over to 2026-2027 (ADR-115). The sourceUri, externalId and fixturePath here are still the pre-rollover ones: the running catalog is edited from /admin/sources (ADR-114) and the new year's workbook is not committed, so this file states the year the cohort is published under, not the document it is published from. The committed 2025-2026 fixture states eight practice cohorts A-H and no subgroup values. It is also the only committed source that writes a numeric date, which is why this profile declares dayFirst (ADR-075)."
     },
     {
       "sourceId": "G2-VERTICAL-SPRING",

@@ -142,6 +142,14 @@ internal static class ApiServiceCollectionExtensions
         services.AddScoped<AnnouncementService>();
         services.AddScoped<CohortCalendarRepairService>();
 
+        // The one way out of a deleted managed calendar, shared by the student's own
+        // endpoint and the operator's (ADR-116).
+        services.AddScoped<ManagedCalendarRebuildService>();
+
+        // The rollover corrects stored profiles; every calendar write it implies is still
+        // performed by the worker's convergence pass (ADR-115).
+        services.AddScoped<ProfileAcademicYearRolloverService>();
+
         // Administrative acquisition. The API stores the uploaded evidence; the worker
         // still owns parsing, validation and publication (ADR-080).
         services.AddSingleton<DocxSnapshotConverter>();

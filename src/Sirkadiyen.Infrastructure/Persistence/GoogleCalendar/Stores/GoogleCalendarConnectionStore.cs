@@ -298,6 +298,57 @@ public sealed class GoogleCalendarConnectionStore(SirkadiyenDbContext dbContext)
         return RequestReconciliationOutcome.Requested;
     }
 
+    public async Task<ManagedCalendarRebuildResult> RebuildManagedCalendarAsync(
+        Guid userId,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken) =>
+        await RetriableTransaction.ExecuteAsync(dbContext, async () =>
+        {
+            await using IDbContextTransaction transaction =
+                await dbContext.Database.BeginTransactionAsync(cancellationToken);
+
+            GoogleCalendarConnection? connection = await dbContext.GoogleCalendarConnections
+                .SingleOrDefaultAsync(candidate => candidate.UserId == userId, cancellationToken);
+
+            if (connection is null)
+            {
+                return new ManagedCalendarRebuildResult
+                {
+                    Outcome = ManagedCalendarRebuildOutcome.NoConnection,
+                };
+            }
+
+            // The domain owns the eligibility rule, so asking it beforehand and acting on the
+            // answer keeps "may this be rebuilt" in exactly one place.
+            if (connection.ManagedCalendarUnavailableAtUtc is null)
+            {
+                return new ManagedCalendarRebuildResult
+                {
+                    Outcome = ManagedCalendarRebuildOutcome.NotEligible,
+                };
+            }
+
+            // Every row described an event on the calendar that is gone. Leaving them would make
+            // initial sync skip the lessons they name, because it writes what the ledger does not
+            // already record — an empty calendar with no state explaining it.
+            int discarded = await dbContext.UserCalendarEventMappings
+                .Where(mapping => mapping.UserId == userId)
+                .ExecuteDeleteAsync(cancellationToken);
+
+            connection.ResetForCalendarRebuild(atUtc);
+
+            // One transaction for both. A connection detached from its calendar while its ledger
+            // rows survive, or the reverse, is a state nothing downstream can reason about.
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+
+            return new ManagedCalendarRebuildResult
+            {
+                Outcome = ManagedCalendarRebuildOutcome.Reset,
+                DiscardedMappings = discarded,
+            };
+        });
+
     private async Task<GoogleCalendarConnection> SingleForUpdateAsync(
         Guid userId,
         CancellationToken cancellationToken) =>

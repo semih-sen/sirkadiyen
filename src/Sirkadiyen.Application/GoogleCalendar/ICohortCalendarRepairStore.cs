@@ -21,6 +21,20 @@ public interface ICohortCalendarRepairStore
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// One user's profile and holdings, or <see langword="null"/> when they are not
+    /// synchronization-ready. Backs the per-user re-check an operator runs from the user's own
+    /// admin page (ADR-115).
+    /// </summary>
+    /// <remarks>
+    /// It applies exactly the readiness conditions <see cref="ListCohortHoldingsAsync"/> does, so
+    /// a single-user re-check is the same operation as a cohort repair narrowed to one row rather
+    /// than a second, more permissive path into the same convergence pass.
+    /// </remarks>
+    Task<CohortRepairHolding?> FindUserHoldingAsync(
+        Guid userId,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Flags the given users' connections for the convergence pass, returning how many took the
     /// flag. A user whose connection has since died or whose initial sync never finished is
     /// silently skipped, exactly as <c>TryRequestProfileResync</c> already decides (ADR-096).

@@ -6535,3 +6535,219 @@ someone with a shell is still legal — the panel notices (the stored revision n
 matches the file) but cannot prevent it.
 
 ---
+
+## ADR-115: A cohort's academic year is rolled over explicitly, and the divergence is reported
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-19
+**Implements:** `ProfileAcademicYearRolloverService`, `SupportedProfileSchemaCatalogCheck`,
+`StudentProfile.MoveToAcademicYear`, `CohortCalendarRepairService.PlanForUserAsync` /
+`RequestForUserAsync`, `POST /api/operations/profile-rollovers[/preview]`,
+`POST /api/admin/users/{id}/calendar-recheck[/preview]`, supported-profile schema 1.3
+**Amends:** ADR-103, ADR-111
+**Caused by:** the Grade 2 Turkish rollover of 2026-08-19
+
+### Context
+
+The Grade 2 Turkish annual and practice sources were repointed at the 2026-2027
+workbooks from `/admin/sources` (ADR-114) and their `academicYear` moved with
+them. The revision published, the diff was reviewed and released, and the class
+watched a year of lessons disappear from their calendars with nothing written
+back.
+
+Nothing was broken. Every stage did exactly what it was built to do, and the two
+halves of incremental dispatch simply stopped agreeing about who a lesson is for:
+
+- **Deletion is ledger-driven.** `DeleteForHoldersAsync` asks
+  `IUserCalendarEventMappingStore.ListForStableIdentityAsync` who holds a lesson.
+  A ledger row is keyed by `(source, stable identity)` and states no academic
+  year, so every 2025-2026 event was removed correctly.
+- **Insertion is cohort-driven.** `ReconcileRecordAsync` asks
+  `ICalendarSyncTargetReadStore.ListCohortTargetsAsync(record.AcademicYear, …)`,
+  which filters `StudentProfiles.AcademicYear`. Every stored Grade 2 profile
+  still said 2025-2026, because a profile is stamped with its program's year once
+  — at save time, from the schema — and nothing has ever restamped one.
+
+So the new records resolved to nobody. The diff was marked `Dispatched` with
+zero insertions planned, which is indistinguishable from a diff that had nothing
+to insert.
+
+ADR-103 predicted this exact failure — "an empty calendar, with the profile
+saved, the revision published, the diff computed and every check downstream
+reporting success" — and solved it only for *new* profiles. Grade 3 was a new
+program with no existing students, so the gap it left was invisible until a
+grade with a population rolled over.
+
+### Decision
+
+1. **A program's academic year and its sources' academic year are one fact
+   stated twice, and moving one obliges moving the other.** The schema now
+   states 2026-2027 for Grade 2 Turkish (schema version 1.3, so a profile still
+   on 1.2 is identifiable as one stamped before the rollover).
+
+2. **Existing profiles are moved by an explicit, audited operator action, not a
+   migration.** `ProfileAcademicYearRolloverService` follows ADR-111's shape:
+   plan, show, confirm by plan hash, audit before the side effect. A deployment
+   that silently restamped stored student data would be a whole-population write
+   authorized by nobody (AI_GUIDELINE §13), and a rollover legitimately needs a
+   human to decide *when* — the sources for the rest of the cohort may not have
+   moved yet.
+
+3. **The target year is read from the deployed schema and never accepted from
+   the caller.** An operator able to type it could stamp a year new sign-ups
+   would not receive, splitting one cohort across two years — which is the
+   failure being repaired, reproduced by hand. A scope naming a year the schema
+   does not state is refused with a cause: deploy the schema first.
+
+4. **A rollover writes only the academic year and the schema version.**
+   `StudentProfile.MoveToAcademicYear` exists rather than reusing `Update`, so
+   it is structurally impossible for an operator action to alter a selector or a
+   student number. A profile whose selectors the target program refuses is
+   excluded from the move entirely and reported, rather than restamped into a
+   profile the schema would reject the next time its owner opened their settings.
+
+5. **It queues convergence; it never writes a calendar.** Every event is still
+   written by `ProfileChangeResyncService` under its existing bounds —
+   publication-gated, budgeted per cycle, freeze-aware, resumable, and never
+   deleting from absence. A second write path would mean a second set of those
+   guarantees to keep true.
+
+6. **The divergence is reported at runtime.** `SupportedProfileSchemaCatalogCheck`
+   compares the deployed schema against the loaded catalog on every worker start
+   and logs an error naming the cohort, both years, and the repair. It does not
+   block anything: the pipeline is not wrong when the two disagree — every parse,
+   validation and publication is correct — and refusing to publish would let one
+   mistyped catalog field take a program offline. What was wrong is that nothing
+   said it out loud.
+
+7. **A calendar re-check exists for one student.** `PlanForUserAsync` /
+   `RequestForUserAsync` are the cohort repair narrowed to a single row, on the
+   same store, freeze check, plan hash and audit ordering. A narrower blast
+   radius earns no weaker guarantees. It lives on `/admin/users/{id}` because
+   that is where the question "is this person's calendar right?" is asked.
+
+### Consequences
+
+- Grade 2 Turkish profiles must be rolled over from `/admin/operations` before
+  any 2026-2027 lesson reaches a Grade 2 calendar. Until then the cohort's
+  calendars stay as the dispatch left them.
+- **The Grade 2 Turkish anatomy and vertical-corridor sources are still on
+  2025-2026.** Their lessons therefore do not apply to a rolled-over profile and
+  will be absent from 2026-2027 calendars until those documents are captured.
+  They are not deleted: convergence measures removals against the *new* year's
+  published identities, so a ledger row from the old year is invisible to it and
+  left alone (ADR-089). The plan reports the count as "stranded" so an operator
+  is told rather than surprised.
+- The three Grade 2 Turkish selector dimensions are now evidenced across two
+  academic years rather than one. `EverySelectorValueIsDeclaredByAConfirmedSourceForThatCohort`
+  is deliberately year-agnostic for that reason; the new
+  `EveryProgramsYearIsOneTheCatalogPublishesForThatCohort` guards the pair that
+  actually decides audience.
+- The committed `config/schedule-sources.json` states 2026-2027 for the two
+  rolled sources while its `sourceUri` and `fixturePath` remain the pre-rollover
+  ones, because the running catalog is the authority (ADR-114) and the new
+  year's workbook is not in the repository. The file is a deployment default,
+  and the year is the half that must not start out wrong.
+- Rollover is now a routine with a surface. The next grade to move needs a
+  catalog edit, a schema constant, and one confirmed plan.
+
+---
+
+## ADR-116: A deleted managed calendar is rebuilt explicitly, by the student or an operator
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-19
+**Implements:** `GoogleCalendarConnection.ResetForCalendarRebuild`,
+`ManagedCalendarRebuildService`, `IUserCalendarConnectionStore.RebuildManagedCalendarAsync`,
+`GET`/`POST /api/calendar/rebuild`, `GET`/`POST /api/admin/users/{id}/calendar-rebuild`,
+`AuditEventCategory.ManagedCalendarRebuilt`
+**Completes:** ADR-062 ("automatic recreation of a deleted whole calendar is not part of this
+decision")
+**Amends:** ADR-024, ADR-058
+
+### Context
+
+ADR-062 deliberately left the deleted-calendar case to "an explicit repair flow" and
+`MarkManagedCalendarUnavailable` says the same in its own documentation. That flow was
+never written, and its absence was not a missing convenience. It was a closed loop:
+
+1. The student deletes the Sirkadiyen calendar. The next write returns 404/410, which
+   `GoogleCalendarClient` maps to `GoogleManagedCalendarUnavailableException`, and
+   `ManagedCalendarUnavailableAtUtc` is stamped.
+2. Every read store filters `ManagedCalendarUnavailableAtUtc == null`, so the student
+   drops out of diff dispatch, inventory, profile convergence, announcements and cohort
+   repair at once.
+3. `OnboardingStateService` reports `ActionRequired`, which the frontend routes to the
+   calendar consent step.
+4. Consenting calls `Reauthorize`, which **does not clear the flag** — deliberately, since
+   a dead credential and a deleted calendar are different problems. Onboarding therefore
+   reports `ActionRequired` again, and the student is routed back to the same screen.
+
+Nothing cleared the flag. The only writer that did was `AttachManagedCalendar`, which
+throws when an id is already attached, and the recovery path that reaches it
+(`InitialCalendarSyncService.EnsureCalendarAsync`) runs only during initial sync and only
+when `ManagedCalendarId` is null. A `Completed` connection never entered it.
+
+The screen also stated the wrong cause. `ActionRequired` has exactly one source — an
+unreachable calendar — because a revoked grant clears `Authorized` and reports
+`CalendarAuthorizationRequired` instead. The page said "Google access appears to have been
+revoked", which is both untrue and the reason the loop looked like a reasonable next step.
+
+### Decision
+
+1. **`ResetForCalendarRebuild` returns the connection to the state initial synchronization
+   starts from**: calendar detached, flag cleared, `InitialSyncState` back to `Pending`,
+   and every queued piece of work scoped to the calendar that is gone (inventory cadence,
+   reconciliation replay cursor, profile-resync request) cleared with it. Initial sync
+   resolves the whole audience from the profile when it runs, which subsumes all three.
+
+2. **Detaching the id is the mechanism, not bookkeeping.** It is what makes the existing
+   recovery path reachable: initial sync looks for a marker-matched orphan calendar
+   (ADR-063) before creating one. That also makes the operation safe when the calendar
+   turns out *not* to be deleted — a transient 404, a permissions blip — because the
+   marker search reattaches the same calendar and the deterministic event ids (ADR-024)
+   make every re-insert a harmless already-exists. The repair therefore does not have to
+   answer "was it really deleted?" correctly to be safe.
+
+3. **The ledger rows are discarded, in the same transaction.** They describe events on a
+   calendar that no longer exists. Leaving them would make initial sync skip every lesson
+   they name — it writes what the ledger does not already record — producing an empty
+   calendar with no state that explains it. This is not deleting from absence (ADR-089):
+   there is no published decision being overridden and nothing on any calendar to remove.
+
+4. **It is left `Pending`, not `InProgress`.** Populating a calendar is the user's
+   decision to start (ADR-058) and a rebuild writes a year of events. `Status` is
+   untouched, so a connection that *also* needs re-authorization still passes through
+   consent first.
+
+5. **Two doors, one service.** The student repairs their own account from the screen they
+   were stuck on; a SuperAdmin repairs it for the student who does not find that button or
+   writes in instead. The eligibility rule, the freeze check, the ledger discard and the
+   audit record must not be able to differ between them, so both go through
+   `ManagedCalendarRebuildService`. The operator's endpoint requires a reason and the
+   student's does not: on their own account, that they asked *is* the reason.
+
+6. **Refused during a freeze.** A rebuild queues no calendar write by itself, but it
+   discards durable state, which is what a freeze exists to stop until someone has looked
+   (ADR-034/043).
+
+7. **The audit is written before the reset**, as everywhere else, so an unrecordable
+   request leaves the ledger intact rather than untraceable.
+
+### Consequences
+
+- `ActionRequired` now has a real resolution, and the onboarding copy names the actual
+  cause. `ReauthorizingDoesNotClearTheUnavailableFlag` is pinned as a test rather than
+  left as an implicit assumption, because the temptation to "fix" the loop inside
+  `Reauthorize` would silently merge two different repairs.
+- A rebuilt student loses the history that lived on the deleted calendar. Nothing can
+  recover it — the calendar is gone — and both screens say so before the action.
+- The rebuild is the one operator action on `/admin/users/{id}` that discards student data
+  rather than queueing convergence, so it is confirm-then-reason like the destructive
+  operations, not a one-click button.
+- Detection is still passive: the flag is stamped by the next write that fails, not by a
+  watcher. A student who deletes their calendar and never opens Sirkadiyen may wait a
+  full inventory cadence before the state is even noticed. That is unchanged by this ADR
+  and remains open.
+
+---

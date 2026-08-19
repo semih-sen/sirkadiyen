@@ -1,10 +1,16 @@
+using System.Security.Claims;
+using System.Text.Json;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc;
+using Sirkadiyen.Api.GoogleCalendar;
 using Sirkadiyen.Api.Identity;
 using Sirkadiyen.Application.Administration;
 using Sirkadiyen.Application.Auditing;
+using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Licensing;
 using Sirkadiyen.Application.Onboarding;
 using Sirkadiyen.Application.Scheduling.Access;
+using Sirkadiyen.Contracts.Serialization;
 using Sirkadiyen.Domain.Auditing;
 using Sirkadiyen.Domain.GoogleCalendar;
 using Sirkadiyen.Domain.Identity;
@@ -18,7 +24,10 @@ namespace Sirkadiyen.Api.Administration;
 /// activity, and a read of what is actually on that user's managed calendar.
 /// </summary>
 /// <remarks>
-/// Nothing here writes. The one user-scoped write an operator has — manual activation — stays in
+/// Almost nothing here writes. The two user-scoped writes are the calendar re-check (ADR-115),
+/// which queues a convergence and performs no calendar operation of its own, and the calendar
+/// rebuild (ADR-116), which discards a ledger describing a calendar that no longer exists so the
+/// student can start their synchronization again. Manual activation stays in
 /// <c>LicenseEndpoints</c>, where the license service that performs it lives.
 /// </remarks>
 public static class AdminUserEndpoints
@@ -58,7 +67,197 @@ public static class AdminUserEndpoints
         users.MapGet("/{userId:guid}/calendar-changes", ListCalendarChangesAsync)
             .WithSummary("Returns the most recent creations and updates on this user's calendar.");
 
+        // A re-check is the cohort repair narrowed to one student (ADR-111, ADR-115). It lives
+        // here rather than under /api/operations because the question it answers — "is this
+        // person's calendar right?" — is asked while looking at that person.
+        users.MapPost("/{userId:guid}/calendar-recheck/preview", PreviewCalendarRecheckAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
+            .WithSummary("Shows what re-synchronizing this one user's calendar would converge.");
+        users.MapPost("/{userId:guid}/calendar-recheck", RequestCalendarRecheckAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
+            .WithSummary("Authorizes the shown re-check, with an audit entry.");
+
+        // The operator's door to the same rebuild the student has (ADR-116), for the student who
+        // does not find or cannot use theirs.
+        users.MapGet("/{userId:guid}/calendar-rebuild", AssessCalendarRebuildAsync)
+            .WithSummary("Says whether this user's managed calendar needs rebuilding.");
+        users.MapPost("/{userId:guid}/calendar-rebuild", RequestCalendarRebuildAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
+            .WithSummary("Rebuilds this user's deleted managed calendar, with an audit entry.");
+
         return builder;
+    }
+
+    /// <summary>Matches the calendar-repair reason bound, so one operator note is not longer than another.</summary>
+    private const int MaximumRecheckReasonLength = 500;
+
+    private static readonly JsonSerializerOptions AuditMetadataOptions = ContractJson.CreateOptions();
+
+    private static async Task<IResult> PreviewCalendarRecheckAsync(
+        Guid userId,
+        CohortCalendarRepairService repairs,
+        CancellationToken cancellationToken)
+    {
+        CohortRepairPlan? plan = await repairs.PlanForUserAsync(userId, cancellationToken);
+        return plan is null ? NotSynchronizable() : Results.Ok(plan);
+    }
+
+    private static async Task<IResult> RequestCalendarRecheckAsync(
+        Guid userId,
+        RequestUserCalendarRecheck request,
+        ClaimsPrincipal principal,
+        HttpContext context,
+        CohortCalendarRepairService repairs,
+        AuditEventRecorder audit,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (string.IsNullOrWhiteSpace(request.PlanHash))
+        {
+            return Results.Problem(
+                title: "Invalid calendar re-check request",
+                detail: "'planHash' is required: a re-check may only be confirmed against the "
+                    + "plan it was shown for.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        // A single-user re-check still queues deletions no published revision derived, so it
+        // carries the same reason requirement the cohort repair does (AI_GUIDELINE §19).
+        if (string.IsNullOrWhiteSpace(request.Reason)
+            || request.Reason.Trim().Length > MaximumRecheckReasonLength)
+        {
+            return Results.Problem(
+                title: "Invalid calendar re-check request",
+                detail: $"'reason' is required and must contain at most "
+                    + $"{MaximumRecheckReasonLength} characters.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        CohortRepairRequestResult result = await repairs.RequestForUserAsync(
+            userId,
+            request.PlanHash,
+            (plan, token) => audit.RecordAsync(
+                new AuditEventDraft
+                {
+                    Category = AuditEventCategory.CalendarRepairRequested,
+                    ActorUserId = UserClaimsPrincipalFactory.GetRequiredUserId(principal),
+                    ActorEmail = UserClaimsPrincipalFactory.GetRequiredEmail(principal),
+                    // The subject is the student, not the cohort, so the entry appears on their
+                    // own activity trail — which is where anyone asking why their calendar
+                    // changed will look first.
+                    SubjectType = "User",
+                    SubjectId = userId.ToString(),
+                    CorrelationId = context.CorrelationId(),
+                    ClientIp = context.ClientIp(),
+                    UserAgent = context.ClientUserAgent(),
+                    Reason = request.Reason.Trim(),
+                    Metadata = JsonSerializer.Serialize(
+                        new
+                        {
+                            planHash = plan.PlanHash,
+                            scope = plan.Scope.ToString(),
+                            surplus = plan.TotalSurplusEvents,
+                            missing = plan.TotalMissingEvents,
+                            retiredUntouched = plan.TotalUntouchableRetired,
+                        },
+                        AuditMetadataOptions),
+                },
+                token),
+            cancellationToken);
+
+        return result.Outcome switch
+        {
+            CohortRepairOutcome.Requested =>
+                Results.Accepted($"/api/admin/users/{userId}/calendar-recheck", result),
+
+            CohortRepairOutcome.PlanChanged => Results.Problem(
+                title: "The re-check plan has changed",
+                detail: "This user no longer resolves to the plan you confirmed. Review the new "
+                    + "preview and confirm that one instead.",
+                statusCode: StatusCodes.Status409Conflict),
+
+            CohortRepairOutcome.Frozen => Results.Problem(
+                title: "Operations are frozen",
+                detail: "No calendar work may be queued while a global or scoped freeze is in "
+                    + "force. Lift the freeze first.",
+                statusCode: StatusCodes.Status409Conflict),
+
+            // NothingToRepair with no plan is the "not synchronizable" case the service reports
+            // by returning no plan at all; with one, it means the calendar already agrees.
+            _ => result.Plan is null ? NotSynchronizable() : Results.Ok(result),
+        };
+    }
+
+    /// <summary>
+    /// A user with no synchronizable calendar has nothing to converge onto, which is a statement
+    /// about their account rather than a server fault.
+    /// </summary>
+    private static IResult NotSynchronizable() =>
+        Results.Problem(
+            title: "This user has no synchronizable calendar",
+            detail: "A re-check needs an authorized connection whose initial sync has completed, "
+                + "a managed calendar that is still reachable, and an active licence.",
+            statusCode: StatusCodes.Status409Conflict);
+
+    private static async Task<IResult> AssessCalendarRebuildAsync(
+        Guid userId,
+        ManagedCalendarRebuildService rebuilds,
+        CancellationToken cancellationToken) =>
+        Results.Ok(await rebuilds.AssessAsync(userId, cancellationToken));
+
+    private static async Task<IResult> RequestCalendarRebuildAsync(
+        Guid userId,
+        RequestManagedCalendarRebuild request,
+        ClaimsPrincipal principal,
+        HttpContext context,
+        ManagedCalendarRebuildService rebuilds,
+        AuditEventRecorder audit,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        // An operator acting on someone else's account states why. The student's own endpoint does
+        // not ask for one — that they asked is the reason — but here the account owner is not the
+        // person making the decision, and they are the one who has to be able to find out later.
+        if (string.IsNullOrWhiteSpace(request.Reason)
+            || request.Reason.Trim().Length > MaximumRecheckReasonLength)
+        {
+            return Results.Problem(
+                title: "Invalid calendar rebuild request",
+                detail: $"'reason' is required and must contain at most "
+                    + $"{MaximumRecheckReasonLength} characters.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        ManagedCalendarRebuildResult result = await rebuilds.RequestAsync(
+            userId,
+            (assessment, token) => audit.RecordAsync(
+                new AuditEventDraft
+                {
+                    Category = AuditEventCategory.ManagedCalendarRebuilt,
+                    ActorUserId = UserClaimsPrincipalFactory.GetRequiredUserId(principal),
+                    ActorEmail = UserClaimsPrincipalFactory.GetRequiredEmail(principal),
+                    // The subject is the student whose ledger is discarded, not the operator, so
+                    // the entry lands on the trail the person affected would be shown.
+                    SubjectType = "Calendar",
+                    SubjectId = userId.ToString(),
+                    CorrelationId = context.CorrelationId(),
+                    ClientIp = context.ClientIp(),
+                    UserAgent = context.ClientUserAgent(),
+                    Reason = request.Reason.Trim(),
+                    Metadata = JsonSerializer.Serialize(
+                        new
+                        {
+                            requestedBy = "operator",
+                            unavailableSinceUtc = assessment.UnavailableSinceUtc,
+                        },
+                        AuditMetadataOptions),
+                },
+                token),
+            cancellationToken);
+
+        return CalendarRebuildResults.ToResult(result);
     }
 
     private static async Task<IResult> ListAsync(

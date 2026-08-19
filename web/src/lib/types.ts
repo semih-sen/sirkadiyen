@@ -1339,3 +1339,81 @@ export interface CohortRepairRequestResult {
   usersRequested: number;
   plan?: CohortRepairPlan | null;
 }
+
+/**
+ * The program whose stored profiles a rollover moves onto the year its sources now state
+ * (ADR-115).
+ *
+ * Only the year moved *from* is named. The target comes from the deployed schema, so an operator
+ * cannot stamp a year new sign-ups would not get and split one cohort across two.
+ */
+export interface ProfileRolloverScope {
+  fromAcademicYear: string;
+  classYear: number;
+  programLanguage: ProgramLanguage;
+}
+
+/** What rolling one student's profile forward would mean for their calendar. */
+export interface ProfileRolloverUserPlan {
+  userId: string;
+  /** Lessons published for the target year that resolve to them and are not on the calendar. */
+  gainedEventCount: number;
+  /** Rows from the year being left that convergence will not remove — see ADR-089. */
+  strandedEventCount: number;
+  /** Whether a connection exists that can actually take the convergence request. */
+  convergenceQueueable: boolean;
+}
+
+/**
+ * The server-computed plan a confirmation is bound to. As with a repair, `planHash` covers the
+ * per-user counts rather than only the totals.
+ */
+export interface ProfileRolloverPlan {
+  scope: ProfileRolloverScope;
+  /** Empty when the deployed schema does not state a different year for this program. */
+  toAcademicYear: string;
+  toSchemaVersion: string;
+  users: ProfileRolloverUserPlan[];
+  totalGainedEvents: number;
+  totalStrandedEvents: number;
+  profilesWithoutSyncReadyConnection: number;
+  /** Profiles whose selectors the target program refuses; excluded from the move entirely. */
+  blockedByInvalidSelectors: string[];
+  planHash: string;
+}
+
+export type ProfileRolloverOutcome =
+  | 'Moved'
+  | 'PlanChanged'
+  | 'NothingToMove'
+  | 'Frozen'
+  | 'NotSupportedBySchema'
+  | string;
+
+export interface ProfileRolloverRequestResult {
+  outcome: ProfileRolloverOutcome;
+  profilesMoved: number;
+  convergenceRequested: number;
+  plan?: ProfileRolloverPlan | null;
+  refusal?: string | null;
+}
+
+export type ManagedCalendarRebuildOutcome =
+  | 'Reset'
+  | 'NotEligible'
+  | 'NoConnection'
+  | 'Frozen'
+  | string;
+
+/** Whether a managed calendar needs rebuilding, computed without changing anything (ADR-116). */
+export interface ManagedCalendarRebuildAssessment {
+  outcome: ManagedCalendarRebuildOutcome;
+  /** When the calendar was first proven unreachable. Null unless `outcome` is `Reset`. */
+  unavailableSinceUtc?: string | null;
+}
+
+export interface ManagedCalendarRebuildResult {
+  outcome: ManagedCalendarRebuildOutcome;
+  /** Ledger rows discarded — also the number of lessons the next sync will write again. */
+  discardedMappings: number;
+}

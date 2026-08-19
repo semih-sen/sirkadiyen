@@ -21,8 +21,9 @@ namespace Sirkadiyen.Application.StudentProfiles;
 /// </para>
 /// <para>
 /// The programs no longer share one academic year. The faculty published the
-/// 2026-2027 Grade 3 documents while Grades 1 and 2 were still on 2025-2026, so
-/// each program states the year its own sources were captured for (ADR-103).
+/// 2026-2027 Grade 3 documents while Grades 1 and 2 were still on 2025-2026, and
+/// the Grade 2 Turkish annual and practice sources followed, so each program
+/// states the year its own sources were captured for (ADR-103, ADR-115).
 /// </para>
 /// </remarks>
 public static class CurrentSupportedProfileSchema
@@ -30,17 +31,30 @@ public static class CurrentSupportedProfileSchema
     /// <summary>The year this schema revision was cut for.</summary>
     public const string AcademicYear = "2025-2026";
 
-    /// <summary>The year the Grade 3 rollover captured (ADR-103).</summary>
-    public const string Grade3AcademicYear = "2026-2027";
+    /// <summary>
+    /// The year the rolled-over programs were captured for (ADR-103, ADR-115).
+    /// </summary>
+    /// <remarks>
+    /// Grade 3 arrived on it, and Grade 2 Turkish joined it when its annual and
+    /// practice sources were moved. A program's year is what
+    /// <see cref="StudentProfileService"/> stamps on the profile, and
+    /// <c>CalendarAudienceResolver</c> matches a canonical record to a student on
+    /// it, so this constant and the catalog's <c>academicYear</c> for the same
+    /// cohort must move together. Once they did not, and every Grade 2 Turkish
+    /// calendar silently stopped receiving lessons (ADR-115).
+    /// </remarks>
+    public const string RolledOverAcademicYear = "2026-2027";
 
     /// <summary>
-    /// Bumped to 1.1 when Grade 2 Turkish was added (ADR-079), and to 1.2 when
+    /// Bumped to 1.1 when Grade 2 Turkish was added (ADR-079), to 1.2 when
     /// Grade 3 Turkish arrived and each program began stating its own academic
-    /// year (ADR-103). It is recorded on every stored profile, so a profile
-    /// written under an earlier version stays identifiable as one validated
-    /// before those programs existed.
+    /// year (ADR-103), and to 1.3 when Grade 2 Turkish rolled over to 2026-2027
+    /// (ADR-115). It is recorded on every stored profile, so a profile written
+    /// under an earlier version stays identifiable — and, for a Grade 2 profile
+    /// still on 1.2, identifiable as one stamped before the rollover and
+    /// therefore due for it.
     /// </summary>
-    public const string SchemaVersion = "1.2";
+    public const string SchemaVersion = "1.3";
 
     public static SupportedProfileSchema Create() => new()
     {
@@ -115,10 +129,18 @@ public static class CurrentSupportedProfileSchema
     /// independent of them: the dissection rotation assigns <c>1</c>, <c>2</c> or
     /// <c>3</c> to a student regardless of which letter they carry, so a Grade 2
     /// student declares three selectors rather than two (ADR-078, ADR-079).
+    /// <para>
+    /// The program moved to 2026-2027 when the annual and practice sources were
+    /// re-pointed at the new year's workbooks (ADR-115). Its anatomy and
+    /// vertical-corridor sources have not moved yet, so the three selectors are
+    /// still evidenced — by the catalog as a whole rather than by the new year's
+    /// sources alone — and the lessons those sources publish will be absent from
+    /// a 2026-2027 calendar until their own documents are captured.
+    /// </para>
     /// </remarks>
     private static SupportedProfileProgram Grade2Turkish() => new()
     {
-        AcademicYear = AcademicYear,
+        AcademicYear = RolledOverAcademicYear,
         ClassYear = 2,
         ProgramLanguage = ProgramLanguage.Turkish,
         Dimensions =
@@ -164,7 +186,7 @@ public static class CurrentSupportedProfileSchema
     /// </remarks>
     private static SupportedProfileProgram Grade3Turkish() => new()
     {
-        AcademicYear = Grade3AcademicYear,
+        AcademicYear = RolledOverAcademicYear,
         ClassYear = 3,
         ProgramLanguage = ProgramLanguage.Turkish,
         Dimensions =

@@ -268,6 +268,111 @@ public sealed class CohortCalendarRepairServiceTests
         Assert.Equal([profile.UserId], store.Requested);
     }
 
+    [Fact]
+    public async Task APerUserRecheckPlansTheSameConvergenceScopedToThatStudentAsync()
+    {
+        // The per-user path exists so an operator looking at one student can answer "is their
+        // calendar right?" without authorizing a whole cohort (ADR-115). It must resolve the same
+        // surplus and the same missing events the cohort plan would for that row.
+        StudentProfileView profile = Grade3Profile("A3");
+        CanonicalScheduleRecord own = FacultyRecord("A3");
+        CanonicalScheduleRecord other = FacultyRecord("A5");
+
+        CohortCalendarRepairService service = Service(
+            published: [own, other],
+            Holding(profile, [other]));
+
+        CohortRepairPlan plan = Assert.IsType<CohortRepairPlan>(
+            await service.PlanForUserAsync(profile.UserId, CancellationToken.None));
+
+        // The scope is read from the student's own profile rather than supplied by the caller.
+        Assert.Equal("2026-2027", plan.Scope.AcademicYear);
+        Assert.Equal(3, plan.Scope.ClassYear);
+
+        CohortRepairUserPlan user = Assert.Single(plan.Users);
+        Assert.Equal(1, user.SurplusEventCount);
+        Assert.Equal(1, user.MissingEventCount);
+    }
+
+    [Fact]
+    public async Task APerUserRecheckOfAnUnknownStudentPlansNothingRatherThanEverythingAsync()
+    {
+        // The store answers null for anyone not synchronization-ready. Falling back to a cohort
+        // plan here would turn a single-user action into a whole-program one.
+        CohortCalendarRepairService service = Service(published: [FacultyRecord("A3")]);
+
+        Assert.Null(await service.PlanForUserAsync(Guid.CreateVersion7(), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task APerUserRecheckFlagsOnlyThatStudentAndRecordsTheAuthorizationFirstAsync()
+    {
+        StudentProfileView profile = Grade3Profile("A3");
+        StudentProfileView bystander = Grade3Profile("A5");
+        CanonicalScheduleRecord own = FacultyRecord("A3");
+        CanonicalScheduleRecord other = FacultyRecord("A5");
+
+        RecordingRepairStore store = new(
+            [Holding(profile, [other]), Holding(bystander, [own])]);
+        CohortCalendarRepairService service = Service([own, other], store);
+
+        CohortRepairPlan plan = Assert.IsType<CohortRepairPlan>(
+            await service.PlanForUserAsync(profile.UserId, CancellationToken.None));
+
+        CohortRepairPlan? audited = null;
+        CohortRepairRequestResult result = await service.RequestForUserAsync(
+            profile.UserId,
+            plan.PlanHash,
+            (recorded, _) =>
+            {
+                // Recorded before the flagging, so the trail can never lag the deletions.
+                Assert.Empty(store.Requested);
+                audited = recorded;
+                return Task.CompletedTask;
+            },
+            CancellationToken.None);
+
+        Assert.Equal(CohortRepairOutcome.Requested, result.Outcome);
+        Assert.NotNull(audited);
+
+        // The bystander is in the same cohort and has surplus of their own; a per-user re-check
+        // must not touch them.
+        Assert.Equal([profile.UserId], store.Requested);
+    }
+
+    [Fact]
+    public async Task APerUserRecheckConfirmedAgainstAStalePlanIsRefusedAsync()
+    {
+        StudentProfileView profile = Grade3Profile("A3");
+        RecordingRepairStore store = new([Holding(profile, [FacultyRecord("A5")])]);
+
+        CohortRepairRequestResult result = await Service([FacultyRecord("A5")], store)
+            .RequestForUserAsync(
+                profile.UserId,
+                "a hash from a plan nobody computed",
+                NoAudit,
+                CancellationToken.None);
+
+        Assert.Equal(CohortRepairOutcome.PlanChanged, result.Outcome);
+        Assert.Empty(store.Requested);
+    }
+
+    [Fact]
+    public async Task APerUserRecheckQueuesNothingWhileFrozenAsync()
+    {
+        // A narrower blast radius does not earn a weaker guarantee: the freeze fails closed here
+        // exactly as it does for a cohort repair (ADR-034/043).
+        StudentProfileView profile = Grade3Profile("A3");
+        RecordingRepairStore store = new([Holding(profile, [FacultyRecord("A5")])]);
+
+        CohortRepairRequestResult result =
+            await Service([FacultyRecord("A5")], store, frozen: true)
+                .RequestForUserAsync(profile.UserId, "any", NoAudit, CancellationToken.None);
+
+        Assert.Equal(CohortRepairOutcome.Frozen, result.Outcome);
+        Assert.Empty(store.Requested);
+    }
+
     private static Task NoAudit(CohortRepairPlan plan, CancellationToken cancellationToken) =>
         Task.CompletedTask;
 
@@ -346,6 +451,11 @@ public sealed class CohortCalendarRepairServiceTests
         public Task<IReadOnlyList<CohortRepairHolding>> ListCohortHoldingsAsync(
             CohortRepairScope scope,
             CancellationToken cancellationToken) => Task.FromResult(holdings);
+
+        public Task<CohortRepairHolding?> FindUserHoldingAsync(
+            Guid userId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(holdings.FirstOrDefault(holding => holding.UserId == userId));
 
         public Task<int> RequestConvergenceAsync(
             IReadOnlyCollection<Guid> userIds,

@@ -245,6 +245,11 @@ public sealed class CalendarAuthorizationServiceTests
             DateTimeOffset atUtc,
             CancellationToken cancellationToken) => throw new NotSupportedException();
 
+        public Task<ManagedCalendarRebuildResult> RebuildManagedCalendarAsync(
+            Guid userId,
+            DateTimeOffset atUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
         public Task<IReadOnlyList<PendingCalendarSync>> ListPendingInitialSyncAsync(
             int limit,
             CancellationToken cancellationToken) => throw new NotSupportedException();

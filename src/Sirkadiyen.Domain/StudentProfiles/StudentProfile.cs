@@ -188,6 +188,44 @@ public sealed class StudentProfile
         UpdatedAtUtc = atUtc;
     }
 
+    /// <summary>
+    /// Moves the profile onto the academic year its program's sources now state, keeping the
+    /// declared cohort exactly as it is (ADR-115).
+    /// </summary>
+    /// <remarks>
+    /// Separate from <see cref="Update"/> because the two are different operations with different
+    /// risks. An update is the student restating their whole profile; a rollover is an operator
+    /// correcting one field across a cohort, and it must be structurally impossible for it to
+    /// touch a selector or a student number on the way. Returns whether anything changed, so a
+    /// caller can report profiles that were already on the target year rather than counting them
+    /// as moved.
+    /// </remarks>
+    public bool MoveToAcademicYear(
+        string academicYear,
+        string selectorSchemaVersion,
+        DateTimeOffset atUtc)
+    {
+        string year = RequiredBounded(
+            academicYear,
+            MaximumAcademicYearLength,
+            nameof(academicYear));
+        string version = RequiredBounded(
+            selectorSchemaVersion,
+            MaximumSchemaVersionLength,
+            nameof(selectorSchemaVersion));
+
+        if (string.Equals(AcademicYear, year, StringComparison.Ordinal)
+            && string.Equals(SelectorSchemaVersion, version, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        AcademicYear = year;
+        SelectorSchemaVersion = version;
+        UpdatedAtUtc = atUtc;
+        return true;
+    }
+
     private static int ValidClassYear(int classYear)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(classYear, MinimumClassYear);
