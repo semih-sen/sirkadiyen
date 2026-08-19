@@ -3,6 +3,7 @@
 // composes them and owns its own data fetching. Pure markup + design-system
 // classes, so they render equally in server and client trees.
 
+import Image from 'next/image';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
@@ -11,7 +12,15 @@ import type { ReactNode } from 'react';
 export function Brand({ href = '/', suffix }: { href?: string; suffix?: string }) {
   return (
     <Link className="brand" href={href}>
-      <span className="brand__mark">S</span> Sirkadiyen{suffix ? ` ${suffix}` : ''}
+      <Image
+        className="brand__mark"
+        src="/sirkadiyen-mark.png"
+        alt=""
+        width={34}
+        height={34}
+        priority
+      />{' '}
+      Sirkadiyen{suffix ? ` ${suffix}` : ''}
     </Link>
   );
 }
@@ -21,7 +30,6 @@ export function Brand({ href = '/', suffix }: { href?: string; suffix?: string }
 const PUBLIC_NAV: { href: string; label: string }[] = [
   { href: '/#nasil-calisir', label: 'Nasıl çalışır' },
   { href: '/#kapsam', label: 'Kapsam' },
-  { href: '/#guvenlik', label: 'Güvenlik' },
   { href: '/#sss', label: 'SSS' },
   { href: '/iletisim', label: 'İletişim' },
 ];
@@ -84,10 +92,10 @@ export function SiteFooter() {
             <h4>Yasal</h4>
             <ul>
               <li>
-                <Link href="/gizlilik">Gizlilik Politikası</Link>
+                <Link href="/privacy">Gizlilik Politikası</Link>
               </li>
               <li>
-                <Link href="/kosullar">Kullanım Koşulları</Link>
+                <Link href="/terms">Kullanım Koşulları</Link>
               </li>
             </ul>
           </div>

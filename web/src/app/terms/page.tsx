@@ -28,7 +28,7 @@ const SECTIONS: LegalSection[] = [
         </p>
         <p style={P}>
           Google ile giriş yaparak bu koşulları ve{' '}
-          <Link href="/gizlilik" style={STRONG}>
+          <Link href="/privacy" style={STRONG}>
             Gizlilik Politikası
           </Link>
           ’nı kabul etmiş olursun. Kabul etmiyorsan hizmeti kullanma.
@@ -242,7 +242,7 @@ const SECTIONS: LegalSection[] = [
         <p style={P}>
           Sen de dilediğin an hesabının silinmesini isteyebilir, Google iznini geri alarak eşitlemeyi
           durdurabilirsin. Hesap silme sürecinin ayrıntıları{' '}
-          <Link href="/gizlilik#hesap-silme" style={STRONG}>
+          <Link href="/privacy#hesap-silme" style={STRONG}>
             Gizlilik Politikası’nda
           </Link>{' '}
           açıklanmıştır.
@@ -289,7 +289,7 @@ const SECTIONS: LegalSection[] = [
     content: (
       <p style={P}>
         Hangi verileri neden işlediğimiz, ne kadar sakladığımız ve haklarını nasıl kullanacağın{' '}
-        <Link href="/gizlilik" style={STRONG}>
+        <Link href="/privacy" style={STRONG}>
           Gizlilik Politikası’nda
         </Link>{' '}
         açıklanır. O metin bu koşulların ayrılmaz parçasıdır.

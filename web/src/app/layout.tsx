@@ -7,6 +7,10 @@ export const metadata: Metadata = {
   title: 'Sirkadiyen — Akademik takvim eşitleme',
   description:
     'Fakültenin resmî ders programını okur, akademik grubuna göre kişiselleştirir ve Google Takvim’inde ayrı bir takvimde güncel tutar.',
+  icons: {
+    icon: '/sirkadiyen-mark.png',
+    apple: '/sirkadiyen-logo.png',
+  },
 };
 
 // Manrope (display) + Inter (body) are loaded via a runtime stylesheet link with a

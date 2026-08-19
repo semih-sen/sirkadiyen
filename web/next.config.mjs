@@ -47,6 +47,18 @@ const nextConfig = {
    * the systemd unit afterwards.
    */
   output: 'standalone',
+  /**
+   * The public legal pages moved from their Turkish slugs to `/privacy` and
+   * `/terms`. The old paths are already registered with Google's OAuth consent
+   * screen and linked from earlier announcements, so they redirect permanently
+   * instead of 404ing.
+   */
+  async redirects() {
+    return [
+      { source: '/gizlilik', destination: '/privacy', permanent: true },
+      { source: '/kosullar', destination: '/terms', permanent: true },
+    ];
+  },
   async rewrites() {
     return [
       {

@@ -1,3 +1,4 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { SiteNav, SiteFooter } from '@/components/ui';
 
@@ -13,18 +14,39 @@ const STEPS = [
   { title: 'İlk senkronizasyonu izle', body: 'Sunucu programını okur, etkinlikleri oluşturur; ilerlemeyi canlı görürsün.' },
 ];
 
+// Bu liste config/schedule-sources.json içindeki kaynak kataloğunu yansıtır;
+// katalog genişledikçe burası da güncellenmelidir.
 const SUPPORT = [
-  { badge: 'badge-success', tone: 'Tam destek', title: 'Dönem 1', body: 'Türkçe ve İngilizce program dili, tüm müfredat grupları.' },
-  { badge: 'badge-warning', tone: 'Kısmi destek', title: 'Dönem 2', body: 'Türkçe program tam destekli; İngilizce program kitle tanımı tamamlanınca eklenecek.' },
-  { badge: 'badge-neutral', tone: 'Hazırlık aşamasında', title: 'Dönem 3', body: 'Kaynak yapısı doğrulanıyor; henüz genel kullanıma açık değil.' },
-  { badge: 'badge-neutral', tone: 'Yol haritasında', title: 'Klinik dönemler', body: 'Staj ve poliklinik çizelgeleri için kaynak entegrasyonu planlama aşamasında.' },
-];
-
-const SECURITY = [
-  { title: 'Google erişim kapsamı sınırlı', body: 'Yalnızca Sirkadiyen’in oluşturduğu takvime erişilir; kişisel takvimlerin okunmaz.' },
-  { title: 'Gizli değerler asla görünmez', body: 'Erişim/yenileme belirteçleri, düz metin lisans kodu ve kimlik doğrulama başlıkları hiçbir ekranda gösterilmez.' },
-  { title: 'Denetlenebilir işlemler', body: 'Askıya alma, veri erişimi kaldırma gibi işlemler gerekçe ve denetim kaydı ister.' },
-  { title: 'Erişim kayıtları korunur', body: 'Oturum açma denemeleri IP, tarayıcı ve cihaz bilgisiyle kaydedilir; IP adresleri varsayılan olarak maskelidir.' },
+  {
+    badge: 'badge-success',
+    tone: 'Tam destek',
+    title: 'Dönem 1',
+    body: 'Türkçe ve İngilizce program. Yıllık ders programının yanında uygulama çizelgesi de işlenir; A–H grupları ve alt grupları ayrı ayrı ele alınır.',
+  },
+  {
+    badge: 'badge-success',
+    tone: 'Tam destek',
+    title: 'Dönem 2',
+    body: 'Türkçe ve İngilizce program. Yıllık program ve uygulama çizelgesine ek olarak anatomi salon grup saatleri ile dikey koridor beceri uygulamaları da takvime girer.',
+  },
+  {
+    badge: 'badge-success',
+    tone: 'Tam destek',
+    title: 'Dönem 3 — Türkçe',
+    body: 'A ve B müfredat grupları. Yıllık program, hasta başı uygulama konuları ve öğretim üyesi uygulama grupları uygulama yerleriyle birlikte eşitlenir.',
+  },
+  {
+    badge: 'badge-warning',
+    tone: 'Kısmi destek',
+    title: 'Dönem 3 — İngilizce',
+    body: 'Yıllık ders programı desteklenir. Hasta başı ve öğretim üyesi uygulama çizelgeleri kaynak tarafında ayrıştığında eklenecek.',
+  },
+  {
+    badge: 'badge-neutral',
+    tone: 'Yol haritasında',
+    title: 'Klinik dönemler (4–6)',
+    body: 'Staj ve poliklinik çizelgeleri için kaynak entegrasyonu planlama aşamasında; henüz genel kullanıma açık değil.',
+  },
 ];
 
 const FAQ = [
@@ -61,15 +83,7 @@ export default function LandingPage() {
       <main id="main">
         {/* HERO */}
         <section style={{ padding: '56px 0 88px' }}>
-          <div
-            className="container"
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'minmax(0, 1.05fr) minmax(0, 0.95fr)',
-              gap: 56,
-              alignItems: 'center',
-            }}
-          >
+          <div className="container hero-grid">
             <div>
               <span className="eyebrow">İstanbul Tıp Fakültesi için akademik takvim eşitleme</span>
               <h1 style={{ marginTop: 14 }}>Ders programın değişse bile takvimin güncel kalır.</h1>
@@ -88,36 +102,30 @@ export default function LandingPage() {
               </div>
               <div className="cluster" style={{ gap: 22, marginTop: 32, fontSize: 13, color: 'var(--ink-70)' }}>
                 <span>🔒 Yalnızca Sirkadiyen’in oluşturduğu takvime erişim</span>
-                <span>🎓 Dönem 1–2 için destek</span>
+                <span>🎓 Dönem 1–3 için destek</span>
                 <span>🛠️ Kaynak sorunlarında takvim bilerek beklemede</span>
               </div>
             </div>
-            <div
-              role="img"
-              aria-label="Sirkadiyen ritmini simgeleyen iç içe geçmiş ince halkalardan oluşan soyut kompozisyon"
-              style={{
-                borderRadius: 'var(--radius-card)',
-                overflow: 'hidden',
-                border: '1px solid var(--border)',
-                boxShadow: 'var(--shadow-md)',
-              }}
-            >
-              <svg viewBox="0 0 640 480" width="100%" height="100%" style={{ background: 'var(--surface)', display: 'block' }}>
-                <circle cx="320" cy="240" r="190" fill="none" stroke="#0b6b69" strokeOpacity="0.14" strokeWidth="1.5" />
-                <circle cx="320" cy="240" r="160" fill="none" stroke="#0b6b69" strokeOpacity="0.22" strokeWidth="1.5" />
-                <circle cx="320" cy="240" r="130" fill="none" stroke="#0b6b69" strokeOpacity="0.32" strokeWidth="1.5" />
-                <circle cx="320" cy="240" r="100" fill="none" stroke="#0b6b69" strokeOpacity="0.45" strokeWidth="1.75" />
-                <circle cx="320" cy="240" r="70" fill="none" stroke="#0b6b69" strokeWidth="2" />
-                <path d="M 320 70 A 170 170 0 0 1 466 155" fill="none" stroke="#f2765b" strokeWidth="6" strokeLinecap="round" />
-                <circle cx="466" cy="155" r="7" fill="#f2765b" />
-                <circle cx="320" cy="240" r="6" fill="#0b6b69" />
-                <g stroke="#0b6b69" strokeOpacity="0.5" strokeWidth="1.5">
-                  <line x1="320" y1="40" x2="320" y2="60" />
-                  <line x1="320" y1="420" x2="320" y2="440" />
-                  <line x1="120" y1="240" x2="140" y2="240" />
-                  <line x1="500" y1="240" x2="520" y2="240" />
-                </g>
-              </svg>
+            {/* Gerçek bir öğrencinin senkronize edilmiş takvimi; masaüstü ve mobil
+                Google Takvim ekran görüntüleri public/demo altında durur. */}
+            <div className="demo-shot">
+              <Image
+                className="demo-shot__desktop"
+                src="/demo/takvim-desktop.png"
+                alt="Google Takvim’in hafta görünümünde Sirkadiyen’in oluşturduğu ders programı: her güne yayılmış ders, uygulama ve serbest çalışma blokları."
+                width={1081}
+                height={792}
+                priority
+                sizes="(max-width: 960px) 92vw, 540px"
+              />
+              <Image
+                className="demo-shot__mobile"
+                src="/demo/takvim-mobile.jpeg"
+                alt="Google Takvim mobil uygulamasında aynı ders programının haftalık görünümü."
+                width={739}
+                height={1600}
+                sizes="(max-width: 560px) 42vw, 140px"
+              />
             </div>
           </div>
         </section>
@@ -151,8 +159,13 @@ export default function LandingPage() {
                 </ul>
               </div>
             </div>
-            <div className="container" style={{ padding: 0, marginTop: 20 }}>
-            </div>
+            <p className="muted" style={{ marginTop: 20 }}>
+              Verilerinin nasıl işlendiğini{' '}
+              <Link href="/privacy" style={{ color: 'var(--fg)', fontWeight: 600 }}>
+                Gizlilik Politikası
+              </Link>
+              ’nda okuyabilirsin.
+            </p>
           </div>
         </section>
 
@@ -184,7 +197,8 @@ export default function LandingPage() {
             <h2 style={{ marginTop: 10 }}>Bugün gerçekten desteklenen dönem ve programlar.</h2>
             <p className="lede" style={{ marginTop: 14 }}>
               Kapsamı olduğundan geniş göstermiyoruz — hangi dönemin ne durumda olduğunu açıkça
-              belirtiyoruz.
+              belirtiyoruz. Desteklenen her dönemde yalnızca genel ders programı değil, kendi
+              uygulama ve grup çizelgen de takvime işlenir.
             </p>
             <div className="support-grid" style={{ marginTop: 28 }}>
               {SUPPORT.map((item) => (
@@ -195,36 +209,15 @@ export default function LandingPage() {
                 </div>
               ))}
             </div>
-          </div>
-        </section>
-
-        {/* GÜVENLİK */}
-        <section className="section" id="guvenlik">
-          <div className="container">
-            <span className="eyebrow">Güvenlik ve gizlilik ilkeleri</span>
-            <h2 style={{ marginTop: 10 }}>Arka uç yetkilidir; arayüz asla tahmin etmez.</h2>
-            <div className="grid grid-2" style={{ marginTop: 28 }}>
-              {SECURITY.map((item) => (
-                <div className="card card-content" key={item.title}>
-                  <h4>{item.title}</h4>
-                  <p className="muted" style={{ marginTop: 8 }}>
-                    {item.body}
-                  </p>
-                </div>
-              ))}
-            </div>
             <p className="muted" style={{ marginTop: 20 }}>
-              Ayrıntılar için{' '}
-              <Link href="/gizlilik" style={{ color: 'var(--fg)', fontWeight: 600 }}>
-                Gizlilik Politikası
-              </Link>
-              ’nı okuyabilirsin.
+              Profilinde seçebileceğin dönem, program dili ve gruplar bu kapsamdan üretilir; kapsam
+              dışında kalan bir seçim kurulum sırasında hiç gösterilmez.
             </p>
           </div>
         </section>
 
         {/* SSS */}
-        <section className="section" style={{ background: 'var(--surface)' }} id="sss">
+        <section className="section" id="sss">
           <div className="container" style={{ maxWidth: 820 }}>
             <span className="eyebrow">Sıkça sorulan sorular</span>
             <h2 style={{ marginTop: 10 }}>Merak edilenler</h2>
@@ -240,7 +233,7 @@ export default function LandingPage() {
         </section>
 
         {/* SON CTA */}
-        <section className="section">
+        <section className="section" style={{ background: 'var(--surface)' }}>
           <div className="container">
             <div style={{ background: 'var(--fg)', color: '#fff', borderRadius: 'var(--radius-card)', padding: 56, textAlign: 'center' }}>
               <h2 style={{ color: '#fff' }}>Ders programını takip etmeyi bırak, Sirkadiyen’e bırak.</h2>
@@ -252,7 +245,7 @@ export default function LandingPage() {
                   Google ile giriş yap
                 </Link>
                 <Link className="btn btn-secondary" style={{ borderColor: '#fff', color: '#fff' }} href="/sign-in?intent=lisans">
-                  Lisans kodumu etkinleştir
+                  Lisansımı etkinleştir
                 </Link>
               </div>
             </div>

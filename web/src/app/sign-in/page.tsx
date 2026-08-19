@@ -86,11 +86,11 @@ export default function SignInPage() {
 
       <p className="muted" style={{ marginTop: 24, fontSize: 13 }}>
         Devam ederek{' '}
-        <Link href="/gizlilik" style={{ color: 'var(--fg)', fontWeight: 600 }}>
+        <Link href="/privacy" style={{ color: 'var(--fg)', fontWeight: 600 }}>
           Gizlilik Politikası
         </Link>{' '}
         ve{' '}
-        <Link href="/kosullar" style={{ color: 'var(--fg)', fontWeight: 600 }}>
+        <Link href="/terms" style={{ color: 'var(--fg)', fontWeight: 600 }}>
           Kullanım Koşulları
         </Link>
         ’nı kabul etmiş olursun.

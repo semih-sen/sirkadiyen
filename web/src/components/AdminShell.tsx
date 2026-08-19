@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 
@@ -76,7 +77,8 @@ export function AdminShell({
     <div className="admin-shell">
       <aside className="admin-sidebar">
         <Link className="brand" href="/admin">
-          <span className="brand__mark">S</span> Sirkadiyen Yönetim
+          <Image className="brand__mark" src="/sirkadiyen-mark.png" alt="" width={34} height={34} />{' '}
+          Sirkadiyen Yönetim
         </Link>
         {NAV_GROUPS.map((group) => (
           <div key={group.label}>

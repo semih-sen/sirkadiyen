@@ -243,15 +243,15 @@ section.section {
   text-decoration: none;
   color: var(--fg-ink);
 }
+/* Marka amblemi: public/sirkadiyen-mark.png, logonun yazısız kırpılmış hâli.
+   Görselin kendi açık zemini olduğu için arka plan yalnızca yüklenene kadar
+   görünür. */
 .brand__mark {
   width: 34px;
   height: 34px;
   border-radius: 10px;
-  background: var(--fg);
-  display: grid;
-  place-items: center;
-  color: #fff;
-  font-size: 15px;
+  background: var(--surface-soft, #f1efee);
+  object-fit: cover;
   flex: none;
 }
 .nav-links {
@@ -899,7 +899,7 @@ textarea.text-input {
   padding: 6px 10px 20px;
 }
 .admin-sidebar .brand__mark {
-  background: var(--accent);
+  background: #f1efee;
 }
 .admin-nav {
   list-style: none;
@@ -1287,7 +1287,7 @@ footer.site-footer {
 .support-grid {
   display: grid;
   gap: 14px;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 }
 .support-card {
   border: 1px solid var(--border);
@@ -1728,3 +1728,53 @@ button.link:disabled {
 .license-request p { margin: 0 0 10px; font-size: 13.5px; }
 .license-request__actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .license-request__actions .btn { flex: 1 1 auto; justify-content: center; }
+
+/* --- Landing hero + ürün ekran görüntüleri -------------------------------- */
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 56px;
+  align-items: center;
+}
+@media (max-width: 960px) {
+  .hero-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 44px;
+  }
+}
+
+/* Masaüstü ekran görüntüsü ana görsel; mobil olanı köşesine bindirilir. Dar
+   ekranda bindirme çözülür ve iki görsel alt alta akar. */
+.demo-shot {
+  position: relative;
+}
+.demo-shot__desktop {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+  background: #17181c;
+}
+.demo-shot__mobile {
+  position: absolute;
+  right: -14px;
+  bottom: -34px;
+  width: 26%;
+  min-width: 108px;
+  height: auto;
+  border-radius: 16px;
+  border: 5px solid #17181c;
+  box-shadow: var(--shadow-md);
+  background: #17181c;
+}
+@media (max-width: 560px) {
+  .demo-shot__mobile {
+    position: static;
+    display: block;
+    width: 46%;
+    margin: 16px auto 0;
+  }
+}
