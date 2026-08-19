@@ -110,14 +110,7 @@ function InitialSync() {
         bırakabilir ya da daha sonra geri dönebilirsin. Önceki adımlar sunucuda kayıtlı.
       </p>
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)',
-          gap: 24,
-          marginTop: 24,
-        }}
-      >
+      <div className="sync-grid">
         <ol className="timeline">
           {STAGES.map((stage, index) => {
             const s = stageStatus(index, state);

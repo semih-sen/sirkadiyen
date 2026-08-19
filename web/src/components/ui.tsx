@@ -6,6 +6,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { MobileNav } from '@/components/MobileNav';
 
 // --- Brand ------------------------------------------------------------------
 
@@ -52,9 +53,12 @@ export function SiteNav() {
           <Link className="btn btn-tertiary" href="/sign-in">
             Giriş yap
           </Link>
-          <Link className="btn btn-primary" href="/sign-in?intent=lisans">
+          {/* Below 900px only the primary action stays in the bar; the rest of
+              the navigation moves into <MobileNav>'s drawer. */}
+          <Link className="btn btn-primary nav-actions__wide" href="/sign-in?intent=lisans">
             Lisansımı etkinleştir
           </Link>
+          <MobileNav items={PUBLIC_NAV} />
         </div>
       </div>
     </header>
@@ -133,9 +137,9 @@ export function StudentTopbar({
     <header className="student-topbar">
       <div className="container">
         <Brand />
-        <div className="cluster" style={{ gap: 14 }}>
+        <div className="cluster student-topbar__actions" style={{ gap: 14 }}>
           {subtitle && (
-            <span className="muted" style={{ fontSize: 13.5 }}>
+            <span className="muted student-topbar__subtitle" style={{ fontSize: 13.5 }}>
               {subtitle}
             </span>
           )}
@@ -180,7 +184,9 @@ export function Stepper({ activeIndex }: { activeIndex: number }) {
           <li key={label} data-status={status} aria-current={status === 'current' ? 'step' : undefined}>
             <span>
               <span className="step-num">{index + 1}</span>
-              {label}
+              {/* On phones every label but the current step's is hidden (CSS), so
+                  five steps still fit without wrapping or shrinking the text. */}
+              <span className="step-label">{label}</span>
             </span>
           </li>
         );

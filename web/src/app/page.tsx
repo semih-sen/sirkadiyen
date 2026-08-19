@@ -82,7 +82,7 @@ export default function LandingPage() {
 
       <main id="main">
         {/* HERO */}
-        <section style={{ padding: '56px 0 88px' }}>
+        <section className="landing-hero">
           <div className="container hero-grid">
             <div>
               <span className="eyebrow">İstanbul Tıp Fakültesi için akademik takvim eşitleme</span>
@@ -100,7 +100,7 @@ export default function LandingPage() {
                   Lisans kodumu etkinleştir
                 </Link>
               </div>
-              <div className="cluster" style={{ gap: 22, marginTop: 32, fontSize: 13, color: 'var(--ink-70)' }}>
+              <div className="cluster landing-trust">
                 <span>🔒 Yalnızca Sirkadiyen’in oluşturduğu takvime erişim</span>
                 <span>🎓 Dönem 1–3 için destek</span>
                 <span>🛠️ Kaynak sorunlarında takvim bilerek beklemede</span>
@@ -235,7 +235,7 @@ export default function LandingPage() {
         {/* SON CTA */}
         <section className="section" style={{ background: 'var(--surface)' }}>
           <div className="container">
-            <div style={{ background: 'var(--fg)', color: '#fff', borderRadius: 'var(--radius-card)', padding: 56, textAlign: 'center' }}>
+            <div className="landing-cta">
               <h2 style={{ color: '#fff' }}>Ders programını takip etmeyi bırak, Sirkadiyen’e bırak.</h2>
               <p className="lede" style={{ color: 'color-mix(in oklab, #fff 78%, transparent)', margin: '12px auto 28px' }}>
                 Google ile giriş yap ya da elindeki lisans kodunu etkinleştirerek başla.

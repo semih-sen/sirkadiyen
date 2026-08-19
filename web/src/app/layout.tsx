@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 import { SessionProvider } from '@/components/SessionProvider';
 import './globals.css';
@@ -11,6 +11,18 @@ export const metadata: Metadata = {
     icon: '/sirkadiyen-mark.png',
     apple: '/sirkadiyen-logo.png',
   },
+};
+
+// The site is used overwhelmingly on phones, so the viewport is declared
+// explicitly rather than relying on the framework default: `viewportFit: cover`
+// lets the layout paint under the notch/home indicator, and the safe-area insets
+// consumed in globals.css keep sticky bars clear of them. Zoom is left enabled
+// (no `maximumScale`) because clamping it breaks pinch-zoom accessibility.
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#0b6b69',
 };
 
 // Manrope (display) + Inter (body) are loaded via a runtime stylesheet link with a

@@ -2,7 +2,8 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import type { ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
+import { useEffect, useState, type ReactNode } from 'react';
 
 export type AdminNavKey =
   | 'dashboard'
@@ -73,9 +74,45 @@ export function AdminShell({
   onSignOut?: () => void;
   children: ReactNode;
 }) {
+  // Twelve nav entries do not fit a phone header, so below the 860px breakpoint
+  // the sidebar becomes an off-canvas drawer driven by this state. Above it the
+  // CSS ignores `data-nav-open` entirely and the sidebar stays pinned.
+  const [navOpen, setNavOpen] = useState(false);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    setNavOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!navOpen) {
+      return;
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setNavOpen(false);
+      }
+    }
+    document.addEventListener('keydown', onKeyDown);
+    document.body.classList.add('has-drawer');
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.classList.remove('has-drawer');
+    };
+  }, [navOpen]);
+
   return (
-    <div className="admin-shell">
-      <aside className="admin-sidebar">
+    <div className="admin-shell" data-nav-open={navOpen}>
+      {navOpen && (
+        <button
+          className="drawer-backdrop"
+          type="button"
+          tabIndex={-1}
+          aria-hidden="true"
+          onClick={() => setNavOpen(false)}
+        />
+      )}
+      <aside className="admin-sidebar" id="admin-sidebar">
         <Link className="brand" href="/admin">
           <Image className="brand__mark" src="/sirkadiyen-mark.png" alt="" width={34} height={34} />{' '}
           Sirkadiyen Yönetim
@@ -100,6 +137,16 @@ export function AdminShell({
       <div className="admin-main">
         <div className="admin-topbar">
           <div className="cluster" style={{ gap: 10 }}>
+            <button
+              className="nav-toggle admin-nav-toggle"
+              type="button"
+              aria-expanded={navOpen}
+              aria-controls="admin-sidebar"
+              onClick={() => setNavOpen((value) => !value)}
+            >
+              <span className="nav-toggle__bars" aria-hidden="true" />
+              <span className="sr-only">{navOpen ? 'Menüyü kapat' : 'Menüyü aç'}</span>
+            </button>
             <span className="env-chip">⚙ Yönetim paneli</span>
             <span className={`badge ${isFrozen ? 'badge-warning' : 'badge-success'}`}>
               {isFrozen ? 'Dondurulmuş' : 'Çalışıyor'}
@@ -107,7 +154,7 @@ export function AdminShell({
           </div>
           <div className="cluster" style={{ gap: 10 }}>
             {operator && <span className="admin-operator">{operator}</span>}
-            <Link className="btn btn-tertiary btn-sm" href="/dashboard">Öğrenci paneli</Link>
+            <Link className="btn btn-tertiary btn-sm admin-topbar__wide" href="/dashboard">Öğrenci paneli</Link>
             {onSignOut && <button className="btn btn-tertiary btn-sm" type="button" onClick={onSignOut}>Çıkış</button>}
           </div>
         </div>

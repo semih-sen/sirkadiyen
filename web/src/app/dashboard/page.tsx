@@ -60,7 +60,7 @@ function Dashboard() {
 
   return <><StudentTopbar subtitle={subtitle} onSignOut={onSignOut} /><main id="main" style={{ padding: '32px 0 80px' }}><div className="container">
     <Banner tone={synced ? 'info' : 'warning'}><strong>{synced ? 'Takvimin güncel.' : 'Senkronizasyon tamamlanmadı.'}</strong><div className="muted" style={{ marginTop: 2, fontSize: 13.5 }}>{errors.status ?? (synced ? `Takvimindeki yönetilen etkinlik sayısı: ${status?.mappedEventCount ?? 0}.` : `Durum: ${status?.initialSyncState ?? '—'}.`)}</div></Banner>
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: 24, marginTop: 24, alignItems: 'start' }}>
+    <div className="dashboard-grid">
       <div className="stack" style={{ gap: 20 }}>
         <section className="card card-content"><h3 style={{ fontSize: 16 }}>Senkronizasyon görünümü</h3>{errors.status ? <p className="error">{errors.status}</p> : !status ? <p className="loading-note">Yükleniyor…</p> : <div style={{ marginTop: 10 }}>
           <div className="summary-row"><span className="muted">Takvimdeki etkinlik</span><strong>{status.mappedEventCount}</strong></div>

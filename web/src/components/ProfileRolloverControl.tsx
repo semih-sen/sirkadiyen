@@ -283,10 +283,10 @@ function RolloverPlanSummary({ plan }: { plan: ProfileRolloverPlan }) {
               <tbody>
                 {plan.users.map((user) => (
                   <tr key={user.userId}>
-                    <td className="mono">{user.userId}</td>
-                    <td>{user.gainedEventCount}</td>
-                    <td>{user.strandedEventCount}</td>
-                    <td>{user.convergenceQueueable ? 'İşaretlenecek' : 'Bağlantı yok'}</td>
+                    <td className="mono" data-label="Kullanıcı">{user.userId}</td>
+                    <td data-label="Yazılacak ders">{user.gainedEventCount}</td>
+                    <td data-label="Kalacak eski kayıt">{user.strandedEventCount}</td>
+                    <td data-label="Takvim">{user.convergenceQueueable ? 'İşaretlenecek' : 'Bağlantı yok'}</td>
                   </tr>
                 ))}
               </tbody>

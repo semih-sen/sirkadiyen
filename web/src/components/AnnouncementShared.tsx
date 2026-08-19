@@ -203,21 +203,21 @@ export function DeliveryLedger({ announcementId }: { announcementId: string }) {
         onRetry={() => void load()}
       />
       {result && result.items.length > 0 && (
-        <div style={{ overflowX: 'auto' }}>
-          <table className="data-table">
+        <div className="table-wrap">
+          <table className="data-table data-table--stack">
             <thead>
               <tr><th>Kullanıcı</th><th>Durum</th><th>Sürüm</th><th>Güncelleme</th></tr>
             </thead>
             <tbody>
               {result.items.map((delivery) => (
                 <tr key={delivery.userId}>
-                  <td>
+                  <td data-label="Kullanıcı">
                     {delivery.email}
                     {delivery.displayName && (
                       <small className="muted" style={{ display: 'block' }}>{delivery.displayName}</small>
                     )}
                   </td>
-                  <td>
+                  <td data-label="Durum">
                     {delivery.state}
                     {delivery.skipReason && (
                       <small className="muted" style={{ display: 'block' }}>
@@ -228,8 +228,8 @@ export function DeliveryLedger({ announcementId }: { announcementId: string }) {
                       <small className="muted" style={{ display: 'block' }}>{delivery.failureReason}</small>
                     )}
                   </td>
-                  <td>{delivery.appliedContentVersion ?? '—'}</td>
-                  <td>{formatDateTime(delivery.updatedAtUtc)}</td>
+                  <td data-label="Sürüm">{delivery.appliedContentVersion ?? '—'}</td>
+                  <td data-label="Güncelleme">{formatDateTime(delivery.updatedAtUtc)}</td>
                 </tr>
               ))}
             </tbody>

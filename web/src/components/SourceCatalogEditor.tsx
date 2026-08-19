@@ -777,12 +777,12 @@ function ChangeCard({ change }: { change: ScheduleSourceCatalogSourceChange }) {
             <tbody>
               {change.fields.map((field) => (
                 <tr key={field.field}>
-                  <td>
+                  <td data-label="Alan">
                     <span className="mono">{field.field}</span>
                     {field.risk === 'High' && <span className="badge badge-warning badge-xs">riskli</span>}
                   </td>
-                  <td className="mono catalog-before">{field.before ?? '—'}</td>
-                  <td className="mono catalog-after">{field.after ?? '—'}</td>
+                  <td className="mono catalog-before" data-label="Önce">{field.before ?? '—'}</td>
+                  <td className="mono catalog-after" data-label="Sonra">{field.after ?? '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -845,14 +845,14 @@ function RevisionHistory({ onRestore }: { onRestore: (content: string) => void }
             <tbody>
               {revisions.map((revision) => (
                 <tr key={revision.id}>
-                  <td>
+                  <td data-label="Tarih">
                     {formatDateTime(revision.recordedAtUtc)}
                     {revision.isCurrent && <span className="badge badge-success">yürürlükte</span>}
                     {revision.kind === 'Baseline' && <small className="muted" style={{ display: 'block' }}>ilk düzenleme öncesi</small>}
                   </td>
-                  <td>{revision.actorEmail ?? <span className="muted">sistem</span>}</td>
-                  <td>{revision.reason ?? <span className="muted">—</span>}</td>
-                  <td>{revision.sourceCount}</td>
+                  <td data-label="Kim">{revision.actorEmail ?? <span className="muted">sistem</span>}</td>
+                  <td data-label="Gerekçe">{revision.reason ?? <span className="muted">—</span>}</td>
+                  <td data-label="Kaynak">{revision.sourceCount}</td>
                   <td>
                     <button
                       className="btn btn-tertiary btn-sm"

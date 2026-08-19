@@ -368,20 +368,20 @@ function Licenses({
         <p className="muted">Lisans kaydı yok.</p>
       ) : (
         <div className="table-wrap">
-          <table className="data-table">
+          <table className="data-table data-table--stack">
             <thead>
               <tr><th>Kimlik</th><th>Tür</th><th>Durum</th><th>Kullanım</th><th>İptal</th></tr>
             </thead>
             <tbody>
               {detail.user.licenses.map((license) => (
                 <tr key={license.licenseId}>
-                  <td className="mono">{license.licenseId}</td>
-                  <td>{license.kind}</td>
-                  <td>
+                  <td className="mono" data-label="Kimlik">{license.licenseId}</td>
+                  <td data-label="Tür">{license.kind}</td>
+                  <td data-label="Durum">
                     <span className={`badge ${statusBadge(license.status)}`}>{license.status}</span>
                   </td>
-                  <td>{formatDateTime(license.redeemedAtUtc)}</td>
-                  <td>{formatDateTime(license.revokedAtUtc)}</td>
+                  <td data-label="Kullanım">{formatDateTime(license.redeemedAtUtc)}</td>
+                  <td data-label="İptal">{formatDateTime(license.revokedAtUtc)}</td>
                 </tr>
               ))}
             </tbody>
@@ -767,15 +767,15 @@ function CalendarTab({ userId }: { userId: string }) {
       <Card title="Son değişiklikler">
         {changes && changes.length > 0 ? (
           <div className="table-wrap">
-            <table className="data-table">
+            <table className="data-table data-table--stack">
               <thead><tr><th>Ders</th><th>Tarih</th><th>Değişiklik</th><th>Zaman</th></tr></thead>
               <tbody>
                 {changes.map((change) => (
                   <tr key={change.stableIdentity}>
-                    <td>{change.title}</td>
-                    <td>{change.localDate}</td>
-                    <td>{change.kind === 'Created' ? 'Oluşturuldu' : 'Güncellendi'}</td>
-                    <td>{formatDateTime(change.changedAtUtc)}</td>
+                    <td data-label="Ders">{change.title}</td>
+                    <td data-label="Tarih">{change.localDate}</td>
+                    <td data-label="Değişiklik">{change.kind === 'Created' ? 'Oluşturuldu' : 'Güncellendi'}</td>
+                    <td data-label="Zaman">{formatDateTime(change.changedAtUtc)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -848,15 +848,15 @@ function AuditTable({ events, empty }: { events: AuditEventView[]; empty: string
   if (events.length === 0) return <p className="muted">{empty}</p>;
   return (
     <div className="table-wrap">
-      <table className="data-table">
+      <table className="data-table data-table--stack">
         <thead><tr><th>Kategori</th><th>Zaman</th><th>IP</th><th>Gerekçe</th></tr></thead>
         <tbody>
           {events.map((event) => (
             <tr key={event.id}>
-              <td>{event.category}</td>
-              <td>{formatDateTime(event.occurredAtUtc)}</td>
-              <td className="mono">{event.maskedIp ?? '—'}</td>
-              <td>{event.reason ?? '—'}</td>
+              <td data-label="Kategori">{event.category}</td>
+              <td data-label="Zaman">{formatDateTime(event.occurredAtUtc)}</td>
+              <td className="mono" data-label="IP">{event.maskedIp ?? '—'}</td>
+              <td data-label="Gerekçe">{event.reason ?? '—'}</td>
             </tr>
           ))}
         </tbody>

@@ -98,15 +98,7 @@ export default function ContactPage() {
             en kısa sürede dönüş yapalım.
           </p>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'minmax(0, 1.3fr) minmax(0, 0.9fr)',
-              gap: 40,
-              alignItems: 'start',
-              marginTop: 36,
-            }}
-          >
+          <div className="contact-grid">
             <div className="card card-content">
               <div style={{ marginBottom: 18 }}>
                 <Banner tone="info">
@@ -160,7 +152,7 @@ export default function ContactPage() {
                   {errors.description && <p className="field-error">{errors.description}</p>}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+                <div className="field-pair">
                   <div className="field">
                     <label htmlFor="c-student-no">
                       Öğrenci numarası <span className="muted" style={{ fontWeight: 400 }}>(opsiyonel)</span>

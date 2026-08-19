@@ -244,10 +244,10 @@ function RepairPlanSummary({ plan }: { plan: CohortRepairPlan }) {
               <tbody>
                 {plan.users.map((user) => (
                   <tr key={user.userId}>
-                    <td className="mono">{user.userId}</td>
-                    <td>{user.surplusEventCount}</td>
-                    <td>{user.missingEventCount}</td>
-                    <td>{user.untouchableRetiredCount}</td>
+                    <td className="mono" data-label="Kullanıcı">{user.userId}</td>
+                    <td data-label="Silinecek">{user.surplusEventCount}</td>
+                    <td data-label="Yazılacak">{user.missingEventCount}</td>
+                    <td data-label="Dokunulmayan">{user.untouchableRetiredCount}</td>
                   </tr>
                 ))}
               </tbody>
