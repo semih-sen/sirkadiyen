@@ -361,7 +361,7 @@ public sealed class ScheduleSourceCatalogEditingServiceTests
         public (string Text, string Hash) Content { get; private set; } =
             (content, ScheduleSourceCatalogPlanner.Hash(content));
 
-        public string Path => "/srv/sirkadiyen/config/schedule-sources.json";
+        public string Path => "/srv/sirkadiyen/shared/config/schedule-sources.json";
 
         public Task<ScheduleSourceCatalogFileContent> ReadAsync(CancellationToken cancellationToken) =>
             Task.FromResult(new ScheduleSourceCatalogFileContent

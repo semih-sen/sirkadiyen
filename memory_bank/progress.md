@@ -981,7 +981,7 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
   `ScheduleSourceCatalogValidationException` rather than `InvalidDataException`. The source upsert
   moved to `ScheduleSourceUpsert.StageAsync` so the startup seed and the admin edit apply
   configuration identically, the second inside the transaction that records its revision.
-- **Changed (deployment):** the live catalog is `/srv/sirkadiyen/config/schedule-sources.json`;
+- **Changed (deployment):** the live catalog is `/srv/sirkadiyen/shared/config/schedule-sources.json`;
   `sirkadiyen-activate` seeds it, the API unit may write it, the worker only reads it.
 - **Tests added:** 14 editing-service cases, 6 catalog-file cases, 4 persistence cases for the
   commit transaction, 7 web component cases; 12 loader tests updated for the new exception type.

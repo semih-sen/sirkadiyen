@@ -27,7 +27,7 @@ Environment=ASPNETCORE_ENVIRONMENT=Production
 # The schedule source catalog the admin panel edits (ADR-114). It is the same
 # file the worker loads, and it lives outside both release directories because
 # an administrative edit must survive the next deployment.
-Environment=SIRKADIYEN_SOURCES__CATALOG_PATH=/srv/sirkadiyen/config/schedule-sources.json
+Environment=SIRKADIYEN_SOURCES__CATALOG_PATH=/srv/sirkadiyen/shared/config/schedule-sources.json
 
 Restart=always
 RestartSec=5
@@ -44,7 +44,7 @@ PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/srv/sirkadiyen/shared/dataprotection-keys
-ReadWritePaths=/srv/sirkadiyen/config
+ReadWritePaths=/srv/sirkadiyen/shared/config
 ProtectKernelTunables=true
 ProtectControlGroups=true
 RestrictSUIDSGID=true

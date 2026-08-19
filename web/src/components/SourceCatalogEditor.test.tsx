@@ -42,7 +42,7 @@ const catalog = {
 };
 
 const document = {
-  path: '/srv/sirkadiyen/config/schedule-sources.json',
+  path: '/srv/sirkadiyen/shared/config/schedule-sources.json',
   content: `${JSON.stringify(catalog, null, 2)}\n`,
   contentHash: 'hash-on-disk',
   lastModifiedUtc: '2026-08-19T09:00:00Z',
@@ -102,14 +102,14 @@ describe('SourceCatalogEditor', () => {
   it('shows the server file it is editing and refuses to preview an untouched document', async () => {
     render(<SourceCatalogEditor />);
 
-    expect(await screen.findByText('/srv/sirkadiyen/config/schedule-sources.json')).toBeInTheDocument();
+    expect(await screen.findByText('/srv/sirkadiyen/shared/config/schedule-sources.json')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Değişiklikleri incele' })).toBeDisabled();
   });
 
   it('previews an edit, then applies it only with a reason', async () => {
     const user = userEvent.setup();
     render(<SourceCatalogEditor />);
-    await screen.findByText('/srv/sirkadiyen/config/schedule-sources.json');
+    await screen.findByText('/srv/sirkadiyen/shared/config/schedule-sources.json');
 
     await user.click(screen.getByRole('button', { name: /Dönem 1 Türkçe yıllık program/ }));
     const version = screen.getByLabelText(/Parser sürümü/);
@@ -139,7 +139,7 @@ describe('SourceCatalogEditor', () => {
   it('drops a previewed plan as soon as the document is edited again', async () => {
     const user = userEvent.setup();
     render(<SourceCatalogEditor />);
-    await screen.findByText('/srv/sirkadiyen/config/schedule-sources.json');
+    await screen.findByText('/srv/sirkadiyen/shared/config/schedule-sources.json');
 
     await user.click(screen.getByRole('button', { name: /Dönem 1 Türkçe yıllık program/ }));
     await user.type(screen.getByLabelText(/Görünen ad/), '!');
@@ -159,7 +159,7 @@ describe('SourceCatalogEditor', () => {
       new api.ApiError(400, null, "Source 'G1-TR-ANNUAL' states an unsupported class year 9."),
     );
     render(<SourceCatalogEditor />);
-    await screen.findByText('/srv/sirkadiyen/config/schedule-sources.json');
+    await screen.findByText('/srv/sirkadiyen/shared/config/schedule-sources.json');
 
     await user.click(screen.getByRole('button', { name: /Dönem 1 Türkçe yıllık program/ }));
     await user.type(screen.getByLabelText(/Görünen ad/), '!');
@@ -179,7 +179,7 @@ describe('SourceCatalogEditor', () => {
       sourceCount: null,
     });
     render(<SourceCatalogEditor />);
-    await screen.findByText('/srv/sirkadiyen/config/schedule-sources.json');
+    await screen.findByText('/srv/sirkadiyen/shared/config/schedule-sources.json');
 
     // The editor is the repair tool for a broken catalog, so it must show one rather than hide it.
     expect(screen.getByText(/Diskteki katalog geçerli değil/)).toBeInTheDocument();
@@ -219,7 +219,7 @@ describe('SourceCatalogEditor', () => {
     });
 
     render(<SourceCatalogEditor />);
-    await screen.findByText('/srv/sirkadiyen/config/schedule-sources.json');
+    await screen.findByText('/srv/sirkadiyen/shared/config/schedule-sources.json');
     await user.click(screen.getByRole('tab', { name: 'Sürüm geçmişi' }));
 
     const row = (await screen.findByText('Gid düzeltildi')).closest('tr')!;

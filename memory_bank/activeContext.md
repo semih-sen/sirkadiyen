@@ -2540,7 +2540,7 @@ rather than in the block cell (ADR-113). `grade3_yearly_v1` → 1.2.0.
 and the file shipped inside the worker's release directory. Both are now different (ADR-114).
 
 - **The live document moved out of the release directory.** Both hosts read
-  `/srv/sirkadiyen/config/schedule-sources.json`, set by the systemd units; the copy inside the
+  `/srv/sirkadiyen/shared/config/schedule-sources.json`, set by the systemd units; the copy inside the
   worker artifact is a seed `sirkadiyen-activate` installs only when that directory has no catalog.
   The API unit lists the directory in `ReadWritePaths` — under `ProtectSystem=strict` that, not a
   permission bit, is what makes the file writable, and the panel reports "read-only" when it is not.

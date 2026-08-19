@@ -26,7 +26,7 @@ Environment=ASPNETCORE_ENVIRONMENT=Production
 # directory would be replaced - silently reverting the edit - by the next
 # deployment. The copy shipped inside the artifact only seeds a server that has
 # no catalog yet. The worker reads it; only the API writes it.
-Environment=SIRKADIYEN_SOURCES__CATALOG_PATH=/srv/sirkadiyen/config/schedule-sources.json
+Environment=SIRKADIYEN_SOURCES__CATALOG_PATH=/srv/sirkadiyen/shared/config/schedule-sources.json
 
 Restart=always
 RestartSec=5

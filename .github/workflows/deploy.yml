@@ -127,7 +127,7 @@ jobs:
             # config/schedule-sources.json still ships inside the worker
             # artifact, but only as the SEED for a server that has no catalog
             # yet (ADR-114). Both hosts read the live document from
-            # /srv/sirkadiyen/config, which the admin panel edits and which
+            # /srv/sirkadiyen/shared/config, which the admin panel edits and which
             # survives deployments - so a change to the repository file
             # redeploys the worker WITHOUT changing what a running server uses.
             echo "worker=$(matches "${shared}|^src/Sirkadiyen\.Worker/|^config/")"
@@ -194,7 +194,7 @@ jobs:
             --output artifacts/worker
 
           # Shipped as the seed the activation script installs into
-          # /srv/sirkadiyen/config when that directory has no catalog yet
+          # /srv/sirkadiyen/shared/config when that directory has no catalog yet
           # (ADR-114). The running worker reads the shared copy, never this one.
           mkdir -p artifacts/worker/config
           cp config/schedule-sources.json artifacts/worker/config/schedule-sources.json

@@ -79,7 +79,7 @@ sudo mkdir -p /srv/sirkadiyen/shared/dataprotection-keys
 # outside every release directory on purpose: an administrative edit must not be
 # reverted by the next deployment. sirkadiyen-activate seeds the file from the
 # worker artifact when it does not exist yet, and never overwrites it.
-sudo mkdir -p /srv/sirkadiyen/config
+sudo mkdir -p /srv/sirkadiyen/shared/config
 
 # The deploy account writes releases and migration scripts; nothing else.
 sudo chown -R deploy:sirkadiyen /srv/sirkadiyen/{api,worker,parser,web} /srv/sirkadiyen/migrations
@@ -93,8 +93,8 @@ sudo chmod 750 /srv/sirkadiyen/shared/env /srv/sirkadiyen/shared/secrets
 
 # The catalog is written by the API service account, not by the deploy account:
 # it changes at runtime through an audited admin action, never through rsync.
-sudo chown -R sirkadiyen:sirkadiyen /srv/sirkadiyen/config
-sudo chmod 750 /srv/sirkadiyen/config
+sudo chown -R sirkadiyen:sirkadiyen /srv/sirkadiyen/shared/config
+sudo chmod 750 /srv/sirkadiyen/shared/config
 ```
 
 Copy the environment files into place. These hold every application secret, and
@@ -237,3 +237,39 @@ sudo sirkadiyen-activate api <previous-sha>
 for ten seconds after the restart. Migrations do not roll back — an idempotent
 forward script has no inverse, so a schema change that must be undone needs a
 new migration.
+
+## The admin panel says the source catalog is read-only
+
+The symptom is the catalog editor on `/admin/sources` reporting that
+`/srv/sirkadiyen/shared/config/schedule-sources.json` is not writable. It is
+almost never a file mode or an owner: the API runs as `sirkadiyen`, and the
+file is installed owned by that account.
+
+Under `ProtectSystem=strict` systemd mounts the entire file system read-only for
+the unit except the paths it lists in `ReadWritePaths`, and no ownership on the
+directory changes that. Two things must both be true:
+
+```bash
+# 1. The directory exists and belongs to the service account.
+sudo install -d -o sirkadiyen -g sirkadiyen -m 0750 /srv/sirkadiyen/shared/config
+
+# 2. The running unit grants it. Check what the unit actually has, not what the
+#    repository says - a unit file is installed by hand, not by the pipeline.
+systemctl show sirkadiyen-api -p ReadWritePaths
+```
+
+If the second command does not list `/srv/sirkadiyen/shared/config`, reinstall
+`deploy/systemd/sirkadiyen-api.service` (or add a drop-in), then:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart sirkadiyen-api
+```
+
+A `ReadWritePaths` entry pointing at a directory that does not exist keeps the
+unit from starting at all, so create the directory before restarting. Both hosts
+must also agree on `SIRKADIYEN_SOURCES__CATALOG_PATH`: the worker reads the file
+the API writes, and a mismatch means the panel edits a document the worker never
+loads. `systemctl show <unit> -p Environment` is the authority, because a value
+in `/srv/sirkadiyen/shared/env/*.env` and one in the unit's own `Environment=`
+can disagree.

@@ -6437,7 +6437,7 @@ one.
 **Implements:** `ScheduleSourceCatalogEditingService`, `ScheduleSourceCatalogPlanner`,
 `ScheduleSourceCatalogFile`, `ScheduleSourceCatalogRevision` and its store, the
 `/api/admin/source-catalog` endpoints, the `SourceCatalogEditor` admin surface, and the
-shared `/srv/sirkadiyen/config/schedule-sources.json` deployment path
+shared `/srv/sirkadiyen/shared/config/schedule-sources.json` deployment path
 **Depends on:** ADR-017 (the source context is configuration, not inference), ADR-079
 (an uploaded source names itself by URN), ADR-080 (shared document groups), ADR-102
 (companion evidence), ADR-110 (audience ownership), ADR-112 (the catalog owns every
@@ -6501,7 +6501,7 @@ Six parts, each of them load-bearing:
    activity log an operator actually reads; the evidence itself is the revision row.
 
 **The live document moves out of the release directory.** Both hosts read
-`/srv/sirkadiyen/config/schedule-sources.json`, set by the systemd units. The copy inside
+`/srv/sirkadiyen/shared/config/schedule-sources.json`, set by the systemd units. The copy inside
 the worker artifact becomes a seed that `sirkadiyen-activate` installs only when the
 directory has no catalog yet. The API unit gains that directory in `ReadWritePaths`; the
 worker only reads it.
