@@ -1,3 +1,5 @@
+using Sirkadiyen.Domain.Scheduling.Sources;
+
 namespace Sirkadiyen.Application.StudentProfiles;
 
 /// <summary>
@@ -32,6 +34,28 @@ public interface IProfileAcademicYearRolloverStore
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Stored profiles in one program that carry any academic year other than the one the deployed
+    /// schema states for it, oldest first, bounded (ADR-117).
+    /// </summary>
+    /// <remarks>
+    /// Deliberately "any year other than", not "the year an operator named". The automatic
+    /// reconciler has no operator to name one, and a profile stranded on a year nobody remembers
+    /// is exactly the case that must not be skipped.
+    /// <para>
+    /// It returns no ledger holdings. Those exist so a plan can tell an operator how many lessons
+    /// a rollover puts back; the reconciler is not asking anyone for a decision, so loading a
+    /// thousand mapping rows per student to compute a number nobody reads would be work for its
+    /// own sake.
+    /// </para>
+    /// </remarks>
+    Task<IReadOnlyList<DriftedProfile>> ListDriftedAsync(
+        int classYear,
+        ProgramLanguage programLanguage,
+        string expectedAcademicYear,
+        int limit,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Re-stamps the named profiles with the target year and schema version and, in the same
     /// transaction, flags each owner's connection for the convergence pass that writes the new
     /// year's lessons (ADR-096).
@@ -55,4 +79,12 @@ public sealed record ProfileRolloverApplyResult
     public required int ProfilesMoved { get; init; }
 
     public required int ConvergenceRequested { get; init; }
+}
+
+/// <summary>One stored profile carrying a year its program no longer states (ADR-117).</summary>
+public sealed record DriftedProfile
+{
+    public required Guid UserId { get; init; }
+
+    public required StudentProfileView Profile { get; init; }
 }

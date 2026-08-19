@@ -2684,3 +2684,26 @@ Bu oturumda yazıldı (ADR-116):
 - **Tespit hâlâ pasif.** Bayrak, başarısız olan ilk yazma tarafından basılıyor; izleyen bir
   iş yok. Takvimini silip Sirkadiyen'i hiç açmayan bir öğrenci, durum fark edilene kadar bir
   envanter turu bekleyebilir.
+
+## Akademik yıl artık kendiliğinden uzlaşıyor (2026-08-19)
+
+ADR-115'in operatör ekranı doğru işi yapıyordu ama çalıştırılması hatırlanması gereken bir
+adımdı — ve hatırlanmadı: şema yayına girdi, profiller 2025-2026'da kaldı. Kararın kendisi
+zaten şema derlenip yayına alındığında verilmiş oluyor; o yıldan sonra kaydedilen her profil
+otomatik damgalanıyor (ADR-103). Eskiden kalan profil, ikinci bir karar bekleyen bir şey
+değil, ilk kararın tamamlanmamış hâli.
+
+Bu oturumda (ADR-117): worker her turda profilleri şemayla karşılaştırıyor, yılı geri kalanı
+yeniden damgalıyor ve takvimlerini yakınsama sırasına alıyor. Program başına sınırlı, fence
+içinde, profil-resync aşamasının hemen öncesinde. Yayında hiçbir şey olmayan bir yıla asla
+taşımıyor (aksi hâlde boş takvim garanti olurdu). Kapsamlı freeze kapatma anahtarı: elle
+zamanlamak isteyen operatör programı dondurup ADR-115 ekranını kullanır.
+
+### Sınırı bilerek çizilmiş yer
+
+- **Yıl taşınır, dönem taşınmaz.** Bu rollover'da öğrenciler aynı: fakülte Dönem 2 belgelerini
+  yeni yıl için yeniden yayımladı, kişiler değişmedi. Sınıf atlayan bir kohorta karşı
+  çalıştırılırsa herkese bir alt sınıfın programı yazılır.
+- **Sınıf geçişi öğrencinin kendi işi ve otomatik olmayacak** (karar). Profil formunda dönem
+  serbestçe değiştirilebiliyor; kayıt yeni programın yılını damgalıyor ve yakınsamayı zaten
+  tetikliyor. Hangi uygulama/anatomi/müfredat grubuna gireceğini hiçbir makine bilemez.

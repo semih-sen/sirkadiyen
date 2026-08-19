@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Sirkadiyen.Application.Announcements;
 using Sirkadiyen.Application.GoogleCalendar;
+using Sirkadiyen.Application.StudentProfiles;
 using Sirkadiyen.Application.Scheduling.Diffing;
 using Sirkadiyen.Application.Scheduling.Ingestion;
 using Sirkadiyen.Application.Scheduling.Parsing;
@@ -86,6 +87,18 @@ internal sealed class WorkerOptionsFactory(
                 configuration["SIRKADIYEN_SYNC:PROFILE_RESYNC_CONNECTION_BATCH_SIZE"], 5),
             CalendarOperationsPerConnectionPerCycle = ConfigurationValueParser.Integer(
                 configuration["SIRKADIYEN_SYNC:PROFILE_RESYNC_OPERATIONS_PER_CONNECTION"], 100),
+        }, static options => options.Validate());
+
+    /// <summary>
+    /// Bounds the automatic academic-year reconciler (ADR-117). It is separate from the resync
+    /// batch it feeds: this caps how fast convergence work is created, that one caps how fast
+    /// calendars are written.
+    /// </summary>
+    public ProfileAcademicYearDriftOptions CreateProfileAcademicYearDriftOptions() =>
+        Validate(new ProfileAcademicYearDriftOptions
+        {
+            ProfilesPerProgramPerCycle = ConfigurationValueParser.Integer(
+                configuration["SIRKADIYEN_SYNC:ACADEMIC_YEAR_DRIFT_PROFILES_PER_PROGRAM"], 25),
         }, static options => options.Validate());
 
     public CalendarReconciliationOptions CreateReconciliationOptions() =>

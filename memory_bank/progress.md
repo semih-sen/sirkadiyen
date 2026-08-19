@@ -1061,3 +1061,22 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
   Yazılması gerekiyor.
 - **Not done:** tespit hâlâ pasif — silinen takvimi arayan bir izleyici yok, bayrak ilk başarısız
   yazmada basılıyor.
+
+## Akademik yıl uzlaştırıcısı (2026-08-19)
+
+- **Root cause:** ADR-115'in operatör ekranı manuel bir adımdı ve atlanabiliyordu. Kararın
+  kendisi şema yayına alındığında zaten verilmiş oluyor. Ayrıntı: ADR-117.
+- **Added:** `ProfileAcademicYearRolloverService.ReconcileDriftAsync`,
+  `IProfileAcademicYearRolloverStore.ListDriftedAsync` + PostgreSQL uygulaması, `DriftedProfile`,
+  `ProfileAcademicYearDriftOptions` (+ worker options factory girdisi
+  `SIRKADIYEN_SYNC:ACADEMIC_YEAR_DRIFT_PROFILES_PER_PROGRAM`, varsayılan 25),
+  `ProfileDriftReconcileRunResult`/`ProfileDriftReconciliation`/`ProfileDriftOutcome`,
+  `ProfileAcademicYearDriftTask`, `WorkerCompositionTests`.
+- **Changed:** `FencedCalendarMaintenanceTask` yeni aşamayı profil-resync'in hemen öncesine
+  aldı. Worker kompozisyonu artık `SupportedProfileSchema`, `AuditEventRecorder` ve
+  `IAuditIpProtector` kaydediyor — worker ilk kez `AuditEvent` yazıyor.
+  `SelectorsRemainValid` profil görünümü üzerinden çalışacak şekilde genelleştirildi.
+- **Tests executed:** 702 backend birim testi, `dotnet build` — hepsi geçti. Yeni testler:
+  uzlaştırıcı davranışı (6), worker DI çözümlemesi (3), drift options varsayılan/override (2).
+- **Not done:** sınıf geçişi mekanizması yok ve bilerek yok (ADR-117); öğrenci kendi profilinden
+  dönemini değiştirir. `ListDriftedAsync` için persistence testi yazılmadı.

@@ -148,6 +148,7 @@ internal static class ApiServiceCollectionExtensions
 
         // The rollover corrects stored profiles; every calendar write it implies is still
         // performed by the worker's convergence pass (ADR-115).
+        services.AddSingleton(new ProfileAcademicYearDriftOptions());
         services.AddScoped<ProfileAcademicYearRolloverService>();
 
         // Administrative acquisition. The API stores the uploaded evidence; the worker

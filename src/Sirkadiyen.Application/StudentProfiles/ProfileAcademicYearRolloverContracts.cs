@@ -154,3 +154,75 @@ public enum ProfileRolloverOutcome
     /// </summary>
     NotSupportedBySchema,
 }
+
+/// <summary>One automatic reconciler pass across every program the schema declares (ADR-117).</summary>
+public sealed record ProfileDriftReconcileRunResult
+{
+    /// <summary>Whether the pass did nothing because the global operational freeze is active.</summary>
+    public required bool Frozen { get; init; }
+
+    /// <summary>
+    /// Only the programs with something to say. A program in steady state is deliberately absent,
+    /// so the worker log stays silent except while a rollover is actually happening.
+    /// </summary>
+    public required IReadOnlyList<ProfileDriftReconciliation> Programs { get; init; }
+}
+
+/// <summary>What the reconciler did, or refused to do, for one program.</summary>
+public sealed record ProfileDriftReconciliation
+{
+    public required int ClassYear { get; init; }
+
+    public required ProgramLanguage ProgramLanguage { get; init; }
+
+    /// <summary>The year the deployed schema states for this program.</summary>
+    public required string ToAcademicYear { get; init; }
+
+    public required string ToSchemaVersion { get; init; }
+
+    public required ProfileDriftOutcome Outcome { get; init; }
+
+    /// <summary>Profiles found on another year in this pass, bounded by the per-cycle limit.</summary>
+    public required int DriftedProfiles { get; init; }
+
+    public required int ProfilesMoved { get; init; }
+
+    /// <summary>Connections flagged for the convergence that writes the new year's lessons.</summary>
+    public required int ConvergenceRequested { get; init; }
+
+    /// <summary>
+    /// Profiles left exactly as they are because the target program refuses their selectors. They
+    /// need a person, and the operator screen is where their owners are named.
+    /// </summary>
+    public required IReadOnlyList<Guid> BlockedByInvalidSelectors { get; init; }
+
+    public override string ToString() =>
+        $"class {ClassYear} {ProgramLanguage} → {ToAcademicYear}";
+}
+
+public enum ProfileDriftOutcome
+{
+    /// <summary>Every profile already states the year the schema does. The steady state.</summary>
+    NoDrift,
+
+    /// <summary>Profiles were restamped and their calendars queued for convergence.</summary>
+    Moved,
+
+    /// <summary>
+    /// Nothing is published for the target year yet, so moving a student onto it would guarantee
+    /// them an empty calendar. The reconciler waits for the first revision instead.
+    /// </summary>
+    NothingPublishedYet,
+
+    /// <summary>
+    /// This program is frozen. The scoped freeze is the reconciler's off switch: an operator who
+    /// wants to time a rollover by hand freezes the program and uses the screen.
+    /// </summary>
+    Frozen,
+
+    /// <summary>
+    /// Every drifted profile in this batch has selectors the target program refuses, so none could
+    /// be moved. It needs a person rather than another cycle.
+    /// </summary>
+    AllBlocked,
+}

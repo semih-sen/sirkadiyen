@@ -8,6 +8,7 @@ internal sealed class FencedCalendarMaintenanceTask(
     IServiceScopeFactory scopeFactory,
     PendingDiffDispatchTask dispatch,
     CalendarReconciliationTask reconciliation,
+    ProfileAcademicYearDriftTask academicYearDrift,
     ProfileResyncTask profileResync,
     AnnouncementDispatchTask announcements,
     CalendarInventoryTask inventory,
@@ -31,6 +32,12 @@ internal sealed class FencedCalendarMaintenanceTask(
 
             bool catchUpRequired = await dispatch.RunAsync(cancellationToken);
             catchUpRequired |= await reconciliation.RunAsync(cancellationToken);
+
+            // Immediately before the resync it feeds. The reconciler restamps profiles whose
+            // academic year the deployed schema has moved on from and flags their connections;
+            // running it first means the requests it creates are converged in this cycle rather
+            // than the next one (ADR-117).
+            catchUpRequired |= await academicYearDrift.RunAsync(cancellationToken);
 
             // After replay, before inventory. Replay applies the diffs a user missed, which is
             // about the schedule; this converges who they are. Running it before inventory means

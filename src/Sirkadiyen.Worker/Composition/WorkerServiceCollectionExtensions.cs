@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Sirkadiyen.Application.Announcements;
 using Sirkadiyen.Application.GoogleCalendar;
+using Sirkadiyen.Application.StudentProfiles;
+using Sirkadiyen.Application.Auditing;
 using Sirkadiyen.Application.Scheduling.Diffing;
 using Sirkadiyen.Application.Scheduling.Ingestion;
 using Sirkadiyen.Application.Scheduling.Parsing;
@@ -67,6 +69,18 @@ internal static class WorkerServiceCollectionExtensions
         services.AddScoped<InitialCalendarSyncService>();
         services.AddScoped<IncrementalCalendarSyncService>();
         services.AddScoped<ProfileChangeResyncService>();
+
+        // The automatic half of the academic-year rollover (ADR-117). The operator screen
+        // in the API drives the same service; this is the same repair, unattended.
+        services.AddSingleton(CurrentSupportedProfileSchema.Create());
+        services.AddSingleton(options.CreateProfileAcademicYearDriftOptions());
+        services.AddScoped<ProfileAcademicYearRolloverService>();
+
+        // The worker writes audit entries for the profile changes it makes on nobody's
+        // request, so it needs the recorder the API already uses. There is no client IP on
+        // a background pass; the protector is still required to construct it.
+        services.AddSingleton<IAuditIpProtector, DataProtectionAuditIpProtector>();
+        services.AddScoped<AuditEventRecorder>();
         services.AddScoped<CalendarReconciliationService>();
         services.AddScoped<CalendarInventoryReconciliationService>();
         services.AddScoped<AnnouncementDispatchService>();
@@ -96,6 +110,7 @@ internal static class WorkerServiceCollectionExtensions
         services.AddSingleton<PendingDiffDispatchTask>();
         services.AddSingleton<CalendarReconciliationTask>();
         services.AddSingleton<ProfileResyncTask>();
+        services.AddSingleton<ProfileAcademicYearDriftTask>();
         services.AddSingleton<AnnouncementDispatchTask>();
         services.AddSingleton<CalendarInventoryTask>();
         services.AddSingleton<FencedCalendarMaintenanceTask>();

@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Sirkadiyen.Application.StudentProfiles;
 using Sirkadiyen.Domain.GoogleCalendar;
+using Sirkadiyen.Domain.Scheduling.Sources;
 using Sirkadiyen.Domain.StudentProfiles;
 
 namespace Sirkadiyen.Infrastructure.Persistence.StudentProfiles.Stores;
@@ -80,6 +81,38 @@ public sealed class ProfileAcademicYearRolloverStore(SirkadiyenDbContext dbConte
                             StableIdentity = mapping.StableIdentity,
                         }),
                 ],
+            }),
+        ];
+    }
+
+    public async Task<IReadOnlyList<DriftedProfile>> ListDriftedAsync(
+        int classYear,
+        ProgramLanguage programLanguage,
+        string expectedAcademicYear,
+        int limit,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedAcademicYear);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
+
+        List<StudentProfile> profiles = await dbContext.StudentProfiles
+            .AsNoTracking()
+            .Where(profile => profile.ClassYear == classYear
+                && profile.ProgramLanguage == programLanguage
+                && profile.AcademicYear != expectedAcademicYear)
+            // Oldest first, so the profiles that have been stranded longest are repaired first
+            // rather than a bounded batch repeatedly picking the same arbitrary slice.
+            .OrderBy(profile => profile.UpdatedAtUtc)
+            .ThenBy(profile => profile.UserId)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+
+        return
+        [
+            .. profiles.Select(profile => new DriftedProfile
+            {
+                UserId = profile.UserId,
+                Profile = ProfileView(profile),
             }),
         ];
     }

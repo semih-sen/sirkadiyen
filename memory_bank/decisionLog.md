@@ -6751,3 +6751,87 @@ revoked", which is both untrue and the reason the loop looked like a reasonable 
   and remains open.
 
 ---
+
+## ADR-117: Stored profiles follow the deployed schema's academic year without being asked
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-19
+**Implements:** `ProfileAcademicYearRolloverService.ReconcileDriftAsync`,
+`IProfileAcademicYearRolloverStore.ListDriftedAsync`, `ProfileAcademicYearDriftOptions`,
+`ProfileAcademicYearDriftTask`
+**Amends:** ADR-115
+
+### Context
+
+ADR-115 made the academic-year rollover an audited operator action, on the reasoning that
+restamping a cohort's stored profiles is a whole-population write and should not become
+ordinary (AI_GUIDELINE §13). That is right about the *shape* of the operation and wrong
+about *whose decision it is*, and the difference showed up immediately: the screen was
+built, the schema was deployed, and the profiles sat on 2025-2026 because running it was a
+step someone had to remember.
+
+The decision is already taken before any operator opens that screen. The supported-profile
+schema is compiled in, so deploying a schema that states a new year for a program **is**
+the deliberate act, and every profile saved after that deployment is stamped with the new
+year automatically (ADR-103). A profile written before it and still carrying the old year
+is not a second decision waiting to be made — it is the first one not having finished. What
+ADR-115 modelled as an authorization was really a manual step standing in for a
+reconciliation.
+
+### Decision
+
+1. **A worker stage reconciles stored profiles against the deployed schema every cycle**,
+   restamping any whose academic year its program no longer states and queueing the
+   convergence that writes that year's lessons. It runs immediately before the
+   profile-resync stage it feeds, inside the shared Calendar fence so two workers cannot
+   restamp the same batch, and it is bounded per program per cycle.
+
+2. **It never restamps onto a year that publishes nothing for the cohort yet.** Between
+   deploying a schema that names a new year and publishing the first revision under it
+   there is a window in which moving a student guarantees them an empty calendar. Waiting
+   for that publication costs nothing and removes the only way this stage could make things
+   worse.
+
+3. **The scoped freeze is the off switch.** An operator who wants to time one program's
+   rollover by hand freezes that program and uses the ADR-115 screen. No separate feature
+   flag: a second switch with its own semantics is a second thing to keep true, and the
+   freeze already means exactly "stop touching this program".
+
+4. **A profile whose selectors the target program refuses is reported, never restamped.**
+   That case needs a person — a re-onboarding, or a schema that still declares the dropped
+   dimension — and the operator screen is where its owner is named.
+
+5. **The audit entry is per program batch, written before the batch is applied.**
+   Unattended does not mean unrecorded; a change nobody asked for is precisely the one that
+   must be reconstructable. Per student would be an entry each for several hundred
+   profiles, burying the log in the place someone goes to understand what happened.
+
+6. **The ADR-115 screen stays.** It is not redundant: it previews what a move would put
+   back before anything happens, names the blocked profiles, and acts immediately instead
+   of within a cycle. The reconciler is the same service, unattended.
+
+### Consequences
+
+- A future grade rollover needs a catalog edit and a schema constant. Nothing else.
+  Forgetting the operator step is no longer a way for a cohort to lose a year of calendars.
+- **It moves the academic year and never the class year.** That is correct only while the
+  same students remain in the same class — which is what this rollover is: the faculty
+  republished the Grade 2 Turkish documents for the new year, and the students are the same
+  people. It is *not* correct for the case where a cohort advances a class year, and
+  running this against such a cohort would give every student the incoming class's
+  schedule.
+- **There is still no class-year progression mechanism, and by decision there will not be
+  an automatic one.** A student who advances updates their own profile: the class year is
+  freely editable on the profile form, saving restamps their program's academic year and
+  queues convergence through the existing path (ADR-096). No machine can infer which
+  practice, anatomy or curriculum group they belong to in the new class, so inventing one
+  would be inventing an audience. Recorded here so the boundary above is not read as an
+  oversight.
+- The worker now writes to the cross-cutting `AuditEvent` log, which it never did before.
+  `AuditEventRecorder` and `IAuditIpProtector` are registered in its composition; there is
+  no client IP on a background pass, and the protector is required only to construct the
+  recorder. `WorkerCompositionTests` resolves the whole fenced stage from the real service
+  collection, because a missing registration was previously invisible to every test and
+  visible only as a crash on a deployed worker's first cycle.
+
+---

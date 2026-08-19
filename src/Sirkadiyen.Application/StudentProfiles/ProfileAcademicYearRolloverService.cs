@@ -34,8 +34,174 @@ public sealed class ProfileAcademicYearRolloverService(
     ICanonicalScheduleReadStore scheduleReadStore,
     SupportedProfileSchema schema,
     IOperationalFreezeStore freezeStore,
+    ProfileAcademicYearDriftOptions driftOptions,
     TimeProvider timeProvider)
 {
+    /// <summary>
+    /// Restamps every stored profile whose academic year no longer matches the one the deployed
+    /// schema states for its program, and queues the convergence that writes the new year's
+    /// lessons (ADR-117). Bounded per program per cycle, and a no-op in steady state.
+    /// </summary>
+    /// <remarks>
+    /// This is the repair the operator screen performs, run without being asked. The justification
+    /// is that the decision was already taken: the schema is compiled in, so deploying one that
+    /// states a new year for a program <em>is</em> the deliberate act, and every profile saved
+    /// after that deployment is stamped with it automatically (ADR-103). A profile written before
+    /// it and still carrying the old year is not a second decision waiting to be made — it is the
+    /// first one not having finished.
+    /// <para>
+    /// Two conditions hold it back, and both matter. It never restamps onto a year that publishes
+    /// nothing for the cohort yet, because between deploying a schema and publishing the first
+    /// revision under it there is a window where moving a student guarantees them an empty
+    /// calendar; waiting costs nothing. And it honours the scoped freeze, which is therefore the
+    /// off switch: an operator who wants to time one program's rollover by hand freezes that
+    /// program and uses the screen.
+    /// </para>
+    /// <para>
+    /// A profile whose selectors the target program refuses is never restamped, only reported. It
+    /// needs a human, and the operator screen is where its owner is named.
+    /// </para>
+    /// </remarks>
+    /// <param name="recordReconciliation">
+    /// Writes the audit entry for one program's batch, immediately before it is applied. One entry
+    /// per batch rather than per student: a grade rollover is a few hundred profiles, and an entry
+    /// each would bury the log in the exact place someone goes to understand what happened.
+    /// </param>
+    public async Task<ProfileDriftReconcileRunResult> ReconcileDriftAsync(
+        Func<ProfileDriftReconciliation, CancellationToken, Task> recordReconciliation,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(recordReconciliation);
+
+        // Every path that queues calendar work reads the same authoritative switch and fails
+        // closed (ADR-034/043).
+        OperationalFreezeSnapshot freeze = await freezeStore.GetAsync(cancellationToken);
+        if (freeze.IsFrozen)
+        {
+            return new ProfileDriftReconcileRunResult { Frozen = true, Programs = [] };
+        }
+
+        List<ProfileDriftReconciliation> programs = [];
+        foreach (SupportedProfileProgram program in schema.Programs)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            programs.Add(await ReconcileProgramAsync(
+                program,
+                recordReconciliation,
+                cancellationToken));
+        }
+
+        return new ProfileDriftReconcileRunResult
+        {
+            Frozen = false,
+            // A program with nothing drifted is the steady state and is dropped here, so the
+            // worker logs a rollover in progress and says nothing on every other cycle.
+            Programs =
+            [
+                .. programs.Where(result => result.Outcome is not ProfileDriftOutcome.NoDrift),
+            ],
+        };
+    }
+
+    private async Task<ProfileDriftReconciliation> ReconcileProgramAsync(
+        SupportedProfileProgram program,
+        Func<ProfileDriftReconciliation, CancellationToken, Task> recordReconciliation,
+        CancellationToken cancellationToken)
+    {
+        ProfileDriftReconciliation Result(
+            ProfileDriftOutcome outcome,
+            int drifted = 0,
+            int moved = 0,
+            int convergenceRequested = 0,
+            IReadOnlyList<Guid>? blocked = null) => new()
+            {
+                ClassYear = program.ClassYear,
+                ProgramLanguage = program.ProgramLanguage,
+                ToAcademicYear = program.AcademicYear,
+                ToSchemaVersion = schema.SchemaVersion,
+                Outcome = outcome,
+                DriftedProfiles = drifted,
+                ProfilesMoved = moved,
+                ConvergenceRequested = convergenceRequested,
+                BlockedByInvalidSelectors = blocked ?? [],
+            };
+
+        IReadOnlyList<DriftedProfile> drifted = await rolloverStore.ListDriftedAsync(
+            program.ClassYear,
+            program.ProgramLanguage,
+            program.AcademicYear,
+            driftOptions.ProfilesPerProgramPerCycle,
+            cancellationToken);
+        if (drifted.Count == 0)
+        {
+            return Result(ProfileDriftOutcome.NoDrift);
+        }
+
+        if (await freezeStore.IsFrozenAsync(
+                new OperationalFreezeScope
+                {
+                    ClassYear = program.ClassYear,
+                    ProgramLanguage = program.ProgramLanguage,
+                },
+                cancellationToken))
+        {
+            return Result(ProfileDriftOutcome.Frozen, drifted.Count);
+        }
+
+        IReadOnlyList<CanonicalScheduleRecord> published =
+            await scheduleReadStore.ListCurrentPublishedRecordsAsync(
+                program.AcademicYear,
+                program.ClassYear,
+                program.ProgramLanguage,
+                cancellationToken);
+        if (published.Count == 0)
+        {
+            return Result(ProfileDriftOutcome.NothingPublishedYet, drifted.Count);
+        }
+
+        List<Guid> eligible = [];
+        List<Guid> blocked = [];
+        foreach (DriftedProfile candidate in drifted)
+        {
+            if (SelectorsRemainValid(candidate.Profile, program))
+            {
+                eligible.Add(candidate.UserId);
+            }
+            else
+            {
+                blocked.Add(candidate.UserId);
+            }
+        }
+
+        if (eligible.Count == 0)
+        {
+            return Result(ProfileDriftOutcome.AllBlocked, drifted.Count, blocked: blocked);
+        }
+
+        ProfileDriftReconciliation planned = Result(
+            ProfileDriftOutcome.Moved,
+            drifted.Count,
+            moved: eligible.Count,
+            blocked: blocked);
+
+        // Before the side effect, never after: this rewrites data students entered about
+        // themselves, and an unrecordable change must not happen at all (AI_GUIDELINE §19).
+        await recordReconciliation(planned, cancellationToken);
+
+        ProfileRolloverApplyResult applied = await rolloverStore.ApplyAsync(
+            eligible,
+            program.AcademicYear,
+            schema.SchemaVersion,
+            timeProvider.GetUtcNow(),
+            cancellationToken);
+
+        return planned with
+        {
+            ProfilesMoved = applied.ProfilesMoved,
+            ConvergenceRequested = applied.ConvergenceRequested,
+        };
+    }
+
     /// <summary>
     /// Works out what a rollover would move and what each student's calendar would gain, writing
     /// nothing. Safe to call repeatedly, and the only way an operator sees what they authorize.
@@ -97,7 +263,7 @@ public sealed class ProfileAcademicYearRolloverService(
             // program dropped or renamed would otherwise be re-stamped into a profile the schema
             // refuses, and the student would find their own settings page rejecting a profile
             // they never changed.
-            if (!SelectorsRemainValid(candidate, program))
+            if (!SelectorsRemainValid(candidate.Profile, program))
             {
                 blocked.Add(candidate.UserId);
                 continue;
@@ -241,7 +407,7 @@ public sealed class ProfileAcademicYearRolloverService(
     }
 
     private static bool SelectorsRemainValid(
-        ProfileRolloverCandidate candidate,
+        StudentProfileView profile,
         SupportedProfileProgram program) =>
         StudentProfileValidator.Validate(
             new SupportedProfileSchema
@@ -254,10 +420,10 @@ public sealed class ProfileAcademicYearRolloverService(
             },
             new SubmittedStudentProfile
             {
-                ClassYear = candidate.Profile.ClassYear,
-                ProgramLanguage = candidate.Profile.ProgramLanguage,
-                StudentNumber = candidate.Profile.StudentNumber,
-                Selectors = candidate.Profile.Selectors,
+                ClassYear = profile.ClassYear,
+                ProgramLanguage = profile.ProgramLanguage,
+                StudentNumber = profile.StudentNumber,
+                Selectors = profile.Selectors,
             })
         .IsValid;
 

@@ -30,6 +30,12 @@ public sealed class WorkerOptionsFactoryTests
         var profileResync = factory.CreateProfileResyncOptions();
         Assert.Equal(5, profileResync.ConnectionBatchSize);
         Assert.Equal(100, profileResync.CalendarOperationsPerConnectionPerCycle);
+
+        // The reconciler's bound is separate from the resync batch it feeds: this caps how fast
+        // convergence work is created, that one caps how fast calendars are written (ADR-117).
+        Assert.Equal(
+            25,
+            factory.CreateProfileAcademicYearDriftOptions().ProfilesPerProgramPerCycle);
     }
 
     [Fact]
@@ -42,6 +48,7 @@ public sealed class WorkerOptionsFactoryTests
             ["SIRKADIYEN_POLLING:DAYTIME_START"] = "06:30",
             ["SIRKADIYEN_VALIDATION:MAXIMUM_DELETION_SHARE"] = "0.25",
             ["SIRKADIYEN_SYNC:PROFILE_RESYNC_OPERATIONS_PER_CONNECTION"] = "40",
+            ["SIRKADIYEN_SYNC:ACADEMIC_YEAR_DRIFT_PROFILES_PER_PROGRAM"] = "8",
         });
         WorkerOptionsFactory factory = new(builder.Configuration, builder.Environment);
 
@@ -53,6 +60,9 @@ public sealed class WorkerOptionsFactoryTests
         Assert.Equal(
             40,
             factory.CreateProfileResyncOptions().CalendarOperationsPerConnectionPerCycle);
+        Assert.Equal(
+            8,
+            factory.CreateProfileAcademicYearDriftOptions().ProfilesPerProgramPerCycle);
     }
 
     private static HostApplicationBuilder CreateBuilder(

@@ -220,6 +220,115 @@ public sealed class ProfileAcademicYearRolloverServiceTests
         Assert.Empty(store.Applied);
     }
 
+    [Fact]
+    public async Task TheReconcilerMovesDriftedProfilesWithoutBeingAskedAsync()
+    {
+        // "Kendisi değişmeli": the schema is compiled in, so deploying one that names a new year
+        // is the deliberate act. A profile still on the old year is that deployment unfinished,
+        // not a second decision waiting to be taken (ADR-117).
+        StudentProfileView profile = Grade2Profile("A");
+        RecordingRolloverStore store = new([Candidate(profile)]);
+
+        ProfileDriftReconcileRunResult result = await Service([NewYearRecord("identity")], store)
+            .ReconcileDriftAsync(NoDriftAudit, CancellationToken.None);
+
+        ProfileDriftReconciliation moved = Assert.Single(
+            result.Programs,
+            program => program.Outcome is ProfileDriftOutcome.Moved);
+        Assert.Equal(2, moved.ClassYear);
+        Assert.Equal(NewYear, moved.ToAcademicYear);
+        Assert.Equal([profile.UserId], store.Applied);
+    }
+
+    [Fact]
+    public async Task AProgramInSteadyStateIsSilentAsync()
+    {
+        // The reconciler runs every cycle forever. If a program with nothing to do reported
+        // itself, the worker log would fill with the absence of news.
+        StudentProfileView current = CalendarTestData.Profile(
+            classYear: 2,
+            academicYear: NewYear,
+            selectors: new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["practiceGroup"] = "A",
+                ["practiceSubgroup"] = "A1",
+                ["anatomyGroup"] = "1",
+            });
+        RecordingRolloverStore store = new([Candidate(current)]);
+
+        ProfileDriftReconcileRunResult result = await Service([NewYearRecord("identity")], store)
+            .ReconcileDriftAsync(NoDriftAudit, CancellationToken.None);
+
+        Assert.Empty(result.Programs);
+        Assert.Empty(store.Applied);
+    }
+
+    [Fact]
+    public async Task NothingIsMovedOntoAYearThatPublishesNothingYetAsync()
+    {
+        // Between deploying a schema that names a new year and publishing the first revision under
+        // it, moving a student guarantees them an empty calendar. Waiting costs nothing.
+        RecordingRolloverStore store = new([Candidate(Grade2Profile("A"))]);
+
+        ProfileDriftReconcileRunResult result = await Service(published: [], store)
+            .ReconcileDriftAsync(NoDriftAudit, CancellationToken.None);
+
+        Assert.Contains(
+            result.Programs,
+            program => program.Outcome is ProfileDriftOutcome.NothingPublishedYet);
+        Assert.Empty(store.Applied);
+    }
+
+    [Fact]
+    public async Task AProfileTheTargetProgramRefusesIsReportedAndLeftAloneAsync()
+    {
+        StudentProfileView stale = Grade2Profile("Z");
+        RecordingRolloverStore store = new([Candidate(stale)]);
+
+        ProfileDriftReconcileRunResult result = await Service([NewYearRecord("identity")], store)
+            .ReconcileDriftAsync(NoDriftAudit, CancellationToken.None);
+
+        ProfileDriftReconciliation blocked = Assert.Single(
+            result.Programs,
+            program => program.Outcome is ProfileDriftOutcome.AllBlocked);
+        Assert.Equal([stale.UserId], blocked.BlockedByInvalidSelectors);
+        Assert.Empty(store.Applied);
+    }
+
+    [Fact]
+    public async Task TheReconcilerMovesNothingWhileFrozenAsync()
+    {
+        // The freeze is the off switch: an operator who wants to time a rollover by hand freezes
+        // the program and uses the screen instead.
+        RecordingRolloverStore store = new([Candidate(Grade2Profile("A"))]);
+
+        ProfileDriftReconcileRunResult result =
+            await Service([NewYearRecord("identity")], store, frozen: true)
+                .ReconcileDriftAsync(NoDriftAudit, CancellationToken.None);
+
+        Assert.True(result.Frozen);
+        Assert.Empty(store.Applied);
+    }
+
+    [Fact]
+    public async Task AFailedAuditAbandonsTheAutomaticPassBeforeAnyProfileIsRewrittenAsync()
+    {
+        // Unattended does not mean unrecorded. A change nobody asked for is exactly the one that
+        // must be reconstructable afterwards (AI_GUIDELINE §19).
+        RecordingRolloverStore store = new([Candidate(Grade2Profile("A"))]);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            Service([NewYearRecord("identity")], store).ReconcileDriftAsync(
+                (_, _) => throw new InvalidOperationException("the audit column rejected it"),
+                CancellationToken.None));
+
+        Assert.Empty(store.Applied);
+    }
+
+    private static Task NoDriftAudit(
+        ProfileDriftReconciliation reconciliation,
+        CancellationToken cancellationToken) => Task.CompletedTask;
+
     private static Task NoAudit(ProfileRolloverPlan plan, CancellationToken cancellationToken) =>
         Task.CompletedTask;
 
@@ -283,6 +392,7 @@ public sealed class ProfileAcademicYearRolloverServiceTests
             // for Grade 2 Turkish as about the service reading it.
             CurrentSupportedProfileSchema.Create(),
             new StubFreezeStore(frozen),
+            new ProfileAcademicYearDriftOptions(),
             new FixedTimeProvider(DateTimeOffset.UnixEpoch));
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
@@ -308,6 +418,26 @@ public sealed class ProfileAcademicYearRolloverServiceTests
                     candidate.Profile.AcademicYear == scope.FromAcademicYear
                     && candidate.Profile.ClassYear == scope.ClassYear
                     && candidate.Profile.ProgramLanguage == scope.ProgramLanguage),
+            ]);
+
+        public Task<IReadOnlyList<DriftedProfile>> ListDriftedAsync(
+            int classYear,
+            ProgramLanguage programLanguage,
+            string expectedAcademicYear,
+            int limit,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<DriftedProfile>>(
+            [
+                .. candidates
+                    .Where(candidate => candidate.Profile.ClassYear == classYear
+                        && candidate.Profile.ProgramLanguage == programLanguage
+                        && candidate.Profile.AcademicYear != expectedAcademicYear)
+                    .Take(limit)
+                    .Select(candidate => new DriftedProfile
+                    {
+                        UserId = candidate.UserId,
+                        Profile = candidate.Profile,
+                    }),
             ]);
 
         public Task<ProfileRolloverApplyResult> ApplyAsync(
