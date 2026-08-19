@@ -326,6 +326,8 @@ jobs:
           # Repository or environment variable, for example http://127.0.0.1:5080
           # when Kestrel and Next share the host. Baked into the rewrite table.
           BACKEND_ORIGIN: ${{ vars.BACKEND_ORIGIN }}
+          
+          NEXT_PUBLIC_GOOGLE_AUTH_CLIENT_ID: ${{ secrets.NEXT_PUBLIC_GOOGLE_AUTH_CLIENT_ID }}
           NEXT_TELEMETRY_DISABLED: "1"
         run: |
           test -n "${BACKEND_ORIGIN}" || { echo "::error::The BACKEND_ORIGIN repository variable is not set"; exit 1; }
