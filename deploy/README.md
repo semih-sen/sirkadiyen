@@ -75,6 +75,12 @@ sudo mkdir -p /srv/sirkadiyen/shared/env
 sudo mkdir -p /srv/sirkadiyen/shared/secrets
 sudo mkdir -p /srv/sirkadiyen/shared/dataprotection-keys
 
+# The schedule source catalog the administration panel edits (ADR-114). It sits
+# outside every release directory on purpose: an administrative edit must not be
+# reverted by the next deployment. sirkadiyen-activate seeds the file from the
+# worker artifact when it does not exist yet, and never overwrites it.
+sudo mkdir -p /srv/sirkadiyen/config
+
 # The deploy account writes releases and migration scripts; nothing else.
 sudo chown -R deploy:sirkadiyen /srv/sirkadiyen/{api,worker,parser,web} /srv/sirkadiyen/migrations
 sudo chmod -R 2775 /srv/sirkadiyen/{api,worker,parser,web} /srv/sirkadiyen/migrations
@@ -84,6 +90,11 @@ sudo chmod -R 2775 /srv/sirkadiyen/{api,worker,parser,web} /srv/sirkadiyen/migra
 sudo chown -R sirkadiyen:sirkadiyen /srv/sirkadiyen/shared
 sudo chmod 700 /srv/sirkadiyen/shared/dataprotection-keys
 sudo chmod 750 /srv/sirkadiyen/shared/env /srv/sirkadiyen/shared/secrets
+
+# The catalog is written by the API service account, not by the deploy account:
+# it changes at runtime through an audited admin action, never through rsync.
+sudo chown -R sirkadiyen:sirkadiyen /srv/sirkadiyen/config
+sudo chmod 750 /srv/sirkadiyen/config
 ```
 
 Copy the environment files into place. These hold every application secret, and

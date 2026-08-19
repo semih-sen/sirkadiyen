@@ -2533,3 +2533,45 @@ rather than in the block cell (ADR-113). `grade3_yearly_v1` → 1.2.0.
 - **The .NET tests for this change have not been run.** The expectations in
   `ManagedCalendarEventFactoryTests` were updated by hand for the new naming, and three cases were
   added; none has executed.
+
+## The source catalog is editable from the admin panel (2026-08-19)
+
+`config/schedule-sources.json` used to be changeable only by a commit and a worker redeploy,
+and the file shipped inside the worker's release directory. Both are now different (ADR-114).
+
+- **The live document moved out of the release directory.** Both hosts read
+  `/srv/sirkadiyen/config/schedule-sources.json`, set by the systemd units; the copy inside the
+  worker artifact is a seed `sirkadiyen-activate` installs only when that directory has no catalog.
+  The API unit lists the directory in `ReadWritePaths` — under `ProtectSystem=strict` that, not a
+  permission bit, is what makes the file writable, and the panel reports "read-only" when it is not.
+- **Editing is the six-step high-risk pattern.** `GET /api/admin/source-catalog` returns the
+  document (including one that no longer parses, since the editor is the repair tool for it),
+  `/preview` returns a field-by-field plan with a risk classification and named consequence
+  warnings, and `/apply` writes it only against a matching `baseContentHash` and `planHash`, with a
+  required reason.
+- **Two editors, one string.** A form over every source, and a raw JSON editor for the selector
+  maps and for repairing a broken document. Neither can drop what the other wrote.
+- **A dropped source is retired, not deleted** — polling off, rows and published lessons untouched.
+- **Every applied document is retained** in `schedule_source_catalog_revisions`, with a baseline row
+  for the state before the first edit; a `ScheduleSourceCatalogUpdated` audit event indexes it.
+- **The loader now refuses unknown properties.** A mistyped field used to deserialize to nothing and
+  validate cleanly — invisible in a text box.
+- **Tests executed:** 661 Infrastructure unit tests (20 new: 14 for the editing service, 6 for the
+  atomic file), 53 web tests (7 new for the editor), web typecheck clean. The four new persistence
+  tests **have not run** — no PostgreSQL is reachable on this machine (Docker is not running), which
+  is the pre-existing state of all 222 database tests here, not a regression.
+
+### Open risks added
+
+- **A repository edit to `config/schedule-sources.json` no longer reaches a running server.** It
+  updates the seed and redeploys the worker; the live document is whatever the panel last wrote.
+  This is deliberate, but it inverts an assumption every earlier session worked under.
+- **Retargeting a source's audience is legal and destructive-adjacent.** Changing `classYear` or
+  `programLanguage` on a source with published lessons hands them to a different cohort at the next
+  dispatch and leaves the old cohort's events in place. The plan warns and points at the ADR-111
+  repair; nothing enforces that the operator runs it.
+- **A shell edit on the server is still possible.** The panel detects it (no stored revision matches
+  the file, and the next edit 409s) but cannot prevent it.
+- **The four persistence tests for the revision store are unverified.** They follow the existing
+  fixture pattern and skip themselves without a database, so CI with a database is the first place
+  they will actually execute.

@@ -15,6 +15,7 @@ using Sirkadiyen.Application.Onboarding;
 using Sirkadiyen.Application.Scheduling.Diffing;
 using Sirkadiyen.Application.Scheduling.Ingestion;
 using Sirkadiyen.Application.Scheduling.Publication;
+using Sirkadiyen.Application.Scheduling.Sources;
 using Sirkadiyen.Application.StudentProfiles;
 using Sirkadiyen.Domain.Identity;
 using Sirkadiyen.Infrastructure.Google;
@@ -22,6 +23,7 @@ using Sirkadiyen.Infrastructure.Licensing;
 using Sirkadiyen.Infrastructure.Observability;
 using Sirkadiyen.Infrastructure.Persistence;
 using Sirkadiyen.Infrastructure.Scheduling.Ingestion;
+using Sirkadiyen.Infrastructure.Scheduling.Sources;
 using Sirkadiyen.Infrastructure.Security;
 
 namespace Sirkadiyen.Api.Composition;
@@ -145,6 +147,20 @@ internal static class ApiServiceCollectionExtensions
         services.AddSingleton<DocxSnapshotConverter>();
         services.AddScoped<IUploadedDocumentConverter, UploadedDocumentConverter>();
         services.AddScoped<AdministrativeDocumentUploadService>();
+
+        // The editable schedule source catalog (ADR-114). The path is shared with the worker,
+        // which reads the same file at startup, so it must be configured to a location outside
+        // either host's release directory - a catalog inside a deployed artifact is replaced by
+        // the next deployment and every administrative edit would silently revert.
+        services.AddSingleton(new ScheduleSourceCatalogFileOptions
+        {
+            Path = Path.GetFullPath(
+                configuration["SIRKADIYEN_SOURCES:CATALOG_PATH"] ?? "config/schedule-sources.json",
+                builder.Environment.ContentRootPath),
+        });
+        services.AddSingleton<IScheduleSourceCatalogFile, ScheduleSourceCatalogFile>();
+        services.AddSingleton<IScheduleSourceCatalogSerializer, ScheduleSourceCatalogLoader>();
+        services.AddScoped<ScheduleSourceCatalogEditingService>();
         services.AddSirkadiyenPersistence(connectionString);
 
         return services;

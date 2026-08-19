@@ -968,3 +968,25 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
   Worker and Api lock the assemblies, so the Infrastructure suite cannot build.
 - **Not done:** the .NET side is unverified, and the one-time description rewrite of every
   department-bearing event has not been performed or scheduled.
+
+## The schedule source catalog becomes an editable, audited document (2026-08-19)
+
+- **Added (ADR-114):** `ScheduleSourceCatalogEditingService` (read/preview/apply),
+  `ScheduleSourceCatalogPlanner` (field-level diff, risk classification, plan hash),
+  `ScheduleSourceCatalogFile` (atomic write, write probe), `ScheduleSourceCatalogRevision` +
+  `schedule_source_catalog_revisions` migration, the `/api/admin/source-catalog` endpoint group,
+  and the `SourceCatalogEditor` React surface as a third tab on `/admin/sources`.
+- **Changed:** `ScheduleSourceCatalogLoader` gained `Parse(string)` and now refuses unknown JSON
+  properties, so the worker and the admin panel validate by one implementation; its failures are
+  `ScheduleSourceCatalogValidationException` rather than `InvalidDataException`. The source upsert
+  moved to `ScheduleSourceUpsert.StageAsync` so the startup seed and the admin edit apply
+  configuration identically, the second inside the transaction that records its revision.
+- **Changed (deployment):** the live catalog is `/srv/sirkadiyen/config/schedule-sources.json`;
+  `sirkadiyen-activate` seeds it, the API unit may write it, the worker only reads it.
+- **Tests added:** 14 editing-service cases, 6 catalog-file cases, 4 persistence cases for the
+  commit transaction, 7 web component cases; 12 loader tests updated for the new exception type.
+- **Tests executed:** 661 Infrastructure unit tests, 8 API unit tests, 6 Contracts tests, 53 web
+  tests, `tsc --noEmit` clean. **The persistence suite did not run** — no database is reachable on
+  this machine.
+- **Not done:** no poll or parse can be triggered from the panel, so a corrected source is picked up
+  on its next scheduled cycle.

@@ -30,10 +30,11 @@ public sealed class ScheduleSourceCatalogLoaderTests : IDisposable
     [Fact]
     public async Task AnAdministrativelyUploadedSourceMayNotClaimAFetchableLocation()
     {
-        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
-            () => LoadAsync(SourceJson(
-                "administrativeUpload",
-                "https://drive.google.com/file/d/1abc/view")));
+        ScheduleSourceCatalogValidationException exception =
+            await Assert.ThrowsAsync<ScheduleSourceCatalogValidationException>(
+                () => LoadAsync(SourceJson(
+                    "administrativeUpload",
+                    "https://drive.google.com/file/d/1abc/view")));
 
         Assert.Contains("must identify itself", exception.Message, StringComparison.Ordinal);
     }
@@ -43,10 +44,11 @@ public sealed class ScheduleSourceCatalogLoaderTests : IDisposable
     {
         // A copied entry that kept the other source's URN would attach one
         // document's evidence to the other, which nothing downstream could detect.
-        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
-            () => LoadAsync(SourceJson(
-                "administrativeUpload",
-                "urn:sirkadiyen:upload:G2-SOME-OTHER-SOURCE")));
+        ScheduleSourceCatalogValidationException exception =
+            await Assert.ThrowsAsync<ScheduleSourceCatalogValidationException>(
+                () => LoadAsync(SourceJson(
+                    "administrativeUpload",
+                    "urn:sirkadiyen:upload:G2-SOME-OTHER-SOURCE")));
 
         Assert.Contains(
             "urn:sirkadiyen:upload:G2-UPLOAD",
@@ -57,8 +59,9 @@ public sealed class ScheduleSourceCatalogLoaderTests : IDisposable
     [Fact]
     public async Task AFetchedSourceStillRequiresAnAbsoluteHttpsUri()
     {
-        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
-            () => LoadAsync(SourceJson("googleDriveFile", "urn:sirkadiyen:upload:G2-UPLOAD")));
+        ScheduleSourceCatalogValidationException exception =
+            await Assert.ThrowsAsync<ScheduleSourceCatalogValidationException>(
+                () => LoadAsync(SourceJson("googleDriveFile", "urn:sirkadiyen:upload:G2-UPLOAD")));
 
         Assert.Contains("absolute HTTPS URI", exception.Message, StringComparison.Ordinal);
     }
@@ -81,8 +84,9 @@ public sealed class ScheduleSourceCatalogLoaderTests : IDisposable
         // Two sources meant to share a document but spelling the group
         // differently would each become a group of one, and the upload would
         // quietly serve only the source it was sent to.
-        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
-            () => LoadAsync(GroupJson(("G2-UPLOAD", "turkish", "docx"))));
+        ScheduleSourceCatalogValidationException exception =
+            await Assert.ThrowsAsync<ScheduleSourceCatalogValidationException>(
+                () => LoadAsync(GroupJson(("G2-UPLOAD", "turkish", "docx"))));
 
         Assert.Contains("group of one", exception.Message, StringComparison.Ordinal);
     }
@@ -90,10 +94,11 @@ public sealed class ScheduleSourceCatalogLoaderTests : IDisposable
     [Fact]
     public async Task TwoMembersServingTheSameAudienceAreRejected()
     {
-        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
-            () => LoadAsync(GroupJson(
-                ("G2-UPLOAD", "turkish", "docx"),
-                ("G2-UPLOAD-COPY", "turkish", "docx"))));
+        ScheduleSourceCatalogValidationException exception =
+            await Assert.ThrowsAsync<ScheduleSourceCatalogValidationException>(
+                () => LoadAsync(GroupJson(
+                    ("G2-UPLOAD", "turkish", "docx"),
+                    ("G2-UPLOAD-COPY", "turkish", "docx"))));
 
         Assert.Contains("twice", exception.Message, StringComparison.Ordinal);
     }
@@ -101,10 +106,11 @@ public sealed class ScheduleSourceCatalogLoaderTests : IDisposable
     [Fact]
     public async Task AGroupMixingDocumentFormatsIsRejected()
     {
-        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
-            () => LoadAsync(GroupJson(
-                ("G2-UPLOAD", "turkish", "docx"),
-                ("G2-UPLOAD-EN", "english", "xlsx"))));
+        ScheduleSourceCatalogValidationException exception =
+            await Assert.ThrowsAsync<ScheduleSourceCatalogValidationException>(
+                () => LoadAsync(GroupJson(
+                    ("G2-UPLOAD", "turkish", "docx"),
+                    ("G2-UPLOAD-EN", "english", "xlsx"))));
 
         Assert.Contains("mixes document formats", exception.Message, StringComparison.Ordinal);
     }
@@ -135,8 +141,9 @@ public sealed class ScheduleSourceCatalogLoaderTests : IDisposable
             }
             """;
 
-        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
-            () => LoadAsync(json));
+        ScheduleSourceCatalogValidationException exception =
+            await Assert.ThrowsAsync<ScheduleSourceCatalogValidationException>(
+                () => LoadAsync(json));
 
         Assert.Contains(
             "acquires its own copy",
@@ -172,10 +179,11 @@ public sealed class ScheduleSourceCatalogLoaderTests : IDisposable
     {
         // The exact bug ownership exists to prevent: both publish the share, and
         // the student receives every joint session twice again.
-        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
-            () => LoadAsync(OwnershipPairJson(
-                ownedByA: """["3-A", "3-B"]""",
-                ownedByB: """["3-B"]""")));
+        ScheduleSourceCatalogValidationException exception =
+            await Assert.ThrowsAsync<ScheduleSourceCatalogValidationException>(
+                () => LoadAsync(OwnershipPairJson(
+                    ownedByA: """["3-A", "3-B"]""",
+                    ownedByB: """["3-B"]""")));
 
         Assert.Contains("both claim authority", exception.Message, StringComparison.Ordinal);
         Assert.Contains("'3-B'", exception.Message, StringComparison.Ordinal);
@@ -187,10 +195,11 @@ public sealed class ScheduleSourceCatalogLoaderTests : IDisposable
         // B declares the dimension and claims nothing in it, so every row addressing
         // 3-B narrows to nothing and is published by no source at all — which no
         // runtime signal distinguishes from a term in which nothing was scheduled.
-        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
-            () => LoadAsync(OwnershipPairJson(
-                ownedByA: """["3-A"]""",
-                ownedByB: """[]""")));
+        ScheduleSourceCatalogValidationException exception =
+            await Assert.ThrowsAsync<ScheduleSourceCatalogValidationException>(
+                () => LoadAsync(OwnershipPairJson(
+                    ownedByA: """["3-A"]""",
+                    ownedByB: """[]""")));
 
         Assert.Contains("No source claims authority", exception.Message, StringComparison.Ordinal);
         Assert.Contains("'3-B'", exception.Message, StringComparison.Ordinal);
@@ -201,8 +210,9 @@ public sealed class ScheduleSourceCatalogLoaderTests : IDisposable
     {
         // The half-applied migration: A narrows and B does not, so B keeps
         // publishing the whole class and the duplicate survives on one side.
-        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
-            () => LoadAsync(OwnershipPairJson(ownedByA: """["3-A"]""", ownedByB: null)));
+        ScheduleSourceCatalogValidationException exception =
+            await Assert.ThrowsAsync<ScheduleSourceCatalogValidationException>(
+                () => LoadAsync(OwnershipPairJson(ownedByA: """["3-A"]""", ownedByB: null)));
 
         Assert.Contains("claims no authority", exception.Message, StringComparison.Ordinal);
         Assert.Contains("G3-TR-B-ANNUAL", exception.Message, StringComparison.Ordinal);
@@ -224,10 +234,11 @@ public sealed class ScheduleSourceCatalogLoaderTests : IDisposable
         // Authority narrows what a source publishes out of what it states, so a
         // value it may not state narrows every row to nothing and silently
         // unpublishes the lot.
-        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
-            () => LoadAsync(SelectorJson(
-                supported: """{ "curriculumGroup": ["3-A", "3-B"] }""",
-                authoritative: """{ "curriculumGroup": ["3-C"] }""")));
+        ScheduleSourceCatalogValidationException exception =
+            await Assert.ThrowsAsync<ScheduleSourceCatalogValidationException>(
+                () => LoadAsync(SelectorJson(
+                    supported: """{ "curriculumGroup": ["3-A", "3-B"] }""",
+                    authoritative: """{ "curriculumGroup": ["3-C"] }""")));
 
         Assert.Contains("'3-C'", exception.Message, StringComparison.Ordinal);
     }
@@ -235,10 +246,11 @@ public sealed class ScheduleSourceCatalogLoaderTests : IDisposable
     [Fact]
     public async Task ASourceMayNotOwnADimensionItDoesNotSupport()
     {
-        InvalidDataException exception = await Assert.ThrowsAsync<InvalidDataException>(
-            () => LoadAsync(SelectorJson(
-                supported: """{ "curriculumGroup": ["3-A"] }""",
-                authoritative: """{ "practiceGroup": ["A"] }""")));
+        ScheduleSourceCatalogValidationException exception =
+            await Assert.ThrowsAsync<ScheduleSourceCatalogValidationException>(
+                () => LoadAsync(SelectorJson(
+                    supported: """{ "curriculumGroup": ["3-A"] }""",
+                    authoritative: """{ "practiceGroup": ["A"] }""")));
 
         Assert.Contains("practiceGroup", exception.Message, StringComparison.Ordinal);
     }

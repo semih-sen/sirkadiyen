@@ -47,6 +47,7 @@ internal static class ApiEndpointRouteBuilderExtensions
         app.MapAdminUserEndpoints();
         app.MapAnnouncementEndpoints();
         app.MapSourceStatusEndpoints();
+        app.MapSourceCatalogEndpoints();
         app.MapAuditEndpoints();
         app.MapFinanceEndpoints();
         app.MapFinanceObligationEndpoints();

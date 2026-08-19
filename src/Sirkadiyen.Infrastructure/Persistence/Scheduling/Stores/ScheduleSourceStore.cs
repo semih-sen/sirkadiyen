@@ -51,6 +51,30 @@ public sealed class ScheduleSourceStore(SirkadiyenDbContext dbContext) : ISchedu
         IReadOnlyCollection<ScheduleSource> sources,
         CancellationToken cancellationToken)
     {
+        int changed = await ScheduleSourceUpsert.StageAsync(dbContext, sources, cancellationToken);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return changed;
+    }
+}
+
+/// <summary>
+/// Stages a catalog's sources onto a context without saving, so the startup seed and the
+/// administrative catalog edit apply configuration by exactly the same rules (ADR-114).
+/// </summary>
+/// <remarks>
+/// The edit has to commit the upsert inside the transaction that records its revision, which is
+/// why this is separate from <see cref="ScheduleSourceStore"/> rather than a call into it: two
+/// copies of "which fields does the catalog own" would drift, and the field that stopped being
+/// copied would be invisible until a source behaved as though the edit had never happened.
+/// </remarks>
+internal static class ScheduleSourceUpsert
+{
+    public static async Task<int> StageAsync(
+        SirkadiyenDbContext dbContext,
+        IReadOnlyCollection<ScheduleSource> sources,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(dbContext);
         ArgumentNullException.ThrowIfNull(sources);
 
         List<SourceId> identifiers = [.. sources.Select(static source => source.SourceId)];
@@ -75,7 +99,6 @@ public sealed class ScheduleSourceStore(SirkadiyenDbContext dbContext) : ISchedu
             changed++;
         }
 
-        await dbContext.SaveChangesAsync(cancellationToken);
         return changed;
     }
 

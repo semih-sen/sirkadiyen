@@ -168,4 +168,14 @@ public enum AuditEventCategory
     /// shown and their reason are recorded here (AI_GUIDELINE §13, §19).
     /// </summary>
     CalendarRepairRequested,
+
+    /// <summary>
+    /// A SuperAdmin changed the schedule source catalog from the administration panel (ADR-114).
+    /// The catalog states which document belongs to which program and which parser reads it, so an
+    /// edit can retarget a whole cohort's lessons without any parse or publication being wrong.
+    /// The full before/after documents live in
+    /// <see cref="Scheduling.Sources.ScheduleSourceCatalogRevision"/>; this entry is what makes the
+    /// change visible in the one activity log an operator actually reads (AI_GUIDELINE §19).
+    /// </summary>
+    ScheduleSourceCatalogUpdated,
 }

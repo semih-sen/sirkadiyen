@@ -56,6 +56,9 @@ public static class PersistenceServiceCollectionExtensions
             _ => new PostgresCalendarDispatchReconciliationFence(connectionString));
 
         services.AddScoped<IScheduleSourceStore, ScheduleSourceStore>();
+        services.AddScoped<
+            IScheduleSourceCatalogRevisionStore,
+            ScheduleSourceCatalogRevisionStore>();
         services.AddScoped<ISourceSnapshotStore, SourceSnapshotStore>();
         services.AddScoped<ISnapshotRetentionStore, SnapshotRetentionStore>();
         services.AddScoped<ISourceDocumentUploadAuditStore, SourceDocumentUploadAuditStore>();

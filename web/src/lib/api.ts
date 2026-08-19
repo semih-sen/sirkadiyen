@@ -62,6 +62,11 @@ import type {
   LicenseStatusResponse,
   PagedResult,
   ReconciliationResponse,
+  ScheduleSourceCatalogApplyResult,
+  ScheduleSourceCatalogDocument,
+  ScheduleSourceCatalogPlan,
+  ScheduleSourceCatalogRevisionDetail,
+  ScheduleSourceCatalogRevisionSummary,
   SourceStatusDetail,
   SourceStatusListItem,
   UnmaskAuditIpResponse,
@@ -566,6 +571,49 @@ export function listAdminSources(): Promise<SourceStatusListItem[]> {
 
 export function getAdminSource(sourceId: string): Promise<SourceStatusDetail> {
   return request(`/api/admin/sources/${encodeURIComponent(sourceId)}`);
+}
+
+// --- Schedule source catalog (ADR-114) --------------------------------------
+//
+// The catalog document is edited as text. `contentHash` is the concurrency token: every preview
+// and every apply carries the hash of the document the editor was opened on, and the backend
+// refuses the request when the file has moved on. `planHash` binds a confirmation to the exact
+// change plan the operator was shown.
+
+export function getSourceCatalog(): Promise<ScheduleSourceCatalogDocument> {
+  return request('/api/admin/source-catalog/');
+}
+
+export function previewSourceCatalog(
+  content: string,
+  baseContentHash: string,
+): Promise<ScheduleSourceCatalogPlan> {
+  return request<ScheduleSourceCatalogPlan>('/api/admin/source-catalog/preview', {
+    method: 'POST',
+    body: { content, baseContentHash },
+  });
+}
+
+export function applySourceCatalog(
+  content: string,
+  baseContentHash: string,
+  planHash: string,
+  reason: string,
+): Promise<ScheduleSourceCatalogApplyResult> {
+  return request<ScheduleSourceCatalogApplyResult>('/api/admin/source-catalog/apply', {
+    method: 'POST',
+    body: { content, baseContentHash, planHash, reason },
+  });
+}
+
+export function listSourceCatalogRevisions(): Promise<ScheduleSourceCatalogRevisionSummary[]> {
+  return request('/api/admin/source-catalog/revisions');
+}
+
+export function getSourceCatalogRevision(
+  revisionId: string,
+): Promise<ScheduleSourceCatalogRevisionDetail> {
+  return request(`/api/admin/source-catalog/revisions/${encodeURIComponent(revisionId)}`);
 }
 
 interface AuditFilters {

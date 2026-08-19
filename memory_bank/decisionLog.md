@@ -6429,3 +6429,109 @@ English program's own A/B division, which is an audience change (ADR-098) and no
 one.
 
 ---
+
+## ADR-114: The source catalog is an administratively editable document with a history
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-19
+**Implements:** `ScheduleSourceCatalogEditingService`, `ScheduleSourceCatalogPlanner`,
+`ScheduleSourceCatalogFile`, `ScheduleSourceCatalogRevision` and its store, the
+`/api/admin/source-catalog` endpoints, the `SourceCatalogEditor` admin surface, and the
+shared `/srv/sirkadiyen/config/schedule-sources.json` deployment path
+**Depends on:** ADR-017 (the source context is configuration, not inference), ADR-079
+(an uploaded source names itself by URN), ADR-080 (shared document groups), ADR-102
+(companion evidence), ADR-110 (audience ownership), ADR-112 (the catalog owns every
+configured field)
+
+### Context
+
+`config/schedule-sources.json` states what every source is: where it is published, which
+parser profile reads it, which academic year, class year and program language it belongs
+to, which cohorts it may state and which of them it owns. It changes for entirely ordinary
+reasons — the faculty republishes a workbook at a new URL, a practice group is added, a
+parser profile is bumped, a source is retired mid-year.
+
+Until now every one of those was a commit, a review and a redeploy of the worker, because
+the file shipped inside the worker's release directory and was read from there at startup.
+That is a poor fit for a document whose contents are facts about someone else's
+spreadsheets, and the practical result was drift: the file said what was true when it was
+last deployed.
+
+Two things made this more than an inconvenience. The catalog is also the *only* place the
+audience rules are declared, so a correction that a student is waiting for is gated on a
+deployment. And nothing about the file was recoverable: there was no record of who last
+changed what, beyond a commit in a repository the operator may not have.
+
+### Decision
+
+**The catalog is a document the SuperAdmin edits from the administration panel, stored
+outside every release directory, applied through a previewed plan, and retained in full.**
+
+Six parts, each of them load-bearing:
+
+1. **One document, one loader.** The panel validates a proposed catalog with
+   `ScheduleSourceCatalogLoader`, the same class the worker loads with at startup, so an
+   edit the panel accepts can never be a catalog the worker refuses to start on. The
+   loader now also refuses a property it does not know
+   (`UnmappedMemberHandling.Disallow`): a mistyped `parserProfileVersionn` used to
+   deserialize to nothing and validate cleanly, which was survivable while a reviewer read
+   every diff and is not survivable in a text box.
+2. **A plan, not a text box.** `ScheduleSourceCatalogPlanner` compares the proposed
+   document with the one on disk field by field and classifies each change. `displayName`,
+   `notes` and `fixturePath` are low risk; everything the pipeline reads is high risk, and
+   an audience or parser change also raises a named warning that says what will happen to
+   already-published lessons. The operator confirms that plan by its hash.
+3. **Two hashes.** `baseContentHash` binds the edit to the document that was read, and
+   `planHash` binds the confirmation to the plan that was shown. A file changed by anyone
+   else — another administrator, a shell — turns both into a 409 rather than a silent
+   overwrite.
+4. **Atomic write, rolled back on a failed commit.** The document is written to a sibling
+   temporary file and moved into place, then the revision, the source upsert and the
+   retirement of dropped sources commit in one transaction. If that commit fails the
+   previous document is written back, because a catalog the database has never seen would
+   otherwise take effect silently at the next worker restart.
+5. **A dropped source is retired, never deleted.** Absence from a configuration file is
+   not a publication decision (AI_GUIDELINE §13). Its polling is disabled; its row, its
+   snapshots, its revisions and every calendar event it published stay.
+6. **The full document is retained.** `schedule_source_catalog_revisions` stores each
+   applied document with its actor, reason and change summary, plus a baseline row holding
+   what was on disk before the first edit. A rollback is loading a stored revision into the
+   editor and applying it through the same preview and confirmation. The cross-cutting
+   `AuditEvent` gets a `ScheduleSourceCatalogUpdated` entry so the change is visible in the
+   activity log an operator actually reads; the evidence itself is the revision row.
+
+**The live document moves out of the release directory.** Both hosts read
+`/srv/sirkadiyen/config/schedule-sources.json`, set by the systemd units. The copy inside
+the worker artifact becomes a seed that `sirkadiyen-activate` installs only when the
+directory has no catalog yet. The API unit gains that directory in `ReadWritePaths`; the
+worker only reads it.
+
+### Consequences
+
+**A repository edit to `config/schedule-sources.json` no longer reaches a running server.**
+It redeploys the worker and updates the seed, and the live document stays exactly as the
+panel last left it. This is the deliberate trade: an administrative edit that a deployment
+could revert would be worse than no editor at all. The repository file remains the
+bootstrap for a new server and the fixture the tests load.
+
+**An edit takes effect without a worker restart.** The API upserts the source rows in the
+same transaction that records the revision, and the pipeline reads its configuration from
+those rows. The written file is what a *restarting* worker reads, which is why the two must
+never disagree.
+
+**The dangerous edit is a legal one.** Changing `classYear` on a source with published
+lessons is valid configuration and moves that source's whole audience at the next dispatch;
+events already written to the old cohort's calendars are not removed by it. The plan says
+so in as many words and points at the ADR-111 calendar repair, but nothing stops an
+operator who has read it. That is the same position the freeze and the repair are in.
+
+**Concurrency is optimistic and last-writer-refused.** Two administrators editing at once
+is resolved by refusing the second, not by merging. For a document of this size and
+sensitivity, a merge would be a guess.
+
+**Not addressed here:** the panel cannot start a poll or a parse, so a corrected source is
+picked up on its next scheduled cycle. And a catalog edited directly on the server by
+someone with a shell is still legal — the panel notices (the stored revision no longer
+matches the file) but cannot prevent it.
+
+---

@@ -1701,3 +1701,42 @@ button.link:disabled {
   .finance-toolbar, .finance-kpi-grid--secondary { grid-template-columns: 1fr; }
   .finance-kpi strong { font-size: 19px; }.finance-bars { gap: 3px; }.finance-bars__month small { font-size: 8px; }
 }
+
+/* --- Schedule source catalog editor (ADR-113) ----------------------------- */
+
+.catalog-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.catalog-path { margin: 4px 0 2px; font-size: 13px; word-break: break-all; }
+.catalog-meta { font-size: 12px; margin: 0; }
+.catalog-toolbar { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; margin: 14px 0; }
+.catalog-toolbar > .text-input { flex: 1 1 260px; }
+
+.catalog-source-list { display: flex; flex-direction: column; gap: 8px; }
+.catalog-source { border: 1px solid var(--border); border-radius: 12px; background: var(--surface-soft); overflow: hidden; }
+.catalog-source--open { border-color: var(--accent, var(--muted)); }
+.catalog-source-head { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; background: none; border: 0; cursor: pointer; text-align: left; font: inherit; color: inherit; }
+.catalog-source-head small { display: block; font-size: 11px; }
+.catalog-source-body { padding: 4px 14px 16px; border-top: 1px solid var(--border); }
+.catalog-source-actions { margin-top: 14px; align-items: center; }
+.catalog-hint { font-size: 12px; }
+.field--wide { grid-column: 1 / -1; }
+.badge-xs { font-size: 10px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
+
+.catalog-textarea { width: 100%; min-height: 460px; font-size: 12.5px; line-height: 1.5; white-space: pre; overflow-wrap: normal; overflow-x: auto; }
+.text-input--invalid { border-color: var(--danger); }
+.error-text { color: var(--danger); font-size: 12px; }
+
+.catalog-review { border-top: 1px solid var(--border); margin-top: 20px; padding-top: 16px; display: flex; flex-direction: column; gap: 14px; }
+.catalog-plan { display: flex; flex-direction: column; gap: 12px; }
+.catalog-figure { font-size: 30px; line-height: 1.1; margin: 0; font-weight: 700; }
+.catalog-figure-label { display: block; font-size: 13px; }
+.catalog-confirm { display: flex; flex-direction: column; gap: 12px; }
+.catalog-change { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+.catalog-change-head { flex-wrap: wrap; gap: 8px; }
+.catalog-before { color: var(--danger); text-decoration: line-through; word-break: break-all; }
+.catalog-after { word-break: break-all; }
+.catalog-history { display: flex; flex-direction: column; gap: 12px; }
+
+@media (max-width: 700px) {
+  .catalog-source-head { align-items: flex-start; flex-direction: column; }
+  .catalog-textarea { min-height: 320px; }
+}

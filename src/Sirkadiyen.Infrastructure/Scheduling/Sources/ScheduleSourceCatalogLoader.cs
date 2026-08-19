@@ -5,7 +5,7 @@ using Sirkadiyen.Domain.Scheduling.Sources;
 
 namespace Sirkadiyen.Infrastructure.Scheduling.Sources;
 
-public sealed class ScheduleSourceCatalogLoader
+public sealed class ScheduleSourceCatalogLoader : IScheduleSourceCatalogSerializer
 {
     /// <summary>
     /// How an administratively uploaded source names itself, since it has no
@@ -17,6 +17,13 @@ public sealed class ScheduleSourceCatalogLoader
     {
         PropertyNameCaseInsensitive = false,
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) },
+
+        // A property the model does not know is refused rather than dropped. Silent tolerance was
+        // survivable while only a deployment could edit this file and a reviewer read the diff;
+        // once it is editable from the admin panel (ADR-114), a mistyped "parserProfileVersion"
+        // would deserialize to nothing, validate cleanly, and leave the source parsed by the old
+        // profile with no sign that the edit did not take (AI_GUIDELINE §9).
+        UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
     };
 
     public async Task<ScheduleSourceCatalog> LoadAsync(
@@ -25,18 +32,50 @@ public sealed class ScheduleSourceCatalogLoader
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(catalogPath);
 
-        await using FileStream stream = File.OpenRead(catalogPath);
-        ScheduleSourceCatalog? catalog = await JsonSerializer.DeserializeAsync<ScheduleSourceCatalog>(
-            stream,
-            SerializerOptions,
-            cancellationToken);
+        string content = await File.ReadAllTextAsync(catalogPath, cancellationToken);
+        return Parse(content);
+    }
+
+    /// <summary>
+    /// Parses and validates a catalog document held in memory, applying exactly the rules
+    /// <see cref="LoadAsync"/> applies to the deployed file.
+    /// </summary>
+    /// <remarks>
+    /// The admin panel validates a proposed catalog through this method, so a document it accepts
+    /// is a document the worker can start on. Every failure is translated into
+    /// <see cref="ScheduleSourceCatalogValidationException"/>, because the caller here is an
+    /// administrator typing JSON, not a misconfigured deployment.
+    /// </remarks>
+    public ScheduleSourceCatalog Parse(string content)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+
+        ScheduleSourceCatalog? catalog;
+        try
+        {
+            catalog = JsonSerializer.Deserialize<ScheduleSourceCatalog>(content, SerializerOptions);
+        }
+        catch (JsonException exception)
+        {
+            throw new ScheduleSourceCatalogValidationException(exception.Message);
+        }
 
         if (catalog is null)
         {
-            throw new InvalidDataException("The schedule source catalog is empty.");
+            throw new ScheduleSourceCatalogValidationException(
+                "The schedule source catalog is empty.");
         }
 
-        Validate(catalog);
+        try
+        {
+            Validate(catalog);
+        }
+        catch (Exception exception) when (
+            exception is InvalidDataException or ArgumentException or FormatException)
+        {
+            throw new ScheduleSourceCatalogValidationException(exception.Message);
+        }
+
         return catalog;
     }
 

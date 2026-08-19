@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ApiError, getAdminSource, listAdminSources } from '@/lib/api';
 import { DetailDrawer, LoadState, Tabs, formatDateTime, statusBadge } from '@/components/AdminData';
 import { SourceDocumentUpload } from '@/components/SourceDocumentUpload';
+import { SourceCatalogEditor } from '@/components/SourceCatalogEditor';
 import type { ParserWarningView, SourceStatusDetail, SourceStatusListItem } from '@/lib/types';
 
 export function AdminSourceWorkspace() {
@@ -17,13 +18,14 @@ export function AdminSourceWorkspace() {
         items={[
           { value: 'status', label: 'Kaynak durumu' },
           { value: 'upload', label: 'Belge yükleme' },
+          { value: 'catalog', label: 'Kaynak kataloğu' },
         ]}
       />
-      {tab === 'status' ? (
-        <SourceStatus />
-      ) : (
+      {tab === 'status' && <SourceStatus />}
+      {tab === 'upload' && (
         <section className="card admin-workspace-card"><SourceDocumentUpload /></section>
       )}
+      {tab === 'catalog' && <SourceCatalogEditor />}
     </>
   );
 }

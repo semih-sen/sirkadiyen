@@ -397,6 +397,122 @@ export interface SourceStatusDetail {
   recentSnapshots: SourceSnapshotSummary[];
 }
 
+/**
+ * The editable schedule source catalog document (ADR-114).
+ *
+ * The browser holds the document as text and parses it itself, so the form editor and the raw
+ * JSON editor are two views of one string and neither can silently drop a field the backend
+ * model does not mirror here.
+ */
+export interface ScheduleSourceCatalogDocument {
+  path: string;
+  content: string;
+  contentHash: string;
+  lastModifiedUtc?: string | null;
+  isWritable: boolean;
+  isValid: boolean;
+  validationError?: string | null;
+  catalogVersion?: string | null;
+  sourceCount?: number | null;
+}
+
+/** One source entry as the catalog document states it. Mirrors the backend definition. */
+export interface ScheduleSourceCatalogEntry {
+  sourceId: string;
+  displayName: string;
+  transport: string;
+  documentFormat: string;
+  sourceUri: string;
+  externalId?: string | null;
+  sheetGid?: number | null;
+  parserProfile: string;
+  parserProfileVersion: string;
+  academicYear: string;
+  classYear: number;
+  programLanguage: string;
+  timeZoneId: string;
+  supportedAudienceSelectors?: Record<string, string[]> | null;
+  authoritativeAudienceSelectors?: Record<string, string[]> | null;
+  sharedDocumentGroup?: string | null;
+  companionSourceIds?: string[] | null;
+  fixturePath?: string | null;
+  notes?: string | null;
+}
+
+export interface ScheduleSourceCatalogFile {
+  catalogVersion: string;
+  sources: ScheduleSourceCatalogEntry[];
+}
+
+export type ScheduleSourceCatalogChangeRisk = 'Low' | 'High';
+
+export type ScheduleSourceCatalogChangeKind = 'Added' | 'Removed' | 'Modified';
+
+export interface ScheduleSourceCatalogFieldChange {
+  field: string;
+  before?: string | null;
+  after?: string | null;
+  risk: ScheduleSourceCatalogChangeRisk;
+}
+
+export interface ScheduleSourceCatalogSourceChange {
+  sourceId: string;
+  displayName: string;
+  program: string;
+  kind: ScheduleSourceCatalogChangeKind;
+  fields: ScheduleSourceCatalogFieldChange[];
+  isHighRisk: boolean;
+}
+
+export interface ScheduleSourceCatalogWarning {
+  code: string;
+  message: string;
+  risk: ScheduleSourceCatalogChangeRisk;
+}
+
+export interface ScheduleSourceCatalogPlan {
+  planHash: string;
+  baseContentHash: string;
+  proposedContentHash: string;
+  normalizedContent: string;
+  sourceCount: number;
+  added: ScheduleSourceCatalogSourceChange[];
+  removed: ScheduleSourceCatalogSourceChange[];
+  modified: ScheduleSourceCatalogSourceChange[];
+  unchangedCount: number;
+  warnings: ScheduleSourceCatalogWarning[];
+  hasHighRiskChange: boolean;
+  hasChanges: boolean;
+}
+
+export interface ScheduleSourceCatalogApplyResult {
+  revisionId: string;
+  contentHash: string;
+  appliedAtUtc: string;
+  sourceRowsChanged: number;
+  pollingDisabledSourceIds: string[];
+  plan: ScheduleSourceCatalogPlan;
+}
+
+export interface ScheduleSourceCatalogRevisionSummary {
+  id: string;
+  kind: 'Baseline' | 'Edit' | string;
+  recordedAtUtc: string;
+  contentHash: string;
+  previousContentHash?: string | null;
+  sourceCount: number;
+  actorUserId?: string | null;
+  actorEmail?: string | null;
+  reason?: string | null;
+  changeSummary?: string | null;
+  isCurrent: boolean;
+}
+
+export interface ScheduleSourceCatalogRevisionDetail {
+  summary: ScheduleSourceCatalogRevisionSummary;
+  content: string;
+}
+
 export type AuditEventCategory =
   | 'SignIn'
   | 'ReconcileRequested'
@@ -404,6 +520,7 @@ export type AuditEventCategory =
   | 'ProfileUpdated'
   | 'FinanceTransactionDeleted'
   | 'FinanceDistributionExecuted'
+  | 'ScheduleSourceCatalogUpdated'
   | string;
 
 export interface AuditEventView {

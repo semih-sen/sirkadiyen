@@ -24,17 +24,27 @@ EnvironmentFile=/srv/sirkadiyen/shared/env/api.env
 Environment=DOTNET_ENVIRONMENT=Production
 Environment=ASPNETCORE_ENVIRONMENT=Production
 
+# The schedule source catalog the admin panel edits (ADR-114). It is the same
+# file the worker loads, and it lives outside both release directories because
+# an administrative edit must survive the next deployment.
+Environment=SIRKADIYEN_SOURCES__CATALOG_PATH=/srv/sirkadiyen/config/schedule-sources.json
+
 Restart=always
 RestartSec=5
 TimeoutStopSec=30
 
-# Hardening. The service writes only to the shared Data Protection key ring,
-# which the API and the worker must share (ADR-058).
+# Hardening. The service writes to the shared Data Protection key ring, which
+# the API and the worker must share (ADR-058), and to the schedule source
+# catalog directory, which the administration panel edits (ADR-114). Under
+# ProtectSystem=strict the whole file system is read-only unless it is listed
+# here, so omitting the catalog directory is what "read-only" looks like in the
+# panel - not a permission bit.
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/srv/sirkadiyen/shared/dataprotection-keys
+ReadWritePaths=/srv/sirkadiyen/config
 ProtectKernelTunables=true
 ProtectControlGroups=true
 RestrictSUIDSGID=true

@@ -55,6 +55,9 @@ public sealed class SirkadiyenDbContext(DbContextOptions<SirkadiyenDbContext> op
 
     public DbSet<ScheduleSource> ScheduleSources => Set<ScheduleSource>();
 
+    public DbSet<ScheduleSourceCatalogRevision> ScheduleSourceCatalogRevisions =>
+        Set<ScheduleSourceCatalogRevision>();
+
     public DbSet<SourceSnapshot> SourceSnapshots => Set<SourceSnapshot>();
 
     public DbSet<SourceDocumentUpload> SourceDocumentUploads => Set<SourceDocumentUpload>();
