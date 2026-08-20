@@ -13,7 +13,6 @@ namespace Sirkadiyen.Worker;
 internal sealed class Worker(
     SourceCatalogInitializer catalogInitializer,
     SourceProcessingPipeline sourcePipeline,
-    InitialCalendarSyncTask initialSync,
     FencedCalendarMaintenanceTask calendarMaintenance,
     SnapshotRetentionTask snapshotRetention,
     WorkerOptions options,
@@ -80,11 +79,12 @@ internal sealed class Worker(
 
     private async Task<bool> RunCalendarWorkAsync(CancellationToken cancellationToken)
     {
-        healthState.MarkActivity("initial-calendar-sync");
-        bool catchUpRequired = await initialSync.RunAsync(cancellationToken);
+        // Initial sync, dispatch, replay, resync, announcements and inventory now all run inside one
+        // shared cross-instance advisory lease (ADR-122), so only one worker performs calendar work at
+        // a time. Initial sync used to run here unfenced, which let two instances race on a user's
+        // non-idempotent calendar creation.
         healthState.MarkActivity("calendar-maintenance");
-        catchUpRequired |= await calendarMaintenance.RunAsync(cancellationToken);
-        return catchUpRequired;
+        return await calendarMaintenance.RunAsync(cancellationToken);
     }
 
     private void LogNextCycle(

@@ -724,6 +724,20 @@ export function verifyAdminUserCalendar(userId: string): Promise<CalendarVerific
   return request(`/api/admin/users/${encodeURIComponent(userId)}/calendar-verify`);
 }
 
+/**
+ * Queues a non-destructive reconciliation (ADR-123): the worker's fenced inventory pass re-writes the
+ * events the ledger records but Google is missing and patches drifted ones. It never deletes, so it
+ * fixes "missing on Google"/"content drift" but leaves surplus/previous-year events. Records intent
+ * only — the worker does the actual writes on its next cycle. Requires a reason.
+ */
+export function repairAdminUserCalendar(userId: string, reason: string): Promise<{ requested: boolean }> {
+  return request(`/api/admin/users/${encodeURIComponent(userId)}/calendar-repair`, {
+    method: 'POST',
+    body: { reason },
+    allowEmpty: true,
+  });
+}
+
 export function listAdminLicenses(values: {
   status?: LicenseStatus; kind?: LicenseKind; page?: number; pageSize?: number;
 } = {}): Promise<PagedResult<AdminLicenseListItem>> {

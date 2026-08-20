@@ -7167,3 +7167,127 @@ and **inventory-depth comparison** (presence + content, over presence-only).
   build is clean (0 warnings), frontend typecheck + production build + 74 tests pass.
 
 ---
+
+## ADR-122: Initial calendar sync must run inside the cross-instance fence
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-21
+**Implements:** `FencedCalendarMaintenanceTask` now runs `InitialCalendarSyncTask` as its first fenced
+stage; `Worker.RunCalendarWorkAsync` no longer runs initial sync unfenced; `WorkerCompositionTests`
+guards the invariant
+**Relates to:** ADR-058 (initial sync), ADR-024 (one calendar per user), systemPatterns §16 (the
+PostgreSQL session advisory fence), AI_GUIDELINE §13/§14 (calendar safety, idempotency)
+
+### Context
+
+A live incident: a student's managed calendar was missing ~500 of ~817 currently-published events,
+while the mapping ledger recorded all of them as written (ledger 1632 = ~817 current year + ~815 a
+previous academic year still present). The operator noted two users ran initial sync at the same time.
+
+Root cause found by reading the worker: **initial calendar sync was the one calendar-mutating stage
+not covered by the shared cross-instance advisory fence.** `ICalendarDispatchReconciliationFence`
+(`pg_try_advisory_lock`, systemPatterns §16) serialized dispatch, replay, resync, announcements and
+inventory across worker instances, but `InitialCalendarSyncTask` ran before it, unfenced. Combined
+with two facts:
+
+- `ListPendingInitialSyncAsync` is a plain read — it does not claim or lock the connection rows, so
+  two worker instances list the same pending users; and
+- `InitialCalendarSyncService.EnsureCalendarAsync` creates the dedicated calendar with a check-then-act
+  sequence (read `ManagedCalendarId` is null → search for the marker → create), and calendar creation
+  is the one step the provider offers no idempotency key for (ADR-063).
+
+…two worker instances processing the same pending user concurrently could each create a **separate**
+calendar and split the user's events between them. The ledger's writes are idempotent on
+`(UserId, StableIdentity)`, so each identity gets one row pointing at whichever worker won it, while
+the connection ends up pointing at only one of the two calendars. Events written to the other calendar
+are then "missing" relative to the one the connection (and the verification, ADR-121) reads — exactly
+the ledger-ahead-of-Google symptom. On a later cycle `EnsureCalendarAsync` would also find two marked
+calendars and throw "automatic attachment is unsafe", stranding the user. A single worker instance was
+always safe: its loop is sequential and its crash recovery reattaches the one marked calendar.
+
+The `~815` previous-academic-year events are a **separate, known** matter: profile-resync/rollover
+never deletes an event absent from current published truth (deletion-by-absence is forbidden,
+AI_GUIDELINE §13), so last year's events are not cleaned by that path (a documented open risk).
+
+### Decision
+
+**Initial sync runs inside the same advisory-lock lease as every other calendar stage**, as the first
+stage. `FencedCalendarMaintenanceTask` acquires the fence once and runs initial sync, then dispatch,
+replay, academic-year drift, resync, announcements and inventory under it; `Worker` no longer runs
+initial sync separately. When another worker holds the fence, this worker yields all calendar work,
+initial sync included. This makes exactly one worker perform calendar work at a time across instances,
+which is the only safe way to run the non-idempotent calendar creation — matching §16's intent, which
+initial sync had simply been left out of.
+
+A structural regression test (`WorkerCompositionTests.InitialSyncRunsInsideTheFencedStage`) asserts the
+fenced stage takes `InitialCalendarSyncTask` as a dependency, so a refactor that pulls initial sync back
+out to run unfenced breaks the build's tests.
+
+### Consequences
+
+- The event-splitting race is closed for multiple worker instances (a redeploy overlap, an un-drained
+  old container, an accidental second instance). The fence, not the deployment, is now the guarantee —
+  though running a single worker replica remains the sane default.
+- Initial sync no longer runs concurrently with dispatch/inventory across instances either, which is
+  strictly safer and matches how the rest of calendar work already behaved.
+- **Not fixed by this ADR (deliberately):** repairing the calendars already corrupted (the 500 missing
+  events need re-insertion; the ~815 stale previous-year events need an authorized deletion, since
+  inventory will not remove them by absence). Those are a repair feature, tracked separately.
+- **Verification limit:** the fix is structural — initial sync now executes only while the single
+  advisory lease is held, exactly like the other stages, asserted by the composition test. A true
+  two-instance race reproduction needs two live workers against one PostgreSQL and Google, which this
+  environment cannot run. Release build is clean (0 warnings) and the worker composition tests pass.
+
+---
+
+## ADR-123: On-demand non-destructive calendar repair from the verification screen
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-21
+**Implements:** `POST /api/admin/users/{userId}/calendar-repair` (reuses
+`IUserCalendarConnectionStore.RequestReconciliationAsync`), frontend `CalendarRepair` in the verify card
+**Relates to:** ADR-121 (verification), ADR-062 (inventory reconciliation), ADR-122 (the concurrency
+fix), AI_GUIDELINE §13 (deletion authority), systemPatterns §16 (the fence)
+
+### Context
+
+The verification (ADR-121) could show that a user's Google calendar had drifted from our records — for
+the live incident, 500 events the ledger recorded but Google was missing — but offered no way to fix
+it. The operator asked for a repair. Of the two halves of the observed drift, the safe half (re-insert
+"missing on Google", patch "content drift") and the destructive half (delete the ~815 stale previous-
+year surplus events), only the safe, non-destructive half was chosen for this decision.
+
+### Decision
+
+**The repair records intent for the worker's existing non-destructive inventory pass rather than
+writing to Google from the API.** This is deliberate and follows from ADR-122: calendar writes belong
+in the fenced worker, run by exactly one instance at a time. The endpoint calls the same
+`RequestReconciliationAsync` the student self-service reconcile (ADR-062) already uses, which marks the
+connection due; the worker's fenced inventory pass then re-inserts each mapped event missing from
+Google (deterministic id) and patches drifted ones, and by design never deletes from absence. So the
+repair fixes "missing on Google" and "content drift" and leaves surplus / previous-year events for a
+separate authorized action — exactly the chosen scope.
+
+- **An operator action, audited with a reason.** Unlike the student's own reconcile (no reason — asking
+  is the reason), an operator acting on another account states why. Reuses
+  `AuditEventCategory.ReconcileRequested` with `requestedBy: operator` in the metadata; no new category,
+  because the underlying action is identical, only the actor differs. No plan hash, because nothing is
+  deleted.
+- **Outcomes map honestly:** `Requested` -> 202 + audit; `NotEligible` -> 409 (needs a completed initial
+  sync and a healthy connection); `NotFound`/no calendar -> 409; a missing user -> 404.
+- **The UI is on the verification result**, shown only when `missingOnGoogle + contentDrift > 0`, and it
+  says plainly that it queues the worker, deletes nothing, and leaves any surplus/previous-year events.
+
+### Consequences
+
+- The operator can now correct the safe half of the drift the verification finds, without the API ever
+  performing a Calendar write and without any deletion — consistent with ADR-122's "one fenced writer".
+- The repair is asynchronous (the worker does it next cycle), which the UI states rather than pretending
+  the fix is instant.
+- **Still not addressed:** removing the ~815 stale previous-year surplus events, which needs an
+  authorized, audited deletion (the destructive half the operator deferred).
+- **Verification limit:** the endpoint is thin over the already-tested `RequestReconciliationAsync`; the
+  Api.UnitTests project tests helpers/config, not endpoints, so this was covered by build + typecheck +
+  the frontend suite rather than a new endpoint test. Release build clean (0 warnings).
+
+---

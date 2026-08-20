@@ -15,6 +15,7 @@ import {
   previewUserCalendarRecheck,
   requestUserCalendarRecheck,
   rebuildUserCalendar,
+  repairAdminUserCalendar,
   revokeLicense,
   verifyAdminUserCalendar,
 } from '@/lib/api';
@@ -702,12 +703,12 @@ function CalendarVerify({ userId }: { userId: string }) {
         {busy ? 'Google okunuyor…' : 'Google ile doğrula'}
       </button>
       {error && <p className="error-text" style={{ marginTop: 10 }}>{error}</p>}
-      {result && !busy && <VerificationOutput result={result} />}
+      {result && !busy && <VerificationOutput result={result} userId={userId} />}
     </Card>
   );
 }
 
-function VerificationOutput({ result }: { result: CalendarVerificationResult }) {
+function VerificationOutput({ result, userId }: { result: CalendarVerificationResult; userId: string }) {
   if (result.outcome !== 'Verified' || !result.report) {
     return (
       <div style={{ marginTop: 12 }}>
@@ -774,6 +775,79 @@ function VerificationOutput({ result }: { result: CalendarVerificationResult }) 
           Listede yalnızca ilk {report.items.length} fark gösteriliyor; toplam sayılar yukarıdadır.
         </p>
       )}
+
+      {report.missingOnGoogleCount + report.contentDriftCount > 0 && (
+        <CalendarRepair
+          userId={userId}
+          fixableCount={report.missingOnGoogleCount + report.contentDriftCount}
+          leftoverCount={report.extraOnGoogleCount + report.staleLedgerCount}
+        />
+      )}
+    </div>
+  );
+}
+
+function CalendarRepair({
+  userId,
+  fixableCount,
+  leftoverCount,
+}: {
+  userId: string;
+  fixableCount: number;
+  leftoverCount: number;
+}) {
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [queued, setQueued] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function repair() {
+    if (reason.trim().length === 0) {
+      setError('Bir gerekçe gerekli.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await repairAdminUserCalendar(userId, reason.trim());
+      setQueued(true);
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Onarım kuyruğa alınamadı.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (queued) {
+    return (
+      <Banner tone="info">
+        Onarım kuyruğa alındı. Worker bir sonraki döngüde eksik {fixableCount} etkinliği yeniden yazacak
+        (ve içerik farklarını düzeltecek). Birkaç dakika sonra tekrar “Google ile doğrula”.
+      </Banner>
+    );
+  }
+
+  return (
+    <div className="stack" style={{ gap: 8, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+      <p className="muted" style={{ fontSize: 13, margin: 0 }}>
+        <strong>Onar (yeniden eşitle):</strong> Google’da eksik {fixableCount} etkinliği yeniden yazar ve
+        içerik farklarını düzeltir. Worker’ın fence’li envanter geçişini kuyruğa alır — hiçbir şey
+        silmez.{leftoverCount > 0 && ` Fazla/eski-yıl ${leftoverCount} etkinlik bu işlemle kaldırılmaz.`}
+      </p>
+      <textarea
+        className="text-input"
+        rows={2}
+        value={reason}
+        disabled={busy}
+        onChange={(event) => setReason(event.target.value)}
+        placeholder="Örn. eşzamanlı initial sync bozulmasını onar"
+      />
+      <div className="cluster" style={{ gap: 8 }}>
+        <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => void repair()}>
+          {busy ? 'Kuyruğa alınıyor…' : 'Onar (yeniden eşitle)'}
+        </button>
+      </div>
+      {error && <p className="error-text" style={{ margin: 0 }}>{error}</p>}
     </div>
   );
 }

@@ -53,6 +53,24 @@ public sealed record RequestUserCalendarRecheck
 }
 
 /// <summary>
+/// An operator's request to queue a non-destructive reconciliation of a student's calendar (ADR-123).
+/// </summary>
+/// <remarks>
+/// It re-writes the events the ledger records but Google is missing and patches drifted ones, via the
+/// worker's fenced inventory pass. <see cref="Reason"/> is recorded because an operator is acting on
+/// someone else's calendar; no plan hash is needed because it derives no deletion.
+/// </remarks>
+public sealed record RepairUserCalendarRequest
+{
+    public required string Reason { get; init; }
+}
+
+public sealed record RepairUserCalendarResponse
+{
+    public required bool Requested { get; init; }
+}
+
+/// <summary>
 /// An operator's request to rebuild a student's deleted managed calendar (ADR-116).
 /// </summary>
 /// <remarks>

@@ -29,6 +29,24 @@ public sealed class WorkerCompositionTests
     }
 
     [Fact]
+    public void InitialSyncRunsInsideTheFencedStage()
+    {
+        // Initial sync creates each user's dedicated calendar and writes their events, and its
+        // calendar creation is a non-idempotent check-then-act step. Running it outside the shared
+        // cross-instance advisory fence let two worker instances race on the same pending user and
+        // split their events across two calendars (ADR-122). The guarantee is structural: the fenced
+        // stage takes the initial-sync task as a dependency and runs it while holding the lease, so a
+        // refactor that pulls initial sync back out to run unfenced must break this assertion.
+        bool fencedDependsOnInitialSync = typeof(FencedCalendarMaintenanceTask)
+            .GetConstructors()
+            .Single()
+            .GetParameters()
+            .Any(parameter => parameter.ParameterType == typeof(InitialCalendarSyncTask));
+
+        Assert.True(fencedDependsOnInitialSync);
+    }
+
+    [Fact]
     public void TheAcademicYearReconcilerAndEverythingItNeedsResolve()
     {
         // ADR-117 added three registrations to the worker that only this stage uses: the profile

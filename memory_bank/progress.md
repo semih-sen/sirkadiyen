@@ -236,6 +236,12 @@
 - [x] Administrative role change (`POST /api/admin/users/{id}/role`; promote to / demote from
   SuperAdmin, audited `RoleChanged`, guarded against self-change and demoting the bootstrap operator;
   per-account "Yetki (rol)" card; ADR-119)
+- [x] Initial-sync concurrency fix (ADR-122): initial calendar sync now runs inside the shared
+  cross-instance advisory fence (was unfenced), closing the two-worker race that split a user's events
+  across two calendars — the root cause of a live "500 events missing on Google" incident
+- [x] On-demand non-destructive calendar repair (`POST /api/admin/users/{id}/calendar-repair`; queues the
+  worker's fenced inventory pass to re-insert missing events + patch drift, never deletes; "Onar" button
+  on the verification result; ADR-123). Destructive previous-year surplus cleanup still deferred.
 - [x] On-demand read-only calendar verification against Google (`GET /api/admin/users/{id}/calendar-verify`;
   reads the actual Google calendar and compares it with the mapping ledger and current published truth,
   reporting MissingOnGoogle/ContentDrift/ExtraOnGoogle/Duplicate/StaleLedger; writes nothing, not even

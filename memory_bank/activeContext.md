@@ -94,6 +94,38 @@ revision can be rejected** and **a terminally failed diff can be retried**, both
 reason-required `SuperAdmin` routes, with the failed-dispatch queue made enumerable by
 `GET /api/diffs?dispatchState=Failed`.
 
+## Latest implementation session (2026-08-21, initial-sync concurrency fix — live incident)
+
+**Root-caused a live corruption** (a student's calendar missing ~500 of ~817 published events while
+the ledger recorded all of them) to a real worker concurrency bug, and fixed it (ADR-122).
+
+- **The bug:** initial calendar sync was the one calendar-mutating stage running **outside** the
+  cross-instance `pg_try_advisory_lock` fence (only `FencedCalendarMaintenanceTask` was fenced).
+  `ListPendingInitialSyncAsync` doesn't claim rows, and `EnsureCalendarAsync` creates the calendar with
+  a check-then-act step. So two worker instances processing the same pending user each created a
+  **separate** calendar and split the user's events between them; the ledger (idempotent per identity)
+  recorded rows pointing at whichever won, while the connection pointed at only one calendar — the rest
+  read as "missing on Google". A single worker instance was always safe (sequential loop + marker
+  recovery). The ~815 extra previous-year events are a **separate known issue**: resync/rollover never
+  deletes events absent from current published truth (AI_GUIDELINE §13), so last year's pile up.
+- **The fix:** initial sync now runs as the **first stage inside the same advisory lease** as
+  dispatch/replay/resync/announcements/inventory. `Worker` no longer runs it unfenced. Exactly one
+  worker does calendar work at a time across instances — the only safe way to run the non-idempotent
+  calendar creation. A structural regression test asserts the fenced stage depends on the initial-sync
+  task, so pulling it back out breaks the build.
+- **Tests/build:** `WorkerCompositionTests` 4 (incl. the new invariant guard) green; Release build 0
+  warnings. A true two-instance race reproduction needs two live workers + Postgres + Google (not
+  runnable here); the fix is structural and asserted by composition.
+- **The repair (ADR-123, safe half built).** From the verification result, an operator can now trigger a
+  non-destructive repair: `POST /api/admin/users/{id}/calendar-repair` reuses
+  `RequestReconciliationAsync` (the student reconcile's mechanism), marking the connection due so the
+  worker's **fenced** inventory pass re-inserts mapped events missing from Google and patches drift — no
+  API-side calendar write, no deletion (consistent with ADR-122's "one fenced writer"). Fixes the 500
+  missing. Audited as `ReconcileRequested` with `requestedBy: operator` + reason. The "Onar (yeniden
+  eşitle)" button shows only when missing+drift > 0 and states it queues the worker and deletes nothing.
+- **Still open:** removing the ~815 stale previous-year surplus events — the **destructive** half the
+  operator deferred; needs an authorized, audited deletion (inventory won't remove by absence).
+
 ## Latest implementation session (2026-08-21, on-demand Google calendar verification)
 
 **The admin per-user calendar tab reads the local mapping ledger — what Sirkadiyen *recorded*

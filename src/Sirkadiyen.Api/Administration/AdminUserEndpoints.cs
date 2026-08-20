@@ -74,6 +74,14 @@ public static class AdminUserEndpoints
         users.MapGet("/{userId:guid}/calendar-verify", VerifyCalendarAsync)
             .WithSummary("Reads this user's Google calendar directly and reports drift from our records.");
 
+        // The safe, non-destructive repair for the drift the verification finds (ADR-123): it queues
+        // the worker's fenced inventory pass, which re-inserts mapped events missing from Google and
+        // patches drifted ones. It never deletes by absence, so it fixes "missing on Google" and
+        // "content drift" but leaves surplus/previous-year events for a separate authorized action.
+        users.MapPost("/{userId:guid}/calendar-repair", RepairCalendarAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
+            .WithSummary("Queues a non-destructive reconciliation that re-writes this user's missing events.");
+
         // A re-check is the cohort repair narrowed to one student (ADR-111, ADR-115). It lives
         // here rather than under /api/operations because the question it answers — "is this
         // person's calendar right?" — is asked while looking at that person.
@@ -593,6 +601,88 @@ public static class AdminUserEndpoints
         }
 
         return Results.Ok(await verification.VerifyAsync(userId, cancellationToken));
+    }
+
+    /// <summary>
+    /// Queues the worker's non-destructive inventory pass for one user (ADR-123), which re-inserts the
+    /// events the ledger records but Google is missing and patches drifted ones. It records intent
+    /// only — the fenced worker does the calendar writes — so it never runs a Calendar write in the
+    /// request path and never derives a deletion. Surplus and previous-year events are left untouched.
+    /// </summary>
+    private static async Task<IResult> RepairCalendarAsync(
+        Guid userId,
+        RepairUserCalendarRequest request,
+        ClaimsPrincipal principal,
+        HttpContext context,
+        IAdminUserReadStore store,
+        IUserCalendarConnectionStore connectionStore,
+        AuditEventRecorder audit,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        // An operator acting on someone else's calendar states why, matching the other per-user
+        // operator actions; the student's own reconcile needs none because asking is the reason.
+        if (string.IsNullOrWhiteSpace(request.Reason)
+            || request.Reason.Trim().Length > MaximumRecheckReasonLength)
+        {
+            return Results.Problem(
+                title: "Invalid calendar repair request",
+                detail: $"'reason' is required and must contain at most "
+                    + $"{MaximumRecheckReasonLength} characters.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (await store.FindAsync(userId, cancellationToken) is null)
+        {
+            return NotFound(userId);
+        }
+
+        RequestReconciliationOutcome outcome = await connectionStore.RequestReconciliationAsync(
+            userId,
+            timeProvider.GetUtcNow(),
+            cancellationToken);
+
+        switch (outcome)
+        {
+            case RequestReconciliationOutcome.Requested:
+                await audit.RecordAsync(
+                    new AuditEventDraft
+                    {
+                        Category = AuditEventCategory.ReconcileRequested,
+                        ActorUserId = UserClaimsPrincipalFactory.GetRequiredUserId(principal),
+                        ActorEmail = UserClaimsPrincipalFactory.GetRequiredEmail(principal),
+                        SubjectType = "Calendar",
+                        SubjectId = userId.ToString(),
+                        CorrelationId = context.CorrelationId(),
+                        ClientIp = context.ClientIp(),
+                        UserAgent = context.ClientUserAgent(),
+                        Reason = request.Reason.Trim(),
+                        Metadata = JsonSerializer.Serialize(
+                            new { requestedBy = "operator" },
+                            AuditMetadataOptions),
+                    },
+                    cancellationToken);
+                return Results.Accepted(
+                    $"/api/admin/users/{userId}/calendar-verify",
+                    new RepairUserCalendarResponse { Requested = true });
+
+            case RequestReconciliationOutcome.NotEligible:
+                return Results.Problem(
+                    title: "Reconciliation is not available",
+                    detail: "This calendar can be reconciled only after initial synchronization has "
+                        + "completed and while the connection is healthy. Re-authorization or a "
+                        + "rebuild may be required first.",
+                    statusCode: StatusCodes.Status409Conflict);
+
+            case RequestReconciliationOutcome.NotFound:
+            default:
+                return Results.Problem(
+                    title: "No calendar to reconcile",
+                    detail: "This user has no managed calendar to reconcile.",
+                    statusCode: StatusCodes.Status409Conflict);
+        }
     }
 
     private static async Task<IResult> ListCalendarChangesAsync(

@@ -6,6 +6,7 @@ namespace Sirkadiyen.Worker.Calendars;
 
 internal sealed class FencedCalendarMaintenanceTask(
     IServiceScopeFactory scopeFactory,
+    InitialCalendarSyncTask initialSync,
     PendingDiffDispatchTask dispatch,
     CalendarReconciliationTask reconciliation,
     ProfileAcademicYearDriftTask academicYearDrift,
@@ -25,12 +26,19 @@ internal sealed class FencedCalendarMaintenanceTask(
             if (lease is null)
             {
                 logger.LogInformation(
-                    "Calendar dispatch/reconciliation stage yielded because another worker "
-                    + "holds the shared fence.");
+                    "Calendar stage yielded because another worker holds the shared fence.");
                 return false;
             }
 
-            bool catchUpRequired = await dispatch.RunAsync(cancellationToken);
+            // Initial sync is fenced first, before every other calendar stage (ADR-122). It creates
+            // each user's dedicated calendar and writes their events, and its calendar creation is a
+            // check-then-act step: two worker instances that both picked up the same pending user
+            // could each create a calendar and split the user's events between them, leaving the
+            // ledger describing events that are not on the calendar the connection points at. Holding
+            // the same session advisory lock the other stages use makes exactly one worker perform
+            // calendar work at a time, which is the only safe way to run a non-idempotent create.
+            bool catchUpRequired = await initialSync.RunAsync(cancellationToken);
+            catchUpRequired |= await dispatch.RunAsync(cancellationToken);
             catchUpRequired |= await reconciliation.RunAsync(cancellationToken);
 
             // Immediately before the resync it feeds. The reconciler restamps profiles whose
