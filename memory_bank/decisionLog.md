@@ -7291,3 +7291,65 @@ separate authorized action — exactly the chosen scope.
   the frontend suite rather than a new endpoint test. Release build clean (0 warnings).
 
 ---
+
+## ADR-124: Persisted worker-instance heartbeats for multi-instance visibility
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-21
+**Supersedes:** ADR-091's "do not persist health heartbeats" decision (that clause only; its scoped
+freeze, persistent session and warning-projection decisions stand)
+**Implements:** `WorkerInstanceHeartbeat` (domain), `worker_instances` table + migration
+`AddWorkerInstanceHeartbeats`, `IWorkerHeartbeatStore`/`WorkerHeartbeatStore`, `WorkerHeartbeatTask`,
+`GET /api/admin/workers`, the "Worker instance'ları" panel on the admin server page
+**Relates to:** ADR-091 (in-process worker health probe), ADR-122 (the double-sync incident)
+
+### Context
+
+ADR-091 hosts an in-process `/health/ready` in the worker (instance id, start, last activity, current
+stage) and has the API probe **one** worker URL on explicit refresh. It deliberately chose not to
+persist heartbeats. That model cannot show that **more than one** worker instance is running — which
+is exactly the condition behind the ADR-122 incident, where two instances raced on initial sync and
+split a user's calendar. An operator asked to observe what the worker instances are actively doing.
+
+A single-URL probe is structurally incapable of revealing concurrent instances (it hits whichever one
+answers, or a load balancer). Seeing instances plural requires each to publish to a shared store.
+
+### Decision
+
+**Re-introduce a lightweight heartbeat, justified by the incident ADR-091 did not foresee.** Each
+worker instance upserts one row (`machine:pid` key) into `worker_instances` on every cycle, carrying
+its start time, current stage, last in-process activity and heartbeat time. The admin panel reads all
+rows and shows every instance and what it is doing; the API marks an instance "active" when its last
+heartbeat is within 150 s, and the panel warns when **more than one** is active — the signal that
+would have surfaced the incident. This supersedes only ADR-091's no-heartbeat clause; its reasoning
+(avoid fabricated CPU/RAM/Redis telemetry) still holds, and this adds none of that — only the worker's
+own honestly-reported stage.
+
+- **Disposable telemetry with a 1-day auto-retention.** The operator asked that old records not
+  accumulate. It is an upsert (one row per instance), and every write also deletes rows not seen for a
+  day, so dead instances fall off on their own with no separate scheduler. Nothing downstream depends
+  on the table; losing it loses only the monitor.
+- **Best-effort, never on the critical path.** `WorkerHeartbeatTask` swallows and logs any failure, so
+  a database hiccup writing the heartbeat can never interrupt the worker's actual work. Written twice
+  per loop iteration (top and before the idle delay) so idle instances stay fresh; a long active stage
+  can briefly read stale, which the panel tolerates via the generous active window.
+- **One port, two hosts.** `IWorkerHeartbeatStore` is written by the worker and read by the API,
+  registered in the shared persistence DI. `GET /api/admin/workers` (SuperAdmin) returns each instance
+  with a server-computed `isActive` and the active count.
+
+### Consequences
+
+- An operator can now see, in the admin panel, every running worker instance, its current stage, its
+  uptime and when it last reported — and is warned when a second instance appears, closing the
+  observability gap that let the ADR-122 incident go unnoticed.
+- The single-URL service-health probe (ADR-091) stays as the reachability check; the heartbeat panel
+  is the multi-instance view beside it.
+- **Not added (still, per ADR-091):** CPU/RAM/disk/Redis telemetry and any fabricated signal. The
+  heartbeat carries only what the worker actually knows about itself.
+- **Verification limit:** the store has a Persistence test (upsert + 1-day prune + newest-first list)
+  and the panel a frontend test (renders instances, warns on >1 active). The Persistence test needs
+  PostgreSQL and runs in CI (Docker down here). The worker's own heartbeat-write loop was covered by
+  build + the worker composition resolving; a live two-instance run was not exercised here. Release
+  build clean (0 warnings), frontend 75 tests + typecheck + production build pass.
+
+---

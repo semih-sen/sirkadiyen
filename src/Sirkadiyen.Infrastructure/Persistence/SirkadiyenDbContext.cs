@@ -5,6 +5,7 @@ using Sirkadiyen.Domain.Finance;
 using Sirkadiyen.Domain.GoogleCalendar;
 using Sirkadiyen.Domain.Identity;
 using Sirkadiyen.Domain.Licensing;
+using Sirkadiyen.Domain.Observability;
 using Sirkadiyen.Domain.Operations;
 using Sirkadiyen.Domain.Scheduling.Diffing;
 using Sirkadiyen.Domain.Scheduling.Ingestion;
@@ -112,6 +113,9 @@ public sealed class SirkadiyenDbContext(DbContextOptions<SirkadiyenDbContext> op
     public DbSet<FinanceDistribution> FinanceDistributions => Set<FinanceDistribution>();
 
     public DbSet<FinanceDistributionShare> FinanceDistributionShares => Set<FinanceDistributionShare>();
+
+    public DbSet<WorkerInstanceHeartbeat> WorkerInstanceHeartbeats =>
+        Set<WorkerInstanceHeartbeat>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

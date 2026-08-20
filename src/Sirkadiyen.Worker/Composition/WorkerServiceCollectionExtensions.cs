@@ -114,6 +114,7 @@ internal static class WorkerServiceCollectionExtensions
         services.AddSingleton<AnnouncementDispatchTask>();
         services.AddSingleton<CalendarInventoryTask>();
         services.AddSingleton<FencedCalendarMaintenanceTask>();
+        services.AddSingleton<WorkerHeartbeatTask>();
         services.AddHostedService<Worker>();
 
         return services;

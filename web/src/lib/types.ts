@@ -636,6 +636,23 @@ export interface AdminServiceHealthSnapshot {
   parser: ServiceHealthView;
 }
 
+export interface WorkerInstanceStatus {
+  instanceId: string;
+  status: string;
+  currentStage: string;
+  startedAtUtc: string;
+  lastActivityAtUtc: string;
+  lastHeartbeatAtUtc: string;
+  isActive: boolean;
+}
+
+export interface WorkerInstancesResponse {
+  checkedAtUtc: string;
+  activeThresholdSeconds: number;
+  activeInstanceCount: number;
+  instances: WorkerInstanceStatus[];
+}
+
 export interface CalendarSyncResponse {
   connection: GoogleCalendarConnectionView;
   onboarding: OnboardingSnapshot;

@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Sirkadiyen.Application.Administration;
+using Sirkadiyen.Application.Observability;
 using Sirkadiyen.Application.Announcements;
 using Sirkadiyen.Application.Auditing;
 using Sirkadiyen.Application.Finance;
@@ -16,6 +17,7 @@ using Sirkadiyen.Application.Scheduling.Publication;
 using Sirkadiyen.Application.Scheduling.Sources;
 using Sirkadiyen.Application.StudentProfiles;
 using Sirkadiyen.Infrastructure.Persistence.Administration.Stores;
+using Sirkadiyen.Infrastructure.Persistence.Observability.Stores;
 using Sirkadiyen.Infrastructure.Persistence.Announcements.Stores;
 using Sirkadiyen.Infrastructure.Persistence.Auditing.Stores;
 using Sirkadiyen.Infrastructure.Persistence.Finance.Stores;
@@ -97,6 +99,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IAdminLicenseReadStore, AdminLicenseReadStore>();
         services.AddScoped<ISourceStatusReadStore, SourceStatusReadStore>();
         services.AddScoped<IAdminMetricsReadStore, AdminMetricsReadStore>();
+        services.AddScoped<IWorkerHeartbeatStore, WorkerHeartbeatStore>();
         services.AddScoped<IFinanceLedgerStore, FinanceLedgerStore>();
         services.AddScoped<IFinanceReadStore, FinanceReadStore>();
         services.AddScoped<IFinanceAuditStore, FinanceAuditStore>();

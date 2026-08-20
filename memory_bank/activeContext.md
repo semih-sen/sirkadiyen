@@ -94,6 +94,35 @@ revision can be rejected** and **a terminally failed diff can be retried**, both
 reason-required `SuperAdmin` routes, with the failed-dispatch queue made enumerable by
 `GET /api/diffs?dispatchState=Failed`.
 
+## Latest implementation session (2026-08-21, worker-instance monitoring)
+
+**Added multi-instance worker observability** (ADR-124), directly motivated by the ADR-122 incident:
+the admin panel could not see that *two* worker instances were running, which is what caused the
+double-sync corruption. ADR-091 deliberately chose "no persisted heartbeats" and probes one worker
+URL — structurally blind to concurrent instances. This supersedes only that clause.
+
+- **Each worker instance upserts a heartbeat row** (`worker_instances`, key `machine:pid`) every cycle:
+  start time, current stage, last activity, heartbeat time. `GET /api/admin/workers` lists them all;
+  the server page's new "Worker instance'ları" panel shows each instance + stage + uptime + last-seen
+  and **warns when >1 is active** (the incident detector). "Active" = heartbeat within 150 s.
+- **1-day auto-retention** (operator asked old records not pile up): it's an upsert (one row/instance)
+  and every write also deletes rows not seen for a day — no separate scheduler. Disposable telemetry;
+  nothing downstream depends on it.
+- **Best-effort, off the critical path:** `WorkerHeartbeatTask` swallows/logs any failure so a DB
+  hiccup can't stop the worker; written twice per loop iteration (top + before idle delay). Adds no
+  CPU/RAM/Redis fabrication — only the worker's own honestly-reported stage (ADR-091's real concern
+  still honored).
+- **One port, two hosts:** `IWorkerHeartbeatStore` written by worker, read by API (shared persistence
+  DI). Entity in `Domain.Observability`; migration `AddWorkerInstanceHeartbeats`.
+- **Tests/build:** Persistence test (upsert + 1-day prune + newest-first) written (runs in CI, Docker
+  down here); frontend 75 tests (2 new: renders instances, warns on >1 active); Infrastructure 726, Api
+  8 green; Release build 0 warnings; typecheck + production build clean. Format "ENDOFLINE" flags are a
+  Windows `core.autocrlf=true` working-tree artifact (committed content is LF/clean); the migration's
+  UTF-8 BOM matches every existing EF migration — neither is mine to fix.
+- **Not done:** tracking which instance holds the calendar fence (would show *which* one does calendar
+  work); a background heartbeat timer for sub-cycle freshness during long stages (per-iteration writes
+  chosen instead).
+
 ## Latest implementation session (2026-08-21, initial-sync concurrency fix — live incident)
 
 **Root-caused a live corruption** (a student's calendar missing ~500 of ~817 published events while

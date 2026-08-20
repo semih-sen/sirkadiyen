@@ -14,6 +14,7 @@ internal sealed class Worker(
     SourceCatalogInitializer catalogInitializer,
     SourceProcessingPipeline sourcePipeline,
     FencedCalendarMaintenanceTask calendarMaintenance,
+    WorkerHeartbeatTask heartbeat,
     SnapshotRetentionTask snapshotRetention,
     WorkerOptions options,
     AdaptivePollingIntervalPolicy intervalPolicy,
@@ -49,6 +50,10 @@ internal sealed class Worker(
 
         while (!cancellationToken.IsCancellationRequested)
         {
+            // Publish this instance's liveness and current stage each iteration (ADR-124) so the
+            // admin monitor can see every running instance — and that more than one is running.
+            await heartbeat.RunAsync(cancellationToken);
+
             if (pollScheduleSources)
             {
                 await sourcePipeline.RunAsync(cancellationToken);
@@ -73,6 +78,7 @@ internal sealed class Worker(
             LogNextCycle(next, calendarCatchUpRequired, nextSourcePollAt);
 
             healthState.MarkActivity("waiting");
+            await heartbeat.RunAsync(cancellationToken);
             await Task.Delay(next.Delay, timeProvider, cancellationToken);
         }
     }

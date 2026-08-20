@@ -236,6 +236,10 @@
 - [x] Administrative role change (`POST /api/admin/users/{id}/role`; promote to / demote from
   SuperAdmin, audited `RoleChanged`, guarded against self-change and demoting the bootstrap operator;
   per-account "Yetki (rol)" card; ADR-119)
+- [x] Worker-instance monitoring (ADR-124): each worker instance upserts a heartbeat (`worker_instances`,
+  stage/uptime/last-seen) with 1-day auto-retention; `GET /api/admin/workers` + "Worker instance'ları"
+  panel list all live instances and warn when more than one is active — the observability gap behind the
+  ADR-122 incident. Supersedes ADR-091's no-heartbeat clause only.
 - [x] Initial-sync concurrency fix (ADR-122): initial calendar sync now runs inside the shared
   cross-instance advisory fence (was unfenced), closing the two-worker race that split a user's events
   across two calendars — the root cause of a live "500 events missing on Google" incident

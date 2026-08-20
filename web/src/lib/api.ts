@@ -53,6 +53,7 @@ import type {
   AdminLicenseListItem,
   AdminMetricsSnapshot,
   AdminServiceHealthSnapshot,
+  WorkerInstancesResponse,
   AdminUserCalendarEventsResponse,
   CalendarVerificationResult,
   AdminUserDetailResponse,
@@ -848,6 +849,14 @@ export function getAdminMetrics(): Promise<AdminMetricsSnapshot> {
 
 export function getAdminServiceHealth(): Promise<AdminServiceHealthSnapshot> {
   return request('/api/admin/services/health');
+}
+
+/**
+ * Lists every worker instance's last heartbeat (ADR-124). Unlike the single-URL service-health probe,
+ * this reveals when more than one instance is running — the condition behind the double-sync incident.
+ */
+export function getAdminWorkers(): Promise<WorkerInstancesResponse> {
+  return request('/api/admin/workers');
 }
 
 export async function getHealth(path: 'live' | 'ready'): Promise<HealthStatus> {
