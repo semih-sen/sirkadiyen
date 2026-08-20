@@ -220,4 +220,14 @@ public enum AuditEventCategory
     /// systemPatterns §19). The previous and new roles are in the metadata.
     /// </summary>
     RoleChanged,
+
+    /// <summary>
+    /// A SuperAdmin removed one source snapshot's stored payload from the administration panel
+    /// (ADR-120). This is the operator-triggered counterpart to the automatic ADR-044 retention:
+    /// it reclaims the large normalized document while the snapshot's immutable identity — hashes,
+    /// counts, timestamps — and every downstream parse/revision/diff decision remain. A snapshot is
+    /// evidence (AI_GUIDELINE §9), so dropping even its recoverable payload is recorded with who did
+    /// it, why, and which source and acquisition it belonged to in the metadata (AI_GUIDELINE §19).
+    /// </summary>
+    SnapshotPayloadPruned,
 }

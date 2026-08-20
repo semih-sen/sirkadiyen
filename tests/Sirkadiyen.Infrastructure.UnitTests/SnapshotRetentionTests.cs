@@ -101,6 +101,15 @@ public sealed class SnapshotRetentionTests
             BatchSize = batchSize;
             return Task.FromResult<IReadOnlyList<PrunedSnapshotPayload>>([]);
         }
+
+        public Task<SnapshotPruneCandidate?> FindPruneCandidateAsync(
+            Guid snapshotId,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<bool> PrunePayloadAsync(
+            Guid snapshotId,
+            DateTimeOffset prunedAtUtc,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     private sealed class FixedFreezeStore(bool isFrozen) : IOperationalFreezeStore

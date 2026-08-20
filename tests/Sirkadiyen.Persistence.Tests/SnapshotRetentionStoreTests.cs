@@ -159,6 +159,84 @@ public sealed class SnapshotRetentionStoreTests(PostgresFixture fixture)
         Assert.Empty(pruned);
     }
 
+    [Fact]
+    public async Task FindPruneCandidateReturnsNullWhenTheSnapshotDoesNotExist()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        SnapshotRetentionStore store = new(context);
+
+        Assert.Null(await store.FindPruneCandidateAsync(Guid.CreateVersion7(), Token));
+    }
+
+    [Fact]
+    public async Task AManualPrunePruneEligibleMiddleSnapshotButRefusesBaselineNewestAndRecovery()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        ScheduleSource source = Source();
+        context.ScheduleSources.Add(source);
+
+        SourceSnapshot baseline = Snapshot(source, "baseline", source.AcademicYear, Now.AddDays(-40));
+        SourceSnapshot middle = Snapshot(source, "middle", source.AcademicYear, Now.AddDays(-20));
+        SourceSnapshot unparsed = Snapshot(source, "unparsed", source.AcademicYear, Now.AddDays(-18));
+        SourceSnapshot failedSnapshot =
+            Snapshot(source, "failed", source.AcademicYear, Now.AddDays(-15));
+        SourceSnapshot newest = Snapshot(source, "newest", source.AcademicYear, Now.AddDays(-1));
+        context.SourceSnapshots.AddRange(baseline, middle, unparsed, failedSnapshot, newest);
+
+        context.ParseRuns.Add(CompletedRun(baseline));
+        context.ParseRuns.Add(CompletedRun(middle));
+        ParseRun failedRun = new(
+            failedSnapshot.Id,
+            source.ParserProfile,
+            source.ParserProfileVersion,
+            "failed-run",
+            failedSnapshot.AcquiredAtUtc);
+        failedRun.Fail(failedSnapshot.AcquiredAtUtc.AddMinutes(1), "transport");
+        context.ParseRuns.Add(failedRun);
+        context.ParseRuns.Add(CompletedRun(newest));
+        await context.SaveChangesAsync(Token);
+
+        SnapshotRetentionStore store = new(context);
+
+        // The middle snapshot is old, parsed, not the newest and not the year's first: eligible.
+        SnapshotPruneCandidate? middleCandidate =
+            await store.FindPruneCandidateAsync(middle.Id, Token);
+        Assert.NotNull(middleCandidate);
+        Assert.False(middleCandidate!.PayloadAlreadyPruned);
+        Assert.Null(middleCandidate.IneligibleReason);
+        Assert.Equal(source.ClassYear, middleCandidate.Scope.ClassYear);
+
+        // Each protected snapshot is refused with a reason rather than silently kept.
+        Assert.Contains(
+            "baseline",
+            (await store.FindPruneCandidateAsync(baseline.Id, Token))!.IneligibleReason);
+        Assert.Contains(
+            "newest",
+            (await store.FindPruneCandidateAsync(newest.Id, Token))!.IneligibleReason);
+        Assert.Contains(
+            "recover",
+            (await store.FindPruneCandidateAsync(failedSnapshot.Id, Token))!.IneligibleReason);
+        Assert.Contains(
+            "parsed",
+            (await store.FindPruneCandidateAsync(unparsed.Id, Token))!.IneligibleReason);
+
+        // Pruning the eligible one removes only its payload and is idempotent.
+        Assert.True(await store.PrunePayloadAsync(middle.Id, Now, Token));
+        Assert.False(await store.PrunePayloadAsync(middle.Id, Now, Token));
+
+        context.ChangeTracker.Clear();
+        SourceSnapshot stored =
+            await context.SourceSnapshots.SingleAsync(s => s.Id == middle.Id, Token);
+        Assert.Null(stored.Payload);
+        Assert.Equal(Now, stored.PayloadPrunedAtUtc);
+        Assert.Equal("sha256:middle", stored.ContentHash);
+
+        Assert.True(
+            (await store.FindPruneCandidateAsync(middle.Id, Token))!.PayloadAlreadyPruned);
+    }
+
     private static ScheduleSource Source() => new(
         SourceId.Parse($"G9-RET-{Guid.NewGuid():N}"[..20]),
         "Retention test source",

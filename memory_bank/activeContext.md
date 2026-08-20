@@ -94,6 +94,44 @@ revision can be rejected** and **a terminally failed diff can be retried**, both
 reason-required `SuperAdmin` routes, with the failed-dispatch queue made enumerable by
 `GET /api/diffs?dispatchState=Failed`.
 
+## Latest implementation session (2026-08-20, operator snapshot payload prune)
+
+**The source panel could show a source's ten most recent snapshots but had no way to reclaim an old
+one's storage on demand** — only the automatic ADR-044 retention batch (recent-time window +
+per-cycle batch) ever pruned a payload. ADR-120 adds an operator-triggered prune of a chosen
+snapshot's payload. The user framed it as "delete old snapshots" and, given a snapshot is immutable
+evidence (AI_GUIDELINE §9) with `RESTRICT` FKs from parse runs, chose **payload pruning over
+row deletion**.
+
+- **A manual prune is the automatic retention's eligibility minus its recent-time window.** One
+  definition of prunable governs both: refused for a frozen scope, the newest snapshot per source
+  (kept for parser-profile reparse), the current year's first snapshot (baseline), a snapshot with no
+  terminal successful parse run, and one whose `Running`/`Failed` run still needs the payload to
+  recover — each with a **specific reason**, not a silent skip. The operator's authorization is what
+  replaces the time window; every safety/baseline guard still holds.
+- **`SnapshotPayloadPruneService`** resolves the snapshot's class/program scope, checks the freeze
+  through `IOperationalFreezeStore.IsFrozenAsync`, then delegates an idempotent transactional prune to
+  `ISnapshotRetentionStore.PrunePayloadAsync` (returns `false` → `AlreadyPruned` when the batch or a
+  concurrent prune won the race). Eligibility is not re-checked inside the write because the guards are
+  monotonic for an old snapshot.
+- **Audited** as `AuditEventCategory.SnapshotPayloadPruned` (who, source, acquisition time, required
+  reason). The endpoint `POST /api/admin/sources/snapshots/{snapshotId}/prune-payload` is the source
+  group's one mutating action (SuperAdmin, antiforgery). The frontend adds a per-snapshot "Payload'ı
+  buda" control (reason + confirm + reload) shown only where the payload is still stored;
+  `SourceSnapshotSummary` now carries `payloadPrunedAtUtc`.
+- **Tests/build:** 6-case `SnapshotPayloadPruneServiceTests` unit suite green; Infrastructure 719, Api
+  8, Contracts 6 all pass; frontend 74 tests pass, typecheck + production build clean; Release build 0
+  warnings; `dotnet format` clean over every file this session touched.
+- **Verification limit:** the two new `SnapshotRetentionStoreTests` (manual eligibility + idempotent
+  prune) compile but could not run here — Docker/PostgreSQL unavailable — so they run in CI, like every
+  persistence test in a Docker-less environment.
+- **Not done:** true snapshot-row hard deletion (deliberately out of scope; would need its own ADR),
+  a bulk "prune everything older than X for this source" action, and computing per-snapshot
+  prunability in the read path (the backend refuses ineligible ones with a reason instead).
+- **Pre-existing and untouched:** `dotnet format --verify-no-changes` flags line endings in
+  `AuditEventStoreTests.cs`, charset/namespace in the `AddScheduleSourceCatalogRevisions` migration,
+  and import ordering in two `Sirkadiyen.Worker` files — none edited this session.
+
 ## Latest implementation session (2026-08-20, account deletion + role change)
 
 **Two operator/user-lifecycle features landed together.** Account deletion (ADR-118, below) and

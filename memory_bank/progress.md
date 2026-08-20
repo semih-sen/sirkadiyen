@@ -236,6 +236,10 @@
 - [x] Administrative role change (`POST /api/admin/users/{id}/role`; promote to / demote from
   SuperAdmin, audited `RoleChanged`, guarded against self-change and demoting the bootstrap operator;
   per-account "Yetki (rol)" card; ADR-119)
+- [x] Operator-triggered snapshot payload prune (`POST /api/admin/sources/snapshots/{id}/prune-payload`;
+  reclaims a chosen old snapshot's payload on demand while keeping its immutable identity and the whole
+  parse/revision/diff trail; refuses the newest, the year baseline, recovery-needed and frozen scopes
+  with a reason; audited `SnapshotPayloadPruned`; per-snapshot "Payload'ı buda" control; ADR-120)
 - [ ] Operator-authored academic profile edit (no backend write exists; a wrong cohort is still
   fixable only by the student)
 - [~] Retry failed jobs (`POST /api/diffs/{id}/retry` plus `GET /api/diffs?dispatchState=Failed`

@@ -7017,3 +7017,76 @@ never a `SuperAdmin` and so never created or revoked a licence.
   admin-created licence and its Created audit survive.
 
 ---
+
+## ADR-120: Operator-triggered snapshot payload prune from the source panel
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-20
+**Implements:** `ISnapshotRetentionStore.FindPruneCandidateAsync`/`PrunePayloadAsync`,
+`SnapshotPayloadPruneService`, `AuditEventCategory.SnapshotPayloadPruned`,
+`POST /api/admin/sources/snapshots/{snapshotId}/prune-payload`,
+`SourceSnapshotSummary.PayloadPrunedAtUtc`, frontend snapshot prune control in `AdminSourceStatus`
+**Relates to:** ADR-044 (automatic snapshot payload retention), AI_GUIDELINE §9 (immutable evidence)
+
+### Context
+
+The source panel already *showed* each source's ten most recent snapshots, but the only way a
+snapshot's stored payload was ever reclaimed was the automatic ADR-044 retention batch, gated by a
+recent-time window and a per-cycle batch size. An operator who wanted to reclaim the storage of a
+specific old snapshot on demand had no surface for it. The request was framed as "delete old
+snapshots", but a snapshot is immutable evidence (AI_GUIDELINE §9): the ADR-007/ADR-044 model
+already draws the line at the large normalized payload — that alone may be pruned, while the identity
+row (hashes, counts, timestamps) and every downstream parse/revision/diff decision must remain. The
+`ParseRun → SourceSnapshot` foreign key is `RESTRICT`, so hard-deleting a snapshot row would sever
+that traceability chain. The user chose payload pruning over row deletion.
+
+### Decision
+
+1. **A manual prune is the automatic retention's eligibility, minus the recent-time window.** One
+   definition of "prunable payload" governs both paths. The operator's authorization replaces the
+   time window; every other guard the batch applies still holds: the snapshot's scope must not be
+   frozen, it must not be the newest for its source (kept so a parser-profile change can reparse it),
+   it must not be the current academic year's first snapshot (the baseline), it must have a parse run
+   that reached a terminal successful state, and no `Running`/`Failed` run may still need its payload
+   to recover. A snapshot that fails any guard is **refused with the specific reason**, not silently
+   skipped, so the operator learns the action is wrong here rather than merely unavailable.
+
+2. **The freeze is read through `IOperationalFreezeStore.IsFrozenAsync(scope)`**, so the global
+   emergency stop and the source's scoped control both apply, exactly as every other mutating
+   pipeline boundary. `SnapshotPayloadPruneService` resolves the snapshot's class/program scope from
+   its source before checking, then delegates the transactional prune to the store.
+
+3. **The prune is idempotent.** `PrunePayloadAsync` returns `false` when the snapshot is gone or its
+   payload was already null (the retention batch or a concurrent prune won the race), which the
+   service reports as `AlreadyPruned` rather than a spurious success. Eligibility is not re-checked
+   inside the write transaction: the guards are monotonic for an old snapshot (it cannot become the
+   newest again, and no new run appears for it), so the only realistic concurrent change is another
+   prune, which the idempotent no-op already handles.
+
+4. **Dropping a payload is audited.** `AuditEventCategory.SnapshotPayloadPruned` records who pruned
+   which snapshot, the source and acquisition time in the metadata, and a required reason — because
+   even a recoverable-by-repoll payload is evidence, and AI_GUIDELINE §19 wants a destructive-of-data
+   maintenance action in the one activity log an operator reads.
+
+5. **The endpoint lives on the existing read-only source-status group** (`/api/admin/sources`),
+   SuperAdmin-only and antiforgery-protected, as its one mutating action. The frontend adds a
+   per-snapshot "Payload'ı buda" control in the source detail drawer: a reason field, a confirm, and
+   a reload; the button appears only where the payload is still stored, and a refusal reason from the
+   backend is shown inline.
+
+### Consequences
+
+- An operator can now reclaim a specific old snapshot's storage immediately instead of waiting for
+  the retention window, without any new power to destroy traceability: the identity row and the whole
+  parse/revision/diff trail always remain, and the protected snapshots (newest, year baseline,
+  recovery-needed) are refused.
+- "Delete an old snapshot" is deliberately *not* a row deletion. Should a true hard-delete ever be
+  wanted, it would need its own decision — a constraint/cascade design and a justification against
+  AI_GUIDELINE §9 — and is out of scope here.
+- `SourceStatusEndpoints` is no longer purely read-only; its summary comment now says so.
+- **Verification limit:** the two new `SnapshotRetentionStoreTests` (manual eligibility + idempotent
+  prune) are written and compile but could not run here — Docker/PostgreSQL were unavailable, so they
+  run in CI like every persistence test in a Docker-less environment. The six-case
+  `SnapshotPayloadPruneServiceTests` unit suite runs and passes.
+
+---

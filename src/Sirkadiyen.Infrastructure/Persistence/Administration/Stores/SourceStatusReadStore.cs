@@ -68,6 +68,7 @@ public sealed class SourceStatusReadStore(SirkadiyenDbContext dbContext) : ISour
                 CellCount = snapshot.CellCount,
                 DiagnosticCount = snapshot.DiagnosticCount,
                 HasPayload = snapshot.Payload != null,
+                PayloadPrunedAtUtc = snapshot.PayloadPrunedAtUtc,
             })
             .ToListAsync(cancellationToken);
 

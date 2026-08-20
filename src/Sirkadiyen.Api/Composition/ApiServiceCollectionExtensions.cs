@@ -142,6 +142,9 @@ internal static class ApiServiceCollectionExtensions
         services.AddScoped<AnnouncementService>();
         services.AddScoped<CohortCalendarRepairService>();
 
+        // Operator-triggered snapshot payload pruning from the source dashboard (ADR-120).
+        services.AddScoped<SnapshotPayloadPruneService>();
+
         // The one way out of a deleted managed calendar, shared by the student's own
         // endpoint and the operator's (ADR-116).
         services.AddScoped<ManagedCalendarRebuildService>();

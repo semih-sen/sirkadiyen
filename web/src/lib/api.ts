@@ -72,6 +72,7 @@ import type {
   ScheduleSourceCatalogPlan,
   ScheduleSourceCatalogRevisionDetail,
   ScheduleSourceCatalogRevisionSummary,
+  PruneSnapshotPayloadResponse,
   SourceStatusDetail,
   SourceStatusListItem,
   UnmaskAuditIpResponse,
@@ -728,6 +729,22 @@ export function listAdminSources(): Promise<SourceStatusListItem[]> {
 
 export function getAdminSource(sourceId: string): Promise<SourceStatusDetail> {
   return request(`/api/admin/sources/${encodeURIComponent(sourceId)}`);
+}
+
+/**
+ * Removes one snapshot's stored payload (ADR-120), keeping its immutable metadata and the whole
+ * downstream parse/revision/diff trail. The backend refuses the newest snapshot, the year's
+ * baseline, a snapshot still needed for parser recovery, and a frozen scope, with a reason in the
+ * problem detail. An audited action, so a reason is required.
+ */
+export function pruneSnapshotPayload(
+  snapshotId: string,
+  reason: string,
+): Promise<PruneSnapshotPayloadResponse> {
+  return request(`/api/admin/sources/snapshots/${encodeURIComponent(snapshotId)}/prune-payload`, {
+    method: 'POST',
+    body: { reason },
+  });
 }
 
 // --- Schedule source catalog (ADR-114) --------------------------------------

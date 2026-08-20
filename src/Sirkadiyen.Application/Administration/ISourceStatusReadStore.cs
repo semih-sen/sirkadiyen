@@ -83,4 +83,7 @@ public sealed record SourceSnapshotSummary
 
     /// <summary>Whether the normalized payload is still retained (not pruned; ADR-044).</summary>
     public required bool HasPayload { get; init; }
+
+    /// <summary>When the payload was pruned, or <see langword="null"/> while it is still retained.</summary>
+    public DateTimeOffset? PayloadPrunedAtUtc { get; init; }
 }

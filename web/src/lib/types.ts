@@ -369,6 +369,13 @@ export interface SourceSnapshotSummary {
   cellCount: number;
   diagnosticCount: number;
   hasPayload: boolean;
+  payloadPrunedAtUtc?: string | null;
+}
+
+export interface PruneSnapshotPayloadResponse {
+  snapshotId: string;
+  sourceId: string;
+  acquiredAtUtc: string;
 }
 
 export type ParserWarningSeverity = 'Information' | 'Warning' | 'Error' | string;

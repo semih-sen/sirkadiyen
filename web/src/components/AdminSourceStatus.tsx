@@ -1,11 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ApiError, getAdminSource, listAdminSources } from '@/lib/api';
+import { ApiError, getAdminSource, listAdminSources, pruneSnapshotPayload } from '@/lib/api';
 import { DetailDrawer, LoadState, Tabs, formatDateTime, statusBadge } from '@/components/AdminData';
 import { SourceDocumentUpload } from '@/components/SourceDocumentUpload';
 import { SourceCatalogEditor } from '@/components/SourceCatalogEditor';
-import type { ParserWarningView, SourceStatusDetail, SourceStatusListItem } from '@/lib/types';
+import type {
+  ParserWarningView,
+  SourceSnapshotSummary,
+  SourceStatusDetail,
+  SourceStatusListItem,
+} from '@/lib/types';
 
 export function AdminSourceWorkspace() {
   const [tab, setTab] = useState('status');
@@ -46,9 +51,9 @@ function SourceStatus() {
 
   useEffect(() => { void load(); }, [load]);
 
-  async function open(item: SourceStatusListItem) {
+  async function open(sourceId: string) {
     try {
-      setDetail(await getAdminSource(item.sourceId));
+      setDetail(await getAdminSource(sourceId));
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Kaynak detayı alınamadı.');
     }
@@ -71,7 +76,7 @@ function SourceStatus() {
             <thead><tr><th>Kaynak</th><th>Program</th><th>Son poll</th><th>Parse</th><th>Uyarı/Hata</th><th>Revizyon</th></tr></thead>
             <tbody>
               {items.map((item) => (
-                <tr key={item.sourceId} onClick={() => void open(item)} style={{ cursor: 'pointer' }}>
+                <tr key={item.sourceId} onClick={() => void open(item.sourceId)} style={{ cursor: 'pointer' }}>
                   <td><strong>{item.displayName}</strong><small className="mono muted" style={{ display: 'block' }}>{item.sourceId}</small></td>
                   <td>Dönem {item.classYear} · {item.programLanguage}</td>
                   <td>{formatDateTime(item.lastPolledAtUtc)}{!item.isPollingEnabled && <small className="muted" style={{ display: 'block' }}>Polling kapalı</small>}</td>
@@ -84,12 +89,26 @@ function SourceStatus() {
           </table>
         </div>
       )}
-      {detail && <SourceDetail detail={detail} onClose={() => setDetail(null)} />}
+      {detail && (
+        <SourceDetail
+          detail={detail}
+          onClose={() => setDetail(null)}
+          onReload={() => open(detail.summary.sourceId)}
+        />
+      )}
     </section>
   );
 }
 
-function SourceDetail({ detail, onClose }: { detail: SourceStatusDetail; onClose: () => void }) {
+function SourceDetail({
+  detail,
+  onClose,
+  onReload,
+}: {
+  detail: SourceStatusDetail;
+  onClose: () => void;
+  onReload: () => Promise<void>;
+}) {
   return (
     <DetailDrawer title={detail.summary.displayName} subtitle={detail.summary.sourceId} onClose={onClose}>
       <div className="summary-row"><span className="muted">Taşıma</span><strong>{detail.summary.transport}</strong></div>
@@ -103,17 +122,101 @@ function SourceDetail({ detail, onClose }: { detail: SourceStatusDetail; onClose
       ))}
 
       <h3 style={{ fontSize: 15, marginTop: 20 }}>Son snapshotlar</h3>
+      <p className="muted" style={{ fontSize: 12, marginTop: -4 }}>
+        Bir snapshot değişmez kanıttır. “Payload’ı buda”, yalnızca büyük normalize içeriği siler;
+        kimlik, hash, sayımlar ve tüm parse/revizyon/diff izi kalır.
+      </p>
       {detail.recentSnapshots.length === 0 ? <p className="muted">Snapshot bulunmuyor.</p> : detail.recentSnapshots.map((snapshot) => (
-        <section key={snapshot.snapshotId} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
-          <div className="cluster" style={{ justifyContent: 'space-between' }}>
-            <strong className="mono">{snapshot.snapshotId}</strong>
-            <span className={`badge ${snapshot.hasPayload ? 'badge-success' : 'badge-neutral'}`}>{snapshot.hasPayload ? 'Payload saklanıyor' : 'Payload budandı'}</span>
-          </div>
-          <p className="muted" style={{ fontSize: 12 }}>{formatDateTime(snapshot.acquiredAtUtc)} · {snapshot.worksheetCount} sayfa · {snapshot.cellCount} hücre · {snapshot.diagnosticCount} tanı</p>
-          <small className="mono">{snapshot.contentHash}</small>
-        </section>
+        <SnapshotRow key={snapshot.snapshotId} snapshot={snapshot} onReload={onReload} />
       ))}
     </DetailDrawer>
+  );
+}
+
+function SnapshotRow({
+  snapshot,
+  onReload,
+}: {
+  snapshot: SourceSnapshotSummary;
+  onReload: () => Promise<void>;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function prune() {
+    if (reason.trim().length === 0) {
+      setError('Bir gerekçe gerekli.');
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await pruneSnapshotPayload(snapshot.snapshotId, reason.trim());
+      setConfirming(false);
+      setReason('');
+      await onReload();
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Payload budanamadı.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <section style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+      <div className="cluster" style={{ justifyContent: 'space-between' }}>
+        <strong className="mono">{snapshot.snapshotId}</strong>
+        <span className={`badge ${snapshot.hasPayload ? 'badge-success' : 'badge-neutral'}`}>{snapshot.hasPayload ? 'Payload saklanıyor' : 'Payload budandı'}</span>
+      </div>
+      <p className="muted" style={{ fontSize: 12 }}>{formatDateTime(snapshot.acquiredAtUtc)} · {snapshot.worksheetCount} sayfa · {snapshot.cellCount} hücre · {snapshot.diagnosticCount} tanı</p>
+      <small className="mono">{snapshot.contentHash}</small>
+      {!snapshot.hasPayload && snapshot.payloadPrunedAtUtc && (
+        <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+          Payload {formatDateTime(snapshot.payloadPrunedAtUtc)} tarihinde budandı.
+        </p>
+      )}
+      {snapshot.hasPayload && !confirming && (
+        <button
+          type="button"
+          className="btn btn-tertiary btn-sm"
+          style={{ marginTop: 8 }}
+          onClick={() => { setConfirming(true); setError(null); }}
+        >
+          Payload’ı buda
+        </button>
+      )}
+      {snapshot.hasPayload && confirming && (
+        <div style={{ marginTop: 8 }}>
+          <label className="muted" style={{ fontSize: 12, display: 'block', marginBottom: 4 }}>
+            Gerekçe (denetim kaydına yazılır)
+          </label>
+          <textarea
+            className="text-input"
+            rows={2}
+            value={reason}
+            disabled={busy}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="Örn. eski snapshot, depolama alanını geri kazan"
+          />
+          <div className="cluster" style={{ gap: 8, marginTop: 8 }}>
+            <button type="button" className="btn btn-danger btn-sm" disabled={busy} onClick={() => void prune()}>
+              {busy ? 'Budanıyor…' : 'Payload’ı buda'}
+            </button>
+            <button
+              type="button"
+              className="btn btn-tertiary btn-sm"
+              disabled={busy}
+              onClick={() => { setConfirming(false); setReason(''); setError(null); }}
+            >
+              Vazgeç
+            </button>
+          </div>
+        </div>
+      )}
+      {error && <p className="error-text" style={{ marginTop: 6 }}>{error}</p>}
+    </section>
   );
 }
 
