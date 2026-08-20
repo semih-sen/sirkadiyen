@@ -272,6 +272,37 @@ public sealed class GoogleCalendarClient : IUserCalendarClient, IDisposable
             cancellationToken);
     }
 
+    public async Task<CalendarContainerDeleteOutcome> DeleteManagedCalendarAsync(
+        CalendarAccess access,
+        string calendarId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(access);
+        ArgumentException.ThrowIfNullOrWhiteSpace(calendarId);
+
+        CalendarService service = ServiceFor(access);
+
+        return await ExecuteAsync(
+            async () =>
+            {
+                try
+                {
+                    // Deletes the whole secondary calendar and every event on it. This is only ever
+                    // the managed Sirkadiyen calendar for the account being erased (ADR-118).
+                    await service.Calendars.Delete(calendarId).ExecuteAsync(cancellationToken);
+                    return CalendarContainerDeleteOutcome.Deleted;
+                }
+                catch (GoogleApiException exception)
+                    when (IsGone(exception.HttpStatusCode))
+                {
+                    // The user already removed it; erasure has nothing left to do here.
+                    return CalendarContainerDeleteOutcome.NotFound;
+                }
+            },
+            "Deleting a managed calendar",
+            cancellationToken);
+    }
+
     public void Dispose()
     {
         foreach (ConcurrentDictionary<string, CalendarLabelRegistry> calendars

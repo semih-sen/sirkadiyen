@@ -9,6 +9,7 @@ import { ApiError, getLicenseStatus, getProfile, getScheduleChanges, getSyncProg
 import { ROUTES } from '@/lib/onboarding';
 import { Banner, StudentTopbar } from '@/components/ui';
 import { DepartmentColorEditor } from '@/components/DepartmentColorEditor';
+import { DeleteAccountCard } from '@/components/DeleteAccountCard';
 import { formatDateTime, statusBadge } from '@/components/AdminData';
 import type { CalendarSyncProgressResponse, LicenseStatusResponse, StudentProfileView, UserScheduleChangeView, UserScheduleEventView } from '@/lib/types';
 
@@ -79,6 +80,7 @@ function Dashboard() {
         <section className="card card-content"><h3 style={{ fontSize: 15 }}>Lisans erişimi</h3>{errors.license ? <p className="error">{errors.license}</p> : license ? <div style={{ marginTop: 10 }}><span className={`badge ${statusBadge(license.state)}`}>{license.state === 'Active' ? 'Aktif' : license.state === 'Suspended' ? 'Askıda' : 'Etkin değil'}</span><div className="summary-row"><span className="muted">Etkinleştirme</span><strong>{formatDateTime(license.activatedAtUtc)}</strong></div>{license.revokedAtUtc && <div className="summary-row"><span className="muted">İptal</span><strong>{formatDateTime(license.revokedAtUtc)}</strong></div>}<p className="muted" style={{ fontSize: 12, marginTop: 8 }}>Lisans tek kullanımlık hesap aktivasyonudur; abonelik süresi değildir.</p></div> : <p className="loading-note">Yükleniyor…</p>}</section>
         <section className="card card-content"><h3 style={{ fontSize: 15 }}>Google Calendar bağlantısı</h3><span className={`badge ${status?.hasManagedCalendar ? 'badge-success' : 'badge-neutral'}`} style={{ marginTop: 12 }}>{status?.hasManagedCalendar ? 'Yönetilen takvim hazır' : 'Takvim bekleniyor'}</span></section>
         <section className="card card-content" style={{ opacity: .75 }}><h3 style={{ fontSize: 15 }}>Senkron geçmişi · Bildirimler · Makaleler</h3><p className="muted" style={{ marginTop: 8, fontSize: 13 }}>Bu alanların yetkili backend sözleşmeleri henüz bulunmuyor.</p><span className="badge badge-neutral" style={{ marginTop: 10 }}>Yakında</span></section>
+        <DeleteAccountCard />
       </div>
     </div>
   </div></main></>;

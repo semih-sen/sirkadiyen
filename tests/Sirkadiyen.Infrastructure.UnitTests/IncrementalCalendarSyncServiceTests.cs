@@ -575,6 +575,11 @@ public sealed class IncrementalCalendarSyncServiceTests
             return Task.FromResult(CalendarEventDeleteOutcome.Deleted);
         }
 
+        public Task<CalendarContainerDeleteOutcome> DeleteManagedCalendarAsync(
+            CalendarAccess access,
+            string calendarId,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
         public Task<string> CreateManagedCalendarAsync(
             CalendarAccess access,
             string calendarSummary,

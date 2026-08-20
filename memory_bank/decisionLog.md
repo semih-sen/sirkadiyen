@@ -6835,3 +6835,93 @@ reconciliation.
   visible only as a crash on a deployed worker's first cycle.
 
 ---
+
+## ADR-118: Account deletion — erase the person, keep the anonymized trail
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-20
+**Implements:** `AccountDeletionService`, `IAccountDeletionStore`/`AccountDeletionStore`,
+`IExternalAccountCleanup`/`ExternalAccountCleanupService`,
+`IUserCalendarClient.DeleteManagedCalendarAsync`,
+`IGoogleCalendarAuthorizationClient.RevokeRefreshTokenAsync`,
+`AuditEventCategory.AccountDeleted`, `POST /api/account/delete`,
+`POST /api/admin/users/{id}/delete`, frontend `DeleteAccountCard` and the operator danger zone
+**Relates to:** ADR-089 (the `AuditEvent` trail), ADR-057 (the encrypted grant), ADR-024 (the
+managed calendar), ADR-116 (one service, two doors)
+
+### Context
+
+There was no way to delete an account — neither for the owner (a KVKK/GDPR "right to erasure"
+request) nor for an operator. The data an account accretes is spread across cascading personal
+tables and several `RESTRICT`-bound ones, plus an external Google footprint (a dedicated managed
+calendar and an encrypted refresh-token grant). Doing this wrong either strands foreign-key
+references, destroys the audit history the platform depends on, or leaves a live Google grant and
+calendar behind after the account is gone.
+
+### Decision
+
+1. **Erase the person, keep the trail anonymized.** The personal aggregates (student profile,
+   Calendar connection and its encrypted token, event-mapping ledger, department-colour
+   preferences, any single-user announcement addressed to them and its deliveries) are deleted by
+   database `ON DELETE CASCADE` when the user row is removed. The cross-cutting `audit_events` log
+   is **kept** with the deleted person's identifying fields cleared (actor id, actor e-mail, both IP
+   forms, user agent). This balances erasure against AI_GUIDELINE §19's append-only, traceable
+   audit requirement: the history of what happened on the platform survives without naming a deleted
+   person. Nulling the actor id is also what releases the `RESTRICT` link so the user row can be
+   deleted at all.
+
+2. **The `RESTRICT`-bound licensing rows are handled explicitly, not cascaded.** A redeemed
+   single-use license row is **kept** (the code must stay unusable) but detached — its
+   `RedeemedByUserId`/`RevokedByUserId` link to the deleted user is nulled, so the row survives as an
+   anonymized fact that a redemption happened. The erased subject's own `license_audits` rows (whose
+   actor id cannot be null) are the record of *them* acting, so they are removed as part of the
+   erasure; the detached license row and the `AccountDeleted` event preserve the platform-level fact.
+
+3. **The external Google cleanup is best-effort and runs first, outside the transaction.** The
+   managed calendar is deleted and the refresh-token grant revoked *before* the database erasure,
+   never inside it (systemPatterns §16 forbids an external call in a DB transaction). Every failure —
+   a dead token, an unreachable API, a calendar the user already removed — is logged and folded into
+   the outcome, never rethrown: a person's local erasure must not depend on Google being reachable.
+   What could not be done is recorded in the deletion's audit metadata. This lives in an
+   infrastructure port (`IExternalAccountCleanup`) so the use case keeps neither the plaintext
+   credential nor the provider exceptions.
+
+4. **Deleting a whole calendar container is authorized by the erasure, not a diff.** AI_GUIDELINE §13
+   protects *schedule* events so a parser failure can never retire a lesson; account deletion is a
+   different authority — the owner's own request, or an operator's audited one — exactly as ADR-107's
+   announcement cancellation is. This is the only path that deletes an entire calendar; every sync
+   path still operates one event at a time.
+
+5. **One service, two doors** (as ADR-116): the student's `POST /api/account/delete` and the
+   operator's `POST /api/admin/users/{id}/delete` share `AccountDeletionService`, so the eligibility
+   rule, the external cleanup, the erasure and the single `AccountDeleted` audit record cannot differ
+   between them. The confirmation phrase is the account's own e-mail, retyped (§30's "confirm the
+   subject's own identifier"); the operator additionally states an audited reason, the student does
+   not (that they asked is the reason). A self-deletion's `AccountDeleted` record is itself
+   anonymized with the rest of the owner's trail — subject id, reason and metadata survive, the actor
+   is cleared — while an operator's keeps the operator as the readable actor.
+
+6. **A `SuperAdmin` cannot be deleted through either door.** The bootstrap operator is re-granted the
+   role on every sign-in (ADR-045) and is the only administrator; deleting them would strand the
+   system, and the loss cannot be undone.
+
+### Consequences
+
+- A revoked-but-detached license row now has a null redeemer. Any future read that assumed
+  `RedeemedByUserId` is non-null for a `Redeemed` license must tolerate null (it means "redeemed by a
+  since-deleted account").
+- The audit trail can now contain rows with a null actor that are not system/anonymous events but
+  *erased* ones. They are indistinguishable from anonymous events by shape; the `AccountDeleted`
+  record with the matching `SubjectId` is what explains them.
+- If Google is unreachable at deletion time the managed calendar can outlive the account. The audit
+  metadata records `googleCalendarDeleted:false`, and the user can remove the "Sirkadiyen" calendar
+  themselves. There is no retry — the local account is already gone, so nothing re-attempts it.
+- **Not built:** a soft-delete/grace-period ("undo within N days"), a data-export-before-delete, and
+  a bulk operator deletion. Deletion is immediate and permanent by decision.
+- **Verification limit:** the `AccountDeletionStore` persistence test (cascade + anonymization +
+  license detach + license-audit removal against real PostgreSQL) could not be executed in the
+  implementing environment — no Docker/Postgres — so it is written and compiled but was run only in
+  CI. The service orchestration, both API doors and both frontend surfaces are covered by unit tests
+  that do run.
+
+---

@@ -192,6 +192,10 @@ public sealed class CalendarAuthorizationServiceTests
                     GrantedScopes = grantedScopes ?? CalendarAuthorizationServiceTests.RequiredScopes,
                 });
         }
+
+        public Task<bool> RevokeRefreshTokenAsync(
+            string refreshToken,
+            CancellationToken cancellationToken) => Task.FromResult(true);
     }
 
     private sealed class StubTokenProtector : ICalendarTokenProtector

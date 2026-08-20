@@ -85,4 +85,25 @@ public interface IUserCalendarClient
         string calendarId,
         string eventId,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Deletes the whole dedicated Sirkadiyen calendar container and every event on it (ADR-118).
+    /// Used only when an account is deleted, so the calendar the product created does not survive
+    /// its owner.
+    /// </summary>
+    /// <remarks>
+    /// This is a best-effort courtesy, not a synchronization primitive: account deletion proceeds
+    /// even if this fails (a dead token, a calendar the user already removed), so the outcome is
+    /// reported rather than thrown. A calendar that is already gone is reported as
+    /// <see cref="CalendarContainerDeleteOutcome.NotFound"/>.
+    /// <para>
+    /// It deletes an entire calendar, which no synchronization path ever does — every other write
+    /// here operates on a single event by its deterministic id (AI_GUIDELINE §13). The authority is
+    /// the account owner's own erasure request, or an operator's audited one, never a diff.
+    /// </para>
+    /// </remarks>
+    Task<CalendarContainerDeleteOutcome> DeleteManagedCalendarAsync(
+        CalendarAccess access,
+        string calendarId,
+        CancellationToken cancellationToken);
 }

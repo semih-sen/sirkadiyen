@@ -136,3 +136,13 @@ public enum CalendarEventDeleteOutcome
     /// <summary>No event with this id existed; the delete was a safe no-op.</summary>
     NotFound,
 }
+
+/// <summary>The result of deleting an entire managed calendar container (ADR-118).</summary>
+public enum CalendarContainerDeleteOutcome
+{
+    /// <summary>The calendar and all its events were removed.</summary>
+    Deleted,
+
+    /// <summary>No such calendar existed; the delete was a safe no-op.</summary>
+    NotFound,
+}

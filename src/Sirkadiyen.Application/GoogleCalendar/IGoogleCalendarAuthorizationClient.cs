@@ -25,4 +25,17 @@ public interface IGoogleCalendarAuthorizationClient
     Task<CalendarAuthorizationTokens> ExchangeAuthorizationCodeAsync(
         string authorizationCode,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Asks Google to revoke a stored refresh token, so the grant Sirkadiyen held does not outlive
+    /// the account it belonged to (ADR-118).
+    /// </summary>
+    /// <returns>
+    /// <see langword="true"/> if Google accepted the revocation or reported the token already
+    /// invalid; <see langword="false"/> if it could not be revoked. Account deletion proceeds
+    /// regardless — this is a best-effort cleanup of an external grant, never a gate.
+    /// </returns>
+    Task<bool> RevokeRefreshTokenAsync(
+        string refreshToken,
+        CancellationToken cancellationToken);
 }

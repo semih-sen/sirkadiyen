@@ -229,6 +229,10 @@
   onboarding, the user's audit trail, what the mapping ledger says is on their managed calendar
   via `GET /api/admin/users/{id}/calendar-events(+changes)`, manual activation, licence revocation
   and a warning composed in place; ADR-108)
+- [x] Account deletion (self-service `POST /api/account/delete` and operator
+  `POST /api/admin/users/{id}/delete`; personal data erased via cascade, cross-cutting audit trail
+  anonymized, licences detached, managed Google calendar deleted + token revoked best-effort,
+  `AuditEventCategory.AccountDeleted`, SuperAdmin refused; ADR-118)
 - [ ] Operator-authored academic profile edit (no backend write exists; a wrong cohort is still
   fixable only by the student)
 - [~] Retry failed jobs (`POST /api/diffs/{id}/retry` plus `GET /api/diffs?dispatchState=Failed`

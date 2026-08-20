@@ -196,4 +196,20 @@ public enum AuditEventCategory
     /// (AI_GUIDELINE §19).
     /// </summary>
     ManagedCalendarRebuilt,
+
+    /// <summary>
+    /// An account was permanently deleted (ADR-118), either by its own owner ("Hesabımı sil") or by
+    /// a SuperAdmin on their behalf. Deletion erases the person's personal data — profile, Calendar
+    /// connection, event ledger, colour preferences, announcement deliveries — and best-effort
+    /// deletes their managed Google calendar and revokes the stored token. This record is what
+    /// remains: the account is gone, but the fact that it existed and was deleted, when, by whom and
+    /// why, stays in the one append-only log an operator reads (AI_GUIDELINE §19).
+    /// <para>
+    /// When the owner deletes their own account this record's own actor identity is anonymized with
+    /// the rest of their audit trail, so its actor fields are cleared and only the subject id, the
+    /// reason and the metadata survive. An operator-authorized deletion keeps the operator as the
+    /// readable actor.
+    /// </para>
+    /// </summary>
+    AccountDeleted,
 }

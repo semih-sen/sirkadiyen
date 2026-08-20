@@ -18,9 +18,11 @@ const api = vi.hoisted(() => ({
   previewUserCalendarRecheck: vi.fn(),
   requestUserCalendarRecheck: vi.fn(),
   rebuildUserCalendar: vi.fn(),
+  deleteUser: vi.fn(),
   ApiError: class extends Error {},
 }));
 vi.mock('@/lib/api', () => api);
+vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: vi.fn() }) }));
 
 const summary = {
   id: 'u1', email: 'user@example.com', displayName: 'Zeynep', role: 'User',
@@ -244,6 +246,45 @@ describe('AdminUserDetail', () => {
     await screen.findByRole('heading', { name: 'Zeynep' });
 
     expect(screen.queryByRole('button', { name: 'Takvimi yeniden kur' })).not.toBeInTheDocument();
+  });
+
+  it('deletes an account only with a reason and the matching confirmation e-mail', async () => {
+    api.deleteUser.mockResolvedValue({
+      outcome: 'Deleted', hadManagedCalendar: true, googleCalendarDeleted: true,
+      googleTokenRevoked: true, anonymizedAuditEvents: 4,
+    });
+    render(<AdminUserDetail userId="u1" />);
+    await screen.findByRole('heading', { name: 'Zeynep' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Hesabı silmek istiyorum' }));
+    const confirm = screen.getByRole('button', { name: 'Hesabı kalıcı olarak sil' });
+    expect(confirm).toBeDisabled();
+
+    await userEvent.type(screen.getByLabelText('Silme gerekçesi (denetim kaydına yazılır)'), 'KVKK talebi.');
+    // A wrong e-mail keeps the button disabled.
+    await userEvent.type(screen.getByLabelText(/hesabın e-postasını yaz/), 'wrong@example.com');
+    expect(confirm).toBeDisabled();
+
+    await userEvent.clear(screen.getByLabelText(/hesabın e-postasını yaz/));
+    await userEvent.type(screen.getByLabelText(/hesabın e-postasını yaz/), 'user@example.com');
+    expect(confirm).toBeEnabled();
+
+    await userEvent.click(confirm);
+    await waitFor(() => expect(api.deleteUser).toHaveBeenCalledWith(
+      'u1', 'KVKK talebi.', 'user@example.com',
+    ));
+  });
+
+  it('refuses to delete a SuperAdmin account', async () => {
+    api.getAdminUser.mockResolvedValue({
+      ...detail,
+      user: { ...detail.user, summary: { ...summary, role: 'SuperAdmin' } },
+    });
+    render(<AdminUserDetail userId="u1" />);
+    await screen.findByRole('heading', { name: 'Zeynep' });
+
+    expect(screen.queryByRole('button', { name: 'Hesabı silmek istiyorum' })).not.toBeInTheDocument();
+    expect(screen.getByText(/Yönetici hesabı bu akıştan silinemez/)).toBeInTheDocument();
   });
 });
 

@@ -94,6 +94,31 @@ revision can be rejected** and **a terminally failed diff can be retried**, both
 reason-required `SuperAdmin` routes, with the failed-dispatch queue made enumerable by
 `GET /api/diffs?dispatchState=Failed`.
 
+## Latest implementation session (2026-08-20, account deletion)
+
+**Accounts can now be deleted** (ADR-118), from the owner's own panel ("Hesabımı sil") and from the
+operator's per-account page — the first destructive user-lifecycle action the system has.
+
+- **The data policy is "erase the person, keep the anonymized trail."** Personal aggregates (profile,
+  Calendar connection + encrypted token, event-mapping ledger, colour preferences, single-user
+  announcement + deliveries) are removed by database `ON DELETE CASCADE`; the cross-cutting
+  `audit_events` log is kept with the deleted person's identity fields cleared, which also releases
+  the `RESTRICT` foreign key so the user row can be deleted. Licences are detached (redeemed code
+  stays unusable) and the erased subject's own `license_audits` rows are removed.
+- **The external Google cleanup runs first and best-effort, outside the DB transaction:** delete the
+  managed calendar, revoke the grant, fold every failure into the outcome and the audit metadata,
+  never block the local erasure. It lives in an infrastructure port (`IExternalAccountCleanup`) so the
+  use case holds neither the plaintext credential nor the provider exceptions.
+- **One service, two doors** (as ADR-116). Confirmation phrase is the account's own e-mail; the
+  operator also states an audited reason. `AuditEventCategory.AccountDeleted`. A **SuperAdmin cannot
+  be deleted** through either door (the bootstrap operator, ADR-045).
+- 708 Infrastructure unit tests (6 new for the service orchestration) and 72 frontend tests (4 new)
+  pass; Release build 0 warnings, frontend typecheck + production build clean.
+- **Verification limit:** the `AccountDeletionStore` PostgreSQL test (cascade + anonymization +
+  licence detach/audit removal) is written and compiled but could not run here — no Docker/Postgres —
+  so it runs in CI only, like every persistence test in a Docker-less environment.
+- **Not done:** soft-delete/grace period, data export before deletion, bulk operator deletion.
+
 ## Latest implementation session (2026-08-17, the users module gets filters and an account page)
 
 **The admin account directory could show that an account existed and answer nothing about a group

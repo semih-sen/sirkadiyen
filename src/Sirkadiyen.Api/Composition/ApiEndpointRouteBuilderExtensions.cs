@@ -32,6 +32,7 @@ internal static class ApiEndpointRouteBuilderExtensions
             new HealthCheckOptions { Predicate = static registration => registration.Tags.Contains("ready") });
         app.MapOpenApi();
         app.MapAuthenticationEndpoints();
+        app.MapAccountEndpoints();
         app.MapLicenseEndpoints();
         app.MapStudentProfileEndpoints();
         app.MapCalendarAuthorizationEndpoints();

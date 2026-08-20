@@ -634,6 +634,11 @@ public sealed class ProfileChangeResyncServiceTests
             ManagedCalendarEventLabel label,
             CancellationToken cancellationToken) => Task.CompletedTask;
 
+        public Task<CalendarContainerDeleteOutcome> DeleteManagedCalendarAsync(
+            CalendarAccess access,
+            string calendarId,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
         public Task<string> CreateManagedCalendarAsync(
             CalendarAccess access,
             string calendarSummary,

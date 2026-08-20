@@ -92,5 +92,33 @@ public sealed class GoogleCalendarAuthorizationClient
         };
     }
 
+    public async Task<bool> RevokeRefreshTokenAsync(
+        string refreshToken,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(refreshToken);
+
+        try
+        {
+            // Reuses the flow's HTTP client to call Google's revocation endpoint. A refresh token
+            // revokes the whole grant. This is best-effort account cleanup (ADR-118): a token Google
+            // already considers invalid is reported as revoked rather than an error.
+            await flow.RevokeTokenAsync(ExchangeUserKey, refreshToken, cancellationToken);
+            return true;
+        }
+        catch (TokenResponseException)
+        {
+            // Google returns a 400 with "invalid_token" for a token that is already unusable, which
+            // is the outcome we wanted: there is no live grant left to revoke.
+            return true;
+        }
+        catch (HttpRequestException)
+        {
+            // The revocation endpoint could not be reached; the grant may still be live. The caller
+            // records this as "not revoked" rather than failing the whole deletion.
+            return false;
+        }
+    }
+
     public void Dispose() => flow.Dispose();
 }

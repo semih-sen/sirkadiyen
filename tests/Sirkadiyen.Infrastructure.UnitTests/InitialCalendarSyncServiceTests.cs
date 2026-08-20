@@ -459,6 +459,11 @@ public sealed class InitialCalendarSyncServiceTests
 
         public Exception? FindFailure { get; init; }
 
+        public Task<CalendarContainerDeleteOutcome> DeleteManagedCalendarAsync(
+            CalendarAccess access,
+            string calendarId,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
         public Task<string> CreateManagedCalendarAsync(
             CalendarAccess access,
             string calendarSummary,

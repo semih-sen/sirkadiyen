@@ -146,6 +146,13 @@ internal static class ApiServiceCollectionExtensions
         // endpoint and the operator's (ADR-116).
         services.AddScoped<ManagedCalendarRebuildService>();
 
+        // Account deletion, shared by the student's own "Hesabımı sil" and the operator's delete
+        // (ADR-118). It reaches Google to remove the managed calendar and revoke the grant, so the
+        // API host needs the Calendar client the worker also uses; it needs no worker config.
+        services.AddSingleton<IUserCalendarClient, GoogleCalendarClient>();
+        services.AddScoped<IExternalAccountCleanup, ExternalAccountCleanupService>();
+        services.AddScoped<AccountDeletionService>();
+
         // The rollover corrects stored profiles; every calendar write it implies is still
         // performed by the worker's convergence pass (ADR-115).
         services.AddSingleton(new ProfileAcademicYearDriftOptions());

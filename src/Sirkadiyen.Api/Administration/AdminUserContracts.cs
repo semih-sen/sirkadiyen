@@ -62,3 +62,19 @@ public sealed record RequestManagedCalendarRebuild
 {
     public required string Reason { get; init; }
 }
+
+/// <summary>
+/// An operator's request to permanently delete a student's account (ADR-118).
+/// </summary>
+/// <remarks>
+/// <see cref="ConfirmEmail"/> must equal the target account's e-mail — the confirmation phrase that
+/// makes an operator name the exact account being erased (§30) — and <see cref="Reason"/> is
+/// recorded because the person deciding is not the account owner, and "why was my account deleted"
+/// has to be answerable from the trail alone (AI_GUIDELINE §19).
+/// </remarks>
+public sealed record DeleteUserRequest
+{
+    public required string ConfirmEmail { get; init; }
+
+    public required string Reason { get; init; }
+}

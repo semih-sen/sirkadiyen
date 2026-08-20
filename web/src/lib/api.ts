@@ -301,6 +301,29 @@ export async function logout(): Promise<void> {
   cachedCsrf = null;
 }
 
+// ---- Account deletion -----------------------------------------------------
+
+/** What the deletion did to the account's external Google footprint (ADR-118). */
+export interface AccountDeletionResponse {
+  hadManagedCalendar: boolean;
+  googleCalendarDeleted: boolean;
+  googleTokenRevoked: boolean;
+}
+
+/**
+ * Permanently deletes the caller's own account ("Hesabımı sil", ADR-118). The confirmation phrase
+ * is the caller's own e-mail. The backend ends the session, so the cached CSRF token is dropped and
+ * the caller must be sent back to a signed-out screen.
+ */
+export async function deleteOwnAccount(confirmEmail: string): Promise<AccountDeletionResponse> {
+  const result = await request<AccountDeletionResponse>('/api/account/delete', {
+    method: 'POST',
+    body: { confirmEmail },
+  });
+  cachedCsrf = null;
+  return result;
+}
+
 // ---- Onboarding -----------------------------------------------------------
 
 export function getOnboarding(): Promise<OnboardingSnapshot> {
@@ -582,6 +605,30 @@ export function activateUser(userId: string, reason: string): Promise<ManualLice
   return request<ManualLicenseActivationResult>(
     `/api/admin/users/${encodeURIComponent(userId)}/activate`,
     { method: 'POST', body: { reason } },
+  );
+}
+
+/** The result of an operator permanently deleting a user's account (ADR-118). */
+export interface AdminAccountDeletionResult {
+  outcome: string;
+  hadManagedCalendar: boolean;
+  googleCalendarDeleted: boolean;
+  googleTokenRevoked: boolean;
+  anonymizedAuditEvents: number;
+}
+
+/**
+ * Permanently deletes a user's account on their behalf. The reason is audited and the confirmation
+ * e-mail must match the target account's e-mail exactly.
+ */
+export function deleteUser(
+  userId: string,
+  reason: string,
+  confirmEmail: string,
+): Promise<AdminAccountDeletionResult> {
+  return request<AdminAccountDeletionResult>(
+    `/api/admin/users/${encodeURIComponent(userId)}/delete`,
+    { method: 'POST', body: { reason, confirmEmail } },
   );
 }
 

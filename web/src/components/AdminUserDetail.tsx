@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   ApiError,
   activateUser,
+  deleteUser,
   getAdminUser,
   getAdminUserCalendarChanges,
   getAdminUserCalendarEvents,
@@ -198,6 +200,7 @@ export function AdminUserDetail({ userId }: { userId: string }) {
 
           <Licenses detail={detail} onChanged={load} onNotice={setNotice} />
           <Activation detail={detail} onChanged={load} onNotice={setNotice} />
+          <DeleteAccount detail={detail} />
         </div>
       )}
 
@@ -862,6 +865,108 @@ function AuditTable({ events, empty }: { events: AuditEventView[]; empty: string
         </tbody>
       </table>
     </div>
+  );
+}
+
+/**
+ * The operator's permanent-deletion danger zone (ADR-118). Refused for a SuperAdmin; otherwise it
+ * requires a reason (audited) and the target account's own e-mail as a confirmation phrase before
+ * the delete button is enabled. On success the operator is returned to the directory.
+ */
+function DeleteAccount({ detail }: { detail: AdminUserDetailResponse }) {
+  const router = useRouter();
+  const { summary } = detail.user;
+  const isSuperAdmin = summary.role === 'SuperAdmin';
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState('');
+  const [confirmEmail, setConfirmEmail] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const matches = confirmEmail.trim().toLowerCase() === summary.email.toLowerCase();
+  const ready = matches && reason.trim().length > 0;
+
+  async function onDelete() {
+    if (!ready) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteUser(summary.id, reason.trim(), confirmEmail.trim());
+      router.replace('/admin/users?deleted=1');
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Hesap silinemedi.');
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card title="Hesabı sil">
+      <p className="muted" style={{ fontSize: 13 }}>
+        Hesabı ve öğrenciye ait kişisel verileri (profil, takvim bağlantısı, etkinlik defteri, renk
+        tercihleri) kalıcı olarak siler. Google&apos;daki yönetilen takvim ve yetki mümkünse
+        kaldırılır; denetim kaydı öğrenciyi anonimleştirerek korunur. İşlem geri alınamaz.
+      </p>
+
+      {isSuperAdmin ? (
+        <Banner tone="warning">
+          Yönetici hesabı bu akıştan silinemez. Gerekiyorsa önce rol değiştirilmelidir.
+        </Banner>
+      ) : !open ? (
+        <button
+          className="btn btn-secondary btn-sm"
+          type="button"
+          style={{ marginTop: 12, color: 'var(--danger, #c0392b)', borderColor: 'var(--danger, #c0392b)' }}
+          onClick={() => setOpen(true)}
+        >
+          Hesabı silmek istiyorum
+        </button>
+      ) : (
+        <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+          <label htmlFor="delete-reason">Silme gerekçesi (denetim kaydına yazılır)</label>
+          <textarea
+            id="delete-reason"
+            className="input"
+            rows={2}
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            style={{ marginTop: 6 }}
+          />
+          <label htmlFor="delete-confirm-email" style={{ display: 'block', marginTop: 12 }}>
+            Onaylamak için hesabın e-postasını yaz: <strong>{summary.email}</strong>
+          </label>
+          <input
+            id="delete-confirm-email"
+            className="input"
+            type="email"
+            autoComplete="off"
+            value={confirmEmail}
+            onChange={(event) => setConfirmEmail(event.target.value)}
+            placeholder={summary.email}
+            style={{ marginTop: 6, maxWidth: 340 }}
+          />
+          {error && <p className="error" style={{ marginTop: 8 }}>{error}</p>}
+          <div className="cluster" style={{ marginTop: 14, gap: 10 }}>
+            <button
+              className="btn btn-primary btn-sm"
+              type="button"
+              disabled={!ready || busy}
+              style={ready ? { background: 'var(--danger, #c0392b)', borderColor: 'var(--danger, #c0392b)' } : undefined}
+              onClick={() => void onDelete()}
+            >
+              {busy ? 'Siliniyor…' : 'Hesabı kalıcı olarak sil'}
+            </button>
+            <button
+              className="btn btn-tertiary btn-sm"
+              type="button"
+              disabled={busy}
+              onClick={() => { setOpen(false); setReason(''); setConfirmEmail(''); setError(null); }}
+            >
+              Vazgeç
+            </button>
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }
 

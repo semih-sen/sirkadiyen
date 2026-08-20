@@ -7,6 +7,7 @@ using Sirkadiyen.Api.Identity;
 using Sirkadiyen.Application.Administration;
 using Sirkadiyen.Application.Auditing;
 using Sirkadiyen.Application.GoogleCalendar;
+using Sirkadiyen.Application.Identity;
 using Sirkadiyen.Application.Licensing;
 using Sirkadiyen.Application.Onboarding;
 using Sirkadiyen.Application.Scheduling.Access;
@@ -85,7 +86,70 @@ public static class AdminUserEndpoints
             .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
             .WithSummary("Rebuilds this user's deleted managed calendar, with an audit entry.");
 
+        // Permanently delete a student's account on their behalf (ADR-118). The same service the
+        // student's own "Hesabımı sil" uses; here the actor is the operator and a reason is required.
+        users.MapPost("/{userId:guid}/delete", DeleteUserAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
+            .WithSummary("Permanently deletes this user's account, with an audit entry.");
+
         return builder;
+    }
+
+    /// <summary>Bounds the operator's deletion reason, matching the calendar-repair reason bound.</summary>
+    private const int MaximumDeletionReasonLength = 500;
+
+    private static async Task<IResult> DeleteUserAsync(
+        Guid userId,
+        DeleteUserRequest request,
+        ClaimsPrincipal principal,
+        HttpContext context,
+        AccountDeletionService deletion,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (string.IsNullOrWhiteSpace(request.Reason)
+            || request.Reason.Trim().Length > MaximumDeletionReasonLength)
+        {
+            return Results.Problem(
+                title: "Invalid account deletion request",
+                detail: $"'reason' is required and must contain at most "
+                    + $"{MaximumDeletionReasonLength} characters.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        AccountDeletionResult result = await deletion.DeleteAsync(
+            new AccountDeletionRequest
+            {
+                UserId = userId,
+                RequestedByOperator = true,
+                ActorUserId = UserClaimsPrincipalFactory.GetRequiredUserId(principal),
+                ActorEmail = UserClaimsPrincipalFactory.GetRequiredEmail(principal),
+                ConfirmEmail = request.ConfirmEmail,
+                Reason = request.Reason.Trim(),
+                CorrelationId = context.CorrelationId(),
+                ClientIp = context.ClientIp(),
+                UserAgent = context.ClientUserAgent(),
+            },
+            cancellationToken);
+
+        return result.Outcome switch
+        {
+            AccountDeletionOutcome.Deleted => Results.Ok(result),
+
+            AccountDeletionOutcome.EmailMismatch => Results.Problem(
+                title: "Confirmation does not match",
+                detail: "The confirmation e-mail must match this account's e-mail exactly.",
+                statusCode: StatusCodes.Status400BadRequest),
+
+            AccountDeletionOutcome.SuperAdminRefused => Results.Problem(
+                title: "Administrator account cannot be deleted",
+                detail: "An administrator account cannot be deleted. Change the role first if this "
+                    + "account must be removed.",
+                statusCode: StatusCodes.Status409Conflict),
+
+            _ => NotFound(userId),
+        };
     }
 
     /// <summary>Matches the calendar-repair reason bound, so one operator note is not longer than another.</summary>
