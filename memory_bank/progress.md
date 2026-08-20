@@ -236,6 +236,11 @@
 - [x] Administrative role change (`POST /api/admin/users/{id}/role`; promote to / demote from
   SuperAdmin, audited `RoleChanged`, guarded against self-change and demoting the bootstrap operator;
   per-account "Yetki (rol)" card; ADR-119)
+- [x] On-demand read-only calendar verification against Google (`GET /api/admin/users/{id}/calendar-verify`;
+  reads the actual Google calendar and compares it with the mapping ledger and current published truth,
+  reporting MissingOnGoogle/ContentDrift/ExtraOnGoogle/Duplicate/StaleLedger; writes nothing, not even
+  connection health; synchronous API read per the ADR-118 precedent; "Google ile doğrula" card in the
+  user calendar tab; ADR-121)
 - [x] Operator-triggered snapshot payload prune (`POST /api/admin/sources/snapshots/{id}/prune-payload`;
   reclaims a chosen old snapshot's payload on demand while keeping its immutable identity and the whole
   parse/revision/diff trail; refuses the newest, the year baseline, recovery-needed and frozen scopes

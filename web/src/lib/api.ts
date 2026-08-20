@@ -54,6 +54,7 @@ import type {
   AdminMetricsSnapshot,
   AdminServiceHealthSnapshot,
   AdminUserCalendarEventsResponse,
+  CalendarVerificationResult,
   AdminUserDetailResponse,
   AdminUserFilters,
   AdminUserListItem,
@@ -711,6 +712,16 @@ export function getAdminUserCalendarChanges(
   return request(
     withQuery(`/api/admin/users/${encodeURIComponent(userId)}/calendar-changes`, { limit }),
   );
+}
+
+/**
+ * Reads the user's actual Google calendar and compares it with our records (ADR-121). Read-only: it
+ * makes one live Google read and changes nothing. A live call, so expect a short delay. Non-verifiable
+ * states (no connection, needs re-authorization, not yet synced) come back with an `outcome` and a
+ * `detail` rather than throwing.
+ */
+export function verifyAdminUserCalendar(userId: string): Promise<CalendarVerificationResult> {
+  return request(`/api/admin/users/${encodeURIComponent(userId)}/calendar-verify`);
 }
 
 export function listAdminLicenses(values: {

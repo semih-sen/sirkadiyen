@@ -145,6 +145,9 @@ internal static class ApiServiceCollectionExtensions
         // Operator-triggered snapshot payload pruning from the source dashboard (ADR-120).
         services.AddScoped<SnapshotPayloadPruneService>();
 
+        // On-demand read-only verification of one user's calendar against Google (ADR-121).
+        services.AddScoped<CalendarVerificationService>();
+
         // The one way out of a deleted managed calendar, shared by the student's own
         // endpoint and the operator's (ADR-116).
         services.AddScoped<ManagedCalendarRebuildService>();

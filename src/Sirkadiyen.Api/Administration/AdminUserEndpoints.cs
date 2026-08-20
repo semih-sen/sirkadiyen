@@ -68,6 +68,12 @@ public static class AdminUserEndpoints
         users.MapGet("/{userId:guid}/calendar-changes", ListCalendarChangesAsync)
             .WithSummary("Returns the most recent creations and updates on this user's calendar.");
 
+        // The read-only counterpart to the ledger views above: this one reads the actual Google
+        // calendar and compares it with the ledger and current published truth (ADR-121), so an
+        // operator can confirm what is really on the calendar rather than what Sirkadiyen recorded.
+        users.MapGet("/{userId:guid}/calendar-verify", VerifyCalendarAsync)
+            .WithSummary("Reads this user's Google calendar directly and reports drift from our records.");
+
         // A re-check is the cohort repair narrowed to one student (ADR-111, ADR-115). It lives
         // here rather than under /api/operations because the question it answers — "is this
         // person's calendar right?" — is asked while looking at that person.
@@ -566,6 +572,27 @@ public static class AdminUserEndpoints
                 limit,
                 cancellationToken),
         });
+    }
+
+    /// <summary>
+    /// Reads the user's actual Google calendar and compares it with the mapping ledger and current
+    /// published truth (ADR-121). Read-only: it makes one live Google read and mutates nothing —
+    /// neither the calendar, the ledger, nor the connection's health. Non-verifiable states (no
+    /// connection, needs re-authorization, not yet synced) come back as a 200 with the outcome and a
+    /// reason, so the panel can explain them rather than showing a bare error.
+    /// </summary>
+    private static async Task<IResult> VerifyCalendarAsync(
+        Guid userId,
+        IAdminUserReadStore store,
+        CalendarVerificationService verification,
+        CancellationToken cancellationToken)
+    {
+        if (await store.FindAsync(userId, cancellationToken) is null)
+        {
+            return NotFound(userId);
+        }
+
+        return Results.Ok(await verification.VerifyAsync(userId, cancellationToken));
     }
 
     private static async Task<IResult> ListCalendarChangesAsync(

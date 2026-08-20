@@ -309,6 +309,58 @@ export interface AdminUserCalendarEventsResponse {
   events: UserScheduleEventView[];
 }
 
+export type CalendarVerificationOutcome =
+  | 'Verified'
+  | 'NoConnection'
+  | 'NoManagedCalendar'
+  | 'NeedsReauthorization'
+  | 'NotSyncReady'
+  | 'CalendarUnavailable'
+  | 'TransientError'
+  | string;
+
+export type CalendarVerificationDiffKind =
+  | 'MissingOnGoogle'
+  | 'ContentDrift'
+  | 'ExtraOnGoogle'
+  | 'Duplicate'
+  | 'StaleLedger'
+  | string;
+
+export interface CalendarVerificationDiff {
+  stableIdentity: string;
+  kind: CalendarVerificationDiffKind;
+  sourceId?: string | null;
+  expectedSummary?: string | null;
+  actualSummary?: string | null;
+  inLedger: boolean;
+  detail?: string | null;
+}
+
+export interface CalendarVerificationReport {
+  managedCalendarId: string;
+  checkedAtUtc: string;
+  expectedCount: number;
+  ledgerCount: number;
+  googleEventCount: number;
+  matchedCount: number;
+  missingOnGoogleCount: number;
+  contentDriftCount: number;
+  extraOnGoogleCount: number;
+  duplicateCount: number;
+  unmarkedCount: number;
+  staleLedgerCount: number;
+  inSync: boolean;
+  itemsTruncated: boolean;
+  items: CalendarVerificationDiff[];
+}
+
+export interface CalendarVerificationResult {
+  outcome: CalendarVerificationOutcome;
+  detail?: string | null;
+  report?: CalendarVerificationReport | null;
+}
+
 export interface ManualLicenseActivationResult {
   outcome: 'Activated' | 'AlreadyActivated' | 'UserNotFound' | string;
   licenseId?: string | null;

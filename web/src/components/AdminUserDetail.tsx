@@ -16,6 +16,7 @@ import {
   requestUserCalendarRecheck,
   rebuildUserCalendar,
   revokeLicense,
+  verifyAdminUserCalendar,
 } from '@/lib/api';
 import { LoadState, Tabs, formatDateTime, statusBadge } from '@/components/AdminData';
 import { AdminPageHeader } from '@/components/AdminShell';
@@ -27,6 +28,8 @@ import type {
   AdminUserDetailResponse,
   AnnouncementCompositionOptions,
   AuditEventView,
+  CalendarVerificationDiff,
+  CalendarVerificationResult,
   CohortRepairPlan,
   UserScheduleChangeView,
 } from '@/lib/types';
@@ -647,6 +650,149 @@ function CalendarRecheck({ userId, onConverged }: { userId: string; onConverged:
   );
 }
 
+const VERIFY_OUTCOME_LABELS: Record<string, string> = {
+  NoConnection: 'Google Takvim bağlantısı yok',
+  NoManagedCalendar: 'Özel takvim henüz oluşturulmadı',
+  NeedsReauthorization: 'Yeniden yetkilendirme gerekli',
+  NotSyncReady: 'Senkronizasyona hazır değil',
+  CalendarUnavailable: 'Takvim erişilemiyor',
+  TransientError: 'Geçici Google hatası',
+};
+
+const VERIFY_DIFF_LABELS: Record<string, string> = {
+  MissingOnGoogle: 'Google’da eksik',
+  ContentDrift: 'İçerik farklı',
+  ExtraOnGoogle: 'Google’da fazla',
+  Duplicate: 'Yinelenen',
+  StaleLedger: 'Bayat kayıt',
+};
+
+function CalendarVerify({ userId }: { userId: string }) {
+  const [result, setResult] = useState<CalendarVerificationResult | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function verify() {
+    setBusy(true);
+    setError(null);
+    try {
+      setResult(await verifyAdminUserCalendar(userId));
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Doğrulama yapılamadı.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card title="Google ile doğrula">
+      <p className="muted" style={{ fontSize: 13 }}>
+        Üstteki liste yerel kayıttan — ne yazdığımızdan — okunur. Bu işlem öğrencinin Google takvimini{' '}
+        <strong>doğrudan</strong> okur ve hem yerel kayıtla hem de yayımlanmış programla karşılaştırır.
+        Salt okunur: takvimi, kaydı veya bağlantıyı değiştirmez. Canlı bir çağrı olduğundan birkaç
+        saniye sürebilir.
+      </p>
+      <button
+        className="btn btn-secondary btn-sm"
+        type="button"
+        disabled={busy}
+        onClick={() => void verify()}
+        style={{ marginTop: 10 }}
+      >
+        {busy ? 'Google okunuyor…' : 'Google ile doğrula'}
+      </button>
+      {error && <p className="error-text" style={{ marginTop: 10 }}>{error}</p>}
+      {result && !busy && <VerificationOutput result={result} />}
+    </Card>
+  );
+}
+
+function VerificationOutput({ result }: { result: CalendarVerificationResult }) {
+  if (result.outcome !== 'Verified' || !result.report) {
+    return (
+      <div style={{ marginTop: 12 }}>
+        <Banner tone="warning">
+          <strong>{VERIFY_OUTCOME_LABELS[result.outcome] ?? 'Doğrulanamadı'}.</strong>{' '}
+          {result.detail}
+        </Banner>
+      </div>
+    );
+  }
+
+  const report = result.report;
+  const stats: { label: string; value: number }[] = [
+    { label: 'Beklenen (yayımlı)', value: report.expectedCount },
+    { label: 'Yerel kayıt', value: report.ledgerCount },
+    { label: 'Google’da', value: report.googleEventCount },
+    { label: 'Uyumlu', value: report.matchedCount },
+    { label: 'Google’da eksik', value: report.missingOnGoogleCount },
+    { label: 'İçerik farklı', value: report.contentDriftCount },
+    { label: 'Google’da fazla', value: report.extraOnGoogleCount },
+    { label: 'Yinelenen', value: report.duplicateCount },
+    { label: 'İşaretsiz', value: report.unmarkedCount },
+    { label: 'Bayat kayıt', value: report.staleLedgerCount },
+  ];
+
+  return (
+    <div style={{ marginTop: 12 }} className="stack">
+      <Banner tone={report.inSync ? 'info' : 'warning'}>
+        {report.inSync
+          ? 'Google takvim yerel kayıt ve yayımlanmış programla tümüyle örtüşüyor.'
+          : 'Google takvim ile kayıtlarımız arasında fark bulundu (aşağıda).'}{' '}
+        <span className="muted">{formatDateTime(report.checkedAtUtc)} · {report.managedCalendarId}</span>
+      </Banner>
+
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+          gap: 8,
+        }}
+      >
+        {stats.map((stat) => (
+          <div key={stat.label} className="summary-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 2 }}>
+            <span className="muted" style={{ fontSize: 12 }}>{stat.label}</span>
+            <strong>{stat.value}</strong>
+          </div>
+        ))}
+      </div>
+
+      {report.items.length > 0 && (
+        <div className="table-wrap">
+          <table className="data-table">
+            <thead><tr><th>Tür</th><th>Ders</th><th>Kimlik</th><th>Kayıtta</th></tr></thead>
+            <tbody>
+              {report.items.map((item) => (
+                <VerificationRow key={`${item.kind}-${item.stableIdentity}`} item={item} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {report.itemsTruncated && (
+        <p className="muted" style={{ fontSize: 12 }}>
+          Listede yalnızca ilk {report.items.length} fark gösteriliyor; toplam sayılar yukarıdadır.
+        </p>
+      )}
+    </div>
+  );
+}
+
+function VerificationRow({ item }: { item: CalendarVerificationDiff }) {
+  const tone = item.kind === 'ContentDrift' || item.kind === 'Duplicate' ? 'badge-danger' : 'badge-warning';
+  return (
+    <tr>
+      <td><span className={`badge ${tone}`}>{VERIFY_DIFF_LABELS[item.kind] ?? item.kind}</span></td>
+      <td>
+        {item.expectedSummary ?? item.actualSummary ?? '—'}
+        {item.detail && <small className="muted" style={{ display: 'block' }}>{item.detail}</small>}
+      </td>
+      <td><small className="mono">{item.stableIdentity.slice(0, 16)}…</small>{item.sourceId && <small className="muted" style={{ display: 'block' }}>{item.sourceId}</small>}</td>
+      <td>{item.inLedger ? 'Evet' : 'Hayır'}</td>
+    </tr>
+  );
+}
+
 function CalendarTab({ userId }: { userId: string }) {
   const [from, setFrom] = useState(() => todayInIstanbul());
   const [to, setTo] = useState(() => addDays(todayInIstanbul(), 30));
@@ -677,6 +823,7 @@ function CalendarTab({ userId }: { userId: string }) {
   return (
     <div className="stack" style={{ gap: 18 }}>
       <CalendarRecheck userId={userId} onConverged={() => void load()} />
+      <CalendarVerify userId={userId} />
       <Card title="Takvimdeki dersler">
         <p className="muted" style={{ fontSize: 13 }}>
           Bu liste, öğrencinin takvimine gerçekten yazılmış etkinliklerin kaydından okunur —

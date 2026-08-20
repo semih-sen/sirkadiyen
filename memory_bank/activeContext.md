@@ -94,6 +94,45 @@ revision can be rejected** and **a terminally failed diff can be retried**, both
 reason-required `SuperAdmin` routes, with the failed-dispatch queue made enumerable by
 `GET /api/diffs?dispatchState=Failed`.
 
+## Latest implementation session (2026-08-21, on-demand Google calendar verification)
+
+**The admin per-user calendar tab reads the local mapping ledger — what Sirkadiyen *recorded*
+writing — not the live Google calendar** (`AdminUserEndpoints.ListCalendarEventsAsync`). The only
+code reading real Google events was the worker's periodic inventory reconciliation, which also
+*repairs* (writes). ADR-121 adds an on-demand, **read-only** verification: an operator reads the
+student's actual Google calendar and compares it with both the ledger and current published truth.
+
+- **Read-only, never a repair.** `CalendarVerificationService` writes nothing — not the calendar, not
+  the ledger, and notably **not the connection health** (unlike inventory, it reports a dead
+  credential / unavailable calendar instead of recording it). Fixing drift already exists (re-check
+  ADR-115, inventory ADR-062+), so verification only observes.
+- **Synchronous API read, justified by the ADR-118 precedent.** The design kept live Google I/O out of
+  the API, but account deletion already established the API host may decrypt a user's token and call
+  Google directly for a bounded op, with the credential + provider exceptions confined to the adapter.
+  Verification mirrors it: unprotect token in memory for one `ListManagedEventsAsync`, map every Google
+  failure to a typed non-verified outcome. Worker-job alternative rejected as far more machinery for no
+  safety gain (read-only). User picked this fork and the inventory-depth fork.
+- **Inventory-depth "drift", one definition.** Reuses `ManagedCalendarEventFactory` +
+  `ManagedCalendarEventComparer.IsEquivalent` and skips announcement-kind events, so `ContentDrift`
+  means what a repair would act on. Pure classification in `CalendarVerificationComparer.Compare`
+  (MissingOnGoogle / ContentDrift / ExtraOnGoogle / Duplicate / StaleLedger + matched/unmarked counts),
+  unit-tested without DB or Google.
+- **Eligibility via the per-user target reader.** `ListTargetsByUserIdsAsync([userId])` yields the
+  profile/calendarId/credential only for an authorized, sync-completed, actively-licensed connection;
+  otherwise a typed reason (NoConnection / NoManagedCalendar / NeedsReauthorization / NotSyncReady)
+  returned as HTTP 200 so the panel explains it. `GET /api/admin/users/{id}/calendar-verify`, not
+  audited (matches the existing ledger tab; a GET that mutates nothing). Frontend: a "Google ile
+  doğrula" card in the calendar tab with a counts grid + drift table.
+- **Tests/build:** 6-case `CalendarVerificationComparerTests` green; Infrastructure 725, frontend 74
+  pass; typecheck + production build clean; Release build 0 warnings; `dotnet format` clean over every
+  file this session touched.
+- **Verification limit:** the service's Google-read path and the endpoint were not exercised end to end
+  — needs a live Google credential + real managed calendar + PostgreSQL, none available here. The pure
+  comparer (the substance) is fully covered.
+- **Not done:** operator-triggered *fix* from the verify result (re-check already does that), a
+  verification of a revoked user's preserved calendar (the target reader requires an active licence),
+  and auditing the read.
+
 ## Latest implementation session (2026-08-20, operator snapshot payload prune)
 
 **The source panel could show a source's ten most recent snapshots but had no way to reclaim an old

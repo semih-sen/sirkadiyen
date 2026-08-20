@@ -7090,3 +7090,80 @@ that traceability chain. The user chose payload pruning over row deletion.
   `SnapshotPayloadPruneServiceTests` unit suite runs and passes.
 
 ---
+
+## ADR-121: On-demand read-only calendar verification against Google
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-21
+**Implements:** `CalendarVerificationService`, `CalendarVerificationComparer`,
+`GET /api/admin/users/{userId}/calendar-verify`, frontend `CalendarVerify` in `AdminUserDetail`
+**Relates to:** ADR-058/059 (mapping ledger), ADR-062+ (worker inventory reconciliation), ADR-118
+(the API-side precedent for decrypting a user's token and calling Google directly),
+AI_GUIDELINE §5 (architecture boundaries), §13 (calendar safety)
+
+### Context
+
+The admin panel's per-user calendar tab reads the **local mapping ledger** — what Sirkadiyen
+*recorded* writing — not the live Google Calendar (`AdminUserEndpoints.ListCalendarEventsAsync`). The
+only code that reads the real Google calendar was the worker's periodic inventory reconciliation
+(ADR-062+), which also *repairs* (writes). An operator asking "is what we think is on this calendar
+really there?" had no read-only, on-demand answer. The user asked for a direct Google verification
+feature and chose, from the two forks offered: a **synchronous, API-side read** (over a worker job)
+and **inventory-depth comparison** (presence + content, over presence-only).
+
+### Decision
+
+1. **A read-only three-way comparison, never a repair.** `CalendarVerificationService` reads the
+   actual Sirkadiyen-marked Google events, current published truth (audience-filtered to the student),
+   and the mapping ledger, and reports the differences. It writes nothing — not the calendar, not the
+   ledger, and crucially **not the connection's health state**: unlike inventory, it does not mark a
+   connection `NeedsReauthorization` or the calendar unavailable when a read fails, it only reports it.
+   Recording those is the worker's job; a verification must be safe to run at any time. Fixing drift
+   already exists (calendar re-check, ADR-115; inventory, ADR-062+), so verification deliberately only
+   observes.
+
+2. **Synchronous API read, justified by the ADR-118 precedent.** The design had kept live Google
+   Calendar I/O out of the API — `ICalendarSyncConnectionStore` even states "the API never calls
+   these". But account deletion (ADR-118) already established that the API host may decrypt a user's
+   token and call Google directly for a bounded, one-off operation, with the plaintext credential and
+   provider exceptions confined to the infrastructure/adapter layer. Verification follows the same
+   shape: the service unprotects the token only in memory for one `ListManagedEventsAsync` read and
+   maps every Google failure (`GoogleManagedCalendarUnavailableException`,
+   `GoogleCalendarCredentialException`, `GoogleCalendarTransientException`) to a typed non-verified
+   outcome. The cost is a live Google round-trip inside the request (~1-3s), acceptable for an
+   infrequent, explicit SuperAdmin action on one user. A worker-driven job was rejected as far more
+   machinery for no safety gain, since the operation is read-only.
+
+3. **Inventory-depth "drift", one definition.** The comparison reuses `ManagedCalendarEventFactory`
+   and `ManagedCalendarEventComparer.IsEquivalent`, so a `ContentDrift` here is exactly what a repair
+   pass would act on, and it skips announcement-kind events exactly as inventory does. The pure
+   classification lives in `CalendarVerificationComparer.Compare`, a function of its three inputs, so
+   it is unit-tested without a database or the Calendar API. Categories: MissingOnGoogle, ContentDrift,
+   ExtraOnGoogle, Duplicate, StaleLedger, plus counts for matched and unmarked events.
+
+4. **The per-user target reader is the eligibility gate.** `ICalendarSyncTargetReadStore
+   .ListTargetsByUserIdsAsync([userId])` returns the profile, calendar id and credential only for an
+   authorized, initial-sync-completed, actively-licensed connection — precisely the precondition a
+   live read needs — so an ineligible user comes back as a typed reason (NoConnection,
+   NoManagedCalendar, NeedsReauthorization, NotSyncReady) that the panel explains rather than a bare
+   error. Non-verifiable outcomes return HTTP 200 with the outcome + detail so the UI renders them.
+
+5. **Not audited, matching the existing ledger view.** The endpoint reads the same managed events the
+   ledger tab already exposes to operators without an audit record, so no extra personal data is
+   revealed and no new audit category is added. The read is a GET because it mutates nothing.
+
+### Consequences
+
+- An operator can now confirm a student's real Google calendar against both the ledger and published
+  truth, on demand, without changing anything — the honest read-only complement to the repair actions
+  already on the page.
+- The API now makes a live Google Calendar **read** in the request path (verification), a second place
+  after ADR-118's delete. Both keep the credential and provider exceptions in the adapter layer. If a
+  third such need appears, promoting this to a worker job is the reconsideration point.
+- **Verification limits:** the pure `CalendarVerificationComparer` is covered by six unit tests
+  (in-sync, missing, extra, drift, duplicate, announcement-skip + unmarked). The service's Google
+  read path and the endpoint were **not** exercised end to end here — that needs a live Google
+  credential, a real managed calendar and PostgreSQL, none available in this environment. Release
+  build is clean (0 warnings), frontend typecheck + production build + 74 tests pass.
+
+---
