@@ -115,8 +115,9 @@ operator's per-account page — the first destructive user-lifecycle action the 
   Calendar connection + encrypted token, event-mapping ledger, colour preferences, single-user
   announcement + deliveries) are removed by database `ON DELETE CASCADE`; the cross-cutting
   `audit_events` log is kept with the deleted person's identity fields cleared, which also releases
-  the `RESTRICT` foreign key so the user row can be deleted. Licences are detached (redeemed code
-  stays unusable) and the erased subject's own `license_audits` rows are removed.
+  the `RESTRICT` foreign key so the user row can be deleted. The licences the account redeemed are
+  **deleted** with their audit rows (a redeemed licence cannot be detached — `ck_licenses_redemption`
+  forbids a null redeemer; found on the first live deletion, ADR-118 amendment).
 - **The external Google cleanup runs first and best-effort, outside the DB transaction:** delete the
   managed calendar, revoke the grant, fold every failure into the outcome and the audit metadata,
   never block the local erasure. It lives in an infrastructure port (`IExternalAccountCleanup`) so the

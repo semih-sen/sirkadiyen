@@ -67,9 +67,9 @@ public sealed record AccountDeletionStoreResult
     /// <summary>Cross-cutting audit-log rows whose actor identity was cleared.</summary>
     public int AnonymizedAuditEvents { get; init; }
 
-    /// <summary>License rows whose redeemer/revoker link to this user was cleared.</summary>
-    public int DetachedLicenses { get; init; }
+    /// <summary>License rows the erased account had redeemed, which were deleted.</summary>
+    public int DeletedLicenses { get; init; }
 
-    /// <summary>The erased subject's own license-audit rows that were removed.</summary>
+    /// <summary>License-audit rows removed with those licenses (and the subject's own actor rows).</summary>
     public int DeletedLicenseAudits { get; init; }
 }

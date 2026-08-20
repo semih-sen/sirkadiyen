@@ -6982,3 +6982,38 @@ that must be able to lower a role too.
   operator, which is safe precisely because the bootstrap one cannot be removed).
 
 ---
+
+## ADR-118 amendment: redeemed licences are deleted, not detached
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-20
+**Amends:** ADR-118 (decision point 2)
+
+### Context
+
+ADR-118 point 2 said a redeemed licence would be *kept but detached* by nulling its
+`RedeemedByUserId`. The first real deletion failed with `23514` — the `ck_licenses_redemption`
+check constraint requires a `Redeemed` licence to name both a redeemer and a redemption time
+(`("RedeemedByUserId" IS NULL) = ("RedeemedAtUtc" IS NULL)` and `Status = 'Redeemed'` implies both
+non-null). A null redeemer on a redeemed row is rejected by the database, so detaching is
+structurally impossible without either a constraint/status change or a licence migration.
+
+### Decision
+
+The licences an account redeemed are **deleted**, together with their `license_audits` (whose
+`LicenseId` foreign key is `RESTRICT`, so they go first) and any audit row naming the account as
+actor. Only a redeemed link is ever present for a deletable account, because a deletable account is
+never a `SuperAdmin` and so never created or revoked a licence.
+
+### Consequences
+
+- The consumed single-use code hash is deleted with the row. This is correct: a spent code for a
+  deleted account has no reason to persist, and its absence cannot enable reuse (redemption looks the
+  code up by hash and finds nothing). The earlier "keep an anonymized redemption fact" goal is
+  dropped — the `AccountDeleted` audit event is what records that an activation happened and was
+  erased.
+- `AccountDeletionStoreResult.DetachedLicenses` became `DeletedLicenses`. No caller read it.
+- The persistence test now asserts the redeemed licence and its audits are gone while an unrelated
+  admin-created licence and its Created audit survive.
+
+---

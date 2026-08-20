@@ -34,16 +34,25 @@ public sealed class AccountDeletionStoreTests(PostgresFixture fixture)
         UserSession other = await CreateUserAsync("other", UserRole.User);
 
         Guid licenseId;
+        Guid unrelatedLicenseId;
         await using (SirkadiyenDbContext context = fixture.CreateProductionLikeContext())
         {
+            LicenseStore licenses = new(context);
+
             // A license created by the admin and redeemed by the student: this writes a license row
-            // (RedeemedByUserId = student) and a RESTRICT-bound license-audit row (actor = student).
+            // (RedeemedByUserId = student) and its audit rows (Created by admin, Redeemed by student).
             byte[] hash = Guid.NewGuid().ToByteArray().Concat(Guid.NewGuid().ToByteArray()).ToArray();
             License license = License.Create(hash, admin.UserId, admin.Email, Now, null, null);
-            LicenseStore licenses = new(context);
             await licenses.SaveCreatedAsync(license, Token);
             await licenses.RedeemAsync(hash, student.UserId, student.Email, Now.AddMinutes(1), Token);
             licenseId = license.Id;
+
+            // An unrelated license the admin created but nobody redeemed: it, and its Created audit
+            // (actor = admin), must survive the student's deletion untouched.
+            byte[] otherHash = Guid.NewGuid().ToByteArray().Concat(Guid.NewGuid().ToByteArray()).ToArray();
+            License unrelated = License.Create(otherHash, admin.UserId, admin.Email, Now, null, null);
+            await licenses.SaveCreatedAsync(unrelated, Token);
+            unrelatedLicenseId = unrelated.Id;
         }
 
         await using (SirkadiyenDbContext context = fixture.CreateContext())
@@ -118,8 +127,9 @@ public sealed class AccountDeletionStoreTests(PostgresFixture fixture)
         Assert.True(result.Deleted);
         // The student's own sign-in and the AccountDeleted record just written = two anonymized rows.
         Assert.Equal(2, result.AnonymizedAuditEvents);
-        Assert.Equal(1, result.DetachedLicenses);
-        Assert.Equal(1, result.DeletedLicenseAudits);
+        // The one redeemed licence is deleted, with both of its audit rows (Created + Redeemed).
+        Assert.Equal(1, result.DeletedLicenses);
+        Assert.Equal(2, result.DeletedLicenseAudits);
 
         await using (SirkadiyenDbContext context = fixture.CreateContext())
         {
@@ -138,17 +148,18 @@ public sealed class AccountDeletionStoreTests(PostgresFixture fixture)
             Assert.True(await context.UserCalendarEventMappings
                 .AnyAsync(mapping => mapping.UserId == other.UserId, Token));
 
-            // The license row survives, detached from the deleted redeemer but still Redeemed.
-            License? license = await context.Licenses.FindAsync([licenseId], Token);
-            Assert.NotNull(license);
-            Assert.Null(license!.RedeemedByUserId);
-            Assert.Equal(LicenseStatus.Redeemed, license.Status);
-
-            // The student's own license-audit row is gone; the admin's creation audit remains.
+            // The redeemed licence and its audit rows are gone (ck_licenses_redemption forbids a
+            // null redeemer, so it is deleted rather than detached).
+            Assert.Null(await context.Licenses.FindAsync([licenseId], Token));
+            Assert.False(await context.LicenseAudits
+                .AnyAsync(a => a.LicenseId == licenseId, Token));
             Assert.False(await context.LicenseAudits
                 .AnyAsync(a => a.ActorUserId == student.UserId, Token));
+
+            // The unrelated licence and its admin-authored Created audit are untouched.
+            Assert.NotNull(await context.Licenses.FindAsync([unrelatedLicenseId], Token));
             Assert.True(await context.LicenseAudits
-                .AnyAsync(a => a.ActorUserId == admin.UserId, Token));
+                .AnyAsync(a => a.LicenseId == unrelatedLicenseId, Token));
 
             // The AccountDeleted record persists, but its self-actor is anonymized away.
             AuditEvent accountDeleted = await context.AuditEvents

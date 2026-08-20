@@ -26,14 +26,17 @@ namespace Sirkadiyen.Infrastructure.Persistence.Identity.Stores;
 /// so the user row can be removed;
 /// </item>
 /// <item>
-/// the <c>licenses</c> the person redeemed or revoked are kept — a redeemed single-use code must
-/// stay unusable — but their link to the now-deleted user is nulled, so the row survives as an
-/// anonymized fact that a redemption happened;
+/// the <c>licenses</c> the person redeemed are deleted, not merely detached: the
+/// <c>ck_licenses_redemption</c> check constraint requires a <c>Redeemed</c> licence to name its
+/// redeemer, so a null redeemer is rejected by the database. Deleting the row removes the consumed
+/// single-use code hash with it, which is correct — a spent code for a deleted account has no reason
+/// to persist and its absence cannot enable reuse;
 /// </item>
 /// <item>
-/// the person's own <c>license_audits</c> rows (whose actor id cannot be null) are the record of
-/// <em>them</em> acting, so they are removed as part of the erasure; the surviving detached license
-/// row and the <c>AccountDeleted</c> event keep the platform-level fact.
+/// the <c>license_audits</c> of those licences are removed first (the <c>LicenseId</c> foreign key is
+/// <c>RESTRICT</c>), together with any audit rows naming the erased subject as actor. The
+/// <c>AccountDeleted</c> event keeps the platform-level fact that an activation happened and was
+/// erased.
 /// </item>
 /// </list>
 /// </remarks>
@@ -92,21 +95,24 @@ public sealed class AccountDeletionStore(SirkadiyenDbContext dbContext) : IAccou
                         .SetProperty(auditEvent => auditEvent.UserAgent, (string?)null),
                     cancellationToken);
 
-            // 3. Detach the licensing rows that point at this user (RESTRICT), keeping the rows.
-            int detachedLicenses = await dbContext.Licenses
+            // 3. The licences this account redeemed cannot be detached — ck_licenses_redemption
+            //    rejects a Redeemed licence with a null redeemer — so they are deleted. Only a
+            //    redeemed link is possible here: a deletable account is never a SuperAdmin, so it
+            //    never created or revoked a licence.
+            List<Guid> redeemedLicenseIds = await dbContext.Licenses
                 .Where(license => license.RedeemedByUserId == userId)
-                .ExecuteUpdateAsync(
-                    setters => setters.SetProperty(license => license.RedeemedByUserId, (Guid?)null),
-                    cancellationToken);
-            detachedLicenses += await dbContext.Licenses
-                .Where(license => license.RevokedByUserId == userId)
-                .ExecuteUpdateAsync(
-                    setters => setters.SetProperty(license => license.RevokedByUserId, (Guid?)null),
-                    cancellationToken);
+                .Select(license => license.Id)
+                .ToListAsync(cancellationToken);
 
-            // 4. Remove the erased subject's own license-audit rows (RESTRICT, actor id non-null).
+            // 4. Remove the audit rows those licences own (LicenseId is RESTRICT, so they must go
+            //    before the licence), together with any row naming this account as the actor.
             int deletedLicenseAudits = await dbContext.LicenseAudits
-                .Where(audit => audit.ActorUserId == userId)
+                .Where(audit =>
+                    audit.ActorUserId == userId || redeemedLicenseIds.Contains(audit.LicenseId))
+                .ExecuteDeleteAsync(cancellationToken);
+
+            int deletedLicenses = await dbContext.Licenses
+                .Where(license => license.RedeemedByUserId == userId)
                 .ExecuteDeleteAsync(cancellationToken);
 
             // 5. Delete the user; the database cascades every personal aggregate.
@@ -120,7 +126,7 @@ public sealed class AccountDeletionStore(SirkadiyenDbContext dbContext) : IAccou
             {
                 Deleted = true,
                 AnonymizedAuditEvents = anonymizedAuditEvents,
-                DetachedLicenses = detachedLicenses,
+                DeletedLicenses = deletedLicenses,
                 DeletedLicenseAudits = deletedLicenseAudits,
             };
         });
