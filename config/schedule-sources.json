@@ -82,9 +82,9 @@
       "displayName": "Dönem 2 Türkçe yıllık program",
       "transport": "googleSheets",
       "documentFormat": "googleSheet",
-      "sourceUri": "https://docs.google.com/spreadsheets/d/1pLL5eF_k9McDF6IzlMMBzz_NDVUySqARCbUmtO7TS8A/edit?gid=370969780",
-      "externalId": "1pLL5eF_k9McDF6IzlMMBzz_NDVUySqARCbUmtO7TS8A",
-      "sheetGid": 370969780,
+      "sourceUri": "https://docs.google.com/spreadsheets/d/1JMxqm8dnckDKS_EVS6GFut2BDjS63khIjQEzVhAOrj8",
+      "externalId": "1JMxqm8dnckDKS_EVS6GFut2BDjS63khIjQEzVhAOrj8",
+      "sheetGid": 1884416610,
       "parserProfile": "grade2_yearly_v1",
       "parserProfileVersion": "1.0.0",
       "academicYear": "2026-2027",
@@ -99,9 +99,9 @@
       "displayName": "Dönem 2 Türkçe uygulama programı",
       "transport": "googleSheets",
       "documentFormat": "googleSheet",
-      "sourceUri": "https://docs.google.com/spreadsheets/d/1dyCMtRRN9gVkQxdgZU9aeYzMYPc6tyxk680HboAEzlU/edit?gid=77218153",
-      "externalId": "1dyCMtRRN9gVkQxdgZU9aeYzMYPc6tyxk680HboAEzlU",
-      "sheetGid": 77218153,
+      "sourceUri": "https://docs.google.com/spreadsheets/d/1SezCE6ZoHcNScL7Z1epqJQ9Q8B6GMFeO0ykp16Jr0rw/edit?gid=1779555249#gid=1779555249",
+      "externalId": "1SezCE6ZoHcNScL7Z1epqJQ9Q8B6GMFeO0ykp16Jr0rw",
+      "sheetGid": 1779555249,
       "parserProfile": "grade2_practice_v1",
       "parserProfileVersion": "1.2.0",
       "academicYear": "2026-2027",
@@ -111,7 +111,7 @@
       "supportedAudienceSelectors": {
         "practiceGroup": ["A", "B", "C", "D", "E", "F", "G", "H"]
       },
-      "fixturePath": "sheets/donem-2-tr/xlsx/2025-2026 Dönem 2 Türkçe Tıp Programı Uygulama Tablosu (1).xlsx",
+      "fixturePath": "sheets/donem-2-tr/xlsx/2026-2027 Dönem 2 Türkçe Tıp Programı Uygulama Tablosu (1).xlsx",
       "notes": "Rolled over to 2026-2027 (ADR-115). The sourceUri, externalId and fixturePath here are still the pre-rollover ones: the running catalog is edited from /admin/sources (ADR-114) and the new year's workbook is not committed, so this file states the year the cohort is published under, not the document it is published from. The committed 2025-2026 fixture states eight practice cohorts A-H and no subgroup values. It is also the only committed source that writes a numeric date, which is why this profile declares dayFirst (ADR-075)."
     },
     {

@@ -8,7 +8,7 @@ internal sealed class WorkerHealthState(TimeProvider timeProvider)
     private readonly string instanceId = $"{Environment.MachineName}:{Environment.ProcessId}";
     private DateTimeOffset lastActivityAtUtc = timeProvider.GetUtcNow();
     private string currentStage = "starting";
-    private bool ready;
+    private bool ready; 
 
     public void MarkReady(string stage) => Update(stage, isReady: true);
 
