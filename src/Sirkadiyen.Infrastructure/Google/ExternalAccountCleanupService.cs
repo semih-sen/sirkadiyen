@@ -64,8 +64,13 @@ public sealed class ExternalAccountCleanupService(
                         cancellationToken);
                 calendarDeleted = outcome is CalendarContainerDeleteOutcome.Deleted;
             }
-            catch (GoogleCalendarSyncException exception)
+            catch (Exception exception)
             {
+                // Deliberately broad: this is a best-effort courtesy, and erasure is a right that
+                // must not depend on Google being reachable or the credential being usable. Any
+                // failure — a classified sync error, an auth/credential build failure, a raw HTTP or
+                // Google API exception — is logged and the local deletion proceeds regardless
+                // (ADR-118). What was not done is recorded in the deletion's audit metadata.
                 logger.LogWarning(
                     exception,
                     "Could not delete a managed calendar during account deletion; the account will "
@@ -73,14 +78,18 @@ public sealed class ExternalAccountCleanupService(
             }
         }
 
-        // The revoke call reports reachability as its return value rather than throwing, so a grant
-        // it could not revoke is simply recorded as not revoked.
-        bool tokenRevoked = await authorizationClient
-            .RevokeRefreshTokenAsync(refreshToken, cancellationToken);
-
-        if (!tokenRevoked)
+        bool tokenRevoked = false;
+        try
+        {
+            // The revoke reports reachability as its return value, but building the request or the
+            // credential can still throw; the same best-effort rule applies.
+            tokenRevoked = await authorizationClient
+                .RevokeRefreshTokenAsync(refreshToken, cancellationToken);
+        }
+        catch (Exception exception)
         {
             logger.LogWarning(
+                exception,
                 "Could not revoke a Google grant during account deletion; the account will still be "
                     + "erased locally.");
         }

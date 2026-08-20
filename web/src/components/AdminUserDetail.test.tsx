@@ -19,6 +19,7 @@ const api = vi.hoisted(() => ({
   requestUserCalendarRecheck: vi.fn(),
   rebuildUserCalendar: vi.fn(),
   deleteUser: vi.fn(),
+  changeUserRole: vi.fn(),
   ApiError: class extends Error {},
 }));
 vi.mock('@/lib/api', () => api);
@@ -273,6 +274,29 @@ describe('AdminUserDetail', () => {
     await waitFor(() => expect(api.deleteUser).toHaveBeenCalledWith(
       'u1', 'KVKK talebi.', 'user@example.com',
     ));
+  });
+
+  it('promotes a user to operator with a reason', async () => {
+    api.changeUserRole.mockResolvedValue({ outcome: 'Changed', previousRole: 'User', newRole: 'SuperAdmin' });
+    render(<AdminUserDetail userId="u1" />);
+    await screen.findByRole('heading', { name: 'Zeynep' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Yönetici (SuperAdmin) yap' }));
+    await userEvent.type(screen.getByLabelText('Rol değişikliği gerekçesi (denetim kaydına yazılır)'), 'Ekip yöneticisi.');
+    await userEvent.click(screen.getByRole('button', { name: 'Yönetici yap' }));
+
+    await waitFor(() => expect(api.changeUserRole).toHaveBeenCalledWith('u1', 'SuperAdmin', 'Ekip yöneticisi.'));
+  });
+
+  it('offers removing operator rights for a SuperAdmin account', async () => {
+    api.getAdminUser.mockResolvedValue({
+      ...detail,
+      user: { ...detail.user, summary: { ...summary, role: 'SuperAdmin' } },
+    });
+    render(<AdminUserDetail userId="u1" />);
+    await screen.findByRole('heading', { name: 'Zeynep' });
+
+    expect(screen.getByRole('button', { name: 'Yöneticiliği kaldır' })).toBeInTheDocument();
   });
 
   it('refuses to delete a SuperAdmin account', async () => {

@@ -114,6 +114,25 @@ public sealed class User
         UpdatedAtUtc = atUtc;
     }
 
+    /// <summary>
+    /// Sets the role to an explicit value, allowing both promotion and demotion (ADR-119). Unlike
+    /// <see cref="GrantRole"/> — which only ever promotes, so a re-authenticating operator is never
+    /// silently demoted at sign-in — this is the deliberate administrative role change and can lower
+    /// a role as well as raise it. Returns whether the role actually changed, so the caller can skip
+    /// writing an audit record for a no-op.
+    /// </summary>
+    public bool ChangeRole(UserRole role, DateTimeOffset atUtc)
+    {
+        if (role == Role)
+        {
+            return false;
+        }
+
+        Role = role;
+        UpdatedAtUtc = atUtc;
+        return true;
+    }
+
     public static string NormalizeEmailValue(string email) => NormalizeEmail(email).Normalized;
 
     private static (string Display, string Normalized) NormalizeEmail(string email)

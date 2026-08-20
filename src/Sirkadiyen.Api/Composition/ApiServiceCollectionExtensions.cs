@@ -153,6 +153,10 @@ internal static class ApiServiceCollectionExtensions
         services.AddScoped<IExternalAccountCleanup, ExternalAccountCleanupService>();
         services.AddScoped<AccountDeletionService>();
 
+        // Administrative role change: promote a user to operator, or remove operator rights
+        // (ADR-119). SuperAdmin-only and audited, guarded against self-change and demoting bootstrap.
+        services.AddScoped<UserRoleService>();
+
         // The rollover corrects stored profiles; every calendar write it implies is still
         // performed by the worker's convergence pass (ADR-115).
         services.AddSingleton(new ProfileAcademicYearDriftOptions());

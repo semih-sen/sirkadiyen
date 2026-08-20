@@ -212,4 +212,12 @@ public enum AuditEventCategory
     /// </para>
     /// </summary>
     AccountDeleted,
+
+    /// <summary>
+    /// A SuperAdmin changed another account's role — promoting a user to operator, or removing an
+    /// operator's rights (ADR-119). Roles are authorization itself, so who changed whose role, when
+    /// and why is exactly the kind of security-sensitive act the trail exists for (AI_GUIDELINE §19,
+    /// systemPatterns §19). The previous and new roles are in the metadata.
+    /// </summary>
+    RoleChanged,
 }

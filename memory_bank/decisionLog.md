@@ -6925,3 +6925,60 @@ calendar behind after the account is gone.
   that do run.
 
 ---
+
+## ADR-119: Administrative role change from the panel
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-20
+**Implements:** `User.ChangeRole`, `IUserRoleStore`/`UserRoleStore`, `UserRoleService`,
+`AuditEventCategory.RoleChanged`, `POST /api/admin/users/{id}/role`, frontend `RoleCard`
+**Amends:** ADR-045 (the bootstrap-only role model)
+
+### Context
+
+Until now the only `SuperAdmin` was the one bootstrap e-mail (`GoogleSignInService.SuperAdminEmail`,
+ADR-045), granted its role from backend-owned data at every sign-in. There was no way to make a
+second operator, so there was exactly one administrator and no way to add or remove one from the
+panel. `User.GrantRole` deliberately only ever *promotes* (so a re-authenticating operator is never
+silently demoted at sign-in), which is the wrong primitive for a deliberate administrative change
+that must be able to lower a role too.
+
+### Decision
+
+1. **A new domain primitive, `User.ChangeRole`, sets the role to an explicit value** — promotion or
+   demotion — and returns whether it changed, distinct from `GrantRole`'s promote-only bootstrap
+   behaviour. The two never merge: sign-in must keep using `GrantRole` so an admin-promoted operator
+   is not demoted when they sign in with a non-bootstrap `bootstrapRole` of `User`.
+
+2. **A promoted operator persists across sign-ins for free.** `GrantRole(User)` at a non-bootstrap
+   sign-in is a no-op against an existing `SuperAdmin`, so no extra persistence is needed — the
+   stored role already wins.
+
+3. **`UserRoleService` owns the guards, in one place:** an operator cannot change **their own** role
+   (no self-demotion that strands the panel mid-action, no self-promotion that makes the check
+   pointless), and the **bootstrap operator cannot be demoted** (its role is re-granted at every
+   sign-in, so a demotion would silently reverse itself and the audit record would claim a change
+   that did not last). An unchanged role writes nothing and records nothing.
+
+4. **The change is audited** as `AuditEventCategory.RoleChanged` with the previous and new roles in
+   the metadata and a required reason, recorded *before* the write via the same callback shape the
+   other operator flows use. A role is authorization itself, so who changed whose role and why is
+   exactly what the trail is for (systemPatterns §19).
+
+5. **The surface is the per-account operator page**, a "Yetki (rol)" card that promotes a user to
+   operator or removes operator rights with a reason. Self and bootstrap-demote refusals come back as
+   a 409 and are shown there.
+
+### Consequences
+
+- There can now be more than one `SuperAdmin`, and operator rights can be removed. Combined with
+  ADR-118, deleting an operator account is a two-step, deliberate act: demote, then delete (deletion
+  still refuses a `SuperAdmin` outright).
+- The bootstrap e-mail remains special and irremovable — it is the recovery path if every other
+  operator is demoted or deleted. It is still a source constant, not configuration; changing *which*
+  e-mail bootstraps is still a deployment, by decision (ADR-045).
+- **Not built:** a general role/permission system (still just `User`/`SuperAdmin`), and an
+  operator-count floor beyond the bootstrap guarantee (nothing stops demoting every non-bootstrap
+  operator, which is safe precisely because the bootstrap one cannot be removed).
+
+---

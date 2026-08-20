@@ -233,6 +233,9 @@
   `POST /api/admin/users/{id}/delete`; personal data erased via cascade, cross-cutting audit trail
   anonymized, licences detached, managed Google calendar deleted + token revoked best-effort,
   `AuditEventCategory.AccountDeleted`, SuperAdmin refused; ADR-118)
+- [x] Administrative role change (`POST /api/admin/users/{id}/role`; promote to / demote from
+  SuperAdmin, audited `RoleChanged`, guarded against self-change and demoting the bootstrap operator;
+  per-account "Yetki (rol)" card; ADR-119)
 - [ ] Operator-authored academic profile edit (no backend write exists; a wrong cohort is still
   fixable only by the student)
 - [~] Retry failed jobs (`POST /api/diffs/{id}/retry` plus `GET /api/diffs?dispatchState=Failed`

@@ -70,6 +70,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IScheduleDiffReviewStore, ScheduleDiffReviewStore>();
         services.AddScoped<IOperationalFreezeStore, OperationalFreezeStore>();
         services.AddScoped<IUserStore, UserStore>();
+        services.AddScoped<IUserRoleStore, UserRoleStore>();
         services.AddScoped<IAccountDeletionStore, AccountDeletionStore>();
         services.AddScoped<ILicenseStore, LicenseStore>();
         services.AddScoped<IStudentProfileStore, StudentProfileStore>();

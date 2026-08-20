@@ -2,6 +2,7 @@ using Sirkadiyen.Application.Administration;
 using Sirkadiyen.Application.Auditing;
 using Sirkadiyen.Application.Onboarding;
 using Sirkadiyen.Application.Scheduling.Access;
+using Sirkadiyen.Domain.Identity;
 
 namespace Sirkadiyen.Api.Administration;
 
@@ -75,6 +76,21 @@ public sealed record RequestManagedCalendarRebuild
 public sealed record DeleteUserRequest
 {
     public required string ConfirmEmail { get; init; }
+
+    public required string Reason { get; init; }
+}
+
+/// <summary>
+/// An operator's request to change a user's authorization role (ADR-119).
+/// </summary>
+/// <remarks>
+/// <see cref="Role"/> is the target role (<c>User</c> or <c>SuperAdmin</c>); <see cref="Reason"/> is
+/// recorded because a role is authorization itself and who granted or removed it must be answerable
+/// from the trail (AI_GUIDELINE §19).
+/// </remarks>
+public sealed record ChangeUserRoleRequest
+{
+    public required UserRole Role { get; init; }
 
     public required string Reason { get; init; }
 }

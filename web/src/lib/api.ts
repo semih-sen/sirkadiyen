@@ -632,6 +632,28 @@ export function deleteUser(
   );
 }
 
+/** The result of an operator changing a user's authorization role (ADR-119). */
+export interface ChangeUserRoleResult {
+  outcome: string;
+  previousRole: string;
+  newRole: string;
+}
+
+/**
+ * Promotes a user to operator or removes operator rights. The reason is audited. The backend refuses
+ * changing your own role and demoting the bootstrap operator (surfaced as a 409).
+ */
+export function changeUserRole(
+  userId: string,
+  role: 'User' | 'SuperAdmin',
+  reason: string,
+): Promise<ChangeUserRoleResult> {
+  return request<ChangeUserRoleResult>(
+    `/api/admin/users/${encodeURIComponent(userId)}/role`,
+    { method: 'POST', body: { role, reason } },
+  );
+}
+
 export function createLicense(expiresAtUtc: string | null, notes: string | null): Promise<CreatedLicense> {
   return request<CreatedLicense>('/api/admin/licenses/', {
     method: 'POST',

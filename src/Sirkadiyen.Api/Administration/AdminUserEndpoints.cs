@@ -92,7 +92,94 @@ public static class AdminUserEndpoints
             .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
             .WithSummary("Permanently deletes this user's account, with an audit entry.");
 
+        // Promote a user to operator, or remove operator rights (ADR-119). Audited, guarded against
+        // self-change and demoting the bootstrap operator.
+        users.MapPost("/{userId:guid}/role", ChangeRoleAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
+            .WithSummary("Changes this user's authorization role, with an audit entry.");
+
         return builder;
+    }
+
+    private static async Task<IResult> ChangeRoleAsync(
+        Guid userId,
+        ChangeUserRoleRequest request,
+        ClaimsPrincipal principal,
+        HttpContext context,
+        UserRoleService roles,
+        AuditEventRecorder audit,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (!Enum.IsDefined(request.Role))
+        {
+            return Results.Problem(
+                title: "Invalid role change request",
+                detail: "'role' must be 'User' or 'SuperAdmin'.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Reason)
+            || request.Reason.Trim().Length > MaximumDeletionReasonLength)
+        {
+            return Results.Problem(
+                title: "Invalid role change request",
+                detail: $"'reason' is required and must contain at most "
+                    + $"{MaximumDeletionReasonLength} characters.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        Guid actorUserId = UserClaimsPrincipalFactory.GetRequiredUserId(principal);
+
+        ChangeUserRoleServiceResult result = await roles.ChangeRoleAsync(
+            new ChangeUserRoleCommand
+            {
+                TargetUserId = userId,
+                ActorUserId = actorUserId,
+                NewRole = request.Role,
+            },
+            (change, token) => audit.RecordAsync(
+                new AuditEventDraft
+                {
+                    Category = AuditEventCategory.RoleChanged,
+                    ActorUserId = actorUserId,
+                    ActorEmail = UserClaimsPrincipalFactory.GetRequiredEmail(principal),
+                    SubjectType = "User",
+                    SubjectId = userId.ToString(),
+                    CorrelationId = context.CorrelationId(),
+                    ClientIp = context.ClientIp(),
+                    UserAgent = context.ClientUserAgent(),
+                    Reason = request.Reason.Trim(),
+                    Metadata = JsonSerializer.Serialize(
+                        new
+                        {
+                            previousRole = change.PreviousRole.ToString(),
+                            newRole = change.NewRole.ToString(),
+                        },
+                        AuditMetadataOptions),
+                },
+                token),
+            cancellationToken);
+
+        return result.Outcome switch
+        {
+            ChangeUserRoleServiceOutcome.Changed or ChangeUserRoleServiceOutcome.Unchanged =>
+                Results.Ok(result),
+
+            ChangeUserRoleServiceOutcome.CannotChangeOwnRole => Results.Problem(
+                title: "You cannot change your own role",
+                detail: "Ask another administrator to change your role.",
+                statusCode: StatusCodes.Status409Conflict),
+
+            ChangeUserRoleServiceOutcome.CannotDemoteBootstrapOperator => Results.Problem(
+                title: "The bootstrap operator cannot be demoted",
+                detail: "This account's operator role is re-granted on every sign-in and cannot be "
+                    + "removed here.",
+                statusCode: StatusCodes.Status409Conflict),
+
+            _ => NotFound(userId),
+        };
     }
 
     /// <summary>Bounds the operator's deletion reason, matching the calendar-repair reason bound.</summary>

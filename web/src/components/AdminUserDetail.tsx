@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   ApiError,
   activateUser,
+  changeUserRole,
   deleteUser,
   getAdminUser,
   getAdminUserCalendarChanges,
@@ -200,6 +201,7 @@ export function AdminUserDetail({ userId }: { userId: string }) {
 
           <Licenses detail={detail} onChanged={load} onNotice={setNotice} />
           <Activation detail={detail} onChanged={load} onNotice={setNotice} />
+          <RoleCard detail={detail} onChanged={load} onNotice={setNotice} />
           <DeleteAccount detail={detail} />
         </div>
       )}
@@ -865,6 +867,99 @@ function AuditTable({ events, empty }: { events: AuditEventView[]; empty: string
         </tbody>
       </table>
     </div>
+  );
+}
+
+/**
+ * Changes the account's authorization role (ADR-119): promote a user to operator, or remove operator
+ * rights. A reason is required and audited. The backend refuses changing your own role and demoting
+ * the bootstrap operator; those come back as a 409 shown here.
+ */
+function RoleCard({
+  detail,
+  onChanged,
+  onNotice,
+}: {
+  detail: AdminUserDetailResponse;
+  onChanged: () => Promise<void>;
+  onNotice: (message: string) => void;
+}) {
+  const { summary } = detail.user;
+  const isOperator = summary.role === 'SuperAdmin';
+  const targetRole: 'User' | 'SuperAdmin' = isOperator ? 'User' : 'SuperAdmin';
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function apply() {
+    if (!reason.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await changeUserRole(summary.id, targetRole, reason.trim());
+      onNotice(isOperator ? 'Yöneticilik kaldırıldı.' : 'Kullanıcı yönetici (SuperAdmin) yapıldı.');
+      setOpen(false);
+      setReason('');
+      await onChanged();
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Rol değiştirilemedi.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card title="Yetki (rol)">
+      <Row label="Geçerli rol" value={isOperator ? 'Yönetici (SuperAdmin)' : 'Kullanıcı'} />
+      <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>
+        {isOperator
+          ? 'Bu hesap yönetici. Yöneticilik, panelin tüm işlemlerine erişim verir.'
+          : 'Bu hesabı yönetici yapmak, panelin tüm işlemlerine (kullanıcı silme, lisans, freeze, finans) erişim verir.'}
+      </p>
+
+      {!open ? (
+        <button
+          className="btn btn-secondary btn-sm"
+          type="button"
+          style={{ marginTop: 12 }}
+          onClick={() => setOpen(true)}
+        >
+          {isOperator ? 'Yöneticiliği kaldır' : 'Yönetici (SuperAdmin) yap'}
+        </button>
+      ) : (
+        <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+          <label htmlFor="role-reason">Rol değişikliği gerekçesi (denetim kaydına yazılır)</label>
+          <textarea
+            id="role-reason"
+            className="input"
+            rows={2}
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            style={{ marginTop: 6 }}
+          />
+          {error && <p className="error" style={{ marginTop: 8 }}>{error}</p>}
+          <div className="cluster" style={{ marginTop: 14, gap: 10 }}>
+            <button
+              className="btn btn-primary btn-sm"
+              type="button"
+              disabled={busy || !reason.trim()}
+              onClick={() => void apply()}
+            >
+              {busy ? 'Uygulanıyor…' : isOperator ? 'Yöneticiliği kaldır' : 'Yönetici yap'}
+            </button>
+            <button
+              className="btn btn-tertiary btn-sm"
+              type="button"
+              disabled={busy}
+              onClick={() => { setOpen(false); setReason(''); setError(null); }}
+            >
+              Vazgeç
+            </button>
+          </div>
+        </div>
+      )}
+    </Card>
   );
 }
 

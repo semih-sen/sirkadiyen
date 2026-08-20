@@ -94,6 +94,18 @@ revision can be rejected** and **a terminally failed diff can be retried**, both
 reason-required `SuperAdmin` routes, with the failed-dispatch queue made enumerable by
 `GET /api/diffs?dispatchState=Failed`.
 
+## Latest implementation session (2026-08-20, account deletion + role change)
+
+**Two operator/user-lifecycle features landed together.** Account deletion (ADR-118, below) and
+**administrative role change** (ADR-119): a SuperAdmin can now promote another user to operator or
+remove operator rights from the per-account page, which the bootstrap-only model (ADR-045) never
+allowed. `User.ChangeRole` sets a role explicitly (unlike promote-only `GrantRole` used at sign-in);
+`UserRoleService` guards against changing your own role and demoting the bootstrap operator; every
+change is audited as `RoleChanged` with previous/new roles and a required reason. This composes with
+deletion: since deletion refuses a SuperAdmin, removing an operator account is now demote-then-delete.
+708→ Infrastructure unit tests include 5 new role-guard tests; frontend 74 include 2 new. All green,
+Release build 0 warnings.
+
 ## Latest implementation session (2026-08-20, account deletion)
 
 **Accounts can now be deleted** (ADR-118), from the owner's own panel ("Hesabımı sil") and from the
