@@ -60,6 +60,17 @@ def test_a_profile_advertises_the_group_rotation_subjects_it_excludes() -> None:
     assert declared["grade1_yearly_v1"] == []
 
 
+def test_a_profile_advertises_whether_it_publishes_an_uncovered_rotation_itself() -> None:
+    # Whether a rotation is deferred outright or only for the dates the companion
+    # has published is the difference between a student seeing nothing and seeing
+    # all three hours (ADR-126), so the profile states which it does.
+    response = client.get("/v1/profiles")
+
+    declared = {profile["name"]: profile["group_rotation_fallback"] for profile in response.json()}
+    assert declared["grade2_yearly_v1"] is True
+    assert declared["grade3_yearly_v1"] is False
+
+
 def test_the_annual_profile_is_advertised_as_implemented() -> None:
     response = client.get("/v1/profiles")
 

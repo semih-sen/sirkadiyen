@@ -140,6 +140,11 @@ REASON_DUPLICATE_IDENTITY = "duplicateStableIdentity"
 REASON_OUT_OF_SCOPE_SUBJECT = "outOfScopeSubject"
 REASON_OUT_OF_SCOPE_PRACTICE_PLACEHOLDER = "outOfScopePracticePlaceholder"
 REASON_OUT_OF_SCOPE_GROUP_ROTATION = "outOfScopeGroupRotation"
+#: A rotation row a fallback-capable profile left to its companion because the
+#: companion has published that date (ADR-126). It is counted apart from
+#: `outOfScopeGroupRotation` so "the group list owns this day" and "this profile
+#: never publishes rotations" are never read as the same decision.
+REASON_GROUP_ROTATION_COVERED = "groupRotationCoveredByCompanion"
 REASON_NON_TEACHING_BREAK = "nonTeachingBreak"
 REASON_UNRESOLVED_CURRICULUM_GROUP = "unresolvedCurriculumGroup"
 REASON_AUDIENCE_NOT_OWNED = "audienceNotOwnedBySource"
@@ -150,6 +155,7 @@ WARNING_WEEKDAY_MISMATCH = "weekdayMismatch"
 WARNING_NO_HEADER_ROW = "worksheetWithoutHeaderRow"
 WARNING_NO_WORKSHEET = "noParsableWorksheet"
 WARNING_UNMARKED_BLOCK_SEGMENT = "unmarkedBlockDepartmentSegment"
+WARNING_GROUP_ROTATION_FALLBACK = "groupRotationPublishedWithoutCompanion"
 
 METRIC_WORKSHEETS_SCANNED = "worksheets.scanned"
 METRIC_WORKSHEETS_SELECTED = "worksheets.selected"
@@ -182,6 +188,14 @@ METRIC_DEPARTMENTS_IGNORED_UNMARKED = "departments.ignored.unmarkedSegment"
 METRIC_ROWS_OUT_OF_SCOPE_SUBJECT = "rows.ignored.outOfScopeSubject"
 METRIC_ROWS_OUT_OF_SCOPE_PRACTICE_PLACEHOLDER = "rows.ignored.outOfScopePracticePlaceholder"
 METRIC_ROWS_OUT_OF_SCOPE_GROUP_ROTATION = "rows.ignored.outOfScopeGroupRotation"
+METRIC_ROWS_GROUP_ROTATION_COVERED = "rows.ignored.groupRotationCoveredByCompanion"
+#: Rotation slots this profile published itself because no companion had
+#: published their date (ADR-126). Counted so the fallback's reach is a number a
+#: reviewer can read rather than something inferred from the candidate total.
+METRIC_ROWS_GROUP_ROTATION_FALLBACK = "rows.publishedGroupRotationFallback"
+#: Distinct dates that fallback covered, which is the count that matters
+#: operationally: it is how many teaching days are missing a group list.
+METRIC_GROUP_ROTATION_FALLBACK_DAYS = "groupRotationFallback.days"
 METRIC_ROWS_NON_TEACHING_BREAK = "rows.ignored.nonTeachingBreak"
 
 RULE_HEADER_ALIAS = "annual.headerAlias"
@@ -240,6 +254,34 @@ PRACTICE_PLACEHOLDER_TITLES = frozenset({("uygulama",), ("practice",)})
 #: Non-teaching break blocks. Free study ("serbest"/"free") is a real whole-class
 #: entry and is deliberately kept, so it is NOT in this set.
 BREAK_FIRST_TOKENS = frozenset({"ogle", "lunch", "ara", "arasi", "break"})
+
+#: How a fallback dissection slot names which of the day's consecutive hours it
+#: is (ADR-126). The hour is what tells a student whether the event is theirs, and
+#: without it the three copies are indistinguishable in a calendar view.
+GROUP_ROTATION_SLOT_LABELS = {
+    ProgramLanguage.TURKISH: "{ordinal}. saat",
+    ProgramLanguage.ENGLISH: "Hour {ordinal}",
+}
+
+#: Separates the slot label from the title the source wrote. An em dash, so the
+#: label reads as an addition rather than as part of the lesson name.
+GROUP_ROTATION_SLOT_SEPARATOR = " — "
+
+#: What a fallback slot says about itself. A student is seeing three consecutive
+#: hours where they will attend one, and nothing else on the calendar could tell
+#: them why, so the event says it in the program's own language.
+GROUP_ROTATION_FALLBACK_NOTES = {
+    ProgramLanguage.TURKISH: (
+        "Bu tarih için anatomi salon grup programı henüz yayımlanmadı. Diseksiyonun "
+        "üç saatinin üçü de takvime eklendi; kendi anatomi grubunuza ayrılan saate "
+        "katılın. Grup programı sisteme yüklendiğinde yalnızca kendi saatiniz kalır."
+    ),
+    ProgramLanguage.ENGLISH: (
+        "The anatomy group list for this date has not been published yet. All three "
+        "dissection hours were added; attend the one assigned to your anatomy group. "
+        "Only your own hour remains once the group list is uploaded."
+    ),
+}
 
 EXAM_TOKENS = frozenset({"sinav", "exam"})
 ANATOMY_TOKENS = frozenset({"diseksiyon", "dissection"})
@@ -324,6 +366,27 @@ class _CandidateDraft:
     block_departments: BlockDepartmentResolution
     title_departments: tuple[str, ...]
 
+    #: Everything needed to build this draft again, held only by a group-rotation
+    #: slot published as a fallback (ADR-126). Which of the day's hours a slot is
+    #: cannot be known while the row is read — it follows from the other rows of
+    #: the same session — so the draft is built once without the label and once
+    #: with it. Rebuilding is safe because building a draft is a pure function of
+    #: these inputs and records nothing.
+    rotation_rebuild: "_RotationRebuild | None" = None
+
+
+@dataclass(frozen=True, slots=True)
+class _RotationRebuild:
+    """The inputs `_build_draft` read, kept so a slot can be labelled later."""
+
+    row: _RowContext
+    context: ParseSourceContext
+    title_text: str
+    resolved_date: DateResolution
+    schedule: _Schedule
+    audience: ScheduleAudienceCandidate
+    bedside_topics: Mapping[tuple[str, date], str]
+
 
 @dataclass(slots=True)
 class _Accumulator:
@@ -336,6 +399,11 @@ class _Accumulator:
     #: same wording repeats on dozens of rows, so it is reported once with the
     #: first row that carries it and counted for the rest.
     reported_unmarked_segments: set[str] = field(default_factory=set)
+
+    #: Dates whose group rotation this profile published itself because no
+    #: companion had published them (ADR-126). Reported once for the snapshot
+    #: rather than per row: 159 identical warnings would bury every other finding.
+    group_rotation_fallback_dates: set[date] = field(default_factory=set)
 
 
 def parse_annual_snapshot(
@@ -387,6 +455,10 @@ def parse_annual_snapshot(
             context=request.source_context,
             numeric_date_order=profile.numeric_date_order,
             group_rotation_subjects=frozenset(profile.group_rotation_subjects),
+            group_rotation_fallback=profile.group_rotation_fallback,
+            group_rotation_covered_dates=frozenset(
+                request.source_context.group_rotation_covered_dates
+            ),
             curriculum_group_audience=curriculum_group_audience,
             bedside_topics=bedside_topics,
             diagnostics=diagnostics,
@@ -400,6 +472,9 @@ def parse_annual_snapshot(
             "No worksheet in the snapshot exposes an annual header row, so the "
             "snapshot cannot be parsed by this profile.",
         )
+
+    if profile.group_rotation_fallback:
+        _report_group_rotation_fallback(accumulator, request.source_context, diagnostics)
 
     diagnostics.set_metric(METRIC_CANDIDATES_EMITTED, len(accumulator.candidates))
 
@@ -450,8 +525,10 @@ def _detect_columns(
         if all(role in mapping for role in REQUIRED_ROLES):
             return row_index, mapping
 
-        if term_column_may_be_unlabelled and ROLE_TERM not in mapping and all(
-            role in mapping for role in REQUIRED_ROLES if role != ROLE_TERM
+        if (
+            term_column_may_be_unlabelled
+            and ROLE_TERM not in mapping
+            and all(role in mapping for role in REQUIRED_ROLES if role != ROLE_TERM)
         ):
             term_column = _unlabelled_term_column(grid, row_index, mapping[ROLE_DATE])
             if term_column is not None:
@@ -501,11 +578,20 @@ def _parse_worksheet(
     context: ParseSourceContext,
     numeric_date_order: NumericDateOrder,
     group_rotation_subjects: frozenset[str],
+    group_rotation_fallback: bool,
+    group_rotation_covered_dates: frozenset[date],
     curriculum_group_audience: bool,
     bedside_topics: Mapping[tuple[str, date], str],
     diagnostics: ParseDiagnostics,
     accumulator: _Accumulator,
 ) -> None:
+    # A fallback rotation slot is labelled with its position among the other
+    # slots of the same session, which is only known once the whole worksheet has
+    # been read, so those drafts alone wait here and are accepted afterwards
+    # (ADR-126). Every other row is accepted as it is read, so no profile without
+    # the fallback sees any change in the order of its candidates or findings.
+    pending_rotation: list[_CandidateDraft] = []
+
     for row_index in range(header_row + 1, worksheet.row_count):
         diagnostics.increment(METRIC_ROWS_SCANNED)
         if grid.is_row_hidden(row_index):
@@ -525,6 +611,8 @@ def _parse_worksheet(
             context=context,
             numeric_date_order=numeric_date_order,
             group_rotation_subjects=group_rotation_subjects,
+            group_rotation_fallback=group_rotation_fallback,
+            group_rotation_covered_dates=group_rotation_covered_dates,
             curriculum_group_audience=curriculum_group_audience,
             bedside_topics=bedside_topics,
             diagnostics=diagnostics,
@@ -532,6 +620,15 @@ def _parse_worksheet(
         if draft is None:
             continue
 
+        if draft.rotation_rebuild is not None:
+            pending_rotation.append(draft)
+            continue
+
+        _accept(draft=draft, diagnostics=diagnostics, accumulator=accumulator)
+
+    for draft in _label_rotation_slots(pending_rotation):
+        # Accepted last, so a rotation slot can never displace a lesson the
+        # source states in its own right: the earlier row keeps the identity.
         _accept(draft=draft, diagnostics=diagnostics, accumulator=accumulator)
 
 
@@ -541,6 +638,8 @@ def _parse_row(
     context: ParseSourceContext,
     numeric_date_order: NumericDateOrder,
     group_rotation_subjects: frozenset[str],
+    group_rotation_fallback: bool,
+    group_rotation_covered_dates: frozenset[date],
     curriculum_group_audience: bool,
     bedside_topics: Mapping[tuple[str, date], str],
     diagnostics: ParseDiagnostics,
@@ -574,7 +673,15 @@ def _parse_row(
         )
         return None
 
-    exclusion = _out_of_scope_exclusion(title_text, group_rotation_subjects)
+    # A rotation row is only excluded outright by a profile that never publishes
+    # rotations. A fallback-capable one has to know the row's date before it can
+    # decide, because the companion owns some dates and not others (ADR-126), so
+    # its rotation rows carry on to the date rules below.
+    rotation_row = _states_group_rotation(title_text, group_rotation_subjects)
+    exclusion = _out_of_scope_exclusion(
+        title_text,
+        frozenset() if group_rotation_fallback else group_rotation_subjects,
+    )
     if exclusion is not None:
         reason, message = exclusion
         diagnostics.record_ignored_row(
@@ -592,9 +699,46 @@ def _parse_row(
     if resolved_date is None:
         return None
 
+    if rotation_row and resolved_date.value in group_rotation_covered_dates:
+        # The group list has published this day, so it says which hour each
+        # student attends and this row must not add the other two back.
+        diagnostics.record_ignored_row(
+            REASON_GROUP_ROTATION_COVERED,
+            row.row_evidence(extraction_rule=RULE_ROW),
+            message=(
+                "Row names a group rotation the companion group source has already "
+                "published for this date, so the slot was left to it rather than "
+                "published to the whole class."
+            ),
+        )
+        return None
+
     schedule = _resolve_schedule(row=row, title_text=title_text, diagnostics=diagnostics)
     if schedule is None:
         return None
+
+    if rotation_row:
+        # Published to the whole class on purpose: with no group list, a student
+        # who sees nothing has no way to attend, while a student who sees all
+        # three hours can read their own off the note the slot carries.
+        return _build_draft(
+            row=row,
+            context=context,
+            title_text=title_text,
+            resolved_date=resolved_date,
+            schedule=schedule,
+            audience=audience,
+            bedside_topics=bedside_topics,
+            rotation_rebuild=_RotationRebuild(
+                row=row,
+                context=context,
+                title_text=title_text,
+                resolved_date=resolved_date,
+                schedule=schedule,
+                audience=audience,
+                bedside_topics=bedside_topics,
+            ),
+        )
 
     return _build_draft(
         row=row,
@@ -1050,6 +1194,8 @@ def _build_draft(
     schedule: _Schedule,
     audience: ScheduleAudienceCandidate,
     bedside_topics: Mapping[tuple[str, date], str],
+    rotation_rebuild: "_RotationRebuild | None" = None,
+    rotation_slot: int | None = None,
 ) -> _CandidateDraft:
     candidate_id = f"{row.worksheet.sheet_id}!R{row.row_index + 1}"
     audience_key = _audience_key(audience)
@@ -1058,6 +1204,15 @@ def _build_draft(
     split = split_trailing_instructors(course_title.display_title)
     display_title = split.title or course_title.display_title
     instructor = ", ".join(split.instructors) if split.instructors else None
+
+    # A fallback rotation slot says which hour of the session it is (ADR-126).
+    # The label is part of the title rather than of the note alone because a
+    # calendar shows the title, and three identically named events an hour apart
+    # are what a student would otherwise have to tell apart from the clock.
+    if rotation_slot is not None:
+        display_title += GROUP_ROTATION_SLOT_SEPARATOR + GROUP_ROTATION_SLOT_LABELS[
+            context.program_language
+        ].format(ordinal=rotation_slot)
 
     block_text = row.text(ROLE_BLOCK) or None
     raw_location = row.text(ROLE_LOCATION) or None
@@ -1089,6 +1244,12 @@ def _build_draft(
         if event_type is ScheduleEventType.BEDSIDE_PRACTICE
         else None
     )
+
+    # A fallback slot explains itself instead of leaving a student to work out
+    # why three dissections appeared on one afternoon (ADR-126). It is a note
+    # like any other, so it is content and moves the event when it changes.
+    if rotation_slot is not None:
+        notes = GROUP_ROTATION_FALLBACK_NOTES[context.program_language]
 
     # The audience joins the identity only when the source states one. Two
     # curriculum groups share a date, a time and a title whenever they sit the
@@ -1163,6 +1324,7 @@ def _build_draft(
         deferred_location=deferred_location,
         block_departments=block_departments,
         title_departments=departments[len(block_departments.departments) :],
+        rotation_rebuild=rotation_rebuild,
     )
 
 
@@ -1259,6 +1421,13 @@ def _record_candidate_diagnostics(
     diagnostics.increment(f"{METRIC_DATE_RULE_PREFIX}{resolved_date.rule}")
     if draft.deferred_location:
         diagnostics.increment(METRIC_LOCATION_DEFERRED)
+
+    if draft.rotation_rebuild is not None:
+        # Counted here rather than where the fallback was decided, so a slot
+        # dropped as a duplicate leaves no counter no published candidate
+        # accounts for (ADR-126).
+        diagnostics.increment(METRIC_ROWS_GROUP_ROTATION_FALLBACK)
+        accumulator.group_rotation_fallback_dates.add(candidate.local_date)
 
     if candidate.is_all_day:
         # The shape came from a title rule rather than from a cell, so every
@@ -1413,6 +1582,101 @@ def _accept(
         ),
         candidate_id=existing.candidate_id,
         evidence=row.row_evidence(extraction_rule=RULE_ROW),
+    )
+
+
+def _states_group_rotation(title: str, group_rotation_subjects: frozenset[str]) -> bool:
+    """Whether this title names a subject the profile declares as a rotation."""
+    if not group_rotation_subjects:
+        return False
+    words = _words(title)
+    return bool(words) and _matches(words, group_rotation_subjects)
+
+
+def _label_rotation_slots(drafts: Sequence[_CandidateDraft]) -> list[_CandidateDraft]:
+    """Name each fallback rotation slot's place among the hours of its session.
+
+    A session is written as consecutive hours of one day carrying one title, so
+    the hours of ``(date, course identity)`` are the slots a student chooses
+    between, and their order is their start time. Ordering by start time rather
+    than by row keeps the label stable if the source ever reorders its rows: the
+    identity of these records is their start time, and the label must agree with
+    it (ADR-126).
+
+    The drafts are returned in the order they were read, labelled.
+    """
+    positions: dict[tuple[date, str], list[int]] = {}
+    for index, draft in enumerate(drafts):
+        if draft.rotation_rebuild is None:  # pragma: no cover - caller filters
+            continue
+        candidate = draft.candidate
+        session = candidate.normalized_course_identity or candidate.display_title
+        key = (candidate.local_date, session)
+        positions.setdefault(key, []).append(index)
+
+    if not positions:
+        return list(drafts)
+
+    labelled = list(drafts)
+    for indices in positions.values():
+        ordered = sorted(
+            indices,
+            key=lambda index: (
+                labelled[index].candidate.start_local_time or time.min,
+                index,
+            ),
+        )
+        for ordinal, index in enumerate(ordered, start=1):
+            rebuild = labelled[index].rotation_rebuild
+            if rebuild is None:  # pragma: no cover - guarded by the collection above
+                continue
+            labelled[index] = _build_draft(
+                row=rebuild.row,
+                context=rebuild.context,
+                title_text=rebuild.title_text,
+                resolved_date=rebuild.resolved_date,
+                schedule=rebuild.schedule,
+                audience=rebuild.audience,
+                bedside_topics=rebuild.bedside_topics,
+                rotation_rebuild=rebuild,
+                rotation_slot=ordinal,
+            )
+
+    return labelled
+
+
+def _report_group_rotation_fallback(
+    accumulator: _Accumulator,
+    context: ParseSourceContext,
+    diagnostics: ParseDiagnostics,
+) -> None:
+    """Say once, for the whole snapshot, which days had no group list.
+
+    Called only by a profile that declares the fallback, so a profile that never
+    publishes a rotation reports no metric about one: a zero here means "no day
+    was left uncovered", which is a different statement from "this profile does
+    not do this at all".
+
+    The count is the operational fact: it is how many teaching days a student is
+    being shown every hour of instead of their own. It is a warning rather than
+    information because it describes evidence that is missing, and a reviewer
+    should see it without going looking (AI_GUIDELINE §9).
+    """
+    days = accumulator.group_rotation_fallback_dates
+    diagnostics.set_metric(METRIC_GROUP_ROTATION_FALLBACK_DAYS, len(days))
+    if not days:
+        return
+
+    diagnostics.warn(
+        severity=ParserWarningSeverity.WARNING,
+        code=WARNING_GROUP_ROTATION_FALLBACK,
+        message=(
+            f"No companion group source has published {len(days)} rotation day(s) "
+            f"between {min(days).isoformat()} and {max(days).isoformat()}, so every "
+            f"slot of those sessions was published to the whole "
+            f"{context.program_language.value} class year {context.class_year} with "
+            f"its hour named. Uploading the group list returns those days to it."
+        ),
     )
 
 

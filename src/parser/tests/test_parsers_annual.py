@@ -30,7 +30,10 @@ from sirkadiyen_parser.parsers import get_parser, implemented_profiles
 from sirkadiyen_parser.parsers.annual import (
     METRIC_CANDIDATES_ALL_DAY,
     METRIC_DATE_RULE_PREFIX,
+    METRIC_GROUP_ROTATION_FALLBACK_DAYS,
     METRIC_LOCATION_DEFERRED,
+    METRIC_ROWS_GROUP_ROTATION_COVERED,
+    METRIC_ROWS_GROUP_ROTATION_FALLBACK,
     METRIC_ROWS_HIDDEN,
     METRIC_ROWS_NON_TEACHING_BREAK,
     METRIC_ROWS_OUT_OF_SCOPE_GROUP_ROTATION,
@@ -38,6 +41,7 @@ from sirkadiyen_parser.parsers.annual import (
     METRIC_ROWS_OUT_OF_SCOPE_SUBJECT,
     METRIC_WORKSHEETS_IGNORED_NO_HEADER,
     WARNING_CONFLICTING_DUPLICATE,
+    WARNING_GROUP_ROTATION_FALLBACK,
     WARNING_IMPLAUSIBLE_DURATION,
     classify_event_type,
     parse_annual_snapshot,
@@ -60,13 +64,15 @@ DAY_FIRST_PROFILE = ParserProfileDefinition(
 )
 
 #: The Grade 2 annual profile, which shares this implementation and differs only
-#: in declaring that its dissection rows are a group rotation (ADR-073).
+#: in declaring that its dissection rows are a group rotation (ADR-073) that it
+#: publishes itself for the dates no anatomy group list covers (ADR-126).
 GRADE_2_PROFILE = ParserProfileDefinition(
     "grade2_yearly_v1",
-    "1.0.0",
+    "1.1.0",
     "annual",
     NumericDateOrder.UNDECLARED,
     group_rotation_subjects=("diseksiyon", "dissection"),
+    group_rotation_fallback=True,
 )
 
 #: The Grade 3 annual profile, which shares this implementation and adds an
@@ -207,6 +213,7 @@ def parse(
     profile: ParserProfileDefinition = PROFILE,
     program_language: str = "turkish",
     authoritative_selectors: dict[str, list[str]] | None = None,
+    group_rotation_covered_dates: list[str] | None = None,
 ) -> ParseSnapshotResponse:
     request = ParseSnapshotRequest.model_validate(
         {
@@ -219,6 +226,7 @@ def parse(
                 "programLanguage": program_language,
                 "timeZoneId": "Europe/Istanbul",
                 "authoritativeAudienceSelectors": dict(authoritative_selectors or {}),
+                "groupRotationCoveredDates": list(group_rotation_covered_dates or []),
             },
             "snapshot": {
                 "contractVersion": "1.0",
@@ -686,11 +694,11 @@ def test_evidence_cites_every_column_the_candidate_used() -> None:
 
 
 def test_the_registered_grade_2_profile_is_the_same_annual_implementation() -> None:
-    profile = get_profile("grade2_yearly_v1", "1.0.0")
+    profile = get_profile("grade2_yearly_v1", "1.1.0")
 
     assert profile is not None
     assert get_parser(profile.name, profile.version) is parse_annual_snapshot
-    assert ("grade2_yearly_v1", "1.0.0") in implemented_profiles()
+    assert ("grade2_yearly_v1", "1.1.0") in implemented_profiles()
 
 
 @pytest.mark.parametrize("term", ["Dönem 2", "Time Table 2"])
@@ -705,20 +713,150 @@ def test_the_grade_2_profile_reads_both_workbooks_term_wording(term: str) -> Non
     assert response.candidates[0].class_year == 2
 
 
+#: One dissection session as the Grade 2 workbooks write it: three consecutive
+#: hours of one day carrying the same session number (ADR-073).
+DISSECTION_HOURS = (("13:30", "14:20"), ("14:30", "15:20"), ("15:30", "16:20"))
+
+
+def dissection_rows(
+    *,
+    title: str = "DİSEKSİYON (1/13)",
+    hours: tuple[tuple[str, str], ...] = DISSECTION_HOURS,
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for index, (start, end) in enumerate(hours, start=1):
+        rows.extend(lesson_row(index, term="Dönem 2", title=title, start=start, end=end))
+    return rows
+
+
 @pytest.mark.parametrize("title", ["DİSEKSİYON (1/13)", "DISSECTION (1/13)"])
-def test_a_declared_group_rotation_is_excluded_from_the_whole_class_program(title: str) -> None:
-    # The Grade 2 annual program writes one dissection session as three
-    # consecutive daily slots, and the anatomy group list assigns each student
-    # exactly one of them. Publishing all three would book every student into two
-    # sessions they must not attend (ADR-073).
+def test_a_declared_group_rotation_is_left_to_the_companion_that_published_its_date(
+    title: str,
+) -> None:
+    # The anatomy group list assigns each student exactly one of the three hours,
+    # so once it has published a date, publishing all three would book every
+    # student into two sessions they must not attend (ADR-073).
     response = parse(
         [worksheet(lesson_row(1, term="Dönem 2", title=title), title="DÖNEM 2")],
         class_year=2,
         profile=GRADE_2_PROFILE,
+        group_rotation_covered_dates=["2025-10-01"],
+    )
+
+    assert response.candidates == []
+    assert metrics(response)[METRIC_ROWS_GROUP_ROTATION_COVERED] == 1
+    assert METRIC_ROWS_GROUP_ROTATION_FALLBACK not in metrics(response)
+
+
+def test_a_rotation_date_no_companion_has_published_states_every_hour() -> None:
+    # Until the group list is uploaded a student would otherwise see no
+    # dissection at all. Every hour is published instead, each naming which of
+    # the three it is, so the student can attend their own (ADR-126).
+    response = parse(
+        [worksheet(dissection_rows(), title="DÖNEM 2")],
+        class_year=2,
+        profile=GRADE_2_PROFILE,
+    )
+
+    assert [candidate.display_title for candidate in response.candidates] == [
+        "DİSEKSİYON (1/13) — 1. saat",
+        "DİSEKSİYON (1/13) — 2. saat",
+        "DİSEKSİYON (1/13) — 3. saat",
+    ]
+    assert [candidate.start_local_time for candidate in response.candidates] == [
+        time(13, 30),
+        time(14, 30),
+        time(15, 30),
+    ]
+    assert all(
+        candidate.event_type is ScheduleEventType.ANATOMY_PRACTICE
+        for candidate in response.candidates
+    )
+    assert metrics(response)[METRIC_ROWS_GROUP_ROTATION_FALLBACK] == 3
+    assert metrics(response)[METRIC_GROUP_ROTATION_FALLBACK_DAYS] == 1
+
+
+def test_every_published_rotation_slot_says_why_all_three_are_there() -> None:
+    response = parse(
+        [worksheet(dissection_rows(), title="DÖNEM 2")],
+        class_year=2,
+        profile=GRADE_2_PROFILE,
+    )
+
+    notes = {candidate.notes or "" for candidate in response.candidates}
+    assert len(notes) == 1
+    assert "anatomi salon grup programı" in notes.pop()
+
+
+def test_a_published_rotation_slot_is_worded_in_the_program_language() -> None:
+    response = parse(
+        [
+            worksheet(
+                dissection_rows(title="DISSECTION (1/13)"),
+                title="CLASS 2",
+                headers=ENGLISH_HEADERS,
+            )
+        ],
+        class_year=2,
+        profile=GRADE_2_PROFILE,
+        program_language="english",
+    )
+
+    first = response.candidates[0]
+    assert first.display_title == "DISSECTION (1/13) — Hour 1"
+    assert first.notes is not None
+    assert "anatomy group list" in first.notes
+
+
+def test_a_rotation_hour_is_numbered_by_its_time_rather_than_by_its_row() -> None:
+    # The hour is part of what identifies these records, so the label has to
+    # agree with the clock even if the source ever writes the rows out of order.
+    response = parse(
+        [worksheet(dissection_rows(hours=DISSECTION_HOURS[::-1]), title="DÖNEM 2")],
+        class_year=2,
+        profile=GRADE_2_PROFILE,
+    )
+
+    labelled = {
+        candidate.start_local_time: candidate.display_title for candidate in response.candidates
+    }
+    assert labelled[time(13, 30)].endswith("1. saat")
+    assert labelled[time(15, 30)].endswith("3. saat")
+
+
+def test_the_days_without_a_group_list_are_reported_once_for_the_snapshot() -> None:
+    response = parse(
+        [worksheet(dissection_rows(), title="DÖNEM 2")],
+        class_year=2,
+        profile=GRADE_2_PROFILE,
+    )
+
+    reported = [
+        warning for warning in response.warnings if warning.code == WARNING_GROUP_ROTATION_FALLBACK
+    ]
+    assert len(reported) == 1
+    assert "1 rotation day(s)" in reported[0].message
+
+
+def test_a_rotation_is_excluded_outright_by_a_profile_that_declares_no_fallback() -> None:
+    # The Grade 3 faculty-practice rotation is eight parallel slots rather than
+    # consecutive hours of one session, so there is nothing a student could read
+    # their own out of and the rows stay excluded (ADR-073).
+    response = parse(
+        [
+            worksheet(
+                lesson_row(1, term="Dönem 3A Grubu", title="Öğretim üyesi Uygulama 3"),
+                title="DÖNEM 3",
+                headers=UNLABELLED_TERM_HEADERS,
+            )
+        ],
+        class_year=3,
+        profile=GRADE_3_PROFILE,
     )
 
     assert response.candidates == []
     assert metrics(response)[METRIC_ROWS_OUT_OF_SCOPE_GROUP_ROTATION] == 1
+    assert METRIC_GROUP_ROTATION_FALLBACK_DAYS not in metrics(response)
 
 
 def test_a_group_rotation_subject_is_only_excluded_where_the_profile_declares_it() -> None:

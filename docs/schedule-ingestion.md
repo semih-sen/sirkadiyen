@@ -141,6 +141,28 @@ snapshot again and increments its attempt count instead of creating duplicate
 snapshot or parse-run rows. Parser responses must echo every contract identifier
 exactly before they are persisted.
 
+### Evidence beyond the snapshot
+
+Two inputs besides the document itself take part in a parse, and both are part of
+the parse run's identity, so a change in either opens a new run rather than being
+short-circuited as already parsed:
+
+- **Companion snapshots** (ADR-102): the latest stored snapshot of every source
+  named in `companionSourceIds`, handed to the parser as supporting evidence. A
+  companion that was never acquired is left out rather than waited for.
+- **Group-rotation coverage** (ADR-126): the local dates on which the sources
+  named in `groupRotationSourceIds` have a *published* revision for this source's
+  own academic year, class year and program language. The Grade 2 annual
+  workbooks name the anatomy group lists there. A date the lists cover keeps
+  deferring to them; a date they do not cover is published by the annual program
+  in full, all three dissection hours with the hour named. Uploading a group list
+  therefore reparses the annual snapshot on the next poll, and the fallback hours
+  it published are retired by the ordinary semantic diff.
+
+Both are reduced into the run's `CompanionFingerprint`. Coverage is written into
+that digest only when there is coverage, so sources that read neither keep the
+fingerprint they already had.
+
 ### Independent Calendar-work cadence
 
 The adaptive source-polling interval is not the Calendar job-admission interval

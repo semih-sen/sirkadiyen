@@ -195,6 +195,17 @@ class ParseSourceContext(ContractModel):
     #: publishing exactly what it published before.
     authoritative_audience_selectors: dict[str, list[str]] = Field(default_factory=dict)
 
+    #: The dates on which the companion sources that own this source's group
+    #: rotation have already published (ADR-126). It is orchestration knowledge in
+    #: exactly the sense ADR-017 means — the workbook cannot say whether another
+    #: document exists — so it travels with the rest of the source context.
+    #:
+    #: Only a profile declaring ``group_rotation_fallback`` reads it. An empty list
+    #: means no companion has published any date, not that coverage is unknown: the
+    #: caller states the coverage it found, and a source with no rotation companion
+    #: configured simply sends nothing and parses as it always did.
+    group_rotation_covered_dates: list[date] = Field(default_factory=list)
+
 
 class ParseSnapshotRequest(ContractModel):
     contract_version: Literal["1.0"]

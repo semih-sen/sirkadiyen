@@ -86,13 +86,14 @@
       "externalId": "1JMxqm8dnckDKS_EVS6GFut2BDjS63khIjQEzVhAOrj8",
       "sheetGid": 1884416610,
       "parserProfile": "grade2_yearly_v1",
-      "parserProfileVersion": "1.0.0",
+      "parserProfileVersion": "1.1.0",
       "academicYear": "2026-2027",
       "classYear": 2,
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
+      "groupRotationSourceIds": ["G2-ANATOMY-AUTUMN", "G2-ANATOMY-SPRING"],
       "fixturePath": "sheets/donem-2-tr/xlsx/2025-2026 Dönem 2 Türkçe Tıp Programı Ders Programı.xlsx",
-      "notes": "Rolled over to 2026-2027 (ADR-115). The sourceUri, externalId and fixturePath here are still the pre-rollover ones: the running catalog is edited from /admin/sources (ADR-114) and the new year's workbook is not committed, so this file states the year the cohort is published under, not the document it is published from."
+      "notes": "Rolled over to 2026-2027 (ADR-115). The sourceUri, externalId and fixturePath here are still the pre-rollover ones: the running catalog is edited from /admin/sources (ADR-114) and the new year's workbook is not committed, so this file states the year the cohort is published under, not the document it is published from. Names the anatomy group lists as the owners of its dissection rotation (ADR-126): for a dissection date they have not published, this workbook publishes all three hours with the hour named, and uploading a list returns those dates to it."
     },
     {
       "sourceId": "G2-TR-PRACTICE",
@@ -245,11 +246,13 @@
       "externalId": "1ff3F_ol8spKAmq0-veG-4rfvvIoRyJNa7fOd5V3sC3c",
       "sheetGid": 198851210,
       "parserProfile": "grade2_yearly_v1",
-      "parserProfileVersion": "1.0.0",
+      "parserProfileVersion": "1.1.0",
       "academicYear": "2025-2026",
       "classYear": 2,
       "programLanguage": "english",
       "timeZoneId": "Europe/Istanbul",
+      "groupRotationSourceIds": ["G2-ANATOMY-AUTUMN-EN", "G2-ANATOMY-SPRING-EN"],
+      "notes": "Names the anatomy group lists as the owners of its dissection rotation (ADR-126): for a dissection date they have not published, this workbook publishes all three hours with the hour named, and uploading a list returns those dates to it.",
       "fixturePath": "sheets/donem-2-ing/xlsx/2025-2026 Term 2 Medicine Program in English Course Program.....xlsx"
     },
     {

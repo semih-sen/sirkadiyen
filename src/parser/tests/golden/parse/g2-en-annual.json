@@ -2,7 +2,7 @@
   "fixture": "real/g2-en-annual.snapshot.json",
   "parserEngineVersion": "0.2.0",
   "payload": {
-    "candidateCount": 935,
+    "candidateCount": 1094,
     "candidateDigests": [
       "1!R2|2025-09-01|08:30-16:20|freeStudy|id:cd862d91c221cd1f|content:d25a944d48294cff|FREE TIME",
       "1!R3|2025-09-02|09:00-09:30|theory|id:7c9055f8d0d9014b|content:e378e6914cb344f7|PRESENTATION OF CLASS 2ND",
@@ -938,7 +938,166 @@
       "1!R1250|2026-07-07|13:00-15:00|exam|id:30f18964ad2e0894|content:7294943c24ab919f|LABORATORY SKILLS REPEAT EXAMINATION",
       "1!R1251|2026-07-08|10:00-13:00|freeStudy|id:a516e36f86794d8a|content:1a83ee0712f49935|FREE TIME ( Dönem3 sınav )",
       "1!R1252|2026-07-08|13:30-15:30|exam|id:008f81e473079fd8|content:4a64dc189aa35ad1|REPEAT EXAMINATION 3",
-      "1!R1253|2026-07-09|13:30-15:30|exam|id:d0b8da690b820d11|content:2d98817b58da6be5|REPEAT EXAMINATION 4"
+      "1!R1253|2026-07-09|13:30-15:30|exam|id:d0b8da690b820d11|content:2d98817b58da6be5|REPEAT EXAMINATION 4",
+      "1!R9|2025-09-02|13:30-14:20|anatomyPractice|id:371207534c48edb9|content:17c6d8976387522d|DISSECTION (1/13) — Hour 1",
+      "1!R10|2025-09-02|14:30-15:20|anatomyPractice|id:0f5fda25c6beaa86|content:808feb260e88093a|DISSECTION (1/13) — Hour 2",
+      "1!R11|2025-09-02|15:30-16:20|anatomyPractice|id:94aeb3405d2568b7|content:c2b9009b0037ca78|DISSECTION (1/13) — Hour 3",
+      "1!R27|2025-09-04|13:30-14:20|anatomyPractice|id:0cb1d8763a4b931e|content:0a2b8e0ffa8df58f|DISSECTION (2/13) — Hour 1",
+      "1!R28|2025-09-04|14:30-15:20|anatomyPractice|id:68f35e1441a87be0|content:a65723c4ef1db825|DISSECTION (2/13) — Hour 2",
+      "1!R29|2025-09-04|15:30-16:20|anatomyPractice|id:3df5a3e936423dbe|content:b8ff75419767528f|DISSECTION (2/13) — Hour 3",
+      "1!R51|2025-09-09|13:30-14:20|anatomyPractice|id:b924287b3e87c622|content:8db94877fea2734d|DISSECTION (3/13) — Hour 1",
+      "1!R52|2025-09-09|14:30-15:20|anatomyPractice|id:6a7da91055e286c8|content:c3a36be26e495f11|DISSECTION (3/13) — Hour 2",
+      "1!R53|2025-09-09|15:30-16:20|anatomyPractice|id:4e434138bfda0e19|content:805d63806f732ce5|DISSECTION (3/13) — Hour 3",
+      "1!R67|2025-09-11|13:30-14:20|anatomyPractice|id:2fd8ac8cf3345d95|content:5f5cd86228839400|DISSECTION (4/13) — Hour 1",
+      "1!R68|2025-09-11|14:30-15:20|anatomyPractice|id:61715bc3a14a06c8|content:81711af4c8aa5eeb|DISSECTION (4/13) — Hour 2",
+      "1!R69|2025-09-11|15:30-16:20|anatomyPractice|id:9914bf802594b149|content:dfeb5be00c4b2ea1|DISSECTION (4/13) — Hour 3",
+      "1!R91|2025-09-16|13:30-14:20|anatomyPractice|id:572d5a256215f940|content:aaa7a41f5e452e20|DISSECTION (5/13) — Hour 1",
+      "1!R92|2025-09-16|14:30-15:20|anatomyPractice|id:abae80291bf5b66e|content:8053993eeb40a306|DISSECTION (5/13) — Hour 2",
+      "1!R93|2025-09-16|15:30-16:20|anatomyPractice|id:b941ebc2eaacf874|content:3402796df4d33374|DISSECTION (5/13) — Hour 3",
+      "1!R107|2025-09-18|13:30-14:20|anatomyPractice|id:38576964db37e281|content:70a568f7a89d8373|DISSECTION (6/13) — Hour 1",
+      "1!R108|2025-09-18|14:30-15:20|anatomyPractice|id:ed289abd1daaf4e9|content:a24e7b53c536b2a6|DISSECTION (6/13) — Hour 2",
+      "1!R109|2025-09-18|15:30-16:20|anatomyPractice|id:8d8bd20bb7176701|content:c9bfa83adb7de23b|DISSECTION (6/13) — Hour 3",
+      "1!R132|2025-09-23|13:30-14:20|anatomyPractice|id:576273dc1f68c662|content:67edd7935bc0488a|DISSECTION (7/13) — Hour 1",
+      "1!R133|2025-09-23|14:30-15:20|anatomyPractice|id:ec9afaf54a9eddf8|content:881c556aadc1c1a2|DISSECTION (7/13) — Hour 2",
+      "1!R134|2025-09-23|15:30-16:20|anatomyPractice|id:6731cfade67ec358|content:28154b07b903597e|DISSECTION (7/13) — Hour 3",
+      "1!R148|2025-09-25|13:30-14:20|anatomyPractice|id:26d1fbc423177f50|content:bc67c066f83193c9|DISSECTION (8/13) — Hour 1",
+      "1!R149|2025-09-25|14:30-15:20|anatomyPractice|id:ed7408679c167dfd|content:c1352a4d784c1d81|DISSECTION (8/13) — Hour 2",
+      "1!R150|2025-09-25|15:30-16:20|anatomyPractice|id:72c970b7982f78ba|content:7615e5afa5f20aa0|DISSECTION (8/13) — Hour 3",
+      "1!R169|2025-09-30|13:30-14:20|anatomyPractice|id:f058cfe10ca0d0d2|content:d32cff6582b5a809|DISSECTION (9/13) — Hour 1",
+      "1!R170|2025-09-30|14:30-15:20|anatomyPractice|id:9b9ebf906767adb6|content:a702ee17f632cdc9|DISSECTION (9/13) — Hour 2",
+      "1!R171|2025-09-30|15:30-16:20|anatomyPractice|id:ecae32edbe823e6f|content:f4657ab5ca0d264b|DISSECTION (9/13) — Hour 3",
+      "1!R187|2025-10-02|13:30-14:20|anatomyPractice|id:4394c9762061bc99|content:5e631594b96d4de7|DISSECTION (10/13) — Hour 1",
+      "1!R188|2025-10-02|14:30-15:20|anatomyPractice|id:d107909a175cc144|content:ffb1e44f3779031a|DISSECTION (10/13) — Hour 2",
+      "1!R189|2025-10-02|15:30-16:20|anatomyPractice|id:009b29fa2685abbb|content:112fb544f32a02a1|DISSECTION (10/13) — Hour 3",
+      "1!R208|2025-10-07|13:30-14:20|anatomyPractice|id:bdf2dd28a3bc48b6|content:d18754e3056acf2c|DISSECTION (11/13) — Hour 1",
+      "1!R209|2025-10-07|14:30-15:20|anatomyPractice|id:dcb40131420529cb|content:c810bde1f8b68476|DISSECTION (11/13) — Hour 2",
+      "1!R210|2025-10-07|15:30-16:20|anatomyPractice|id:adf6aebf27bd0f33|content:ae2134a152c3022b|DISSECTION (11/13) — Hour 3",
+      "1!R223|2025-10-09|13:30-14:20|anatomyPractice|id:b1617ed6fa628b53|content:850759f41d7fd72a|DISSECTION (12/13) — Hour 1",
+      "1!R224|2025-10-09|14:30-15:20|anatomyPractice|id:472ea7f0c3b35c1d|content:6d7b44ee8518f42c|DISSECTION (12/13) — Hour 2",
+      "1!R225|2025-10-09|15:30-16:20|anatomyPractice|id:416aa01070424903|content:576677cfde7a70ee|DISSECTION (12/13) — Hour 3",
+      "1!R245|2025-10-14|13:00-14:20|anatomyPractice|id:089a1eb5adebd941|content:08940f938acc22ab|DISSECTION (13/13) — Hour 1",
+      "1!R246|2025-10-14|14:30-15:20|anatomyPractice|id:8c115cf616d1d977|content:fb69129a735207cd|DISSECTION (13/13) — Hour 2",
+      "1!R247|2025-10-14|15:30-16:20|anatomyPractice|id:ea921f909ab5855d|content:db2a85d7876bd04d|DISSECTION (13/13) — Hour 3",
+      "1!R281|2025-10-23|13:30-14:20|anatomyPractice|id:5c120f18ccc4d9b4|content:ccc83ebd96ab9116|DISSECTION (1/6) — Hour 1",
+      "1!R282|2025-10-23|14:30-15:20|anatomyPractice|id:dda6f292a09d7c5f|content:c8d796a18c8988de|DISSECTION (1/6) — Hour 2",
+      "1!R283|2025-10-23|15:30-16:20|anatomyPractice|id:f3d1a3ea2555d76f|content:21b8a4299cb4ae62|DISSECTION (1/6) — Hour 3",
+      "1!R309|2025-10-30|13:30-14:20|anatomyPractice|id:4e1f08aa9230c683|content:d56757e56361240c|DISSECTION (2/6) — Hour 1",
+      "1!R310|2025-10-30|14:30-15:20|anatomyPractice|id:5a3544a8332ca49c|content:963f1d069f30c997|DISSECTION (2/6) — Hour 2",
+      "1!R311|2025-10-30|15:30-16:20|anatomyPractice|id:ae407263e507b6ad|content:d93e2d294e1f5aa5|DISSECTION (2/6) — Hour 3",
+      "1!R333|2025-11-04|13:30-14:20|anatomyPractice|id:f56e3574c68ddf2f|content:f0c5754717bd0c27|DISSECTION (3/6) — Hour 1",
+      "1!R334|2025-11-04|14:30-15:20|anatomyPractice|id:f67756645f0266be|content:02b5ded320e1f789|DISSECTION (3/6) — Hour 2",
+      "1!R335|2025-11-04|15:30-16:20|anatomyPractice|id:5c6aee8021de56dd|content:d2b5c7a26e7da50c|DISSECTION (3/6) — Hour 3",
+      "1!R348|2025-11-06|13:30-14:20|anatomyPractice|id:986e55f1538f02d2|content:e7cfa8ba820daf00|DISSECTION (4/6) — Hour 1",
+      "1!R349|2025-11-06|14:30-15:20|anatomyPractice|id:b263801e58020310|content:6173a8c5dd4420eb|DISSECTION (4/6) — Hour 2",
+      "1!R350|2025-11-06|15:30-16:20|anatomyPractice|id:dc6530b0718ed817|content:dd57bb1867ac7a20|DISSECTION (4/6) — Hour 3",
+      "1!R367|2025-11-11|13:30-14:20|anatomyPractice|id:132109bd2d5546ad|content:b5c33fd0d7a5e9e4|DISSECTION (5/6) — Hour 1",
+      "1!R368|2025-11-11|14:30-15:20|anatomyPractice|id:9c5c06953cf618ab|content:ad6097da973bb164|DISSECTION (5/6) — Hour 2",
+      "1!R369|2025-11-11|15:30-16:20|anatomyPractice|id:4fa0c923b866f6c0|content:00fb39abc3fbc278|DISSECTION (5/6) — Hour 3",
+      "1!R385|2025-11-13|13:30-14:20|anatomyPractice|id:9a3bfd2c76a41d05|content:66b0e39b27b1698f|DISSECTION (6/6) — Hour 1",
+      "1!R386|2025-11-13|14:30-15:20|anatomyPractice|id:bb5a1c3bde0dcb42|content:98cd7a09c278ebd7|DISSECTION (6/6) — Hour 2",
+      "1!R387|2025-11-13|15:30-16:20|anatomyPractice|id:2dcbe763e2873d67|content:9773d14ca63d5027|DISSECTION (6/6) — Hour 3",
+      "1!R408|2025-11-18|13:30-14:20|anatomyPractice|id:773c4d0229e92aa1|content:ecf780953dcf50bb|DISSECTION (1/11) — Hour 1",
+      "1!R409|2025-11-18|14:30-15:20|anatomyPractice|id:75ce68fede753fc1|content:376b72ee99f65ea7|DISSECTION (1/11) — Hour 2",
+      "1!R410|2025-11-18|15:30-16:20|anatomyPractice|id:15505f0e9611f797|content:7efa70d56aea386b|DISSECTION (1/11) — Hour 3",
+      "1!R424|2025-11-20|13:30-14:20|anatomyPractice|id:a93b844a364818e0|content:ed4e7a40bbd7bdca|DISSECTION (2/11) — Hour 1",
+      "1!R425|2025-11-20|14:30-15:20|anatomyPractice|id:c4242ecb7a77abd5|content:19eb81c255a9d645|DISSECTION (2/11) — Hour 2",
+      "1!R426|2025-11-20|15:30-16:20|anatomyPractice|id:3271faaa404656fd|content:7105065b830c932d|DISSECTION (2/11) — Hour 3",
+      "1!R446|2025-11-25|13:30-14:20|anatomyPractice|id:59c9efb9225ebb7e|content:775f8452d24a35c7|DISSECTION (3/11) — Hour 1",
+      "1!R447|2025-11-25|14:30-15:20|anatomyPractice|id:5414b965cd5615b5|content:6bad83d4768013a1|DISSECTION (3/11) — Hour 2",
+      "1!R448|2025-11-25|15:30-16:20|anatomyPractice|id:2a1d9699352fe71d|content:3c3de8b498d0f369|DISSECTION (3/11) — Hour 3",
+      "1!R462|2025-11-27|13:30-14:20|anatomyPractice|id:ccbebbcbec86c9ff|content:512e885c73f5f767|DISSECTION (4/11) — Hour 1",
+      "1!R463|2025-11-27|14:30-15:20|anatomyPractice|id:d71ac2b38e667c79|content:340cd74a823349d8|DISSECTION (4/11) — Hour 2",
+      "1!R464|2025-11-27|15:30-16:20|anatomyPractice|id:3a357e5efd9f17de|content:48c6807824f94d85|DISSECTION (4/11) — Hour 3",
+      "1!R487|2025-12-02|13:30-14:20|anatomyPractice|id:6b083a2ea8e169da|content:0a828babaf328b2b|DISSECTION (5/11) — Hour 1",
+      "1!R488|2025-12-02|14:30-15:20|anatomyPractice|id:bdac83c91f29740a|content:8745c9ea602316e2|DISSECTION (5/11) — Hour 2",
+      "1!R489|2025-12-02|15:30-16:20|anatomyPractice|id:5e3b8e8c21cdf0bf|content:0dad78aa9268776a|DISSECTION (5/11) — Hour 3",
+      "1!R501|2025-12-04|13:30-14:20|anatomyPractice|id:540e040ac5a859c7|content:760c005954f35c2c|DISSECTION (6/11) — Hour 1",
+      "1!R502|2025-12-04|14:30-15:20|anatomyPractice|id:06e440858f273227|content:aff0fb9cdeec1c8c|DISSECTION (6/11) — Hour 2",
+      "1!R503|2025-12-04|15:30-16:20|anatomyPractice|id:d1cb59209b38ee89|content:ec5d00c460f194fe|DISSECTION (6/11) — Hour 3",
+      "1!R527|2025-12-09|13:30-14:20|anatomyPractice|id:3b5e83e94aada925|content:c0dd491be4f757a0|DISSECTION (7/11) — Hour 1",
+      "1!R528|2025-12-09|14:30-15:20|anatomyPractice|id:8f47a40e4b5cf710|content:834ad1d4003126b5|DISSECTION (7/11) — Hour 2",
+      "1!R529|2025-12-09|15:30-16:20|anatomyPractice|id:a5a3d84e7bb51cb7|content:28eafb873a95ebc8|DISSECTION (7/11) — Hour 3",
+      "1!R542|2025-12-11|13:30-14:20|anatomyPractice|id:1a1618f913537951|content:a7af175c7130ca6f|DISSECTION (8/11) — Hour 1",
+      "1!R543|2025-12-11|14:30-15:20|anatomyPractice|id:b5b07690339921c2|content:c5249fef8093de02|DISSECTION (8/11) — Hour 2",
+      "1!R544|2025-12-11|15:30-16:20|anatomyPractice|id:cd2543760f2e1a12|content:99430d66b0f647da|DISSECTION (8/11) — Hour 3",
+      "1!R560|2025-12-16|13:30-14:20|anatomyPractice|id:c2382ac9e1f3cd44|content:eaa9412fee73a72f|DISSECTION (9/11) — Hour 1",
+      "1!R561|2025-12-16|14:30-15:20|anatomyPractice|id:c6dee862a8431b9e|content:cb203c83eda53307|DISSECTION (9/11) — Hour 2",
+      "1!R562|2025-12-16|15:30-16:20|anatomyPractice|id:e07df9e211b231ad|content:193e06ed884fed96|DISSECTION (9/11) — Hour 3",
+      "1!R574|2025-12-18|13:30-14:20|anatomyPractice|id:7e9c378470aeeca7|content:f93b22e854a8581b|DISSECTION (10/11) — Hour 1",
+      "1!R575|2025-12-18|14:30-15:20|anatomyPractice|id:ab0375a1362b86b1|content:955d36d5815b0669|DISSECTION (10/11) — Hour 2",
+      "1!R576|2025-12-18|15:30-16:20|anatomyPractice|id:8ff45b8614602856|content:9dd18abc8e952d04|DISSECTION (10/11) — Hour 3",
+      "1!R584|2025-12-23|13:30-14:20|anatomyPractice|id:2fe9bbddbf2042e8|content:5e8eb49956fa6c73|DISSECTION (11/11) — Hour 1",
+      "1!R585|2025-12-23|14:30-15:20|anatomyPractice|id:941ded80352cd6c8|content:a035e659e1f4be4b|DISSECTION (11/11) — Hour 2",
+      "1!R586|2025-12-23|15:30-16:20|anatomyPractice|id:3628ce870e1828ea|content:7e486992b2af6398|DISSECTION (11/11) — Hour 3",
+      "1!R633|2026-01-27|13:30-14:20|anatomyPractice|id:87014a022aa8d21f|content:aacea36d59c5f291|DISSECTION (1/6) — Hour 1",
+      "1!R634|2026-01-27|14:30-15:20|anatomyPractice|id:36d8e98cb0fcb897|content:9f331d83657003ab|DISSECTION (1/6) — Hour 2",
+      "1!R635|2026-01-27|15:30-16:20|anatomyPractice|id:7759ce65e6f17277|content:2960079b4da00385|DISSECTION (1/6) — Hour 3",
+      "1!R649|2026-01-29|13:30-14:20|anatomyPractice|id:7ea8b5bdb3c30b2a|content:0fef96ac0fdd795c|DISSECTION (2/6) — Hour 1",
+      "1!R650|2026-01-29|14:30-15:20|anatomyPractice|id:535583dee5a5515c|content:d3aacd9d24174b4b|DISSECTION (2/6) — Hour 2",
+      "1!R651|2026-01-29|15:30-16:20|anatomyPractice|id:ae9a79e7331c56ee|content:49d4cbcc1f5b7a29|DISSECTION (2/6) — Hour 3",
+      "1!R673|2026-02-03|13:30-14:20|anatomyPractice|id:6b5c3e18fd4d81e6|content:21488ee6708993de|DISSECTION (3/6) — Hour 1",
+      "1!R674|2026-02-03|14:30-15:20|anatomyPractice|id:88823f9a26f3aa0f|content:211a44b247cf1431|DISSECTION (3/6) — Hour 2",
+      "1!R675|2026-02-03|15:30-16:20|anatomyPractice|id:68a26e77cb119270|content:bfd3e03887931e3a|DISSECTION (3/6) — Hour 3",
+      "1!R690|2026-02-05|13:30-14:20|anatomyPractice|id:e67741ee0f87ba5d|content:caab03c81351744f|DISSECTION (4/6) — Hour 1",
+      "1!R691|2026-02-05|14:30-15:20|anatomyPractice|id:12dabab9de655189|content:b1d690788e9f76e9|DISSECTION (4/6) — Hour 2",
+      "1!R692|2026-02-05|15:30-16:20|anatomyPractice|id:ec071d780fe9e632|content:48f8bfeefa3d57ed|DISSECTION (4/6) — Hour 3",
+      "1!R711|2026-02-10|13:30-14:20|anatomyPractice|id:873f58dd4134a68f|content:fe048d4e10bb1d30|DISSECTION (5/6) — Hour 1",
+      "1!R712|2026-02-10|14:30-15:20|anatomyPractice|id:dc32097220a8f9c6|content:f021a47028b9d151|DISSECTION (5/6) — Hour 2",
+      "1!R713|2026-02-10|15:30-16:20|anatomyPractice|id:8f4af7103838ebac|content:9e2b7fd4ceff35fb|DISSECTION (5/6) — Hour 3",
+      "1!R725|2026-02-12|13:30-14:20|anatomyPractice|id:890f61541b849f85|content:a663807a64d30c65|DISSECTION (6/6) — Hour 1",
+      "1!R726|2026-02-12|14:30-15:20|anatomyPractice|id:26ad4a9989f022b7|content:2ec1f254f1299f03|DISSECTION (6/6) — Hour 2",
+      "1!R727|2026-02-12|15:30-16:20|anatomyPractice|id:844e7f2052541e56|content:853a645d7128580a|DISSECTION (6/6) — Hour 3",
+      "1!R749|2026-02-17|13:30-14:20|anatomyPractice|id:cc300d0a327feaa6|content:1c2aac06626af7d3|DISSECTION (1/17) — Hour 1",
+      "1!R750|2026-02-17|14:30-15:20|anatomyPractice|id:cfdbbce3eefe40df|content:a260a92dd1872704|DISSECTION (1/17) — Hour 2",
+      "1!R751|2026-02-17|15:30-16:20|anatomyPractice|id:241bde3de5a6f6f6|content:27a4f396978e193a|DISSECTION (1/17) — Hour 3",
+      "1!R766|2026-02-19|13:30-14:20|anatomyPractice|id:95618daf320ad2cf|content:78070d4fdc39cba6|DISSECTION (2/17) — Hour 1",
+      "1!R767|2026-02-19|14:30-15:20|anatomyPractice|id:f4b693909f9ae87a|content:5156d00e58110a75|DISSECTION (2/17) — Hour 2",
+      "1!R768|2026-02-19|15:30-16:20|anatomyPractice|id:9ab0adacb5fb23fe|content:b687120c321dc21b|DISSECTION (2/17) — Hour 3",
+      "1!R792|2026-02-24|13:30-14:20|anatomyPractice|id:774f2c19ff0266c2|content:ef9aa4bada5ea027|DISSECTION (3/17) — Hour 1",
+      "1!R793|2026-02-24|14:30-15:20|anatomyPractice|id:f9360595ddafa3f9|content:6b4a0930d6679190|DISSECTION (3/17) — Hour 2",
+      "1!R794|2026-02-24|15:30-16:20|anatomyPractice|id:a8bdb0a6dc6be9a9|content:951f157772e9b601|DISSECTION (3/17) — Hour 3",
+      "1!R810|2026-02-26|13:30-14:20|anatomyPractice|id:96ab2855dab21b06|content:9e80552983e16d03|DISSECTION (4/17) — Hour 1",
+      "1!R811|2026-02-26|14:30-15:20|anatomyPractice|id:445d0ae727474a3b|content:cd64a311f5b5c154|DISSECTION (4/17) — Hour 2",
+      "1!R812|2026-02-26|15:30-16:20|anatomyPractice|id:2d92487992165c9e|content:39b3140ca5f904b8|DISSECTION (4/17) — Hour 3",
+      "1!R831|2026-03-03|13:30-14:20|anatomyPractice|id:cafaa546621c2596|content:1951337980844313|DISSECTION (5/17) — Hour 1",
+      "1!R832|2026-03-03|14:30-15:20|anatomyPractice|id:5697b9b508bdf726|content:871b589869da9f03|DISSECTION (5/17) — Hour 2",
+      "1!R833|2026-03-03|15:30-16:20|anatomyPractice|id:7fac5cce4d24c93f|content:08abe9dbcdabf35b|DISSECTION (5/17) — Hour 3",
+      "1!R850|2026-03-10|13:30-14:20|anatomyPractice|id:8e60c2d0aa0e8200|content:22a6f0ecc7f2d854|DISSECTION (6/17) — Hour 1",
+      "1!R851|2026-03-10|14:30-15:20|anatomyPractice|id:89f8d1de9fd5e2f0|content:55e01eab2c20013d|DISSECTION (6/17) — Hour 2",
+      "1!R852|2026-03-10|15:30-16:20|anatomyPractice|id:038e65a398bd8cf5|content:e1eecbd7b493df04|DISSECTION (6/17) — Hour 3",
+      "1!R869|2026-03-12|13:30-14:20|anatomyPractice|id:90de17a6837238aa|content:78ac5a7771e6385b|DISSECTION (7/17) — Hour 1",
+      "1!R870|2026-03-12|14:30-15:20|anatomyPractice|id:3c32b98a8bbad941|content:740564c93c7ba7b9|DISSECTION (7/17) — Hour 2",
+      "1!R871|2026-03-12|15:30-16:20|anatomyPractice|id:54fed8666c85e049|content:6fb3d96076f03779|DISSECTION (7/17) — Hour 3",
+      "1!R887|2026-03-17|13:30-14:20|anatomyPractice|id:b5885dd40559afed|content:0a2c073697b3e37e|DISSECTION (8/17) — Hour 1",
+      "1!R888|2026-03-17|14:30-15:20|anatomyPractice|id:e24b16cf6eed25ee|content:cb070a2c641249b8|DISSECTION (8/17) — Hour 2",
+      "1!R889|2026-03-17|15:30-16:20|anatomyPractice|id:73e586c517b2859e|content:3c09772837dec889|DISSECTION (8/17) — Hour 3",
+      "1!R913|2026-03-24|13:30-14:20|anatomyPractice|id:5c6ca75e362d5ea3|content:b45b002373095c4d|DISSECTION (9/17) — Hour 1",
+      "1!R914|2026-03-24|14:30-15:20|anatomyPractice|id:b996fc68431013b3|content:7b40994bbb567494|DISSECTION (9/17) — Hour 2",
+      "1!R915|2026-03-24|15:30-16:20|anatomyPractice|id:bbba51ec57996a32|content:8ef50124761d94eb|DISSECTION (9/17) — Hour 3",
+      "1!R931|2026-03-26|13:30-14:20|anatomyPractice|id:e5fab8bd52dc37fc|content:bb5e91c866a65012|DISSECTION (10/17) — Hour 1",
+      "1!R932|2026-03-26|14:30-15:20|anatomyPractice|id:46836b20ca3f92f6|content:aeccf463ed5d14c2|DISSECTION (10/17) — Hour 2",
+      "1!R933|2026-03-26|15:30-16:20|anatomyPractice|id:c74a41e116519e47|content:ff074b817a71d33a|DISSECTION (10/17) — Hour 3",
+      "1!R952|2026-03-31|13:30-14:20|anatomyPractice|id:59a712d9ca0aba14|content:a00d81c9619a2fe7|DISSECTION (11/17) — Hour 1",
+      "1!R953|2026-03-31|14:30-15:20|anatomyPractice|id:0c7ccf27255a5491|content:64455a3823651f7e|DISSECTION (11/17) — Hour 2",
+      "1!R954|2026-03-31|15:30-16:20|anatomyPractice|id:c2fa28f886ff7cf5|content:c1106a34c0af6532|DISSECTION (11/17) — Hour 3",
+      "1!R967|2026-04-02|13:30-14:20|anatomyPractice|id:fc401a8e38196726|content:c69b06c6a982bd2f|DISSECTION (12/17) — Hour 1",
+      "1!R968|2026-04-02|14:30-15:20|anatomyPractice|id:730d83946f61bf72|content:c402c048436c3d40|DISSECTION (12/17) — Hour 2",
+      "1!R969|2026-04-02|15:30-16:20|anatomyPractice|id:29d6f171d88c7d00|content:8535f2b2906cf722|DISSECTION (12/17) — Hour 3",
+      "1!R988|2026-04-07|13:30-14:20|anatomyPractice|id:8b4d4ddff6a42367|content:d1d368432bf3a5ba|DISSECTION (13/17) — Hour 1",
+      "1!R989|2026-04-07|14:30-15:20|anatomyPractice|id:2e9916b2bba1c99a|content:a67f6c1fcaa9ad2f|DISSECTION (13/17) — Hour 2",
+      "1!R990|2026-04-07|15:30-16:20|anatomyPractice|id:334ff3ce16025a49|content:6cd1f6bd7e4fd910|DISSECTION (13/17) — Hour 3",
+      "1!R1006|2026-04-09|13:30-14:20|anatomyPractice|id:af99c389c577f72c|content:4ce72b89021646db|DISSECTION (14/17) — Hour 1",
+      "1!R1007|2026-04-09|14:30-15:10|anatomyPractice|id:c297fb149d980e53|content:20d9b68edca18ca7|DISSECTION (14/17) — Hour 2",
+      "1!R1008|2026-04-09|15:20-16:00|anatomyPractice|id:31b3da2c9f069662|content:194bf6addcc4cce3|DISSECTION (14/17) — Hour 3",
+      "1!R1028|2026-04-14|13:30-14:20|anatomyPractice|id:39ce582fc8dc882e|content:df2910774cb91484|DISSECTION (15/17) — Hour 1",
+      "1!R1029|2026-04-14|14:30-15:20|anatomyPractice|id:a440f239ef7d9ced|content:223d2309bd9b438c|DISSECTION (15/17) — Hour 2",
+      "1!R1030|2026-04-14|15:30-16:20|anatomyPractice|id:6252f4db7d9e9f91|content:71c251ad7f72547c|DISSECTION (15/17) — Hour 3",
+      "1!R1058|2026-04-21|13:30-14:20|anatomyPractice|id:018ad95fb105cd8a|content:a0e39e7e979e23ab|DISSECTION (16/17) — Hour 1",
+      "1!R1059|2026-04-21|14:30-15:20|anatomyPractice|id:bc6dc684cc06568c|content:c26dd67baa219966|DISSECTION (16/17) — Hour 2",
+      "1!R1060|2026-04-21|15:30-16:20|anatomyPractice|id:f91023a294a2010a|content:250b1bd11151cac9|DISSECTION (16/17) — Hour 3",
+      "1!R1081|2026-04-28|13:30-14:20|anatomyPractice|id:c79ffa2bdf7b951a|content:2033de75b23180eb|DISSECTION (17/17) — Hour 1",
+      "1!R1082|2026-04-28|14:30-15:20|anatomyPractice|id:3e403e62868d6b5e|content:425c512c0ce15117|DISSECTION (17/17) — Hour 2",
+      "1!R1083|2026-04-28|15:30-16:20|anatomyPractice|id:a522866779748937|content:157cff32183dc13f|DISSECTION (17/17) — Hour 3"
     ],
     "confidenceIndicators": [
       {
@@ -1157,55 +1316,57 @@
         "scope": "allStudentsInProgram",
         "selectors": []
       },
-      "candidateId": "1!R1253",
+      "candidateId": "1!R1083",
       "classYear": 2,
       "confidence": 1.0,
-      "contentHash": "sha256:2d98817b58da6be5320e19d6c8dc5d7d741d34771769c3af8085ad5da4000f21",
-      "curriculumBlock": "NERVE AND SENSE I + PATHOLOGY AND INTRODUCTION TO CLINICS",
-      "departments": [],
-      "displayTitle": "REPEAT EXAMINATION 4",
-      "endLocalTime": "15:30:00",
-      "eventType": "exam",
+      "contentHash": "sha256:157cff32183dc13f2b98b74b41cf87277b5355e05c6f6487433f03c0627eb1e0",
+      "curriculumBlock": "NERVE AND SENSE I",
+      "departments": [
+        "ANATOMİ AD."
+      ],
+      "displayTitle": "DISSECTION (17/17) — Hour 3",
+      "endLocalTime": "16:20:00",
+      "eventType": "anatomyPractice",
       "evidence": [
         {
           "extractionRule": "annual.dateCell",
-          "range": "B1253",
-          "rawText": "46212",
+          "range": "B1083",
+          "rawText": "46140",
           "sheetId": "1",
           "sheetTitle": "CLASS 2"
         },
         {
           "extractionRule": "annual.startTimeCell",
-          "range": "C1253",
-          "rawText": "0.5625",
-          "sheetId": "1",
-          "sheetTitle": "CLASS 2"
-        },
-        {
-          "extractionRule": "annual.endTimeCell",
-          "range": "D1253",
+          "range": "C1083",
           "rawText": "0.6458333333333334",
           "sheetId": "1",
           "sheetTitle": "CLASS 2"
         },
         {
+          "extractionRule": "annual.endTimeCell",
+          "range": "D1083",
+          "rawText": "0.6805555555555555",
+          "sheetId": "1",
+          "sheetTitle": "CLASS 2"
+        },
+        {
           "extractionRule": "annual.titleCell",
-          "range": "E1253",
-          "rawText": "REPEAT EXAMINATION 4",
+          "range": "E1083",
+          "rawText": "DISSECTION (17/17)",
           "sheetId": "1",
           "sheetTitle": "CLASS 2"
         },
         {
           "extractionRule": "annual.blockCell",
-          "range": "F1253",
-          "rawText": "NERVE AND SENSE I + PATHOLOGY AND INTRODUCTION TO CLINICS",
+          "range": "F1083",
+          "rawText": "NERVE AND SENSE I / ANATOMİ AD.",
           "sheetId": "1",
           "sheetTitle": "CLASS 2"
         },
         {
           "extractionRule": "annual.locationCell",
-          "range": "G1253",
-          "rawText": "FAKÜLTEMİZ WEB SİTESİ ÖĞRENCİ AĞI AMFİ PROGRAMINA BAKINIZ",
+          "range": "G1083",
+          "rawText": "ANATOMİ AD. LABORATUVARI",
           "sheetId": "1",
           "sheetTitle": "CLASS 2"
         }
@@ -1225,26 +1386,26 @@
         },
         {
           "name": "localDate",
-          "value": "2026-07-09"
+          "value": "2026-04-28"
         },
         {
           "name": "startLocalTime",
-          "value": "13:30:00"
+          "value": "15:30:00"
         },
         {
           "name": "courseIdentity",
-          "value": "repeat-examination-4"
+          "value": "dissection-17-17-hour-3"
         }
       ],
       "instructor": null,
       "isAllDay": false,
-      "localDate": "2026-07-09",
-      "location": null,
-      "normalizedCourseIdentity": "repeat-examination-4",
-      "notes": null,
+      "localDate": "2026-04-28",
+      "location": "ANATOMİ AD. LABORATUVARI",
+      "normalizedCourseIdentity": "dissection-17-17-hour-3",
+      "notes": "The anatomy group list for this date has not been published yet. All three dissection hours were added; attend the one assigned to your anatomy group. Only your own hour remains once the group list is uploaded.",
       "programLanguage": "english",
-      "stableIdentity": "sha256:d0b8da690b820d110de7603bda4d9887a5a614acd312917b899993b706875371",
-      "startLocalTime": "13:30:00",
+      "stableIdentity": "sha256:a522866779748937758673ab588c12a3b54488496219c9470c5f19c35ec22465",
+      "startLocalTime": "15:30:00",
       "status": "scheduled",
       "timeZoneId": "Europe/Istanbul"
     },
@@ -1257,7 +1418,12 @@
       {
         "name": "candidates.emitted",
         "unit": null,
-        "value": 935.0
+        "value": 1094.0
+      },
+      {
+        "name": "candidates.eventType.anatomyPractice",
+        "unit": null,
+        "value": 159.0
       },
       {
         "name": "candidates.eventType.exam",
@@ -1297,12 +1463,12 @@
       {
         "name": "curriculumBlock.stated",
         "unit": null,
-        "value": 580.0
+        "value": 739.0
       },
       {
         "name": "dates.rule.serialDate",
         "unit": null,
-        "value": 935.0
+        "value": 1094.0
       },
       {
         "name": "departments.ignored.unmarkedSegment",
@@ -1317,12 +1483,17 @@
       {
         "name": "departments.stated",
         "unit": null,
-        "value": 496.0
+        "value": 655.0
       },
       {
         "name": "departments.unmarkedListMember",
         "unit": null,
         "value": 1.0
+      },
+      {
+        "name": "groupRotationFallback.days",
+        "unit": null,
+        "value": 53.0
       },
       {
         "name": "location.deferredToOtherProgram",
@@ -1332,7 +1503,7 @@
       {
         "name": "rows.ignored",
         "unit": null,
-        "value": 317.0
+        "value": 158.0
       },
       {
         "name": "rows.ignored.duplicateStableIdentity",
@@ -1343,11 +1514,6 @@
         "name": "rows.ignored.nonTeachingBreak",
         "unit": null,
         "value": 145.0
-      },
-      {
-        "name": "rows.ignored.outOfScopeGroupRotation",
-        "unit": null,
-        "value": 159.0
       },
       {
         "name": "rows.ignored.outOfScopeSubject",
@@ -1370,6 +1536,11 @@
         "value": 4.0
       },
       {
+        "name": "rows.publishedGroupRotationFallback",
+        "unit": null,
+        "value": 159.0
+      },
+      {
         "name": "rows.scanned",
         "unit": null,
         "value": 1252.0
@@ -1387,9 +1558,9 @@
     ],
     "parserProfile": {
       "name": "grade2_yearly_v1",
-      "version": "1.0.0"
+      "version": "1.1.0"
     },
-    "responseDigest": "sha256:66e6a372bd543a3a79f903ca9490d6290fa11244113abe82bbe5c62828f106d4",
+    "responseDigest": "sha256:c9119ee2c9eefcb64d1da83cf688693045bcca8025f0db978cf72930ce7cf272",
     "snapshotId": "fixture:sha256:f5789f222d0759fb6e86807fffd0826338b9807974cc4807a6c89e5160e1c389",
     "sourceId": "G2-EN-ANNUAL",
     "status": "completedWithWarnings",
@@ -1405,19 +1576,6 @@
           "sheetTitle": "CLASS 2"
         },
         "message": "Row is a non-teaching break (for example a lunch break), so no lesson was published.",
-        "severity": "information"
-      },
-      {
-        "candidateId": null,
-        "code": "rowsIgnored",
-        "evidence": {
-          "extractionRule": "annual.row",
-          "range": "A9:G9",
-          "rawText": null,
-          "sheetId": "1",
-          "sheetTitle": "CLASS 2"
-        },
-        "message": "Row names a subject this profile declares as a group rotation. The annual program states every slot of the rotation while a student attends exactly one, so the slots were not published to the whole class; the companion group source owns them.",
         "severity": "information"
       },
       {
@@ -1574,6 +1732,13 @@
           "sheetTitle": "CLASS 2"
         },
         "message": "Time cell '' could not be read as a time (emptyCell), so the row was not published.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "groupRotationPublishedWithoutCompanion",
+        "evidence": null,
+        "message": "No companion group source has published 53 rotation day(s) between 2025-09-02 and 2026-04-28, so every slot of those sessions was published to the whole english class year 2 with its hour named. Uploading the group list returns those days to it.",
         "severity": "warning"
       }
     ]

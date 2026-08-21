@@ -494,6 +494,7 @@ export interface ScheduleSourceCatalogEntry {
   authoritativeAudienceSelectors?: Record<string, string[]> | null;
   sharedDocumentGroup?: string | null;
   companionSourceIds?: string[] | null;
+  groupRotationSourceIds?: string[] | null;
   fixturePath?: string | null;
   notes?: string | null;
 }

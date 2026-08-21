@@ -69,6 +69,15 @@ internal sealed class ScheduleSourceConfiguration : IEntityTypeConfiguration<Sch
             .IsRequired()
             .Metadata.SetValueComparer(new SourceIdListComparer());
 
+        // The rotation owners are stored the same way and for the same reasons:
+        // read with their source, never queried on their own, and empty by
+        // default so "defers unconditionally" is a stored fact (ADR-126).
+        builder.Property(source => source.GroupRotationSourceIds)
+            .HasConversion(new SourceIdListConverter())
+            .HasColumnType("jsonb")
+            .IsRequired()
+            .Metadata.SetValueComparer(new SourceIdListComparer());
+
         // PostgreSQL maintains xmin itself, which gives optimistic concurrency
         // without an application-managed version column.
         builder.Property(source => source.RowVersion).IsRowVersion();

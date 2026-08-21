@@ -339,6 +339,94 @@ public sealed class ScheduleSourceCatalogLoaderTests : IDisposable
         """;
     }
 
+    [Fact]
+    public async Task AGroupRotationOwnerMustBeASourceInTheCatalog()
+    {
+        // A mistyped owner would be silent at runtime: the annual program would
+        // keep publishing every dissection hour after the group list had been
+        // uploaded, and nothing downstream could tell that from "no list yet".
+        ScheduleSourceCatalogValidationException exception =
+            await Assert.ThrowsAsync<ScheduleSourceCatalogValidationException>(
+                () => LoadAsync(RotationJson("G2-ANATOMY-TYPO", 2, "turkish")));
+
+        Assert.Contains("G2-ANATOMY-TYPO", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AGroupRotationOwnerForAnotherProgramIsRejected()
+    {
+        // An owner addressing another cohort answers for students this source says
+        // nothing about, which would silence dissection for the wrong class.
+        ScheduleSourceCatalogValidationException exception =
+            await Assert.ThrowsAsync<ScheduleSourceCatalogValidationException>(
+                () => LoadAsync(RotationJson("G2-ANATOMY-AUTUMN", 3, "turkish")));
+
+        Assert.Contains(
+            "another class year or program language",
+            exception.Message,
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AGroupRotationOwnerPublishingAnotherYearIsAccepted()
+    {
+        // The ordinary state after a rollover: the annual workbook moved to the
+        // new year and the group list has not (ADR-115). It simply covers nothing
+        // until its own document arrives, and needs no catalog change.
+        ScheduleSourceCatalog catalog = await LoadAsync(
+            RotationJson("G2-ANATOMY-AUTUMN", 2, "turkish", ownerAcademicYear: "2025-2026"));
+
+        ScheduleSourceDefinition annual = catalog.Sources.Single(
+            source => source.SourceId == "G2-TR-ANNUAL");
+        Assert.Equal(["G2-ANATOMY-AUTUMN"], annual.GroupRotationSourceIds);
+    }
+
+    /// <summary>
+    /// A Grade 2 annual workbook that names one anatomy group list as the owner
+    /// of its dissection rotation (ADR-126).
+    /// </summary>
+    private static string RotationJson(
+        string ownerId,
+        int ownerClassYear,
+        string ownerLanguage,
+        string ownerAcademicYear = "2026-2027") =>
+        $$"""
+        {
+          "catalogVersion": "1.0",
+          "sources": [
+            {
+              "sourceId": "G2-TR-ANNUAL",
+              "displayName": "Grade 2 Turkish annual",
+              "transport": "googleSheets",
+              "documentFormat": "googleSheet",
+              "sourceUri": "https://docs.google.com/spreadsheets/d/1abc",
+              "externalId": "1abc",
+              "sheetGid": 0,
+              "parserProfile": "grade2_yearly_v1",
+              "parserProfileVersion": "1.1.0",
+              "academicYear": "2026-2027",
+              "classYear": 2,
+              "programLanguage": "turkish",
+              "timeZoneId": "Europe/Istanbul",
+              "groupRotationSourceIds": ["{{ownerId}}"]
+            },
+            {
+              "sourceId": "G2-ANATOMY-AUTUMN",
+              "displayName": "Grade 2 anatomy group list",
+              "transport": "administrativeUpload",
+              "documentFormat": "docx",
+              "sourceUri": "urn:sirkadiyen:upload:G2-ANATOMY-AUTUMN",
+              "parserProfile": "grade2_anatomy_autumn_v1",
+              "parserProfileVersion": "1.0.0",
+              "academicYear": "{{ownerAcademicYear}}",
+              "classYear": {{ownerClassYear}},
+              "programLanguage": "{{ownerLanguage}}",
+              "timeZoneId": "Europe/Istanbul"
+            }
+          ]
+        }
+        """;
+
     private static string SourceJson(string transport, string sourceUri) =>
         $$"""
         {

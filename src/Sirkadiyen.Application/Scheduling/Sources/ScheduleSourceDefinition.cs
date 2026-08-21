@@ -94,6 +94,13 @@ public sealed record ScheduleSourceDefinition
     /// </summary>
     public IReadOnlyList<string>? CompanionSourceIds { get; init; }
 
+    /// <summary>
+    /// The sources that own the group rotation this source's rows defer to
+    /// (ADR-126). Their published dates decide which of this source's rotation
+    /// rows stay deferred and which it publishes in full.
+    /// </summary>
+    public IReadOnlyList<string>? GroupRotationSourceIds { get; init; }
+
     public string? FixturePath { get; init; }
 
     public string? Notes { get; init; }
@@ -118,5 +125,8 @@ public sealed record ScheduleSourceDefinition
         CompanionSourceIds
             ?.Select(Domain.Scheduling.Sources.SourceId.Parse)
             .ToArray(),
-        AuthoritativeAudienceSelectors);
+        AuthoritativeAudienceSelectors,
+        GroupRotationSourceIds
+            ?.Select(Domain.Scheduling.Sources.SourceId.Parse)
+            .ToArray());
 }

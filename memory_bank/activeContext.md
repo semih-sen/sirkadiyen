@@ -2914,3 +2914,38 @@ bir event'i gerçekten yeniden yazabilmesini sağlayan tek eksik parça buydu.
   yoktur; fix teşhisle doğrulandı (`500 patched`/`0 inserted` kanıtı), Release derlemesi temiz.
   Uçtan uca diriltme yerelde çalıştırılmadı (Google kimlik bilgisi yok). Deploy sonrası ilgili
   kullanıcı için ADR-121 doğrulamasını yeniden çalıştırıp teyit et: eksik 500 → 0, uyumlu 317 → 817.
+
+## Anatomi grup programı yokken diseksiyonun üç saati de yayımlanıyor (2026-08-21)
+
+Operatör dönem 2 takvimlerinde diseksiyonun hiç görünmediğini bildirdi. Teşhis kod tabanında
+netti: ADR-073 `grade2_yearly_v1`'in 159 `DİSEKSİYON (n/13)` satırını bilerek dışlıyor ve
+rotasyonu anatomi salon grup listelerine devrediyor; o kaynaklar `administrativeUpload`
+(ADR-079) ve henüz hiçbir belge yüklenmedi. Üstelik yıllık/uygulama kaynakları 2026-2027'ye
+taşındı, anatomi kaynakları 2025-2026'da kaldı (ADR-115) — yani yürüyen yıl için kapsama sıfır.
+
+Düzeltme (ADR-126): **kapsanmayan tarih için üç saatin üçü de yayımlanıyor, kapsanan tarih hâlâ
+grup listesine bırakılıyor.**
+
+- Parser profili `group_rotation_fallback` bildiriyor; yalnızca `grade2_yearly_v1` (1.1.0).
+  Dönem 3'ün sekiz paralel öğretim üyesi uygulaması bildirmiyor — orada öğrencinin kendi saatini
+  okuyabileceği bir sıra yok.
+- Kapsama bilgisini .NET taşıyor: kaynak, katalogda `groupRotationSourceIds` ile rotasyon
+  sahiplerini adlandırıyor; poller o sahiplerin **yayımlanmış** revizyonlarının **kendi
+  programına** ait tarihlerini okuyup `sourceContext.groupRotationCoveredDates` olarak gönderiyor.
+  Yayımlanmamış revizyon kapsama saymıyor; başka yıla bakan sahip de saymıyor (rollover hâli).
+- Başlıkta saat adı var (`DİSEKSİYON (3/13) — 2. saat`, İngilizce programda `… — Hour 2`), notta
+  programın kendi dilinde açıklama: grup listesi henüz yayımlanmadı, üç saat de eklendi, liste
+  yüklendiğinde yalnızca kendi saatin kalır. Saat numarası satır sırasına değil başlangıç saatine
+  göre; kimliği belirleyen de o.
+- **Kapsama parse-run anahtarına girdi** (companion parmak iziyle aynı sütun). Girmeseydi grup
+  listesi yüklendiğinde snapshot "zaten parse edildi" diye kısa devre olur, yedek saatler
+  gerçeğinin yanında sonsuza kadar takvimde kalırdı. Kapsama boşken bölüm hiç yazılmıyor, yani
+  mevcut hiçbir çalışma boşuna yeniden parse edilmiyor.
+
+### Operatör için
+
+Güz listesi yüklendiği anda bir sonraki poll'de güz tarihleri yedekten çıkar, bahar tarihleri
+listesi gelene kadar üç saat olarak kalır — istenen davranış tam olarak bu. Kaldırma işini
+olağan semantik diff yapar; ayrı bir temizlik gerekmez. Dönem 2 anatomi kaynakları hâlâ
+2026-2027 belgelerini bekliyor; yedek onların yerine geçmez, yalnızca boşluğu doldurur.
+

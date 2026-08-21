@@ -2,7 +2,7 @@
   "fixture": "real/g2-tr-annual.snapshot.json",
   "parserEngineVersion": "0.2.0",
   "payload": {
-    "candidateCount": 790,
+    "candidateCount": 949,
     "candidateDigests": [
       "1!R2|2025-09-01|08:30-16:20|freeStudy|id:6c55e93de33eb1ad|content:bf2de8be47873ded|SERBEST ÇALIŞMA",
       "1!R3|2025-09-02|09:00-09:30|theory|id:0a400489f403c37b|content:caf223a58a3fa65f|2. Sınıf Tanıtım",
@@ -793,7 +793,166 @@
       "1!R1154|2026-07-07|13:00-15:00|exam|id:3f50383baae9058d|content:676b55a1819fbcb7|MİKROBİYOLOJİ UYGULAMA BÜTÜNLEME SINAVI",
       "1!R1155|2026-07-08|10:00-13:00|freeStudy|id:e47eb61ffb5f8b42|content:52a994d70e160018|SERBEST ÇALIŞMA (Dönem3 Sınavı )",
       "1!R1156|2026-07-08|13:30-15:30|exam|id:ec4ba50a5930cc84|content:64ae4fe109d33ffa|BÜTÜNLEME SINAVI 3",
-      "1!R1157|2026-07-09|13:30-15:30|exam|id:5b6b35b61dd2b193|content:13f32bcc0c2d4252|BÜTÜNLEME SINAVI 4"
+      "1!R1157|2026-07-09|13:30-15:30|exam|id:5b6b35b61dd2b193|content:13f32bcc0c2d4252|BÜTÜNLEME SINAVI 4",
+      "1!R8|2025-09-02|13:30-14:20|anatomyPractice|id:ec741da51a27b8df|content:0eb8d3c64382f1c2|DİSEKSİYON (1/13) — 1. saat",
+      "1!R9|2025-09-02|14:30-15:20|anatomyPractice|id:a4cc701f4a1d686d|content:046b6431aa07b40e|DİSEKSİYON (1/13) — 2. saat",
+      "1!R10|2025-09-02|15:30-16:20|anatomyPractice|id:189f6f6e10548bc3|content:810e69b0a5ae565f|DİSEKSİYON (1/13) — 3. saat",
+      "1!R23|2025-09-04|13:30-14:20|anatomyPractice|id:38c2fec490711386|content:916dfa62018c89ef|DİSEKSİYON (2/13) — 1. saat",
+      "1!R24|2025-09-04|14:30-15:20|anatomyPractice|id:e159862a8e996f93|content:6d2c13fe732629ea|DİSEKSİYON (2/13) — 2. saat",
+      "1!R25|2025-09-04|15:30-16:20|anatomyPractice|id:4508cdc9a0b8b4ca|content:996aaf7a838cd881|DİSEKSİYON (2/13) — 3. saat",
+      "1!R44|2025-09-09|13:30-14:20|anatomyPractice|id:cad487e7881ca308|content:c28699c9e962c0f8|DİSEKSİYON (3/13) — 1. saat",
+      "1!R45|2025-09-09|14:30-15:20|anatomyPractice|id:d725e4601108bcb7|content:955e7a11d17da74a|DİSEKSİYON (3/13) — 2. saat",
+      "1!R46|2025-09-09|15:30-16:20|anatomyPractice|id:f0704c3015f51971|content:8832924fcf9d8885|DİSEKSİYON (3/13) — 3. saat",
+      "1!R54|2025-09-11|13:30-14:20|anatomyPractice|id:69ac655e0e651f48|content:8b4db01b6a6618b7|DİSEKSİYON (4/13) — 1. saat",
+      "1!R55|2025-09-11|14:30-15:20|anatomyPractice|id:f9cc1e670a768a23|content:9b77a96fae4f58b6|DİSEKSİYON (4/13) — 2. saat",
+      "1!R56|2025-09-11|15:30-16:20|anatomyPractice|id:fc84ae8492690d05|content:5049c8fb59449480|DİSEKSİYON (4/13) — 3. saat",
+      "1!R72|2025-09-16|13:30-14:20|anatomyPractice|id:d530b89361d77dcf|content:4f8feeb28ccbc621|DİSEKSİYON (5/13) — 1. saat",
+      "1!R73|2025-09-16|14:30-15:20|anatomyPractice|id:d9c1f3ab195a14ef|content:cb9d3e33717d87d8|DİSEKSİYON (5/13) — 2. saat",
+      "1!R74|2025-09-16|15:30-16:20|anatomyPractice|id:80e9ca5ea26ca96f|content:79e95980372f42c9|DİSEKSİYON (5/13) — 3. saat",
+      "1!R85|2025-09-18|13:30-14:20|anatomyPractice|id:a6a66754ed671f6b|content:2d235ce3a9b8ac91|DİSEKSİYON (6/13) — 1. saat",
+      "1!R86|2025-09-18|14:30-15:20|anatomyPractice|id:7974df8cee61c0b4|content:10266611703fdc64|DİSEKSİYON (6/13) — 2. saat",
+      "1!R87|2025-09-18|15:30-16:20|anatomyPractice|id:d1953d9b2e4b2c09|content:f650b36f706cbf6c|DİSEKSİYON (6/13) — 3. saat",
+      "1!R102|2025-09-23|13:30-14:20|anatomyPractice|id:7710747710359ce2|content:f7666b07b31fdd3f|DİSEKSİYON (7/13) — 1. saat",
+      "1!R103|2025-09-23|14:30-15:20|anatomyPractice|id:77ed91ad8e2e5a03|content:d9c79dba94624d19|DİSEKSİYON (7/13) — 2. saat",
+      "1!R104|2025-09-23|15:30-16:20|anatomyPractice|id:a3420847fc660c25|content:718f72e9af0f0ce8|DİSEKSİYON (7/13) — 3. saat",
+      "1!R117|2025-09-25|13:30-14:20|anatomyPractice|id:53ffedf3f31cc9c1|content:e836dfe2f8b05509|DİSEKSİYON (8/13) — 1. saat",
+      "1!R118|2025-09-25|14:30-15:20|anatomyPractice|id:765d58ce54dd735e|content:007e480535c74cb3|DİSEKSİYON (8/13) — 2. saat",
+      "1!R119|2025-09-25|15:30-16:20|anatomyPractice|id:6000a48e9205ba33|content:0eb41dce719d11f1|DİSEKSİYON (8/13) — 3. saat",
+      "1!R138|2025-09-30|13:30-14:20|anatomyPractice|id:e3a4b2229744b696|content:f177e6b2cf4415e1|DİSEKSİYON (9/13) — 1. saat",
+      "1!R139|2025-09-30|14:30-15:20|anatomyPractice|id:10bcd810640e80f5|content:1b7ae0cd9c1623dc|DİSEKSİYON (9/13) — 2. saat",
+      "1!R140|2025-09-30|15:30-16:20|anatomyPractice|id:7196ee02d6d557ca|content:81aec51d32bdaab4|DİSEKSİYON (9/13) — 3. saat",
+      "1!R152|2025-10-02|13:30-14:20|anatomyPractice|id:fdef36bfe8fb3f88|content:5153c7e86188b979|DİSEKSİYON (10/13) — 1. saat",
+      "1!R153|2025-10-02|14:30-15:20|anatomyPractice|id:f102393d65a432c6|content:604e80ea1927b0c0|DİSEKSİYON (10/13) — 2. saat",
+      "1!R154|2025-10-02|15:30-16:20|anatomyPractice|id:b57a44942b1ea3be|content:0118aeb78d7978bf|DİSEKSİYON (10/13) — 3. saat",
+      "1!R174|2025-10-07|13:30-14:20|anatomyPractice|id:c1d4c7469d80be6a|content:f960a27d87df2e48|DİSEKSİYON (11/13) — 1. saat",
+      "1!R175|2025-10-07|14:30-15:20|anatomyPractice|id:42f742f87af03838|content:26f6af7e7a0bd589|DİSEKSİYON (11/13) — 2. saat",
+      "1!R176|2025-10-07|15:30-16:20|anatomyPractice|id:e1c8977e237fc99f|content:5d59e89078641649|DİSEKSİYON (11/13) — 3. saat",
+      "1!R186|2025-10-09|13:30-14:20|anatomyPractice|id:c3aa2074d21f5c59|content:e54a5ba757f40b3f|DİSEKSİYON (12/13) — 1. saat",
+      "1!R187|2025-10-09|14:30-15:20|anatomyPractice|id:d812de49d4a1c856|content:ed75cbd6ed5aac71|DİSEKSİYON (12/13) — 2. saat",
+      "1!R188|2025-10-09|15:30-16:20|anatomyPractice|id:ecebf2135a2770bb|content:fb64991a87fb559e|DİSEKSİYON (12/13) — 3. saat",
+      "1!R201|2025-10-14|13:30-14:20|anatomyPractice|id:bb267bb8f4b8db35|content:308e8b706583fe9d|DİSEKSİYON (13/13) — 1. saat",
+      "1!R202|2025-10-14|14:30-15:20|anatomyPractice|id:275f6e1ce8369ee4|content:b336fed0e347dd30|DİSEKSİYON (13/13) — 2. saat",
+      "1!R203|2025-10-14|15:30-16:20|anatomyPractice|id:d06e91c6f1ee029c|content:9b056cf51d6b6521|DİSEKSİYON (13/13) — 3. saat",
+      "1!R235|2025-10-23|13:30-14:20|anatomyPractice|id:56d20de91dc1d9bd|content:6a2025f999fc2e60|DİSEKSİYON (1/6) — 1. saat",
+      "1!R236|2025-10-23|14:30-15:20|anatomyPractice|id:56e8c2f9dd285d32|content:5420c2f8914fe062|DİSEKSİYON (1/6) — 2. saat",
+      "1!R237|2025-10-23|15:30-16:20|anatomyPractice|id:4dcd1658d72cf13b|content:81bc45b1d9065301|DİSEKSİYON (1/6) — 3. saat",
+      "1!R255|2025-10-30|13:30-14:20|anatomyPractice|id:8faf93683e273a47|content:c85d8ecd990257b6|DİSEKSİYON (2/6) — 1. saat",
+      "1!R256|2025-10-30|14:30-15:20|anatomyPractice|id:308e0de0126729cb|content:a864f8d271f6000c|DİSEKSİYON (2/6) — 2. saat",
+      "1!R257|2025-10-30|15:30-16:20|anatomyPractice|id:0d57d07f12b2d5e4|content:fd727ad6d383d2c0|DİSEKSİYON (2/6) — 3. saat",
+      "1!R274|2025-11-04|13:30-14:20|anatomyPractice|id:6b87e5b8f86754ad|content:a1a14b8137a965be|DİSEKSİYON (3/6) — 1. saat",
+      "1!R275|2025-11-04|14:30-15:20|anatomyPractice|id:8ed21a441dae5258|content:0c1a3d6479e8f726|DİSEKSİYON (3/6) — 2. saat",
+      "1!R276|2025-11-04|15:30-16:20|anatomyPractice|id:915b0d67e7e8097b|content:9a4c6256ad296d55|DİSEKSİYON (3/6) — 3. saat",
+      "1!R289|2025-11-06|13:30-14:20|anatomyPractice|id:8fbb2858e15ed760|content:c8eacc8e9a30011c|DİSEKSİYON (4/6) — 1. saat",
+      "1!R290|2025-11-06|14:30-15:20|anatomyPractice|id:2e653f23e3788823|content:228745ccdb16bd89|DİSEKSİYON (4/6) — 2. saat",
+      "1!R291|2025-11-06|15:30-16:20|anatomyPractice|id:577274396d4d5599|content:0bae66f4bbe37ad0|DİSEKSİYON (4/6) — 3. saat",
+      "1!R307|2025-11-11|13:30-14:20|anatomyPractice|id:17078b09a18d05b2|content:d21c022f4987c95f|DİSEKSİYON (5/6) — 1. saat",
+      "1!R308|2025-11-11|14:30-15:20|anatomyPractice|id:c30972900b824810|content:b5a6ad929d5e0d4f|DİSEKSİYON (5/6) — 2. saat",
+      "1!R309|2025-11-11|15:30-16:20|anatomyPractice|id:38c567af4b29ee43|content:37a11f17de98935d|DİSEKSİYON (5/6) — 3. saat",
+      "1!R319|2025-11-13|13:30-14:20|anatomyPractice|id:3c1e486929531180|content:60f9a19d1f4f688b|DİSEKSİYON (6/6) — 1. saat",
+      "1!R320|2025-11-13|14:30-15:20|anatomyPractice|id:aaa08e9abc7ccd0f|content:84d5b190c2631d94|DİSEKSİYON (6/6) — 2. saat",
+      "1!R321|2025-11-13|15:30-16:20|anatomyPractice|id:2a56aa664f8f1026|content:b4e2283e91a0943f|DİSEKSİYON (6/6) — 3. saat",
+      "1!R337|2025-11-18|13:30-14:20|anatomyPractice|id:5faee9c79c1d83da|content:b2804c5a035f4a4f|DİSEKSİYON (1/11) — 1. saat",
+      "1!R338|2025-11-18|14:30-15:20|anatomyPractice|id:75296d95f405cce7|content:27053f7ff1f0c055|DİSEKSİYON (1/11) — 2. saat",
+      "1!R339|2025-11-18|15:30-16:20|anatomyPractice|id:8f2b3725abd7c462|content:21b42ea17fe28e76|DİSEKSİYON (1/11) — 3. saat",
+      "1!R349|2025-11-20|13:30-14:20|anatomyPractice|id:e15203004d16e493|content:936e92d7f38af800|DİSEKSİYON (2/11) — 1. saat",
+      "1!R350|2025-11-20|14:30-15:20|anatomyPractice|id:6532b73edda3460f|content:1008c5bc5f03143e|DİSEKSİYON (2/11) — 2. saat",
+      "1!R351|2025-11-20|15:30-16:20|anatomyPractice|id:a1411572762d445b|content:8990102717136ff4|DİSEKSİYON (2/11) — 3. saat",
+      "1!R367|2025-11-25|13:30-14:20|anatomyPractice|id:0612b54f085d62ee|content:f21a00a891f0b7f7|DİSEKSİYON (3/11) — 1. saat",
+      "1!R368|2025-11-25|14:30-15:20|anatomyPractice|id:ecad35e40d5b64fe|content:f625c4b3f3d689e0|DİSEKSİYON (3/11) — 2. saat",
+      "1!R369|2025-11-25|15:30-16:20|anatomyPractice|id:b07f001124bee7a8|content:6441ad2be728abbc|DİSEKSİYON (3/11) — 3. saat",
+      "1!R380|2025-11-27|13:30-14:20|anatomyPractice|id:e5d0642775062457|content:af7bdd7c68a05517|DİSEKSİYON (4/11) — 1. saat",
+      "1!R381|2025-11-27|14:30-15:20|anatomyPractice|id:35eae93ddaa7f4d1|content:d4237c2bdeb219f9|DİSEKSİYON (4/11) — 2. saat",
+      "1!R382|2025-11-27|15:30-16:20|anatomyPractice|id:a0ea5ddb89eca370|content:fb8768009ce86157|DİSEKSİYON (4/11) — 3. saat",
+      "1!R396|2025-12-02|13:30-14:20|anatomyPractice|id:bb556ef4824d2fde|content:b64be5af1403b373|DİSEKSİYON (5/11) — 1. saat",
+      "1!R397|2025-12-02|14:30-15:20|anatomyPractice|id:86d800dd45236a6b|content:d42f68138a36f156|DİSEKSİYON (5/11) — 2. saat",
+      "1!R398|2025-12-02|15:30-16:20|anatomyPractice|id:e4cc2a63354d5a6c|content:76b77b60236b941b|DİSEKSİYON (5/11) — 3. saat",
+      "1!R408|2025-12-04|13:30-14:20|anatomyPractice|id:4a8e0bfcb38d4e08|content:c370b08ee4815568|DİSEKSİYON (6/11) — 1. saat",
+      "1!R409|2025-12-04|14:30-15:20|anatomyPractice|id:6a59fa807087ec62|content:7e27d263ae17604b|DİSEKSİYON (6/11) — 2. saat",
+      "1!R410|2025-12-04|15:30-16:20|anatomyPractice|id:6d8f417236d8a219|content:b5f45d4e01f1dc03|DİSEKSİYON (6/11) — 3. saat",
+      "1!R426|2025-12-09|13:30-14:20|anatomyPractice|id:b3a36d60f812cb1b|content:dfb5f9823002c071|DİSEKSİYON (7/11) — 1. saat",
+      "1!R427|2025-12-09|14:30-15:20|anatomyPractice|id:1de67321acd55301|content:634fa3c90439d76f|DİSEKSİYON (7/11) — 2. saat",
+      "1!R428|2025-12-09|15:30-16:20|anatomyPractice|id:2b0af74b1c4836fe|content:99140c47236bcbdb|DİSEKSİYON (7/11) — 3. saat",
+      "1!R439|2025-12-11|13:30-14:20|anatomyPractice|id:4a2f81c59dd7272d|content:136fcca60e298f33|DİSEKSİYON (8/11) — 1. saat",
+      "1!R440|2025-12-11|14:30-15:20|anatomyPractice|id:497f22517df1fa1e|content:55bd1343523c24d0|DİSEKSİYON (8/11) — 2. saat",
+      "1!R441|2025-12-11|15:30-16:20|anatomyPractice|id:0d77a31a7a70ddf7|content:1bbdd39862001af6|DİSEKSİYON (8/11) — 3. saat",
+      "1!R461|2025-12-16|13:30-14:20|anatomyPractice|id:965661762fe00cd6|content:6bc874d414d8a585|DİSEKSİYON (9/11) — 1. saat",
+      "1!R462|2025-12-16|14:30-15:20|anatomyPractice|id:464d7305f6834ff4|content:639005ac71c4c963|DİSEKSİYON (9/11) — 2. saat",
+      "1!R463|2025-12-16|15:30-16:20|anatomyPractice|id:581447910bc7dad5|content:0fb871e383dd96cb|DİSEKSİYON (9/11) — 3. saat",
+      "1!R473|2025-12-18|13:30-14:20|anatomyPractice|id:f91a14458615d829|content:a99d2ccfbb88d045|DİSEKSİYON (10/11) — 1. saat",
+      "1!R474|2025-12-18|14:30-15:20|anatomyPractice|id:bbee28992b317fc8|content:aa66c4f9727bb4dd|DİSEKSİYON (10/11) — 2. saat",
+      "1!R475|2025-12-18|15:30-16:20|anatomyPractice|id:8edf6f8a1a729bfd|content:9ad7d69fb16f303f|DİSEKSİYON (10/11) — 3. saat",
+      "1!R487|2025-12-23|13:30-14:20|anatomyPractice|id:689a39de2fa986d4|content:dbf675a6caac435e|DİSEKSİYON (11/11) — 1. saat",
+      "1!R488|2025-12-23|14:30-15:20|anatomyPractice|id:f9ee8ca84a7f72e3|content:9d1f144b8c759d77|DİSEKSİYON (11/11) — 2. saat",
+      "1!R489|2025-12-23|15:30-16:20|anatomyPractice|id:84015c5299732b4d|content:c08db055f733b32f|DİSEKSİYON (11/11) — 3. saat",
+      "1!R535|2026-01-27|13:30-14:20|anatomyPractice|id:df7871f7582711a1|content:fa4415732dafc473|DİSEKSİYON (1/6) — 1. saat",
+      "1!R536|2026-01-27|14:30-15:20|anatomyPractice|id:eaca9dbacd83e982|content:cd3fc1b42b01fd99|DİSEKSİYON (1/6) — 2. saat",
+      "1!R537|2026-01-27|15:30-16:20|anatomyPractice|id:db3438b75a026cda|content:5cdbe529f183201e|DİSEKSİYON (1/6) — 3. saat",
+      "1!R554|2026-01-29|13:30-14:20|anatomyPractice|id:b915b9f7c0df1e3a|content:707ab4fe7ee3b9ab|DİSEKSİYON (2/6) — 1. saat",
+      "1!R555|2026-01-29|14:30-15:20|anatomyPractice|id:6604971513f5958e|content:ee72ed47e0606549|DİSEKSİYON (2/6) — 2. saat",
+      "1!R556|2026-01-29|15:30-16:20|anatomyPractice|id:6b710be455424326|content:83c86fd614ca28b3|DİSEKSİYON (2/6) — 3. saat",
+      "1!R576|2026-02-03|13:30-14:20|anatomyPractice|id:d28c8827482a0c02|content:c439c839b4813d8c|DİSEKSİYON (3/6) — 1. saat",
+      "1!R577|2026-02-03|14:30-15:20|anatomyPractice|id:25142e6b86061891|content:1a56c76a4aa2305a|DİSEKSİYON (3/6) — 2. saat",
+      "1!R578|2026-02-03|15:30-16:20|anatomyPractice|id:6513ba14076f3851|content:cc4e99b06ab00a2b|DİSEKSİYON (3/6) — 3. saat",
+      "1!R591|2026-02-05|13:30-14:20|anatomyPractice|id:3b308aea04239533|content:2529363ffbca2a97|DİSEKSİYON (4/6) — 1. saat",
+      "1!R592|2026-02-05|14:30-15:20|anatomyPractice|id:4d3bdf50785e1b03|content:e7b4f6483189d6b4|DİSEKSİYON (4/6) — 2. saat",
+      "1!R593|2026-02-05|15:30-16:20|anatomyPractice|id:ffd5d130a2db0082|content:3d4289bc9d949ce6|DİSEKSİYON (4/6) — 3. saat",
+      "1!R612|2026-02-10|13:30-14:20|anatomyPractice|id:07eae7e538309d44|content:ce625702908692bf|DİSEKSİYON (5/6) — 1. saat",
+      "1!R613|2026-02-10|14:30-15:20|anatomyPractice|id:d98032ef59e3f780|content:eeb8c6b0f5ad319f|DİSEKSİYON (5/6) — 2. saat",
+      "1!R614|2026-02-10|15:30-16:20|anatomyPractice|id:c0cb71f591a441f4|content:3e370927d128c343|DİSEKSİYON (5/6) — 3. saat",
+      "1!R625|2026-02-12|13:30-14:20|anatomyPractice|id:55cd85cd64c3bba0|content:ed0d37374b53280e|DİSEKSİYON (6/6) — 1. saat",
+      "1!R626|2026-02-12|14:30-15:20|anatomyPractice|id:913c2b60701c7457|content:12978d1ea9d0ee66|DİSEKSİYON (6/6) — 2. saat",
+      "1!R627|2026-02-12|15:30-16:20|anatomyPractice|id:01d8346deac73b8f|content:8cd8b623a2d6f1a6|DİSEKSİYON (6/6) — 3. saat",
+      "1!R648|2026-02-17|13:30-14:20|anatomyPractice|id:682e169f996fc9e8|content:969cf3b51618fa81|DİSEKSİYON (1/17) — 1. saat",
+      "1!R649|2026-02-17|14:30-15:20|anatomyPractice|id:7a77897319073b9c|content:065016bc1aa4efaf|DİSEKSİYON (1/17) — 2. saat",
+      "1!R650|2026-02-17|15:30-16:20|anatomyPractice|id:d4133de2b34fdf16|content:25f56e49c649bcd1|DİSEKSİYON (1/17) — 3. saat",
+      "1!R666|2026-02-19|13:30-14:20|anatomyPractice|id:ce7377df36a1cd3a|content:e11ceb09b22ced55|DİSEKSİYON (2/17) — 1. saat",
+      "1!R667|2026-02-19|14:30-15:20|anatomyPractice|id:f5728dc6798d705b|content:08a65e0e91dde85a|DİSEKSİYON (2/17) — 2. saat",
+      "1!R668|2026-02-19|15:30-16:20|anatomyPractice|id:99c4cc813cdfceee|content:c1be1846e9519ffd|DİSEKSİYON (2/17) — 3. saat",
+      "1!R690|2026-02-24|13:30-14:20|anatomyPractice|id:c2b27aa5e31d4d70|content:38724a373d62e84d|DİSEKSİYON (3/17) — 1. saat",
+      "1!R691|2026-02-24|14:30-15:20|anatomyPractice|id:3ae4b8f17398c98d|content:823fa46792fc852a|DİSEKSİYON (3/17) — 2. saat",
+      "1!R692|2026-02-24|15:30-16:20|anatomyPractice|id:35d1c4a140832d9e|content:20b65d2117dc7689|DİSEKSİYON (3/17) — 3. saat",
+      "1!R706|2026-02-26|13:30-14:20|anatomyPractice|id:4690fd5d89dbf865|content:ad12abc227d2c222|DİSEKSİYON (4/17) — 1. saat",
+      "1!R707|2026-02-26|14:30-15:20|anatomyPractice|id:ac39c1660827631a|content:406e5596ccce4771|DİSEKSİYON (4/17) — 2. saat",
+      "1!R708|2026-02-26|15:30-16:20|anatomyPractice|id:db2013b12f4bc0b0|content:ed9c7326540ca907|DİSEKSİYON (4/17) — 3. saat",
+      "1!R727|2026-03-03|13:30-14:20|anatomyPractice|id:b9cbc5debd6f6f24|content:f8b3589b1e000d7d|DİSEKSİYON (5/17) — 1. saat",
+      "1!R728|2026-03-03|14:30-15:20|anatomyPractice|id:9b9480b213653bfe|content:48245aa6c8beed5b|DİSEKSİYON (5/17) — 2. saat",
+      "1!R729|2026-03-03|15:30-16:20|anatomyPractice|id:34e21e454f8d4cb2|content:bc5626d887dd35f1|DİSEKSİYON (5/17) — 3. saat",
+      "1!R748|2026-03-10|13:30-14:20|anatomyPractice|id:e2f07293e1025481|content:97f0a73b4292eef2|DİSEKSİYON (6/17) — 1. saat",
+      "1!R749|2026-03-10|14:30-15:20|anatomyPractice|id:1566e3bebffd1f5b|content:abe81f1ea3c0d8cb|DİSEKSİYON (6/17) — 2. saat",
+      "1!R750|2026-03-10|15:30-16:20|anatomyPractice|id:fdd405747edb4939|content:f6c2902fb9a0be48|DİSEKSİYON (6/17) — 3. saat",
+      "1!R766|2026-03-12|13:30-14:20|anatomyPractice|id:2d0f9ae998a2a142|content:4d2313f5437366c4|DİSEKSİYON (7/17) — 1. saat",
+      "1!R767|2026-03-12|14:30-15:20|anatomyPractice|id:d8b479bfd9d29ff6|content:2cdaf074dbfb8c49|DİSEKSİYON (7/17) — 2. saat",
+      "1!R768|2026-03-12|15:30-16:20|anatomyPractice|id:9c74d558d3683472|content:cc7ed5b2254279e3|DİSEKSİYON (7/17) — 3. saat",
+      "1!R789|2026-03-17|13:30-14:20|anatomyPractice|id:315698fcd09c0c75|content:5b0538670bd40beb|DİSEKSİYON (8/17) — 1. saat",
+      "1!R790|2026-03-17|14:30-15:20|anatomyPractice|id:ee35b9252e149e9a|content:6b10dd20aae312d9|DİSEKSİYON (8/17) — 2. saat",
+      "1!R791|2026-03-17|15:30-16:20|anatomyPractice|id:cce88f37cedc6850|content:8e65ada24052051a|DİSEKSİYON (8/17) — 3. saat",
+      "1!R807|2026-03-24|13:30-14:20|anatomyPractice|id:13e239087422d9e6|content:3dd74812c20b754e|DİSEKSİYON (9/17) — 1. saat",
+      "1!R808|2026-03-24|14:30-15:20|anatomyPractice|id:f612efe237a4327b|content:5741cc33666abb94|DİSEKSİYON (9/17) — 2. saat",
+      "1!R809|2026-03-24|15:30-16:20|anatomyPractice|id:46ecf9b5f7e21ad7|content:d6ede6f4cf3fd6a9|DİSEKSİYON (9/17) — 3. saat",
+      "1!R825|2026-03-26|13:30-14:20|anatomyPractice|id:54ee6b6cc6881e93|content:9c54027056a84c8c|DİSEKSİYON (10/17) — 1. saat",
+      "1!R826|2026-03-26|14:30-15:20|anatomyPractice|id:3ab9e7ba0a6fad95|content:f463bba9f6bca4d7|DİSEKSİYON (10/17) — 2. saat",
+      "1!R827|2026-03-26|15:30-16:20|anatomyPractice|id:a5ee9d77b3729581|content:9c500a375c944947|DİSEKSİYON (10/17) — 3. saat",
+      "1!R847|2026-03-31|13:30-14:20|anatomyPractice|id:c06221673953303c|content:c2abdf9b6a9b0281|DİSEKSİYON (11/17) — 1. saat",
+      "1!R848|2026-03-31|14:30-15:20|anatomyPractice|id:9b6a63c17ad8afec|content:53af2217a576bb18|DİSEKSİYON (11/17) — 2. saat",
+      "1!R849|2026-03-31|15:30-16:20|anatomyPractice|id:b0f2f10ffab5bbff|content:395c5860bc96c0ce|DİSEKSİYON (11/17) — 3. saat",
+      "1!R861|2026-04-02|13:30-14:20|anatomyPractice|id:fed085d0543a24e2|content:08aa191d9daed44b|DİSEKSİYON (12/17) — 1. saat",
+      "1!R862|2026-04-02|14:30-15:20|anatomyPractice|id:d6eaaf5c20a04a02|content:e2b610f833157e91|DİSEKSİYON (12/17) — 2. saat",
+      "1!R863|2026-04-02|15:30-16:20|anatomyPractice|id:b73f056feba246c9|content:b77e5e1899dabb40|DİSEKSİYON (12/17) — 3. saat",
+      "1!R883|2026-04-07|13:30-14:10|anatomyPractice|id:40ab4082d5eedee8|content:0bc4ce14635305b5|DİSEKSİYON (13/17) — 1. saat",
+      "1!R884|2026-04-07|14:20-15:00|anatomyPractice|id:063e218ecee3acf8|content:49d10ed37a2582b2|DİSEKSİYON (13/17) — 2. saat",
+      "1!R885|2026-04-07|15:10-15:50|anatomyPractice|id:7c0a7f20357b7924|content:835ea9419415a74d|DİSEKSİYON (13/17) — 3. saat",
+      "1!R896|2026-04-09|13:30-14:20|anatomyPractice|id:e87a93195f5efc25|content:e08633f2f45272db|DİSEKSİYON (14/17) — 1. saat",
+      "1!R897|2026-04-09|14:30-15:20|anatomyPractice|id:ac878bc32069ebd3|content:67e31e037fb4f3a9|DİSEKSİYON (14/17) — 2. saat",
+      "1!R898|2026-04-09|15:30-16:20|anatomyPractice|id:799ddfc60bd525f7|content:66f8fb4a9a6e31f9|DİSEKSİYON (14/17) — 3. saat",
+      "1!R917|2026-04-14|13:30-14:20|anatomyPractice|id:dbfc253d60afa30e|content:da46212013cacfe3|DİSEKSİYON (15/17) — 1. saat",
+      "1!R918|2026-04-14|14:30-15:20|anatomyPractice|id:e10aa6436371809c|content:d86105651694b2c3|DİSEKSİYON (15/17) — 2. saat",
+      "1!R919|2026-04-14|15:30-16:20|anatomyPractice|id:6e42ca8dbce4e2f0|content:4e8d050a02c6e431|DİSEKSİYON (15/17) — 3. saat",
+      "1!R952|2026-04-21|13:30-14:20|anatomyPractice|id:daeb534b87ec483c|content:9f158e5bad97e785|DİSEKSİYON (16/17) — 1. saat",
+      "1!R953|2026-04-21|14:30-15:20|anatomyPractice|id:a45911e4b797272f|content:7d3fccd363687172|DİSEKSİYON (16/17) — 2. saat",
+      "1!R954|2026-04-21|15:30-16:20|anatomyPractice|id:9f4db133e1a43141|content:ce0f2cf28f2226b3|DİSEKSİYON (16/17) — 3. saat",
+      "1!R976|2026-04-28|13:30-14:20|anatomyPractice|id:4d01158f7dc81eaa|content:18c58ffe4b6921f4|DİSEKSİYON (17/17) — 1. saat",
+      "1!R977|2026-04-28|14:30-15:20|anatomyPractice|id:1b30f3b7dce0181b|content:e7effd2ac0fbb861|DİSEKSİYON (17/17) — 2. saat",
+      "1!R978|2026-04-28|15:30-16:20|anatomyPractice|id:744960134eadfb80|content:fc433ddbac18dcf7|DİSEKSİYON (17/17) — 3. saat"
     ],
     "confidenceIndicators": [
       {
@@ -1018,55 +1177,57 @@
         "scope": "allStudentsInProgram",
         "selectors": []
       },
-      "candidateId": "1!R1157",
+      "candidateId": "1!R978",
       "classYear": 2,
       "confidence": 1.0,
-      "contentHash": "sha256:13f32bcc0c2d4252900f7098601e76aad795bbe035397654466153ea56b980e5",
-      "curriculumBlock": "SİNİR VE DUYU I DİLİMİ + PATOLOJİLERE VE KLİNİĞE GİRİŞ DİLİMİ",
-      "departments": [],
-      "displayTitle": "BÜTÜNLEME SINAVI 4",
-      "endLocalTime": "15:30:00",
-      "eventType": "exam",
+      "contentHash": "sha256:fc433ddbac18dcf7d7f6fba51bd031597ce4b37a08a27c0f6d6af42236a4c342",
+      "curriculumBlock": "SİNİR DUYU I DİLİMİ",
+      "departments": [
+        "ANATOMİ AD."
+      ],
+      "displayTitle": "DİSEKSİYON (17/17) — 3. saat",
+      "endLocalTime": "16:20:00",
+      "eventType": "anatomyPractice",
       "evidence": [
         {
           "extractionRule": "annual.dateCell",
-          "range": "B1157",
-          "rawText": "46212",
+          "range": "B978",
+          "rawText": "46140",
           "sheetId": "1",
           "sheetTitle": "DÖNEM 2"
         },
         {
           "extractionRule": "annual.startTimeCell",
-          "range": "C1157",
-          "rawText": "0.5625",
-          "sheetId": "1",
-          "sheetTitle": "DÖNEM 2"
-        },
-        {
-          "extractionRule": "annual.endTimeCell",
-          "range": "D1157",
+          "range": "C978",
           "rawText": "0.6458333333333334",
           "sheetId": "1",
           "sheetTitle": "DÖNEM 2"
         },
         {
+          "extractionRule": "annual.endTimeCell",
+          "range": "D978",
+          "rawText": "0.6805555555555556",
+          "sheetId": "1",
+          "sheetTitle": "DÖNEM 2"
+        },
+        {
           "extractionRule": "annual.titleCell",
-          "range": "E1157",
-          "rawText": "BÜTÜNLEME SINAVI 4",
+          "range": "E978",
+          "rawText": "DİSEKSİYON (17/17)",
           "sheetId": "1",
           "sheetTitle": "DÖNEM 2"
         },
         {
           "extractionRule": "annual.blockCell",
-          "range": "F1157",
-          "rawText": "SİNİR VE DUYU I DİLİMİ + PATOLOJİLERE VE KLİNİĞE GİRİŞ DİLİMİ",
+          "range": "F978",
+          "rawText": "SİNİR DUYU I DİLİMİ / ANATOMİ AD.",
           "sheetId": "1",
           "sheetTitle": "DÖNEM 2"
         },
         {
           "extractionRule": "annual.locationCell",
-          "range": "G1157",
-          "rawText": "FAKÜLTEMİZ WEB SİTESİ ÖĞRENCİ AĞI AMFİ PROGRAMINA BAKINIZ",
+          "range": "G978",
+          "rawText": "ANATOMİ AD. LABORATUVARI",
           "sheetId": "1",
           "sheetTitle": "DÖNEM 2"
         }
@@ -1086,26 +1247,26 @@
         },
         {
           "name": "localDate",
-          "value": "2026-07-09"
+          "value": "2026-04-28"
         },
         {
           "name": "startLocalTime",
-          "value": "13:30:00"
+          "value": "15:30:00"
         },
         {
           "name": "courseIdentity",
-          "value": "butunleme-sinavi-4"
+          "value": "diseksiyon-17-17-3-saat"
         }
       ],
       "instructor": null,
       "isAllDay": false,
-      "localDate": "2026-07-09",
-      "location": null,
-      "normalizedCourseIdentity": "butunleme-sinavi-4",
-      "notes": null,
+      "localDate": "2026-04-28",
+      "location": "ANATOMİ AD. LABORATUVARI",
+      "normalizedCourseIdentity": "diseksiyon-17-17-3-saat",
+      "notes": "Bu tarih için anatomi salon grup programı henüz yayımlanmadı. Diseksiyonun üç saatinin üçü de takvime eklendi; kendi anatomi grubunuza ayrılan saate katılın. Grup programı sisteme yüklendiğinde yalnızca kendi saatiniz kalır.",
       "programLanguage": "turkish",
-      "stableIdentity": "sha256:5b6b35b61dd2b193caeba32d6ac56e967c5589a653bb0f3c528cd3d08cc436c1",
-      "startLocalTime": "13:30:00",
+      "stableIdentity": "sha256:744960134eadfb803bc09a6d9b9e19f9ece5ea0d39ddb1b35e1b19a633f304c7",
+      "startLocalTime": "15:30:00",
       "status": "scheduled",
       "timeZoneId": "Europe/Istanbul"
     },
@@ -1118,7 +1279,12 @@
       {
         "name": "candidates.emitted",
         "unit": null,
-        "value": 790.0
+        "value": 949.0
+      },
+      {
+        "name": "candidates.eventType.anatomyPractice",
+        "unit": null,
+        "value": 159.0
       },
       {
         "name": "candidates.eventType.exam",
@@ -1158,12 +1324,12 @@
       {
         "name": "curriculumBlock.stated",
         "unit": null,
-        "value": 526.0
+        "value": 682.0
       },
       {
         "name": "dates.rule.serialDate",
         "unit": null,
-        "value": 790.0
+        "value": 949.0
       },
       {
         "name": "departments.ignored.unmarkedSegment",
@@ -1178,12 +1344,17 @@
       {
         "name": "departments.stated",
         "unit": null,
-        "value": 488.0
+        "value": 644.0
       },
       {
         "name": "departments.unmarkedListMember",
         "unit": null,
         "value": 2.0
+      },
+      {
+        "name": "groupRotationFallback.days",
+        "unit": null,
+        "value": 53.0
       },
       {
         "name": "location.deferredToOtherProgram",
@@ -1193,7 +1364,7 @@
       {
         "name": "rows.ignored",
         "unit": null,
-        "value": 366.0
+        "value": 207.0
       },
       {
         "name": "rows.ignored.endTimeNotAfterStartTime",
@@ -1211,11 +1382,6 @@
         "value": 77.0
       },
       {
-        "name": "rows.ignored.outOfScopeGroupRotation",
-        "unit": null,
-        "value": 159.0
-      },
-      {
         "name": "rows.ignored.outOfScopePracticePlaceholder",
         "unit": null,
         "value": 119.0
@@ -1229,6 +1395,11 @@
         "name": "rows.ignored.unresolvedEndTime",
         "unit": null,
         "value": 1.0
+      },
+      {
+        "name": "rows.publishedGroupRotationFallback",
+        "unit": null,
+        "value": 159.0
       },
       {
         "name": "rows.scanned",
@@ -1248,26 +1419,13 @@
     ],
     "parserProfile": {
       "name": "grade2_yearly_v1",
-      "version": "1.0.0"
+      "version": "1.1.0"
     },
-    "responseDigest": "sha256:c6dd4b809769aa3484254db6f7c1804e328b77ed60f330981b4acf75be993760",
+    "responseDigest": "sha256:937474fd08878ac05d8a113a3fc738a4e6635226108cd456ab915042c5c6f74d",
     "snapshotId": "fixture:sha256:60a6473458e27fadc05255c0a62ed10ae8afee91928008a35f25c6017acafb73",
     "sourceId": "G2-TR-ANNUAL",
     "status": "completedWithWarnings",
     "warnings": [
-      {
-        "candidateId": null,
-        "code": "rowsIgnored",
-        "evidence": {
-          "extractionRule": "annual.row",
-          "range": "A8:G8",
-          "rawText": null,
-          "sheetId": "1",
-          "sheetTitle": "DÖNEM 2"
-        },
-        "message": "Row names a subject this profile declares as a group rotation. The annual program states every slot of the rotation while a student attends exactly one, so the slots were not published to the whole class; the companion group source owns them.",
-        "severity": "information"
-      },
       {
         "candidateId": null,
         "code": "rowsIgnored",
@@ -1461,6 +1619,13 @@
           "sheetTitle": "DÖNEM 2"
         },
         "message": "Row carries schedule data but no lesson title, so no lesson was published.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "groupRotationPublishedWithoutCompanion",
+        "evidence": null,
+        "message": "No companion group source has published 53 rotation day(s) between 2025-09-02 and 2026-04-28, so every slot of those sessions was published to the whole turkish class year 2 with its hour named. Uploading the group list returns those days to it.",
         "severity": "warning"
       }
     ]

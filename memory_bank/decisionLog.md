@@ -7416,3 +7416,94 @@ Google" event whose id was previously deleted.
   deploy by re-running the ADR-121 verification for the affected user.
 
 ---
+
+## ADR-126: A group rotation nobody has published is published in full, with its hour named
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-21
+**Implements:** `group_rotation_fallback` on the parser profile definition, `grade2_yearly_v1` 1.1.0,
+`ParseSourceContext.groupRotationCoveredDates` (both contracts), `ScheduleSource.GroupRotationSourceIds`
++ migration `AddGroupRotationOwners`, `IGroupRotationCoverageStore`/`GroupRotationCoverageStore`, the
+poller's coverage resolution, coverage in the parse-run fingerprint, catalog validation, and the
+`groupRotationSourceIds` field in the admin catalog editor
+**Extends:** ADR-073 (a stated group rotation is not a whole-class lesson), ADR-102 (companion
+evidence in the parse-run key), ADR-017 (source context the workbook does not state)
+**Relates to:** ADR-078, ADR-079 (the anatomy group lists), ADR-115 (the 2026-2027 rollover)
+
+### Context
+
+ADR-073 excludes the 159 `DİSEKSİYON (n/13)` rows of each Grade 2 annual workbook: the workbook writes
+one session as three consecutive hours, and the anatomy group list assigns each student exactly one of
+them, so publishing all three would book every student into two sessions they must not attend. It
+accepted the consequence explicitly — "Grade 2 students see no dissection at all until the anatomy
+profiles publish it with its real audience" — on the reasoning that an event a student must not attend
+is worse than a missing one.
+
+That consequence has now outlived its premise. The anatomy group lists are `administrativeUpload`
+sources (ADR-079): they exist in the catalog but hold nothing until an administrator uploads the
+document, which the faculty hands out at the start of each semester. The Grade 2 annual and practice
+sources were re-pointed to 2026-2027 at the rollover while the anatomy sources were not (ADR-115), so
+right now **no** anatomy group list covers the running year, autumn or spring, and every Grade 2
+calendar is missing dissection entirely with no date in sight for the spring list.
+
+The deferral is also all-or-nothing where the documents are not: the autumn list arrives months before
+the spring one, and one refused day in the spring document (ADR-078) leaves that day uncovered even
+after upload.
+
+### Decision
+
+**Publish every hour of a rotation date no companion has published, and defer the dates it has.**
+
+- A parser profile declares `group_rotation_fallback`. Only `grade2_yearly_v1` does (bumped to 1.1.0,
+  which also reparses the stored snapshots). The Grade 3 faculty-practice rotation declares none: its
+  eight slots are parallel sessions, not consecutive hours of one, so there is nothing a student could
+  read their own out of.
+- The parse request carries `sourceContext.groupRotationCoveredDates`. A source names its rotation
+  owners in the catalog (`groupRotationSourceIds`), and the poller reads the local dates those owners'
+  **currently published** revisions state **for the deferring source's own program**. A parsed but
+  unpublished list says nothing to a student yet and must not silence the fallback; an owner still
+  pointing at last year's document covers nothing, which is exactly the rollover state and needs no
+  catalog change.
+- A rotation row whose date is covered is excluded as `groupRotationCoveredByCompanion` — counted
+  apart from `outOfScopeGroupRotation`, so "the group list owns this day" and "this profile never
+  publishes rotations" are never read as one decision. A row whose date is not covered is published to
+  the whole class with the hour named in the title (`DİSEKSİYON (3/13) — 2. saat`, `… — Hour 2` in the
+  English program) and a note in the program's language saying the group list is not out yet, that all
+  three hours were added, and that only their own hour will remain once it is.
+- The hour is numbered by start time within `(date, course identity)`, not by row order, because the
+  start time is what identifies these records and the label must agree with it. Those drafts alone are
+  held back to the end of the worksheet, so no profile without the fallback sees any change in the
+  order of its candidates or findings, and a rotation slot can never displace a lesson the source
+  states in its own right.
+- **Coverage joins the parse-run key**, beside the companion fingerprint and in the same column.
+  Without it, uploading the group list would find the snapshot "already parsed" and the fallback hours
+  would stay on every calendar beside the real one, forever. The digest writes its coverage section
+  only when there is coverage, so every run that reads none keeps the value it already had and is not
+  reparsed for a change that did not happen.
+- The catalog refuses an owner that is not a source, is named twice, is the source itself, or serves
+  another class year or program language. The academic year is deliberately not compared.
+
+### Consequences
+
+- `G2-TR-ANNUAL` publishes 949 candidates instead of 790 and `G2-EN-ANNUAL` 1094 instead of 935: 159
+  dissection hours each, over 53 teaching days, until the group lists are uploaded. Both goldens were
+  regenerated and reviewed.
+- Uploading the autumn list takes autumn's dates out of the fallback on the next poll while spring
+  stays in it, which is what the semester actually looks like. The removal reaches calendars as an
+  ordinary semantic diff: the annual revision no longer states those hours, and the anatomy revision
+  states the student's own.
+- A student now sees three consecutive dissection events for an uncovered day. That is deliberate and
+  is the reversal of ADR-073's trade-off *for this rotation only*: with no group list at all, "an
+  event you must not attend" is a labelled hour a student can read past, while the alternative is a
+  student who never learns the session exists. The reversal does not extend to rotations whose slots
+  are parallel.
+- Every uncovered day is reported once per snapshot as `groupRotationPublishedWithoutCompanion` with
+  the day count and range, and counted as `rows.publishedGroupRotationFallback` and
+  `groupRotationFallback.days`, so the fallback's reach is a number a reviewer reads rather than infers.
+- One database migration adds `GroupRotationSourceIds` (jsonb, default `[]`). The catalog editor gains
+  the field so an operator can see and change it, and it is marked high-risk like the companions.
+- The Grade 2 anatomy sources still need their 2026-2027 documents. Nothing here replaces them: the
+  fallback is a stand-in that ends the moment the real list is published, and the day it publishes is
+  the day the student's calendar narrows to their own hour.
+
+---

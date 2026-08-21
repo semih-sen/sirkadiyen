@@ -133,6 +133,7 @@ public sealed class ScheduleSourceCatalogLoader : IScheduleSourceCatalogSerializ
 
         ValidateSharedDocumentGroups(catalog);
         ValidateCompanionSourceIds(catalog, sourceIds);
+        ValidateGroupRotationSourceIds(catalog, sourceIds);
         ValidateAudienceOwnership(catalog);
     }
 
@@ -305,6 +306,78 @@ public sealed class ScheduleSourceCatalogLoader : IScheduleSourceCatalogSerializ
                     throw new InvalidDataException(
                         $"Source '{source.SourceId}' names companion '{companionId}', which "
                         + "declares companions of its own; companion evidence is one level deep.");
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Rejects a group-rotation owner that could not answer for the source that
+    /// names it (ADR-126).
+    /// </summary>
+    /// <remarks>
+    /// A named owner decides which of this source's rotation rows stay deferred,
+    /// so naming the wrong one is not a missing enrichment but a wrong calendar:
+    /// an owner that never publishes for this program would leave every hour
+    /// published forever, and an owner for another class year or language would
+    /// silence dissection for students it says nothing about. Both are visible
+    /// here and nowhere later, so both fail here.
+    /// <para>
+    /// The academic year is deliberately not compared. An owner still pointing at
+    /// last year's document is the ordinary state after a rollover — the Grade 2
+    /// annual workbooks moved to 2026-2027 while the anatomy group lists had not
+    /// (ADR-115) — and it needs no catalog change: coverage is read per program,
+    /// so an owner publishing another year simply covers nothing and the fallback
+    /// stays on until this year's list is uploaded.
+    /// </para>
+    /// </remarks>
+    private static void ValidateGroupRotationSourceIds(
+        ScheduleSourceCatalog catalog,
+        HashSet<string> sourceIds)
+    {
+        Dictionary<string, ScheduleSourceDefinition> byId = catalog.Sources.ToDictionary(
+            static source => source.SourceId,
+            StringComparer.Ordinal);
+
+        foreach (ScheduleSourceDefinition source in catalog.Sources)
+        {
+            if (source.GroupRotationSourceIds is not { } owners)
+            {
+                continue;
+            }
+
+            HashSet<string> seen = new(StringComparer.Ordinal);
+            foreach (string ownerId in owners)
+            {
+                if (string.Equals(ownerId, source.SourceId, StringComparison.Ordinal))
+                {
+                    throw new InvalidDataException(
+                        $"Source '{source.SourceId}' names itself as the owner of its own "
+                        + "group rotation.");
+                }
+
+                if (!sourceIds.Contains(ownerId))
+                {
+                    throw new InvalidDataException(
+                        $"Source '{source.SourceId}' names group-rotation owner '{ownerId}', "
+                        + "which is not a source in this catalog.");
+                }
+
+                if (!seen.Add(ownerId))
+                {
+                    throw new InvalidDataException(
+                        $"Source '{source.SourceId}' names group-rotation owner '{ownerId}' "
+                        + "twice.");
+                }
+
+                ScheduleSourceDefinition owner = byId[ownerId];
+                if (owner.ClassYear != source.ClassYear
+                    || owner.ProgramLanguage != source.ProgramLanguage)
+                {
+                    throw new InvalidDataException(
+                        $"Source '{source.SourceId}' names group-rotation owner '{ownerId}', "
+                        + "which publishes for another class year or program language and so "
+                        + "cannot answer for this source's rotation.");
                 }
             }
         }

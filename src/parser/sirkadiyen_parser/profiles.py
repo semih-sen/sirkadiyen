@@ -23,6 +23,17 @@ class ParserProfileDefinition:
     #: that grade (ADR-073).
     group_rotation_subjects: tuple[str, ...] = ()
 
+    #: Whether this profile publishes every slot of its declared rotation for the
+    #: dates the companion group source has not published (ADR-126). The Grade 2
+    #: annual program states all three dissection hours of a session, and the
+    #: anatomy group list assigns each student one of them — but until that list
+    #: is uploaded a student sees no dissection at all, which is what this
+    #: fallback answers. Declared per profile because a rotation is only safe to
+    #: publish whole when its slots are consecutive hours of one session a student
+    #: can read their own hour out of. The Grade 3 faculty-practice rotation is
+    #: eight parallel slots and declares nothing here, so it keeps excluding them.
+    group_rotation_fallback: bool = False
+
     #: Whether this source family writes its term column without a header. The
     #: Grade 3 workbooks do, and the column is not optional there: it states the
     #: curriculum group, so a row read without it would reach the wrong half of
@@ -84,12 +95,20 @@ _PROFILES = (
     # dissection rotation: the annual program states all three daily slots, and
     # the anatomy group list assigns each student exactly one of them, so those
     # rows belong to the anatomy profiles rather than to the whole class (ADR-073).
+    #
+    # 1.1.0 adds the fallback ADR-126 decided: for a dissection date no anatomy
+    # group list has published, all three hours are published to the whole class
+    # with the hour named in the title, so a student attends the one their group
+    # is assigned to instead of seeing nothing. A date the anatomy source does
+    # publish keeps deferring to it, so uploading the autumn list takes autumn out
+    # of the fallback while spring stays in it until its own list arrives.
     ParserProfileDefinition(
         "grade2_yearly_v1",
-        _PROFILE_VERSION,
+        "1.1.0",
         "annual",
         _UNDECLARED,
         group_rotation_subjects=("diseksiyon", "dissection"),
+        group_rotation_fallback=True,
     ),
     # The Grade 2 practice table is the transpose of the Grade 1 one: a column is
     # a dated slot and a row is a practice subject. Anatomy appears in it as a

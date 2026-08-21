@@ -247,6 +247,7 @@ const HIGH_RISK_FIELDS = new Set<keyof ScheduleSourceCatalogEntry>([
   'timeZoneId',
   'sharedDocumentGroup',
   'companionSourceIds',
+  'groupRotationSourceIds',
 ]);
 
 function SourceFormEditor({
@@ -369,6 +370,12 @@ function SourceFormEditor({
                   <ListField
                     label="Yardımcı kaynaklar (virgülle)"
                     name="companionSourceIds"
+                    source={source}
+                    onChange={(next) => replace(index, next)}
+                  />
+                  <ListField
+                    label="Grup rotasyonu sahibi kaynaklar (virgülle)"
+                    name="groupRotationSourceIds"
                     source={source}
                     onChange={(next) => replace(index, next)}
                   />
@@ -499,7 +506,7 @@ function ListField({
   onChange,
 }: {
   label: string;
-  name: 'companionSourceIds';
+  name: 'companionSourceIds' | 'groupRotationSourceIds';
   source: ScheduleSourceCatalogEntry;
   onChange: (next: ScheduleSourceCatalogEntry) => void;
 }) {

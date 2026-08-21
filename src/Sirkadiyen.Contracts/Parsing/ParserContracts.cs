@@ -64,6 +64,24 @@ public sealed record ParseSourceContext
         get;
         init;
     } = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+
+    /// <summary>
+    /// The dates the sources that own this source's group rotation have already
+    /// published (ADR-126).
+    /// </summary>
+    /// <remarks>
+    /// A workbook cannot say whether another document exists, so this is source
+    /// context in exactly the sense ADR-017 means. Only a profile that declares a
+    /// rotation fallback reads it: the Grade 2 annual program publishes all three
+    /// dissection hours of a date no anatomy group list covers, and defers the
+    /// dates it does cover to it.
+    /// <para>
+    /// Empty says the companions have published nothing, not that coverage is
+    /// unknown. A source that configures no rotation companion sends nothing here
+    /// and parses exactly as it did before.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<DateOnly> GroupRotationCoveredDates { get; init; } = [];
 }
 
 public sealed record ParseSnapshotResponse

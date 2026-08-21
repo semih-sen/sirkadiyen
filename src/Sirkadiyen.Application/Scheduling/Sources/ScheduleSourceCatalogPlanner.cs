@@ -175,6 +175,10 @@ public static class ScheduleSourceCatalogPlanner
             "authoritativeAudienceSelectors",
             Text(before.AuthoritativeAudienceSelectors),
             Text(after.AuthoritativeAudienceSelectors));
+        Compare(
+            "groupRotationSourceIds",
+            Text(before.GroupRotationSourceIds),
+            Text(after.GroupRotationSourceIds));
 
         return changes;
 

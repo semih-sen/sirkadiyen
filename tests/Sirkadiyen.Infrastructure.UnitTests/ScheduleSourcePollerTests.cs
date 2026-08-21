@@ -32,6 +32,7 @@ public sealed class ScheduleSourcePollerTests
             snapshotStore,
             parserClient,
             resultStore,
+            new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new ParseRunOptions(),
@@ -61,6 +62,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeSnapshotStore(StoredSnapshot(source, snapshot), changed: true),
             parserClient,
             resultStore,
+            new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new ParseRunOptions(),
@@ -88,6 +90,7 @@ public sealed class ScheduleSourcePollerTests
             },
             parser,
             new FakeParseResultStore(shouldInvokeParser: true),
+            new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new ParseRunOptions(),
@@ -114,6 +117,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeSnapshotStore(StoredSnapshot(source, Snapshot(source)), changed: false),
             parser,
             new FakeParseResultStore(shouldInvokeParser: true),
+            new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new ParseRunOptions(),
@@ -143,6 +147,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeSnapshotStore(StoredSnapshot(source, Snapshot(source)), changed: false),
             new FakeParserClient(),
             parseStore,
+            new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore { IsFrozen = true },
             new ParseRunOptions(),
@@ -170,6 +175,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeSnapshotStore(StoredSnapshot(Source(), Snapshot(Source())), changed: true),
             parser,
             new FakeParseResultStore(shouldInvokeParser: true),
+            new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new ParseRunOptions(),
@@ -200,6 +206,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeSnapshotStore(StoredSnapshot(Source(), Snapshot(Source())), changed: true),
             parser,
             new FakeParseResultStore(shouldInvokeParser: true),
+            new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new ParseRunOptions(),
@@ -232,6 +239,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeSnapshotStore(StoredSnapshot(source, snapshot), changed: true),
             parser,
             new FakeParseResultStore(shouldInvokeParser: true),
+            new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new ParseRunOptions(),
@@ -269,6 +277,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeSnapshotStore(StoredSnapshot(source, Snapshot(source)), changed: true),
             new FakeParserClient(),
             new FakeParseResultStore(shouldInvokeParser: true),
+            new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(isFrozen: true),
             new ParseRunOptions(),
@@ -304,6 +313,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeSnapshotStore(StoredSnapshot(Source(), Snapshot(Source())), changed: true),
             new FakeParserClient(),
             new FakeParseResultStore(shouldInvokeParser: true),
+            new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new ParseRunOptions(),
@@ -329,6 +339,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeSnapshotStore(StoredSnapshot(source, Snapshot(source)), changed: true),
             new FakeParserClient(),
             parseStore,
+            new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(isFrozen: true),
             new ParseRunOptions(),
@@ -352,6 +363,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeSnapshotStore(StoredSnapshot(source, Snapshot(source)), changed: true),
             new FakeParserClient(),
             new FakeParseResultStore(shouldInvokeParser: true),
+            new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore
             {
@@ -382,6 +394,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeSnapshotStore(StoredSnapshot(source, Snapshot(source)), changed: true),
             new FakeParserClient(),
             parseStore,
+            new FakeGroupRotationCoverageStore(),
             ValidationService(),
             freeze,
             new ParseRunOptions(),
@@ -419,6 +432,7 @@ public sealed class ScheduleSourcePollerTests
             },
             parser,
             resultStore,
+            new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new ParseRunOptions(),
@@ -459,6 +473,7 @@ public sealed class ScheduleSourcePollerTests
             },
             parser,
             resultStore,
+            new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new ParseRunOptions(),
@@ -522,6 +537,106 @@ public sealed class ScheduleSourcePollerTests
         2,
         DomainLanguage.Turkish,
         "Europe/Istanbul");
+
+    /// <summary>
+    /// A source that defers a group rotation is told which of its dates the
+    /// owning sources have already published, for its own program (ADR-126).
+    /// </summary>
+    [Fact]
+    public async Task TheDatesTheRotationOwnersPublishedReachTheParser()
+    {
+        ScheduleSource source = AnnualWithAnatomyRotation();
+        NormalizedSpreadsheetSnapshot snapshot = Snapshot(source);
+        FakeParserClient parser = new();
+        FakeParseResultStore resultStore = new(shouldInvokeParser: true);
+        FakeGroupRotationCoverageStore coverage = new(
+            new DateOnly(2026, 10, 6),
+            new DateOnly(2026, 10, 8));
+        ScheduleSourcePoller poller = new(
+            new FakeSnapshotAcquirer(snapshot),
+            new FakeDriveDocumentAcquirer(snapshot),
+            new FakeSnapshotStore(StoredSnapshot(source, snapshot), changed: true),
+            parser,
+            resultStore,
+            coverage,
+            ValidationService(),
+            new FakeOperationalFreezeStore(),
+            new ParseRunOptions(),
+            new FixedTimeProvider(new DateTimeOffset(2026, 8, 21, 9, 0, 0, TimeSpan.Zero)));
+
+        ScheduleSourcePollResult result = await poller.PollAsync(source, CancellationToken.None);
+
+        Assert.Equal(ScheduleSourcePollOutcome.Parsed, result.Outcome);
+        Assert.Equal(
+            [new DateOnly(2026, 10, 6), new DateOnly(2026, 10, 8)],
+            parser.LastRequest!.SourceContext.GroupRotationCoveredDates);
+
+        // Asked for the deferring source's program, not the owner's: an owner
+        // still pointing at last year's document covers nothing (ADR-115).
+        Assert.Equal(source.AcademicYear, coverage.RequestedAcademicYear);
+        Assert.Equal(source.ClassYear, coverage.RequestedClassYear);
+        Assert.Equal(source.ProgramLanguage, coverage.RequestedProgramLanguage);
+
+        // Keyed by that coverage, or uploading the group list would leave the
+        // snapshot short-circuited as already parsed and every fallback hour on
+        // the calendar beside the real one.
+        Assert.NotEqual(ParseRunCompanionFingerprint.None, resultStore.CompanionFingerprint);
+    }
+
+    /// <summary>
+    /// A source that names no rotation owner asks nothing and is keyed exactly as
+    /// it was before the fallback existed (ADR-126).
+    /// </summary>
+    [Fact]
+    public async Task ASourceWithoutARotationOwnerIsUnaffected()
+    {
+        ScheduleSource source = Source();
+        NormalizedSpreadsheetSnapshot snapshot = Snapshot(source);
+        FakeParserClient parser = new();
+        FakeParseResultStore resultStore = new(shouldInvokeParser: true);
+        FakeGroupRotationCoverageStore coverage = new(new DateOnly(2026, 10, 6));
+        ScheduleSourcePoller poller = new(
+            new FakeSnapshotAcquirer(snapshot),
+            new FakeDriveDocumentAcquirer(snapshot),
+            new FakeSnapshotStore(StoredSnapshot(source, snapshot), changed: true),
+            parser,
+            resultStore,
+            coverage,
+            ValidationService(),
+            new FakeOperationalFreezeStore(),
+            new ParseRunOptions(),
+            new FixedTimeProvider(new DateTimeOffset(2026, 8, 21, 9, 0, 0, TimeSpan.Zero)));
+
+        await poller.PollAsync(source, CancellationToken.None);
+
+        Assert.Null(coverage.RequestedSourceIds);
+        Assert.Empty(parser.LastRequest!.SourceContext.GroupRotationCoveredDates);
+        Assert.Equal(ParseRunCompanionFingerprint.None, resultStore.CompanionFingerprint);
+    }
+
+    /// <summary>
+    /// The Grade 2 Turkish annual as the catalog declares it: its dissection rows
+    /// defer to the anatomy group lists for the dates those have published
+    /// (ADR-126).
+    /// </summary>
+    private static ScheduleSource AnnualWithAnatomyRotation() => new(
+        SourceId.Parse("G2-TR-ANNUAL"),
+        "Grade 2 Turkish annual",
+        ScheduleSourceTransport.GoogleSheets,
+        ScheduleDocumentFormat.GoogleSheet,
+        "https://docs.google.com/spreadsheets/d/example-g2",
+        "grade2_yearly_v1",
+        "1.1.0",
+        "2026-2027",
+        2,
+        DomainLanguage.Turkish,
+        "Europe/Istanbul",
+        "spreadsheet-g2",
+        groupRotationSourceIds:
+        [
+            SourceId.Parse("G2-ANATOMY-AUTUMN"),
+            SourceId.Parse("G2-ANATOMY-SPRING"),
+        ]);
 
     /// <summary>
     /// The Grade 3 Turkish A annual as the catalog declares it: its parser reads
@@ -739,6 +854,32 @@ public sealed class ScheduleSourcePollerTests
                 ParserProfile = request.ParserProfile,
                 Status = ParserResultStatus.Completed,
             });
+        }
+    }
+
+    private sealed class FakeGroupRotationCoverageStore(params DateOnly[] published)
+        : IGroupRotationCoverageStore
+    {
+        public IReadOnlyCollection<SourceId>? RequestedSourceIds { get; private set; }
+
+        public string? RequestedAcademicYear { get; private set; }
+
+        public int? RequestedClassYear { get; private set; }
+
+        public DomainLanguage? RequestedProgramLanguage { get; private set; }
+
+        public Task<IReadOnlyList<DateOnly>> ListPublishedDatesAsync(
+            IReadOnlyCollection<SourceId> rotationSourceIds,
+            string academicYear,
+            int classYear,
+            DomainLanguage programLanguage,
+            CancellationToken cancellationToken)
+        {
+            RequestedSourceIds = rotationSourceIds;
+            RequestedAcademicYear = academicYear;
+            RequestedClassYear = classYear;
+            RequestedProgramLanguage = programLanguage;
+            return Task.FromResult<IReadOnlyList<DateOnly>>([.. published]);
         }
     }
 

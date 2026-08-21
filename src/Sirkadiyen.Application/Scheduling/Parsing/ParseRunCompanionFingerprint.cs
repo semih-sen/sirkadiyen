@@ -5,8 +5,8 @@ using Sirkadiyen.Domain.Scheduling.Sources;
 namespace Sirkadiyen.Application.Scheduling.Parsing;
 
 /// <summary>
-/// Reduces the companion evidence a parse read to one value a uniqueness key can
-/// hold (ADR-102).
+/// Reduces the evidence a parse read besides its own snapshot to one value a
+/// uniqueness key can hold (ADR-102, ADR-126).
 /// </summary>
 /// <remarks>
 /// A parse run is keyed by snapshot and parser profile version. A companion
@@ -33,11 +33,21 @@ public static class ParseRunCompanionFingerprint
     /// <summary>Longest value <see cref="Compute"/> can produce.</summary>
     public const int MaxLength = 100;
 
-    public static string Compute(IReadOnlyList<CompanionEvidence> companions)
+    /// <param name="rotationCoverage">
+    /// The dates the sources owning this source's group rotation had published
+    /// when the run began (ADR-126). It belongs in the key for the same reason a
+    /// companion does: it is an input the parse read, and a run keyed without it
+    /// would be short-circuited as "already parsed" after a group list arrived,
+    /// leaving the fallback events on every student's calendar for good.
+    /// </param>
+    public static string Compute(
+        IReadOnlyList<CompanionEvidence> companions,
+        IReadOnlyList<DateOnly>? rotationCoverage = null)
     {
         ArgumentNullException.ThrowIfNull(companions);
 
-        if (companions.Count == 0)
+        IReadOnlyList<DateOnly> coverage = rotationCoverage ?? [];
+        if (companions.Count == 0 && coverage.Count == 0)
         {
             return None;
         }
@@ -52,6 +62,19 @@ public static class ParseRunCompanionFingerprint
                 .Append('\n')
                 .Append(companion.ContentHash)
                 .Append('\n');
+        }
+
+        // Written only when there is coverage, so every run that reads none keeps
+        // exactly the value it had before coverage was part of the key and is not
+        // reparsed for a change that did not happen. The label separates the two
+        // lists: a date must never be readable as a companion hash.
+        if (coverage.Count > 0)
+        {
+            builder.Append("rotationCoverage").Append('\n');
+            foreach (DateOnly date in coverage)
+            {
+                builder.Append(date.ToString("O")).Append('\n');
+            }
         }
 
         byte[] digest = SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString()));

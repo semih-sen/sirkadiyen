@@ -1121,3 +1121,26 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
 - **Not done / not verified:** uçtan uca diriltme yerelde çalıştırılmadı (Google kimlik bilgisi
   yok). Deploy sonrası ADR-121 doğrulamasıyla teyit: eksik 500 → 0, uyumlu 317 → 817. Fazla 815
   (2025-2026) §13 gereği dokunulmadan kalır — ayrı yetkili işe bırakıldı.
+
+## Kapsanmayan grup rotasyonu tümüyle yayımlanıyor (2026-08-21)
+
+- **Root cause:** ADR-073'ün "diseksiyonu anatomi listesine devret" kararı, listenin hiç
+  yüklenmediği (ve rollover sonrası yürüyen yıl için hiç yüklenemediği) durumu kapsamıyordu:
+  dönem 2 öğrencisi hiç diseksiyon görmüyordu. Ayrıntı: ADR-126.
+- **Changed:** parser tarafında `group_rotation_fallback` profil bildirimi, `grade2_yearly_v1`
+  1.1.0, `groupRotationCoveredDates` sözleşme alanı, saat etiketi + açıklama notu, yeni sayaçlar
+  (`rows.publishedGroupRotationFallback`, `groupRotationFallback.days`,
+  `rows.ignored.groupRotationCoveredByCompanion`) ve snapshot başına tek uyarı. .NET tarafında
+  `ScheduleSource.GroupRotationSourceIds` + `AddGroupRotationOwners` migration'ı,
+  `IGroupRotationCoverageStore`/`GroupRotationCoverageStore`, poller'ın kapsama çözümlemesi,
+  parse-run parmak izine kapsama, katalog doğrulaması, katalogda G2-TR/EN-ANNUAL kayıtları ve
+  admin katalog editöründe `groupRotationSourceIds` alanı.
+- **Tests executed:** parser 509 test (yeni: yedek yayımlama, kapsanan tarih, dil, saat sırası,
+  tek uyarı, fallback bildirmeyen profil, /v1/profiles alanı) + ruff + mypy temiz; g2-tr/g2-en
+  altın dosyaları yeniden üretildi ve gözden geçirildi (790→949, 935→1094). .NET: Infrastructure
+  731, Contracts 6, Api 8 test geçti; `dotnet build` 0 uyarı. Web: typecheck temiz, 78 test geçti.
+- **Not done / not verified:** `GroupRotationCoverageStoreTests` yazıldı ama burada
+  çalıştırılamadı — Docker kapalı, PostgreSQL yok (CI'da koşacak). Kapsamanın gerçek snapshot
+  üzerindeki yolu için ayrı bir altın dosya eklenmedi; birim testleri sentetik satırlarla
+  kapsıyor.
+

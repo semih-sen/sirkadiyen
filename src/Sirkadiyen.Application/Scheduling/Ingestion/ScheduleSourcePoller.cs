@@ -23,6 +23,7 @@ public sealed class ScheduleSourcePoller(
     ISourceSnapshotStore snapshotStore,
     IScheduleParserClient parserClient,
     IScheduleParseResultStore parseResultStore,
+    IGroupRotationCoverageStore rotationCoverageStore,
     ScheduleRevisionValidationService revisionValidation,
     IOperationalFreezeStore operationalFreeze,
     ParseRunOptions parseRunOptions,
@@ -210,6 +211,14 @@ public sealed class ScheduleSourcePoller(
         IReadOnlyList<SourceSnapshot> companions = await ResolveCompanionsAsync(
             source,
             cancellationToken);
+
+        // Resolved before the run is opened for the same reason, and it changes
+        // more often than a companion does: uploading the anatomy group list has
+        // to reparse the annual program, or every dissection hour it published as
+        // a fallback would stay on the calendar beside the real one (ADR-126).
+        IReadOnlyList<DateOnly> rotationCoverage = await ResolveRotationCoverageAsync(
+            source,
+            cancellationToken);
         BeginParseRunResult parseRun = await parseResultStore.BeginOrResumeAsync(
             stored,
             source,
@@ -218,7 +227,8 @@ public sealed class ScheduleSourcePoller(
             parseRunOptions.StaleRunTimeout,
             ParseRunCompanionFingerprint.Compute(
                 [.. companions.Select(static companion =>
-                    new CompanionEvidence(companion.SourceId, companion.ContentHash))]),
+                    new CompanionEvidence(companion.SourceId, companion.ContentHash))],
+                rotationCoverage),
             cancellationToken);
 
         if (!parseRun.ShouldInvokeParser)
@@ -247,7 +257,8 @@ public sealed class ScheduleSourcePoller(
             source,
             snapshotForParsing,
             correlationId,
-            [.. companions.Select(Deserialize)]);
+            [.. companions.Select(Deserialize)],
+            rotationCoverage);
 
         try
         {
@@ -332,6 +343,34 @@ public sealed class ScheduleSourcePoller(
         return companions;
     }
 
+    /// <summary>
+    /// The dates the sources owning this source's group rotation have published
+    /// for this source's own program (ADR-126).
+    /// </summary>
+    /// <remarks>
+    /// A source that names no rotation owner asks nothing and sends nothing, so
+    /// it parses exactly as it did before the fallback existed. The read is over
+    /// published records rather than over snapshots: a group list that has been
+    /// acquired but not published says nothing to a student yet, and must not
+    /// silence the hours the annual program is publishing in its place.
+    /// </remarks>
+    private async Task<IReadOnlyList<DateOnly>> ResolveRotationCoverageAsync(
+        ScheduleSource source,
+        CancellationToken cancellationToken)
+    {
+        if (source.GroupRotationSourceIds.Count == 0)
+        {
+            return [];
+        }
+
+        return await rotationCoverageStore.ListPublishedDatesAsync(
+            source.GroupRotationSourceIds,
+            source.AcademicYear,
+            source.ClassYear,
+            source.ProgramLanguage,
+            cancellationToken);
+    }
+
     private static NormalizedSpreadsheetSnapshot Deserialize(SourceSnapshot companion) =>
         JsonSerializer.Deserialize<NormalizedSpreadsheetSnapshot>(
             companion.RequirePayload(),
@@ -343,7 +382,8 @@ public sealed class ScheduleSourcePoller(
         ScheduleSource source,
         NormalizedSpreadsheetSnapshot snapshot,
         string correlationId,
-        IReadOnlyList<NormalizedSpreadsheetSnapshot> auxiliarySnapshots) => new()
+        IReadOnlyList<NormalizedSpreadsheetSnapshot> auxiliarySnapshots,
+        IReadOnlyList<DateOnly> rotationCoverage) => new()
         {
             ContractVersion = ParserContractVersions.V1,
             CorrelationId = correlationId,
@@ -372,6 +412,11 @@ public sealed class ScheduleSourcePoller(
                 AuthoritativeAudienceSelectors =
                     source.AuthoritativeAudienceSelectors
                     ?? new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal),
+
+                // Whether another document has already published a rotation date is
+                // orchestration knowledge the workbook cannot hold, so it travels
+                // with the rest of the source context too (ADR-017, ADR-126).
+                GroupRotationCoveredDates = rotationCoverage,
             },
             Snapshot = snapshot,
             AuxiliarySnapshots = auxiliarySnapshots,

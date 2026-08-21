@@ -23,6 +23,7 @@ class ProfileResponse(BaseModel):
     audience_dimensions: tuple[str, ...]
     annual_markers: tuple[str, ...]
     group_rotation_subjects: tuple[str, ...]
+    group_rotation_fallback: bool
     implemented: bool
 
 
@@ -45,6 +46,7 @@ def profiles() -> list[ProfileResponse]:
             audience_dimensions=profile.audience_dimensions,
             annual_markers=profile.annual_markers,
             group_rotation_subjects=profile.group_rotation_subjects,
+            group_rotation_fallback=profile.group_rotation_fallback,
             implemented=get_parser(profile.name, profile.version) is not None,
         )
         for profile in list_profiles()

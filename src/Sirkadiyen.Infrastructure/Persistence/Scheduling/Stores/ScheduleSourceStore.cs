@@ -133,5 +133,10 @@ internal static class ScheduleSourceUpsert
         // forever, and every Grade 3 bedside event reached a calendar with no
         // description at all (ADR-112).
         [nameof(ScheduleSource.CompanionSourceIds)] = source.CompanionSourceIds,
+
+        // A rotation owner added to the catalog has to reach a running database
+        // for the same reason: without it the annual source would keep publishing
+        // every dissection hour after the group list had been uploaded (ADR-126).
+        [nameof(ScheduleSource.GroupRotationSourceIds)] = source.GroupRotationSourceIds,
     };
 }

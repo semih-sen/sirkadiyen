@@ -58,6 +58,10 @@ therefore carries them explicitly (ADR-017):
 The profile validates rows against this context instead of inferring it. A row
 whose term cell names another class year is excluded and counted.
 
+The context also carries what only the caller can know about *other* documents:
+`authoritativeAudienceSelectors` (ADR-110) and `groupRotationCoveredDates`
+(ADR-126, below).
+
 ### Profiles declare how their source writes a numeric date
 
 `12/11/2026` is 12 November read day-first and 11 December read month-first, and
@@ -109,12 +113,43 @@ An annual profile may declare `group_rotation_subjects`, reported by
 consecutive daily slots, and the anatomy group list — the separate
 `SALON GRUP SAATLERİ` source — assigns each student exactly one of them.
 Publishing all three to the cohort would book every student into two sessions
-they must not attend, so those rows are excluded and counted as
-`rows.ignored.outOfScopeGroupRotation` (159 rows in each Grade 2 workbook) until
-the anatomy profiles publish them with their real audience.
+they must not attend, so a row whose date the group list has published is
+excluded and counted as `rows.ignored.groupRotationCoveredByCompanion`.
 
 The declaration is per profile, not a shared word list: Grade 1 declares none, so
 the same title stays published there.
+
+### A rotation date nobody has published is published in full
+
+A group list that has not been uploaded leaves the student with no dissection at
+all, which is what the fallback answers (ADR-126). A profile may also declare
+`group_rotation_fallback` — `grade2_yearly_v1` does, `grade3_yearly_v1`
+deliberately does not — and the request states which dates the owning sources
+have already published:
+
+```json
+"sourceContext": {
+  "academicYear": "2026-2027",
+  "classYear": 2,
+  "programLanguage": "turkish",
+  "timeZoneId": "Europe/Istanbul",
+  "groupRotationCoveredDates": ["2026-10-06", "2026-10-08"]
+}
+```
+
+For a rotation date **not** in that list, every hour of the session is published
+to the whole class, each naming which of the day's hours it is
+(`DİSEKSİYON (3/13) — 2. saat`, `… — Hour 2` in the English program) and carrying
+a note saying the group list is not out yet and that only the student's own hour
+will remain once it is. The hour is numbered by start time rather than by row
+order, because the start time is what identifies the record.
+
+The parser never decides this on its own: it cannot see whether another document
+exists. The caller states the coverage it found, and an empty list means the
+owners have published nothing — which is exactly the state that makes all three
+hours appear. `rows.publishedGroupRotationFallback` and
+`groupRotationFallback.days` count the result, and one
+`groupRotationPublishedWithoutCompanion` warning per snapshot names the range.
 
 `parsers/practice.py` reads the rotation matrix, where **a candidate is a cell**:
 the group comes from the cell, the subject from its column header, and the date

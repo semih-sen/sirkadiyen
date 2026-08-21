@@ -41,7 +41,8 @@ public sealed class ScheduleSource
         IReadOnlyDictionary<string, IReadOnlyList<string>>? supportedAudienceSelectors = null,
         string? sharedDocumentGroup = null,
         IReadOnlyList<SourceId>? companionSourceIds = null,
-        IReadOnlyDictionary<string, IReadOnlyList<string>>? authoritativeAudienceSelectors = null)
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? authoritativeAudienceSelectors = null,
+        IReadOnlyList<SourceId>? groupRotationSourceIds = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceUri);
@@ -70,6 +71,16 @@ public sealed class ScheduleSource
                 nameof(companionSourceIds));
         }
 
+        IReadOnlyList<SourceId> rotationSources = groupRotationSourceIds is null
+            ? []
+            : [.. groupRotationSourceIds];
+        if (rotationSources.Contains(sourceId))
+        {
+            throw new ArgumentException(
+                $"Source '{sourceId}' names itself as the owner of its own group rotation.",
+                nameof(groupRotationSourceIds));
+        }
+
         Id = Guid.CreateVersion7();
         SourceId = sourceId;
         DisplayName = displayName;
@@ -88,6 +99,7 @@ public sealed class ScheduleSource
         AuthoritativeAudienceSelectors = authoritativeAudienceSelectors;
         SharedDocumentGroup = sharedDocumentGroup;
         CompanionSourceIds = companions;
+        GroupRotationSourceIds = rotationSources;
         IsPollingEnabled = true;
     }
 
@@ -191,6 +203,26 @@ public sealed class ScheduleSource
     /// </para>
     /// </remarks>
     public IReadOnlyList<SourceId> CompanionSourceIds { get; private set; } = [];
+
+    /// <summary>
+    /// The sources that own the group rotation this source's rows defer to, whose
+    /// published dates decide where the deferral still applies (ADR-126).
+    /// </summary>
+    /// <remarks>
+    /// The Grade 2 annual workbooks state all three dissection hours of a session
+    /// and the anatomy group lists assign each student one of them, so the annual
+    /// rows are excluded — but only for the dates a group list has actually
+    /// published. Naming those sources here is what lets the poller tell "the
+    /// rotation is owned elsewhere and published" from "owned elsewhere and
+    /// missing", which the workbook cannot say and the parser cannot see.
+    /// <para>
+    /// Empty means this source defers unconditionally, which is what every source
+    /// but the Grade 2 annual workbooks does. It is separate from
+    /// <see cref="CompanionSourceIds"/>: a companion's document is read by this
+    /// parse, while a rotation owner's *published result* is only consulted.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<SourceId> GroupRotationSourceIds { get; private set; } = [];
 
     public bool IsPollingEnabled { get; private set; }
 
