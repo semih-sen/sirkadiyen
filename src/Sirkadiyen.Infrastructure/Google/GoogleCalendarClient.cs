@@ -566,6 +566,13 @@ public sealed class GoogleCalendarClient : IUserCalendarClient, IDisposable
         Event googleEvent = new()
         {
             Id = calendarEvent.EventId,
+            // Every managed write asserts the event is live. A previously deleted event lingers as a
+            // "cancelled" tombstone under the same deterministic id; patching it (which is how a
+            // repair re-inserts a "missing on Google" event) reaches the tombstone and returns 200,
+            // but leaves it cancelled — so it stays invisible and the missing count never moves.
+            // Setting status here revives the tombstone on patch and is a no-op on a live event or a
+            // fresh insert, where the event is confirmed by default.
+            Status = "confirmed",
             Summary = calendarEvent.Summary,
             Description = calendarEvent.Description,
             Location = calendarEvent.Location,

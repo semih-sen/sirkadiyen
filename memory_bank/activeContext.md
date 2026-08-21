@@ -2883,3 +2883,34 @@ zamanlamak isteyen operatör programı dondurup ADR-115 ekranını kullanır.
 - **Sınıf geçişi öğrencinin kendi işi ve otomatik olmayacak** (karar). Profil formunda dönem
   serbestçe değiştirilebiliyor; kayıt yeni programın yılını damgalıyor ve yakınsamayı zaten
   tetikliyor. Hangi uygulama/anatomi/müfredat grubuna gireceğini hiçbir makine bilemez.
+
+## Onarma artık silinmiş event tombstone'unu diriltiyor (2026-08-21)
+
+Operatör ADR-121 doğrulamasını çalıştırıp (817 beklenen, 500 "Google'da eksik") ardından
+ADR-123 onarımını tetikledi; worker `calendar-maintenance`'e geçti, envanter turu **temiz
+tamamlandı** ama eksik sayısı hiç değişmedi. Üretimde doğrulanan teşhis:
+
+- Ledger sağlamdı: 1632 satırın tümü bağlantının güncel takvimini gösteriyordu (`on_other = 0`)
+  — yani ADR-122'nin iki-takvim bölünmesi **değil**.
+- Bağlantı envantere tümüyle uygundu ve onarımın tek işi (`LastCalendarInventoryAtUtc = null`
+  yapıp turu "vadesi gelmiş" işaretlemek) çalışmıştı.
+- Belirleyici kanıt worker log'uydu: `0 inserted, 500 patched`. 500 event Google'da hâlâ
+  deterministik id'leriyle **`status: cancelled` tombstone** olarak duruyor. Envanter onlara
+  `PatchEventAsync` ile ulaşıyor (Google 200/Patched dönüyor, 404 değil → NotFound değil → asla
+  insert etmiyor), ama patch gövdesi `status` yazmadığı için tombstone yerinde yamalanıp
+  cancelled kalıyor — görünmez. `ListManagedEventsAsync` `ShowDeleted = false` okuduğu için
+  doğrulama onları her turda "eksik" görüyor. Kendini tekrar eden kararlı bir no-op.
+
+Düzeltme (ADR-125): `GoogleCalendarClient.ToGoogleEvent` artık her yönetilen yazma gövdesine
+`Status = "confirmed"` koyuyor. Canlı event/fresh insert için no-op; patch'le erişilen cancelled
+tombstone'u diriltir — Google'ın standart geri-getirme yolu. ADR-123 onarımının "Google'da eksik"
+bir event'i gerçekten yeniden yazabilmesini sağlayan tek eksik parça buydu.
+
+### Sınırı bilerek çizilmiş yer / açık kalan
+
+- **§13 değişmedi.** Yeni silme yetkisi yok; fazla/önceki-yıl (815 adet 2025-2026) event'ler yine
+  ayrı, yetkili bir işe bırakılıyor.
+- **Henüz üretimde kanıtlanmadı.** `GoogleCalendarClient` canlı Google ile konuşur ve birim testi
+  yoktur; fix teşhisle doğrulandı (`500 patched`/`0 inserted` kanıtı), Release derlemesi temiz.
+  Uçtan uca diriltme yerelde çalıştırılmadı (Google kimlik bilgisi yok). Deploy sonrası ilgili
+  kullanıcı için ADR-121 doğrulamasını yeniden çalıştırıp teyit et: eksik 500 → 0, uyumlu 317 → 817.
