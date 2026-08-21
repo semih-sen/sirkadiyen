@@ -2305,3 +2305,254 @@ body.has-drawer {
     background: var(--canvas);
   }
 }
+
+/* ==========================================================================
+   Tıklanabilirlik (öğrenci paneli) + katlanabilir paneller
+   Etkileşimli her yüzey durağan halde de "basılabilir" görünür: kenarlık ya da
+   dolgu, hover'da yükselme, belirgin odak halkası. Tıklanamayan satırlara
+   (özet satırları, rozetler) bilerek hiçbir hover efekti verilmez.
+   ========================================================================== */
+
+.btn:hover:not([disabled]):not([aria-disabled="true"]) {
+  transform: translateY(-1px);
+}
+/* Kaynak kuralda :active daha önce tanımlı; basma geri bildirimi hover'ı yenmeli. */
+.btn:active:not([disabled]):not([aria-disabled="true"]) {
+  transform: translateY(1px);
+}
+
+/* Öğrenci panelinde "hayalet" düğme kalmaz: üçüncül düğmeler de kenarlıklıdır. */
+.student-shell .btn-tertiary {
+  background: var(--canvas);
+  border-color: var(--border);
+  color: var(--fg-ink);
+  padding-inline: 16px;
+}
+.student-shell .btn-tertiary:hover {
+  background: var(--surface);
+  border-color: var(--fg);
+  color: var(--fg);
+}
+.student-shell .btn-secondary {
+  background: color-mix(in oklab, var(--fg) 6%, var(--canvas));
+}
+.student-shell .btn-secondary:hover {
+  background: color-mix(in oklab, var(--fg) 12%, var(--canvas));
+  box-shadow: var(--shadow-sm);
+}
+/* Ok işareti yalnızca hover'da ilerler; ayrıca gecikmeli görünmez. */
+.student-shell .btn > [aria-hidden="true"] {
+  transition: transform 0.14s ease;
+}
+.student-shell .btn:hover > [aria-hidden="true"] {
+  transform: translateX(2px);
+}
+.student-shell .btn:focus-visible {
+  outline: 2.5px solid var(--fg);
+  outline-offset: 3px;
+}
+
+/* Kart içi metin bağlantıları düz metinden ayrışır. */
+.student-shell .card a:not(.btn) {
+  color: var(--fg);
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  font-weight: 600;
+}
+.student-shell .card a:not(.btn):hover {
+  color: var(--fg-ink);
+  text-decoration-thickness: 2.5px;
+}
+
+/* --- Katlanabilir panel (renk paleti) ------------------------------------ */
+
+.disclosure-panel {
+  display: grid;
+  gap: 18px;
+}
+.disclosure-panel[hidden] {
+  display: none;
+}
+.disclosure-trigger {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  text-align: left;
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  background: var(--canvas);
+  color: var(--fg-ink);
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition:
+    border-color 0.14s ease,
+    box-shadow 0.14s ease,
+    transform 0.14s ease,
+    background 0.14s ease;
+}
+.disclosure-trigger:hover {
+  transform: translateY(-1px);
+  border-color: var(--fg);
+  box-shadow: var(--shadow-md);
+}
+.disclosure-trigger:active {
+  transform: translateY(1px);
+}
+.disclosure-trigger[aria-expanded="true"] {
+  background: var(--surface);
+  border-color: color-mix(in oklab, var(--fg) 35%, var(--border));
+}
+.disclosure-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--fg) 10%, var(--canvas));
+  color: var(--fg);
+  font-size: 19px;
+}
+.disclosure-text {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  flex: 1;
+}
+.disclosure-text strong {
+  font-family: var(--font-display);
+  font-size: 16px;
+}
+.disclosure-text > span {
+  color: var(--ink-70);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.disclosure-count {
+  flex: none;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--accent) 15%, white);
+  color: color-mix(in oklab, var(--accent) 72%, black);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.disclosure-action {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-control);
+  border: 1.5px solid var(--fg);
+  color: var(--fg);
+  font-weight: 700;
+  font-size: 13.5px;
+}
+.disclosure-trigger:hover .disclosure-action {
+  background: color-mix(in oklab, var(--fg) 10%, transparent);
+}
+.disclosure-chevron {
+  width: 8px;
+  height: 8px;
+  border-right: 2.5px solid currentColor;
+  border-bottom: 2.5px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 0.18s ease;
+}
+.disclosure-trigger[aria-expanded="true"] .disclosure-chevron {
+  transform: translateY(1px) rotate(225deg);
+}
+/* Katlanmış paletin araç çubuğu, kendi paneli içinde yapışkan kalmamalı. */
+.color-studio--collapsible .color-toolbar {
+  position: static;
+}
+
+@media (max-width: 640px) {
+  .disclosure-trigger {
+    flex-wrap: wrap;
+  }
+  .disclosure-text {
+    flex-basis: calc(100% - 54px);
+  }
+  .disclosure-action {
+    margin-left: auto;
+  }
+}
+
+/* --- Renk kartlarındaki eylemler ------------------------------------------ */
+
+.color-picker-control {
+  transition:
+    border-color 0.14s ease,
+    box-shadow 0.14s ease;
+}
+.color-picker-control:hover {
+  border-color: var(--fg);
+  box-shadow: var(--shadow-sm);
+}
+.color-picker-control:focus-within {
+  outline: 2.5px solid var(--fg);
+  outline-offset: 2px;
+}
+.color-search:focus-within {
+  border-color: var(--fg);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--fg) 16%, transparent);
+}
+.color-division-tabs button:hover:not(.active) {
+  background: color-mix(in oklab, var(--canvas) 60%, transparent);
+  color: var(--fg-ink);
+}
+.color-customized-toggle {
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--canvas);
+  min-height: 36px;
+}
+.color-customized-toggle:hover {
+  border-color: var(--fg);
+  color: var(--fg-ink);
+}
+.color-customized-toggle input {
+  cursor: pointer;
+}
+/* "Varsayılana dön" düz metin gibi görünüyordu; artık gerçek bir düğme. */
+.department-color-footer button {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 10px;
+  min-height: 26px;
+  background: var(--canvas);
+  transition:
+    background 0.14s ease,
+    border-color 0.14s ease;
+}
+.department-color-footer button:hover:not(:disabled) {
+  background: var(--surface);
+  border-color: var(--fg);
+}
+.department-color-footer button:disabled {
+  opacity: 0.55;
+  border-color: color-mix(in oklab, var(--border) 60%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .disclosure-trigger,
+  .disclosure-chevron,
+  .student-shell .btn > [aria-hidden="true"] {
+    transition: none;
+  }
+  .btn:hover:not([disabled]):not([aria-disabled="true"]),
+  .disclosure-trigger:hover {
+    transform: none;
+  }
+}

@@ -16,7 +16,7 @@ function contrastColor(hex: string): string {
   return (rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000 > 150 ? '#173332' : '#ffffff';
 }
 
-export function DepartmentColorEditor({ mode }: { mode: 'admin' | 'user' }) {
+export function DepartmentColorEditor({ mode, collapsible = false }: { mode: 'admin' | 'user'; collapsible?: boolean }) {
   const [items, setItems] = useState<DepartmentColorView[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [reason, setReason] = useState('');
@@ -26,6 +26,10 @@ export function DepartmentColorEditor({ mode }: { mode: 'admin' | 'user' }) {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  // Katlanabilir kullanımda palet varsayılan olarak kapalıdır ve listesi ilk
+  // açılışa kadar istenmez; kapatıp yeniden açmak yeniden yüklemeye yol açmaz.
+  const [open, setOpen] = useState(!collapsible);
+  const [requested, setRequested] = useState(!collapsible);
 
   const load = useCallback(async () => {
     try {
@@ -35,7 +39,7 @@ export function DepartmentColorEditor({ mode }: { mode: 'admin' | 'user' }) {
     } catch (err) { setError(err instanceof ApiError ? err.message : 'Renk paleti yüklenemedi.'); }
   }, [mode]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { if (requested) void load(); }, [requested, load]);
 
   const filtered = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase('tr-TR');
@@ -76,21 +80,43 @@ export function DepartmentColorEditor({ mode }: { mode: 'admin' | 'user' }) {
     finally { setBusyKey(null); }
   }
 
-  return (
-    <div className={`color-studio ${mode === 'user' ? 'color-studio--user' : ''}`}>
-      <section className="color-studio-hero">
-        <div className="color-studio-copy">
-          <span className="eyebrow">Renk sistemi</span>
-          <h2>{mode === 'admin' ? 'Fakülte takvim paleti' : 'Kişisel takvim paletim'}</h2>
-          <p>{mode === 'admin' ? 'Etkinlik kategorilerini ve anabilim dallarını, kişisel seçim yapmamış öğrenciler için yönet.' : 'Etkinlik kategorileri ve anabilim dalları için seçtiğin renkler yalnızca senin takviminde kullanılır.'}</p>
-        </div>
-        <div className="color-studio-metrics">
-          <div><strong>{departments.length || '—'}</strong><span>Anabilim dalı</span></div>
-          <div><strong>{customizedCount}</strong><span>Özelleştirilmiş</span></div>
-          <div><strong>{items.length - customizedCount || '—'}</strong><span>Varsayılan</span></div>
-        </div>
-      </section>
+  const title = mode === 'admin' ? 'Fakülte takvim paleti' : 'Kişisel takvim paletim';
+  const blurb = mode === 'admin'
+    ? 'Etkinlik kategorilerini ve anabilim dallarını, kişisel seçim yapmamış öğrenciler için yönet.'
+    : 'Etkinlik kategorileri ve anabilim dalları için seçtiğin renkler yalnızca senin takviminde kullanılır.';
+  const panelId = `color-studio-panel-${mode}`;
 
+  return (
+    <div className={`color-studio ${mode === 'user' ? 'color-studio--user' : ''}${collapsible ? ' color-studio--collapsible' : ''}`}>
+      {collapsible ? (
+        <button
+          type="button"
+          className="disclosure-trigger"
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={() => { setRequested(true); setOpen((current) => !current); }}
+        >
+          <span className="disclosure-mark" aria-hidden="true">◍</span>
+          <span className="disclosure-text"><strong>{title}</strong><span>{blurb}</span></span>
+          {items.length > 0 && <span className="disclosure-count">{customizedCount} özel renk</span>}
+          <span className="disclosure-action">{open ? 'Kapat' : 'Aç'}<i className="disclosure-chevron" aria-hidden="true" /></span>
+        </button>
+      ) : (
+        <section className="color-studio-hero">
+          <div className="color-studio-copy">
+            <span className="eyebrow">Renk sistemi</span>
+            <h2>{title}</h2>
+            <p>{blurb}</p>
+          </div>
+          <div className="color-studio-metrics">
+            <div><strong>{departments.length || '—'}</strong><span>Anabilim dalı</span></div>
+            <div><strong>{customizedCount}</strong><span>Özelleştirilmiş</span></div>
+            <div><strong>{items.length - customizedCount || '—'}</strong><span>Varsayılan</span></div>
+          </div>
+        </section>
+      )}
+
+      <div id={panelId} className="disclosure-panel" hidden={collapsible && !open}>
       {mode === 'admin' && (
         <section className="color-audit-bar">
           <div className="color-audit-icon" aria-hidden="true">✎</div>
@@ -174,6 +200,7 @@ export function DepartmentColorEditor({ mode }: { mode: 'admin' | 'user' }) {
           {!filtered.length && <div className="admin-empty-state compact"><div className="admin-empty-mark">⌕</div><div><h2>Eşleşen anabilim dalı yok</h2><p>Arama metnini veya filtreleri değiştir.</p></div></div>}
         </>
       )}
+      </div>
     </div>
   );
 }
