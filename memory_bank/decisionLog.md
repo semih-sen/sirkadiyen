@@ -7353,3 +7353,66 @@ own honestly-reported stage.
   build clean (0 warnings), frontend 75 tests + typecheck + production build pass.
 
 ---
+
+## ADR-125: Managed calendar writes assert `status: confirmed`, so a repair revives a deleted-event tombstone
+
+**Status:** Accepted and implemented (code); live production verification pending deploy
+**Date:** 2026-08-21
+**Implements:** one line in `GoogleCalendarClient.ToGoogleEvent` — `Status = "confirmed"` on every
+managed event body (insert and patch)
+**Relates to:** ADR-058 (deterministic id + ledger idempotency), ADR-062/inventory reconciliation,
+ADR-121 (read-only verification), ADR-122 (the double-sync incident), ADR-123 (non-destructive repair)
+
+### Context
+
+An operator ran the ADR-121 verification on a user (817 expected, 500 "missing on Google"), then the
+ADR-123 repair. The worker reached `calendar-maintenance` and the inventory pass **completed cleanly**
+(it stamped `LastCalendarInventoryAtUtc`), yet the missing count never moved.
+
+Diagnosis, confirmed against production:
+
+- The ledger was intact: all 1632 rows pointed at the connection's current managed calendar
+  (`on_other = 0`), so this was **not** the ADR-122 two-calendar split.
+- The connection was fully inventory-eligible (Authorized, Completed, calendar attached, no
+  reconciliation/unavailable flag), and the repair's only job — nulling `LastCalendarInventoryAtUtc`
+  to make it due — worked.
+- The worker log was decisive: `0 inserted, 500 patched`. The 500 events still exist on Google as
+  **`status: cancelled` tombstones** under their deterministic ids. Inventory's `RepairExpectedAsync`
+  reaches them via `PatchEventAsync` (Google returns 200/Patched, not 404 → not NotFound → never
+  insert), but the patch body never set `status`, so the tombstone was patched **in place and stayed
+  cancelled** — invisible. `ListManagedEventsAsync` reads `ShowDeleted = false`, so verification never
+  sees them and reports "missing" every cycle. A stable, self-perpetuating no-op.
+
+The two swallow points that hid it: `InsertEventAsync` treats 409 as `AlreadyExists` (correct for
+idempotency, but the code path never reached insert here), and `ToGoogleEvent` omitted `status`
+entirely, so no managed write could ever un-cancel an event.
+
+### Decision
+
+**Every managed write asserts the event is live.** `ToGoogleEvent` now sets `Status = "confirmed"` on
+the body used by both insert and patch. On a fresh insert or a live event this is a no-op (events are
+confirmed by default); on a cancelled tombstone reached by patch it revives the event — Google's
+standard restore path. This is what lets the ADR-123 repair actually re-materialise a "missing on
+Google" event whose id was previously deleted.
+
+- The domain `ManagedCalendarEvent` is unchanged; `status` is a Google-transport concern, not schedule
+  truth, so `ManagedCalendarEventComparer.IsEquivalent` and the verification comparer are untouched.
+- No new deletion authority and no change to §13: surplus/previous-year events (the 815 "extra on
+  Google" 2025-2026 records) are still left for a separate authorized action, exactly as before.
+
+### Consequences
+
+- After deploy, one inventory cycle (or a re-triggered repair) patches the 500 tombstones with
+  `status: confirmed`, reviving them: verification should read **missing 500 → 0, matched 317 → 817**,
+  extra 815 unchanged. The first post-fix cycle still logs `500 patched` (now reviving); later cycles
+  log them as matched.
+- The double-sync root cause that created the tombstones is already closed by the ADR-122 fence; this
+  fix makes the damage that predates the fence repairable.
+- **Verification limit — not yet production-proven.** `GoogleCalendarClient` talks to live Google and
+  has no unit test (its own long-standing constraint); the fake `IUserCalendarClient` the sync tests
+  use is unaffected. The fix is diagnosis-confirmed (the `500 patched`/`0 inserted` evidence proves the
+  events are patch-reachable cancelled tombstones) and the Release build is clean (0 warnings), but the
+  end-to-end revival was not exercised locally — no Google credential here. Confirm on the server after
+  deploy by re-running the ADR-121 verification for the affected user.
+
+---

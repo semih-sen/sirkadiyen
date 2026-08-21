@@ -1106,3 +1106,18 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
   uzlaştırıcı davranışı (6), worker DI çözümlemesi (3), drift options varsayılan/override (2).
 - **Not done:** sınıf geçişi mekanizması yok ve bilerek yok (ADR-117); öğrenci kendi profilinden
   dönemini değiştirir. `ListDriftedAsync` için persistence testi yazılmadı.
+
+## Onarma, silinmiş event tombstone'unu diriltiyor (2026-08-21)
+
+- **Root cause:** ADR-123 onarımı/envanteri, Google'da `status: cancelled` tombstone olarak
+  duran event'leri `PatchEventAsync` ile yamalıyordu ama `ToGoogleEvent` gövdesi `status`
+  yazmadığından tombstone cancelled kalıyor, görünmez oluyordu. Worker log'u belirleyiciydi:
+  `0 inserted, 500 patched`. Ledger sağlamdı (`on_other = 0`), iki-takvim bölünmesi değildi.
+  Ayrıntı: ADR-125.
+- **Changed:** `GoogleCalendarClient.ToGoogleEvent` artık `Status = "confirmed"` yazıyor
+  (insert + patch gövdesi). Canlı event için no-op, cancelled tombstone'u patch'le diriltir.
+- **Tests executed:** `Sirkadiyen.Infrastructure` Release derlemesi — 0 uyarı, 0 hata. Bu istemci
+  canlı Google ile konuşur ve birim testi yoktur; sahte `IUserCalendarClient` etkilenmez.
+- **Not done / not verified:** uçtan uca diriltme yerelde çalıştırılmadı (Google kimlik bilgisi
+  yok). Deploy sonrası ADR-121 doğrulamasıyla teyit: eksik 500 → 0, uyumlu 317 → 817. Fazla 815
+  (2025-2026) §13 gereği dokunulmadan kalır — ayrı yetkili işe bırakıldı.
