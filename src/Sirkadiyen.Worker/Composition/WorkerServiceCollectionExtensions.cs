@@ -102,6 +102,7 @@ internal static class WorkerServiceCollectionExtensions
 
         services.AddSingleton<SourceCatalogInitializer>();
         services.AddSingleton<SourcePollingTask>();
+        services.AddSingleton<ManualSourcePollTask>();
         services.AddSingleton<RevisionPublicationTask>();
         services.AddSingleton<ScheduleDiffCalculationTask>();
         services.AddSingleton<SourceProcessingPipeline>();

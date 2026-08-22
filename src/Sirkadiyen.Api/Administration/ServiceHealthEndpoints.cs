@@ -49,6 +49,7 @@ public static class ServiceHealthEndpoints
             StartedAtUtc = instance.StartedAtUtc,
             LastActivityAtUtc = instance.LastActivityAtUtc,
             LastHeartbeatAtUtc = instance.LastHeartbeatAtUtc,
+            NextSourcePollAtUtc = instance.NextSourcePollAtUtc,
             IsActive = now - instance.LastHeartbeatAtUtc <= activeThreshold,
         })];
 
@@ -87,6 +88,9 @@ public sealed record WorkerInstanceStatus
     public required DateTimeOffset LastActivityAtUtc { get; init; }
 
     public required DateTimeOffset LastHeartbeatAtUtc { get; init; }
+
+    /// <summary>When this instance next intends to poll the schedule sources, if known (ADR-127).</summary>
+    public DateTimeOffset? NextSourcePollAtUtc { get; init; }
 
     public required bool IsActive { get; init; }
 }

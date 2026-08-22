@@ -34,6 +34,36 @@ public sealed class ScheduleRevisionReadStore(SirkadiyenDbContext dbContext)
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<ScheduleRevisionSummary>> ListRecentAsync(
+        int limit,
+        string? sourceId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
+
+        IQueryable<ScheduleRevision> query = dbContext.ScheduleRevisions.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(sourceId))
+        {
+            string trimmed = sourceId.Trim();
+            query = query.Where(revision => revision.SourceId.Value == trimmed);
+        }
+
+        return await query
+            .OrderByDescending(revision => revision.CreatedAtUtc)
+            .ThenByDescending(revision => revision.Id)
+            .Take(limit)
+            .Select(revision => new ScheduleRevisionSummary
+            {
+                RevisionId = revision.Id,
+                SourceId = revision.SourceId.Value,
+                State = revision.State,
+                CreatedAtUtc = revision.CreatedAtUtc,
+                RecordCount = revision.RecordCount,
+                StateReason = revision.StateReason,
+            })
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<ScheduleRevisionDetail?> FindAsync(
         Guid revisionId,
         CancellationToken cancellationToken)

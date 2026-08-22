@@ -29,11 +29,17 @@ public sealed class WorkerHeartbeatStore(SirkadiyenDbContext dbContext) : IWorke
                 beat.Status,
                 beat.CurrentStage,
                 beat.LastActivityAtUtc,
-                heartbeatAtUtc));
+                heartbeatAtUtc,
+                beat.NextSourcePollAtUtc));
         }
         else
         {
-            existing.Beat(beat.Status, beat.CurrentStage, beat.LastActivityAtUtc, heartbeatAtUtc);
+            existing.Beat(
+                beat.Status,
+                beat.CurrentStage,
+                beat.LastActivityAtUtc,
+                heartbeatAtUtc,
+                beat.NextSourcePollAtUtc);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -57,6 +63,7 @@ public sealed class WorkerHeartbeatStore(SirkadiyenDbContext dbContext) : IWorke
                 CurrentStage = row.CurrentStage,
                 LastActivityAtUtc = row.LastActivityAtUtc,
                 LastHeartbeatAtUtc = row.LastHeartbeatAtUtc,
+                NextSourcePollAtUtc = row.NextSourcePollAtUtc,
             })
             .ToListAsync(cancellationToken);
 }

@@ -28,6 +28,9 @@ public static class DiffEndpoints
         diffs.MapGet("/", ListAsync)
             .WithSummary("Lists diffs in one state, oldest first.");
 
+        diffs.MapGet("/recent", ListRecentAsync)
+            .WithSummary("Lists the most recent diffs in any state, newest first.");
+
         diffs.MapGet("/{id:guid}", FindAsync)
             .WithSummary("Returns one diff with the changes behind its hold.");
 
@@ -38,6 +41,10 @@ public static class DiffEndpoints
         diffs.MapPost("/{id:guid}/retry", RetryAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
             .WithSummary("Returns a terminally failed diff to the dispatch queue.");
+
+        diffs.MapPost("/{id:guid}/discard", DiscardAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
+            .WithSummary("Discards a held diff so it is never dispatched.");
 
         return builder;
     }
@@ -66,6 +73,23 @@ public static class DiffEndpoints
         return Results.Ok(dispatchState is { } dispatch
             ? await review.ListByDispatchStateAsync(dispatch, limit, cancellationToken)
             : await review.ListAsync(state, limit, cancellationToken));
+    }
+
+    private static async Task<IResult> ListRecentAsync(
+        ScheduleDiffReviewService review,
+        CancellationToken cancellationToken,
+        string? sourceId = null,
+        int limit = 50)
+    {
+        if (limit is < 1 or > MaximumListLimit)
+        {
+            return Results.Problem(
+                title: "Invalid limit",
+                detail: $"'limit' must be between 1 and {MaximumListLimit}.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        return Results.Ok(await review.ListRecentAsync(limit, sourceId, cancellationToken));
     }
 
     private static async Task<IResult> FindAsync(
@@ -234,6 +258,73 @@ public static class DiffEndpoints
                 Retried = true,
                 RetriedAtUtc = result.RetriedAtUtc,
                 DispatchRetryCount = result.DispatchRetryCount,
+            }),
+        };
+    }
+
+    private static async Task<IResult> DiscardAsync(
+        Guid id,
+        DiscardDiffRequest request,
+        ClaimsPrincipal principal,
+        ScheduleDiffReviewService review,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        string discardedBy = UserClaimsPrincipalFactory.GetRequiredEmail(principal);
+        string discardReason = request.DiscardReason?.Trim() ?? string.Empty;
+
+        if (discardReason.Length == 0)
+        {
+            // Discard is terminal, so the record of why is the only thing later explaining a diff
+            // that was held and then dropped rather than acted on.
+            return Results.Problem(
+                title: "Incomplete discard",
+                detail: "'discardReason' is required.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (discardedBy.Length > ScheduleDiff.MaximumDiscardedByLength
+            || discardReason.Length > ScheduleDiff.MaximumDiscardReasonLength)
+        {
+            return Results.Problem(
+                title: "Discard fields are too long",
+                detail: $"'discardedBy' allows {ScheduleDiff.MaximumDiscardedByLength} characters "
+                    + $"and 'discardReason' allows {ScheduleDiff.MaximumDiscardReasonLength}.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        ScheduleDiffDiscardResult result = await review.DiscardAsync(
+            id,
+            discardedBy,
+            discardReason,
+            cancellationToken);
+
+        return result.Outcome switch
+        {
+            ScheduleDiffDiscardOutcome.DiffNotFound => Results.Problem(
+                title: "Diff not found",
+                detail: $"No diff with ID '{id}' exists.",
+                statusCode: StatusCodes.Status404NotFound),
+
+            ScheduleDiffDiscardOutcome.NotHeld => Results.Problem(
+                title: "Diff is not held",
+                detail: $"The diff is {result.ObservedState}, so there is nothing to discard. "
+                    + "Only a held diff can be discarded; a dispatched or released one is corrected "
+                    + "by publishing a newer revision over it.",
+                statusCode: StatusCodes.Status409Conflict),
+
+            ScheduleDiffDiscardOutcome.ConcurrentChange => Results.Problem(
+                title: "Diff changed during discard",
+                detail: "A worker or another operator changed this diff. Read it again before "
+                    + "discarding it.",
+                statusCode: StatusCodes.Status409Conflict),
+
+            _ => Results.Ok(new DiscardDiffResponse
+            {
+                ScheduleDiffId = id,
+                Discarded = true,
+                DiscardedAtUtc = result.DiscardedAtUtc,
             }),
         };
     }

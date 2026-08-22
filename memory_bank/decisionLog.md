@@ -7507,3 +7507,45 @@ after upload.
   the day the student's calendar narrows to their own hour.
 
 ---
+
+## ADR-127: Operator recovery tools — diff discard, manual re-poll, history views, next-poll visibility
+
+**Status:** Accepted
+**Date:** 2026-08-22
+
+### Context
+
+Fixing the Grade 2 dissection gap exposed that a SuperAdmin had no levers when the diff/revision
+machinery stalled. The live catalog (edited from /admin/sources, ADR-114) was correct — 1.1.0 /
+2026-2027 with the anatomy `groupRotationSourceIds` — and the worker reads sources fresh from the DB
+each cycle, but a **stale Held diff produced under the pre-1.1.0 profile** blocked progress, and the
+panel offered no way to discard it, no way to force a re-poll of an unchanged Google Sheet, no way to
+review past revisions/diffs, and no view of when the worker would poll next.
+
+### Decision
+
+Add four operator capabilities:
+
+1. **Discard a held diff.** New terminal `ScheduleDiffState.Discarded` and `ScheduleDiff.Discard(...)`
+   (allowed from `Held` only, ambiguous holds included — discarding decides nothing, it just drops
+   the diff). Forward-fix is preserved (ADR-033): the correction is a superseding revision, never a
+   mutation of a dispatched/released diff. `POST /api/diffs/{id}/discard`, reason required and kept
+   beside the hold reason.
+2. **Manual re-poll with optional force.** `POST /api/admin/sources/{sourceId}/poll` enqueues a
+   `SourcePollRequest`; the worker drains it every cycle via `ManualSourcePollTask` and calls the same
+   `ScheduleSourcePoller`. Acquisition stays in the worker (its clients/credentials live there).
+   `force` replaces the parse-run companion fingerprint with a bounded unique token so an unchanged
+   snapshot+profile opens a fresh run instead of short-circuiting as already parsed.
+3. **History views.** `GET /api/diffs/recent` and `GET /api/revisions/recent` (any state, newest
+   first, optional `sourceId`) back "Geçmiş" tabs beside the existing queues.
+4. **Next-poll visibility.** The worker publishes `NextSourcePollAtUtc` on its heartbeat (ADR-124);
+   `/api/admin/workers` and the server-status screen show it per instance.
+
+### Consequences
+
+- Claiming manual polls uses `FOR UPDATE SKIP LOCKED`, so two worker instances never poll one request
+  twice even though polling is outside the calendar fence.
+- A forced run whose content is identical produces an all-unchanged diff — no calendar churn.
+- Discard is auditable (who/why) but does not itself touch calendars; only a later revision does.
+- One EF migration adds the discard columns, the `source_poll_requests` table, and the heartbeat
+  `NextSourcePollAtUtc` column.

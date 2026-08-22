@@ -1,7 +1,16 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ApiError, getDiff, listDiffs, listDiffsByDispatchState, releaseDiff, retryDiff } from '@/lib/api';
+import {
+  ApiError,
+  getDiff,
+  listDiffs,
+  listDiffsByDispatchState,
+  listRecentDiffs,
+  releaseDiff,
+  retryDiff,
+  discardDiff,
+} from '@/lib/api';
 import { LoadState, Tabs, formatDateTime } from '@/components/AdminData';
 import type {
   ScheduleDiffDetail,
@@ -18,11 +27,12 @@ import type {
  * failed terminally is still Ready or Released, so the review-state filter can never show it
  * (ADR-042, ADR-097). Merging them into one list would hide that a released diff can still fail.
  */
-type QueueKey = 'held' | 'failed';
+type QueueKey = 'held' | 'failed' | 'history';
 
 const QUEUES: { value: QueueKey; label: string }[] = [
   { value: 'held', label: 'Bekletilen diff’ler' },
   { value: 'failed', label: 'Başarısız dağıtım' },
+  { value: 'history', label: 'Geçmiş' },
 ];
 
 function changeBadge(change: string): string {
@@ -80,36 +90,33 @@ function Counts({ summary }: { summary: ScheduleDiffSummary }) {
 }
 
 /**
- * The action a diff in this queue accepts, with its refusal made explicit.
- *
- * An ambiguity hold is never releasable (ADR-042) and a diff that is merely deferred is not
- * retriable. Both are shown as a stated reason rather than a disabled button, because the operator
- * has to know the action is wrong here, not merely unavailable right now.
+ * One reason-gated action button. Every operator action here — release, retry, discard — records who
+ * did it and why, so the shape is shared: a required reason, a busy state, and a stated error.
  */
-function DiffAction({
-  queue,
-  summary,
+function ReasonAction({
+  title,
+  hint,
+  label,
+  busyLabel,
+  placeholder,
+  primary,
+  perform,
   onSettled,
+  inputId,
 }: {
-  queue: QueueKey;
-  summary: ScheduleDiffSummary;
+  title: string;
+  hint: string;
+  label: string;
+  busyLabel: string;
+  placeholder: string;
+  primary: boolean;
+  perform: (reason: string) => Promise<void>;
   onSettled: () => void;
+  inputId: string;
 }) {
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const permitted = queue === 'held' ? summary.isReleasable : summary.isDispatchRetriable;
-
-  if (!permitted) {
-    return (
-      <p className="muted" style={{ fontSize: 13, marginTop: 14 }}>
-        {queue === 'held'
-          ? 'Bu diff belirsizlik nedeniyle bekletiliyor ve serbest bırakılamaz. Serbest bırakmak, etkilenen takvimlerde eski dersi bırakıp yerine yenisini hiç yazmamak anlamına gelirdi. Kaynak hangi dersin hangisi olduğunu belirtmeli ve yeni bir revizyon bunun üzerine yayınlanmalı.'
-          : 'Bu diff’in dağıtımı kalıcı olarak başarısız değil, bu yüzden yeniden denenecek bir şey yok: bekleyen bir diff zaten kuyrukta, dağıtılmış olan ise tamamlanmış.'}
-      </p>
-    );
-  }
 
   async function run() {
     const trimmed = reason.trim();
@@ -120,50 +127,113 @@ function DiffAction({
     setBusy(true);
     setError(null);
     try {
-      if (queue === 'held') await releaseDiff(summary.scheduleDiffId, trimmed);
-      else await retryDiff(summary.scheduleDiffId, trimmed);
+      await perform(trimmed);
       onSettled();
     } catch (caught) {
       setBusy(false);
-      setError(
-        caught instanceof ApiError
-          ? caught.message
-          : queue === 'held'
-            ? 'Diff serbest bırakılamadı.'
-            : 'Diff yeniden denenemedi.',
-      );
+      setError(caught instanceof ApiError ? caught.message : 'İşlem tamamlanamadı.');
     }
   }
 
-  const inputId = `diff-reason-${summary.scheduleDiffId}`;
-
   return (
     <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 14 }}>
-      <p className="muted" style={{ fontSize: 13, margin: '0 0 10px' }}>
-        {queue === 'held'
-          ? 'Serbest bırakmak sorumluluğu üstlenmektir: diff bu andan sonra öğrenci takvimlerine uygulanır. Silmeler dahil, yukarıdaki değişikliklerin tamamı geçerlidir.'
-          : 'Yeniden deneme yeni bir yetki vermez; aynı değişmez diff, aynı fikir üretmeyen (idempotent) dağıtımla yeniden işlenir. Başarısızlığın nedeni giderilmediyse tekrar başarısız olur.'}
-      </p>
-      <label htmlFor={inputId}>
-        {queue === 'held' ? 'Serbest bırakma gerekçesi' : 'Yeniden deneme gerekçesi'} (denetim kaydına yazılır)
-      </label>
+      <p className="muted" style={{ fontSize: 13, margin: '0 0 10px' }}>{hint}</p>
+      <label htmlFor={inputId}>{title} (denetim kaydına yazılır)</label>
       <input
         id={inputId}
         value={reason}
         onChange={(event) => setReason(event.target.value)}
-        placeholder={
-          queue === 'held'
-            ? 'Kaynakta gerçekten bu kadar ders kaldırılmış; fakülte teyit etti.'
-            : 'Google API kotası aşılmıştı; kota yenilendi.'
-        }
+        placeholder={placeholder}
       />
-      <button className="btn btn-primary" type="button" onClick={() => void run()} disabled={busy}>
-        {busy
-          ? queue === 'held' ? 'Serbest bırakılıyor…' : 'Yeniden deneniyor…'
-          : queue === 'held' ? 'Serbest bırak ve dağıt' : 'Dağıtımı yeniden dene'}
+      <button
+        className={primary ? 'btn btn-primary' : 'btn'}
+        type="button"
+        onClick={() => void run()}
+        disabled={busy}
+      >
+        {busy ? busyLabel : label}
       </button>
       {error && <div className="error" role="alert">{error}</div>}
     </div>
+  );
+}
+
+/**
+ * The actions a diff in this queue accepts, with each refusal made explicit.
+ *
+ * A held diff can always be discarded (ADR-127), and released only when it is not an ambiguity hold
+ * (ADR-042). A failed diff can be retried only while its dispatch has failed terminally. Where an
+ * action does not apply it is shown as a stated reason, not a disabled button, so the operator knows
+ * it is wrong here rather than merely unavailable.
+ */
+function DiffAction({
+  queue,
+  summary,
+  onSettled,
+}: {
+  queue: QueueKey;
+  summary: ScheduleDiffSummary;
+  onSettled: () => void;
+}) {
+  if (queue === 'history') {
+    return null;
+  }
+
+  if (queue === 'failed') {
+    return summary.isDispatchRetriable ? (
+      <ReasonAction
+        title="Yeniden deneme gerekçesi"
+        hint="Yeniden deneme yeni bir yetki vermez; aynı değişmez diff, aynı fikir üretmeyen (idempotent) dağıtımla yeniden işlenir. Başarısızlığın nedeni giderilmediyse tekrar başarısız olur."
+        label="Dağıtımı yeniden dene"
+        busyLabel="Yeniden deneniyor…"
+        placeholder="Google API kotası aşılmıştı; kota yenilendi."
+        primary
+        perform={(reason) => retryDiff(summary.scheduleDiffId, reason).then(() => undefined)}
+        onSettled={onSettled}
+        inputId={`diff-retry-${summary.scheduleDiffId}`}
+      />
+    ) : (
+      <p className="muted" style={{ fontSize: 13, marginTop: 14 }}>
+        Bu diff’in dağıtımı kalıcı olarak başarısız değil, bu yüzden yeniden denenecek bir şey yok:
+        bekleyen bir diff zaten kuyrukta, dağıtılmış olan ise tamamlanmış.
+      </p>
+    );
+  }
+
+  // Held queue: release (when unambiguous) and discard (always).
+  return (
+    <>
+      {summary.isReleasable ? (
+        <ReasonAction
+          title="Serbest bırakma gerekçesi"
+          hint="Serbest bırakmak sorumluluğu üstlenmektir: diff bu andan sonra öğrenci takvimlerine uygulanır. Silmeler dahil, yukarıdaki değişikliklerin tamamı geçerlidir."
+          label="Serbest bırak ve dağıt"
+          busyLabel="Serbest bırakılıyor…"
+          placeholder="Kaynakta gerçekten bu kadar ders kaldırılmış; fakülte teyit etti."
+          primary
+          perform={(reason) => releaseDiff(summary.scheduleDiffId, reason).then(() => undefined)}
+          onSettled={onSettled}
+          inputId={`diff-release-${summary.scheduleDiffId}`}
+        />
+      ) : (
+        <p className="muted" style={{ fontSize: 13, marginTop: 14 }}>
+          Bu diff belirsizlik nedeniyle bekletiliyor ve serbest bırakılamaz. Serbest bırakmak,
+          etkilenen takvimlerde eski dersi bırakıp yerine yenisini hiç yazmamak anlamına gelirdi.
+          Belirsizliği kaynak çözmeli; bu diff’i reddedip düzeltilmiş bir revizyonu bekleyebilirsin.
+        </p>
+      )}
+      <ReasonAction
+        title="Reddetme gerekçesi"
+        hint="Reddetmek diff’i kalıcı olarak atar: takvime hiç ulaşmaz. Bayat ya da hatalı bir diff için kullanılır; düzeltmeyi bir sonraki (yeniden çekilmiş) revizyon yapar."
+        label="Reddet"
+        busyLabel="Reddediliyor…"
+        placeholder="Profil 1.1.0’a geçmeden önce üretilmiş bayat diff; yeniden parse edilecek."
+        primary={false}
+        perform={(reason) => discardDiff(summary.scheduleDiffId, reason).then(() => undefined)}
+        onSettled={onSettled}
+        inputId={`diff-discard-${summary.scheduleDiffId}`}
+      />
+    </>
   );
 }
 
@@ -217,8 +287,22 @@ function DiffRow({
         {formatDateTime(summary.createdAtUtc)}
       </small>
 
-      {queue === 'held' && summary.holdReason && (
+      {(queue === 'held' || queue === 'history') && summary.holdReason && (
         <p style={{ margin: '8px 0 0', fontSize: 13 }}>{summary.holdReason}</p>
+      )}
+
+      {summary.discardedAtUtc && (
+        <small className="muted" style={{ display: 'block', marginTop: 6, fontSize: 12 }}>
+          Reddedildi: {summary.discardedBy ?? '—'}, {formatDateTime(summary.discardedAtUtc)}
+          {summary.discardReason ? ` · ${summary.discardReason}` : ''}
+        </small>
+      )}
+
+      {summary.releasedAtUtc && (
+        <small className="muted" style={{ display: 'block', marginTop: 6, fontSize: 12 }}>
+          Serbest bırakıldı: {summary.releasedBy ?? '—'}, {formatDateTime(summary.releasedAtUtc)}
+          {summary.releaseReason ? ` · ${summary.releaseReason}` : ''}
+        </small>
       )}
 
       {queue === 'failed' && (
@@ -282,7 +366,9 @@ export function DiffQueues() {
     setDiffs(null);
     setError(null);
     try {
-      setDiffs(queue === 'held' ? await listDiffs('Held') : await listDiffsByDispatchState('Failed'));
+      if (queue === 'held') setDiffs(await listDiffs('Held'));
+      else if (queue === 'failed') setDiffs(await listDiffsByDispatchState('Failed'));
+      else setDiffs(await listRecentDiffs());
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Diff kuyruğu yüklenemedi.');
     }
@@ -300,7 +386,9 @@ export function DiffQueues() {
       <p className="muted" style={{ marginBottom: 14, fontSize: 13 }}>
         {queue === 'held'
           ? 'Güvenlik eşiklerinin durdurduğu diff’ler. Hiçbiri takvime ulaşmadı; serbest bırakılana kadar da ulaşmaz.'
-          : 'Dağıtımı kalıcı olarak başarısız olmuş diff’ler. İnceleme durumları hâlâ Ready/Released olduğu için bekletilen kuyrukta görünmezler.'}
+          : queue === 'failed'
+            ? 'Dağıtımı kalıcı olarak başarısız olmuş diff’ler. İnceleme durumları hâlâ Ready/Released olduğu için bekletilen kuyrukta görünmezler.'
+            : 'Her durumdaki en yeni diff’ler (serbest bırakılan, reddedilen, dağıtılan dahil). Salt görüntüleme; bir kaynağın geçmişte ne yaptığını gösterir.'}
       </p>
       <LoadState
         loading={diffs === null && !error}

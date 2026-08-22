@@ -34,6 +34,8 @@ import type {
   RejectRevisionResponse,
   ReleaseDiffResponse,
   RetryDiffResponse,
+  DiscardDiffResponse,
+  RequestSourcePollResponse,
   RevisionState,
   CalendarDispatchState,
   ScheduleDiffDetail,
@@ -948,6 +950,52 @@ export function retryDiff(
   return request<RetryDiffResponse>(
     `/api/diffs/${encodeURIComponent(scheduleDiffId)}/retry`,
     { method: 'POST', body: { retryReason } },
+  );
+}
+
+/**
+ * Discards a held diff so it is never dispatched (ADR-127). Terminal: the schedule is corrected by a
+ * superseding revision, not by un-discarding this one.
+ */
+export function discardDiff(
+  scheduleDiffId: string,
+  discardReason: string,
+): Promise<DiscardDiffResponse> {
+  return request<DiscardDiffResponse>(
+    `/api/diffs/${encodeURIComponent(scheduleDiffId)}/discard`,
+    { method: 'POST', body: { discardReason } },
+  );
+}
+
+/** The most recent diffs in any state, newest first — the history view (ADR-127). */
+export function listRecentDiffs(
+  sourceId?: string,
+  limit = 50,
+): Promise<ScheduleDiffSummary[]> {
+  return request<ScheduleDiffSummary[]>(withQuery('/api/diffs/recent', { sourceId, limit }));
+}
+
+/** The most recent revisions in any state, newest first — the history view (ADR-127). */
+export function listRecentRevisions(
+  sourceId?: string,
+  limit = 50,
+): Promise<ScheduleRevisionSummary[]> {
+  return request<ScheduleRevisionSummary[]>(
+    withQuery('/api/revisions/recent', { sourceId, limit }),
+  );
+}
+
+/**
+ * Queues an immediate poll of one source, executed by the worker next cycle (ADR-127). With
+ * `force`, a new parse run is opened even if the stored document is unchanged.
+ */
+export function requestSourcePoll(
+  sourceId: string,
+  force = false,
+): Promise<RequestSourcePollResponse> {
+  return request<RequestSourcePollResponse>(
+    `/api/admin/sources/${encodeURIComponent(sourceId)}/poll`,
+    { method: 'POST', body: { force } },
   );
 }
 

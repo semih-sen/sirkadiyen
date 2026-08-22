@@ -644,6 +644,7 @@ export interface WorkerInstanceStatus {
   startedAtUtc: string;
   lastActivityAtUtc: string;
   lastHeartbeatAtUtc: string;
+  nextSourcePollAtUtc: string | null;
   isActive: boolean;
 }
 
@@ -835,7 +836,7 @@ export interface RejectRevisionResponse {
 // The two operator queues are orthogonal. `state` answers "may this diff be acted on" — the
 // held-review queue. `dispatchState` answers "has it been" — the only way to find a diff whose
 // fan-out failed terminally, since such a diff is still Ready or Released in its review state.
-export type ScheduleDiffState = 'Ready' | 'Held' | 'Released' | string;
+export type ScheduleDiffState = 'Ready' | 'Held' | 'Released' | 'Discarded' | string;
 
 export type CalendarDispatchState = 'Pending' | 'Dispatched' | 'Failed' | string;
 
@@ -867,6 +868,11 @@ export interface ScheduleDiffSummary {
   releasedBy?: string | null;
   releaseReason?: string | null;
   releasedAtUtc?: string | null;
+  /** Whether an operator may discard it (ADR-127): true for any held diff, including ambiguous. */
+  isDiscardable: boolean;
+  discardedBy?: string | null;
+  discardReason?: string | null;
+  discardedAtUtc?: string | null;
   calendarDispatchState: CalendarDispatchState;
   dispatchAttempts: number;
   dispatchedAtUtc?: string | null;
@@ -919,6 +925,18 @@ export interface RetryDiffResponse {
   retried: boolean;
   retriedAtUtc?: string | null;
   dispatchRetryCount: number;
+}
+
+export interface DiscardDiffResponse {
+  scheduleDiffId: string;
+  discarded: boolean;
+  discardedAtUtc?: string | null;
+}
+
+export interface RequestSourcePollResponse {
+  sourceId: string;
+  force: boolean;
+  queued: boolean;
 }
 
 // Finance administration (SuperAdmin): /api/admin/finance/*

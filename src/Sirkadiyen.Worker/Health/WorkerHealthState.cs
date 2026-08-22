@@ -8,13 +8,26 @@ internal sealed class WorkerHealthState(TimeProvider timeProvider)
     private readonly string instanceId = $"{Environment.MachineName}:{Environment.ProcessId}";
     private DateTimeOffset lastActivityAtUtc = timeProvider.GetUtcNow();
     private string currentStage = "starting";
-    private bool ready; 
+    private bool ready;
+    private DateTimeOffset? nextSourcePollAtUtc;
 
     public void MarkReady(string stage) => Update(stage, isReady: true);
 
     public void MarkActivity(string stage) => Update(stage, isReady: null);
 
     public void MarkStopped() => Update("stopping", isReady: false);
+
+    /// <summary>
+    /// Records when this instance next intends to poll the schedule sources, so the admin monitor
+    /// can show a countdown to the next cycle (ADR-127).
+    /// </summary>
+    public void SetNextSourcePollAt(DateTimeOffset nextPollAtUtc)
+    {
+        lock (gate)
+        {
+            nextSourcePollAtUtc = nextPollAtUtc;
+        }
+    }
 
     public WorkerHealthSnapshot GetSnapshot()
     {
@@ -27,6 +40,7 @@ internal sealed class WorkerHealthState(TimeProvider timeProvider)
                 StartedAtUtc = startedAtUtc,
                 LastActivityAtUtc = lastActivityAtUtc,
                 CurrentStage = currentStage,
+                NextSourcePollAtUtc = nextSourcePollAtUtc,
             };
         }
     }

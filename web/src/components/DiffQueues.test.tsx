@@ -7,9 +7,11 @@ import type { ScheduleDiffSummary } from '@/lib/types';
 const api = vi.hoisted(() => ({
   listDiffs: vi.fn(),
   listDiffsByDispatchState: vi.fn(),
+  listRecentDiffs: vi.fn(),
   getDiff: vi.fn(),
   releaseDiff: vi.fn(),
   retryDiff: vi.fn(),
+  discardDiff: vi.fn(),
   ApiError: class ApiError extends Error {},
 }));
 vi.mock('@/lib/api', () => api);
@@ -31,6 +33,7 @@ function summary(overrides: Partial<ScheduleDiffSummary> = {}): ScheduleDiffSumm
     createdAtUtc: '2026-08-15T09:00:00Z',
     holdReason: 'Kütlesel silme eşiği aşıldı: 40 ders kaldırılıyor.',
     isReleasable: true,
+    isDiscardable: true,
     calendarDispatchState: 'Pending',
     dispatchAttempts: 0,
     isDispatchRetriable: false,
@@ -66,9 +69,11 @@ describe('DiffQueues', () => {
     vi.clearAllMocks();
     api.listDiffs.mockResolvedValue([summary()]);
     api.listDiffsByDispatchState.mockResolvedValue([]);
+    api.listRecentDiffs.mockResolvedValue([]);
     api.getDiff.mockResolvedValue(detail);
     api.releaseDiff.mockResolvedValue({ scheduleDiffId: 'd1', released: true });
     api.retryDiff.mockResolvedValue({ scheduleDiffId: 'd1', retried: true, dispatchRetryCount: 1 });
+    api.discardDiff.mockResolvedValue({ scheduleDiffId: 'd1', discarded: true });
   });
 
   it('releases a held diff only with a reason, after showing the lessons it deletes', async () => {
@@ -87,6 +92,36 @@ describe('DiffQueues', () => {
     await userEvent.type(screen.getByLabelText(/Serbest bırakma gerekçesi/), 'Fakülte teyit etti.');
     await userEvent.click(screen.getByRole('button', { name: 'Serbest bırak ve dağıt' }));
     await waitFor(() => expect(api.releaseDiff).toHaveBeenCalledWith('d1', 'Fakülte teyit etti.'));
+  });
+
+  it('discards a held diff with a reason', async () => {
+    render(<DiffQueues />);
+    await userEvent.click(await screen.findByText('G1-TR-ANNUAL'));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Reddet' }));
+    expect(api.discardDiff).not.toHaveBeenCalled();
+
+    await userEvent.type(screen.getByLabelText(/Reddetme gerekçesi/), 'Bayat diff; yeniden çekilecek.');
+    await userEvent.click(screen.getByRole('button', { name: 'Reddet' }));
+    await waitFor(() =>
+      expect(api.discardDiff).toHaveBeenCalledWith('d1', 'Bayat diff; yeniden çekilecek.'),
+    );
+  });
+
+  it('offers discard even on an ambiguity hold that cannot be released', async () => {
+    api.listDiffs.mockResolvedValue([
+      summary({ ambiguousCount: 3, isReleasable: false, holdReason: 'Belirsiz eşleşme.' }),
+    ]);
+    api.getDiff.mockResolvedValue({
+      ...detail,
+      summary: summary({ ambiguousCount: 3, isReleasable: false }),
+    });
+
+    render(<DiffQueues />);
+    await userEvent.click(await screen.findByText('G1-TR-ANNUAL'));
+
+    expect(screen.queryByRole('button', { name: 'Serbest bırak ve dağıt' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Reddet' })).toBeInTheDocument();
   });
 
   it('refuses an ambiguity hold in words instead of offering a release', async () => {

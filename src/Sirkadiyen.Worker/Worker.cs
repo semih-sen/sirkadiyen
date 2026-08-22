@@ -13,6 +13,7 @@ namespace Sirkadiyen.Worker;
 internal sealed class Worker(
     SourceCatalogInitializer catalogInitializer,
     SourceProcessingPipeline sourcePipeline,
+    ManualSourcePollTask manualSourcePoll,
     FencedCalendarMaintenanceTask calendarMaintenance,
     WorkerHeartbeatTask heartbeat,
     SnapshotRetentionTask snapshotRetention,
@@ -54,6 +55,11 @@ internal sealed class Worker(
             // admin monitor can see every running instance — and that more than one is running.
             await heartbeat.RunAsync(cancellationToken);
 
+            // Operator-requested polls run every cycle, independently of the adaptive schedule, so a
+            // manual "poll now" takes effect within the idle-check interval (ADR-127).
+            healthState.MarkActivity("draining-manual-polls");
+            await manualSourcePoll.RunAsync(cancellationToken);
+
             if (pollScheduleSources)
             {
                 await sourcePipeline.RunAsync(cancellationToken);
@@ -76,6 +82,9 @@ internal sealed class Worker(
                 timeProvider.GetUtcNow());
             pollScheduleSources = next.PollScheduleSources;
             LogNextCycle(next, calendarCatchUpRequired, nextSourcePollAt);
+
+            // Publish the next intended source poll so the admin monitor can show it (ADR-127).
+            healthState.SetNextSourcePollAt(nextSourcePollAt);
 
             healthState.MarkActivity("waiting");
             await heartbeat.RunAsync(cancellationToken);

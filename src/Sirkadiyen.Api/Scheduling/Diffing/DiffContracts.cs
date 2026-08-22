@@ -46,3 +46,25 @@ public sealed record ReleaseDiffResponse
 
     public DateTimeOffset? ReleasedAtUtc { get; init; }
 }
+
+/// <summary>
+/// Why the authenticated SuperAdmin is discarding a held diff (ADR-127).
+/// </summary>
+/// <remarks>
+/// The actor is derived from the backend-authenticated Google identity and is
+/// never accepted from this payload.
+/// </remarks>
+public sealed record DiscardDiffRequest
+{
+    /// <example>Stale diff from before the 1.1.0 profile bump; a fresh reparse will supersede it.</example>
+    public required string? DiscardReason { get; init; }
+}
+
+public sealed record DiscardDiffResponse
+{
+    public required Guid ScheduleDiffId { get; init; }
+
+    public required bool Discarded { get; init; }
+
+    public DateTimeOffset? DiscardedAtUtc { get; init; }
+}

@@ -1,7 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { ApiError, getAdminSource, listAdminSources, pruneSnapshotPayload } from '@/lib/api';
+import {
+  ApiError,
+  getAdminSource,
+  listAdminSources,
+  pruneSnapshotPayload,
+  requestSourcePoll,
+} from '@/lib/api';
 import { DetailDrawer, LoadState, Tabs, formatDateTime, statusBadge } from '@/components/AdminData';
 import { SourceDocumentUpload } from '@/components/SourceDocumentUpload';
 import { SourceCatalogEditor } from '@/components/SourceCatalogEditor';
@@ -114,6 +120,8 @@ function SourceDetail({
       <div className="summary-row"><span className="muted">Taşıma</span><strong>{detail.summary.transport}</strong></div>
       <div className="summary-row"><span className="muted">Parser</span><strong>{detail.parserProfile} · {detail.parserProfileVersion}</strong></div>
 
+      <PollControls sourceId={detail.summary.sourceId} />
+
       <h3 style={{ fontSize: 15, marginTop: 20 }}>Son parse uyarıları</h3>
       {detail.latestParseWarnings.length === 0 ? (
         <p className="muted">Son parser koşusunda saklanmış uyarı bulunmuyor.</p>
@@ -130,6 +138,53 @@ function SourceDetail({
         <SnapshotRow key={snapshot.snapshotId} snapshot={snapshot} onReload={onReload} />
       ))}
     </DetailDrawer>
+  );
+}
+
+/**
+ * Queues an immediate poll of this source (ADR-127). "Force" reparses even an unchanged document,
+ * needed after a profile or configuration change; the plain poll only reparses if the document
+ * changed. The worker acquires and parses on its next cycle, so the effect is not instantaneous.
+ */
+function PollControls({ sourceId }: { sourceId: string }) {
+  const [busy, setBusy] = useState<'plain' | 'force' | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function poll(force: boolean) {
+    setBusy(force ? 'force' : 'plain');
+    setMessage(null);
+    setError(null);
+    try {
+      await requestSourcePoll(sourceId, force);
+      setMessage(
+        force
+          ? 'Force yeniden çekme kuyruğa alındı; worker bir sonraki döngüsünde yeniden parse edecek.'
+          : 'Çekme isteği kuyruğa alındı; worker bir sonraki döngüsünde çekecek.',
+      );
+    } catch (caught) {
+      setError(caught instanceof ApiError ? caught.message : 'Çekme isteği kuyruğa alınamadı.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 14, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+      <div className="cluster" style={{ gap: 8 }}>
+        <button type="button" className="btn btn-sm" disabled={busy !== null} onClick={() => void poll(false)}>
+          {busy === 'plain' ? 'Kuyruğa alınıyor…' : 'Şimdi çek'}
+        </button>
+        <button type="button" className="btn btn-sm" disabled={busy !== null} onClick={() => void poll(true)}>
+          {busy === 'force' ? 'Kuyruğa alınıyor…' : 'Force ile çek'}
+        </button>
+      </div>
+      <p className="muted" style={{ fontSize: 12, marginTop: 6 }}>
+        “Force”, belge değişmese bile yeni bir parse koşusu açar (profil/ayar değişiklikleri için).
+      </p>
+      {message && <p className="muted" style={{ fontSize: 12, marginTop: 4 }}>{message}</p>}
+      {error && <p className="error-text" style={{ fontSize: 12, marginTop: 4 }}>{error}</p>}
+    </div>
   );
 }
 

@@ -37,6 +37,7 @@ internal sealed class WorkerHeartbeatTask(
                     Status = snapshot.Status,
                     CurrentStage = snapshot.CurrentStage,
                     LastActivityAtUtc = snapshot.LastActivityAtUtc,
+                    NextSourcePollAtUtc = snapshot.NextSourcePollAtUtc,
                 },
                 now,
                 now - Retention,

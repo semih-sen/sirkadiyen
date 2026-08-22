@@ -108,7 +108,7 @@ function WorkerInstances({
       ) : (
         <div className="table-wrap" style={{ marginTop: 12 }}>
           <table className="data-table data-table--stack">
-            <thead><tr><th>Instance</th><th>Şu an</th><th>Çalışma süresi</th><th>Son bildirim</th></tr></thead>
+            <thead><tr><th>Instance</th><th>Şu an</th><th>Çalışma süresi</th><th>Son bildirim</th><th>Sonraki tarama</th></tr></thead>
             <tbody>
               {workers.instances.map((instance) => (
                 <WorkerRow key={instance.instanceId} instance={instance} checkedAtUtc={workers.checkedAtUtc} />
@@ -133,8 +133,17 @@ function WorkerRow({ instance, checkedAtUtc }: { instance: WorkerInstanceStatus;
       <td><span className="badge badge-neutral">{instance.currentStage}</span></td>
       <td>{formatDuration(instance.startedAtUtc, checkedAtUtc)}</td>
       <td>{formatDuration(instance.lastHeartbeatAtUtc, checkedAtUtc)} önce</td>
+      <td>{formatNextPoll(instance.nextSourcePollAtUtc, checkedAtUtc)}</td>
     </tr>
   );
+}
+
+/** The next scheduled source poll as a relative hint: due now, or in roughly how long. */
+function formatNextPoll(nextIso: string | null, nowIso: string): string {
+  if (!nextIso) return '—';
+  const deltaSeconds = Math.round((Date.parse(nextIso) - Date.parse(nowIso)) / 1000);
+  if (deltaSeconds <= 0) return 'şimdi';
+  return `~${formatDuration(nowIso, nextIso)} sonra`;
 }
 
 function formatDuration(fromIso: string, toIso: string): string {

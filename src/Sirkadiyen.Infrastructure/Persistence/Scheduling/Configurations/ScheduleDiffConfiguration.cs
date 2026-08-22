@@ -34,6 +34,14 @@ internal sealed class ScheduleDiffConfiguration : IEntityTypeConfiguration<Sched
         builder.Property(diff => diff.ReleaseReason)
             .HasMaxLength(ScheduleDiff.MaximumReleaseReasonLength);
 
+        // Who discarded a held diff, and why (ADR-127). Kept alongside the hold reason for the same
+        // reason a release is: a discarded diff still says what it was held for.
+        builder.Property(diff => diff.DiscardedBy)
+            .HasMaxLength(ScheduleDiff.MaximumDiscardedByLength);
+        builder.Property(diff => diff.DiscardReason)
+            .HasMaxLength(ScheduleDiff.MaximumDiscardReasonLength);
+        builder.Property(diff => diff.DiscardedAtUtc);
+
         // Release is the last gate before student calendars change, so two
         // operators acting at once must not silently overwrite each other.
         builder.Property(diff => diff.RowVersion).IsRowVersion();
@@ -60,6 +68,7 @@ internal sealed class ScheduleDiffConfiguration : IEntityTypeConfiguration<Sched
 
         builder.Ignore(diff => diff.IsDispatchable);
         builder.Ignore(diff => diff.IsReleasable);
+        builder.Ignore(diff => diff.IsDiscardable);
         builder.Ignore(diff => diff.IsDispatchPending);
         builder.Ignore(diff => diff.IsDispatchRetriable);
 

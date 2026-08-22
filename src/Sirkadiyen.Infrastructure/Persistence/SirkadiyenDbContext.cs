@@ -63,6 +63,8 @@ public sealed class SirkadiyenDbContext(DbContextOptions<SirkadiyenDbContext> op
 
     public DbSet<SourceDocumentUpload> SourceDocumentUploads => Set<SourceDocumentUpload>();
 
+    public DbSet<SourcePollRequest> SourcePollRequests => Set<SourcePollRequest>();
+
     public DbSet<ParseRun> ParseRuns => Set<ParseRun>();
 
     public DbSet<ScheduleRevision> ScheduleRevisions => Set<ScheduleRevision>();

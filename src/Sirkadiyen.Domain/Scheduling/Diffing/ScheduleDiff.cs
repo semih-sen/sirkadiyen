@@ -29,6 +29,10 @@ public sealed class ScheduleDiff
 
     public const int MaximumReleaseReasonLength = 2000;
 
+    public const int MaximumDiscardedByLength = 200;
+
+    public const int MaximumDiscardReasonLength = 2000;
+
     public const int MaximumDispatchFailureReasonLength = 2000;
 
     public const int MaximumDispatchRetriedByLength = 200;
@@ -140,6 +144,13 @@ public sealed class ScheduleDiff
 
     public DateTimeOffset? ReleasedAtUtc { get; private set; }
 
+    /// <summary>The operator who discarded a held diff, as a claimed identity (ADR-127).</summary>
+    public string? DiscardedBy { get; private set; }
+
+    public string? DiscardReason { get; private set; }
+
+    public DateTimeOffset? DiscardedAtUtc { get; private set; }
+
     /// <summary>
     /// How far the fan-out of this diff onto student calendars has progressed (ADR-059). It is
     /// orthogonal to <see cref="State"/>: <see cref="State"/> says whether the diff <em>may</em>
@@ -205,6 +216,17 @@ public sealed class ScheduleDiff
     public bool IsReleasable => State is ScheduleDiffState.Held && AmbiguousCount == 0;
 
     /// <summary>
+    /// Whether an operator may discard this held diff so it never reaches a calendar (ADR-127).
+    /// </summary>
+    /// <remarks>
+    /// Unlike <see cref="IsReleasable"/>, an ambiguous hold is discardable: discarding decides
+    /// nothing about which record became which, it simply drops the diff and leaves the correction
+    /// to a superseding revision. Only a held diff can be discarded — a Ready or Released diff is
+    /// corrected forward by the next revision (ADR-033), never withdrawn.
+    /// </remarks>
+    public bool IsDiscardable => State is ScheduleDiffState.Held;
+
+    /// <summary>
     /// Records an operator taking responsibility for a held diff and allows it to
     /// be dispatched.
     /// </summary>
@@ -239,6 +261,42 @@ public sealed class ScheduleDiff
         ReleasedBy = releasedBy;
         ReleaseReason = releaseReason;
         ReleasedAtUtc = atUtc;
+    }
+
+    /// <summary>
+    /// Records an operator discarding a held diff so it is never dispatched (ADR-127).
+    /// </summary>
+    /// <remarks>
+    /// Discarding is the counterpart to <see cref="Release"/>: instead of taking responsibility for
+    /// a hold and letting it through, the operator drops it. The diff's content is unchanged and
+    /// kept in full — a discarded diff reads as "held for this reason, then discarded by this person"
+    /// — and the schedule is corrected forward by the next revision, never by mutating this one
+    /// (ADR-033). A discarded diff is not dispatchable.
+    /// </remarks>
+    /// <exception cref="InvalidOperationException">The diff is not held.</exception>
+    public void Discard(string discardedBy, string discardReason, DateTimeOffset atUtc)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(discardedBy);
+        ArgumentException.ThrowIfNullOrWhiteSpace(discardReason);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            discardedBy.Length,
+            MaximumDiscardedByLength,
+            nameof(discardedBy));
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            discardReason.Length,
+            MaximumDiscardReasonLength,
+            nameof(discardReason));
+
+        if (!IsDiscardable)
+        {
+            throw new InvalidOperationException(
+                $"A diff in {State} cannot be discarded; only a held diff can.");
+        }
+
+        State = ScheduleDiffState.Discarded;
+        DiscardedBy = discardedBy;
+        DiscardReason = discardReason;
+        DiscardedAtUtc = atUtc;
     }
 
     /// <summary>
@@ -447,6 +505,13 @@ public enum ScheduleDiffState
     /// be dispatched, and it still carries the reason it was held.
     /// </summary>
     Released,
+
+    /// <summary>
+    /// Held, then discarded by a named operator who stated why (ADR-127). It is
+    /// terminal and never dispatched; the schedule is corrected by a superseding
+    /// revision. It still carries the reason it was held.
+    /// </summary>
+    Discarded,
 }
 
 /// <summary>

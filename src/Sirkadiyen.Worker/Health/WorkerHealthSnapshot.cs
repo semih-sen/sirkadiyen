@@ -7,4 +7,7 @@ internal sealed record WorkerHealthSnapshot
     public required DateTimeOffset StartedAtUtc { get; init; }
     public required DateTimeOffset LastActivityAtUtc { get; init; }
     public required string CurrentStage { get; init; }
+
+    /// <summary>When this instance next intends to poll the schedule sources, if known (ADR-127).</summary>
+    public DateTimeOffset? NextSourcePollAtUtc { get; init; }
 }

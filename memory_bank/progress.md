@@ -240,6 +240,17 @@
   stage/uptime/last-seen) with 1-day auto-retention; `GET /api/admin/workers` + "Worker instance'ları"
   panel list all live instances and warn when more than one is active — the observability gap behind the
   ADR-122 incident. Supersedes ADR-091's no-heartbeat clause only.
+- [x] Operator recovery tools (ADR-127): four levers a SuperAdmin lacked when the diff/revision
+  machinery stalled. (1) **Discard a held diff** — terminal `ScheduleDiffState.Discarded`,
+  `POST /api/diffs/{id}/discard`, "Reddet" on the held queue; forward-fix preserved, ambiguous holds
+  discardable. (2) **Manual re-poll with force** — `POST /api/admin/sources/{sourceId}/poll` enqueues a
+  `source_poll_requests` row the worker drains every cycle (`ManualSourcePollTask`, `FOR UPDATE SKIP
+  LOCKED`); force salts the parse-run fingerprint so an unchanged snapshot+profile reparses; "Şimdi
+  çek"/"Force ile çek" on the source detail. (3) **History views** — `GET /api/diffs/recent` and
+  `/api/revisions/recent` (any state, newest first, optional `sourceId`) behind "Geçmiş" tabs. (4)
+  **Next-poll visibility** — worker publishes `NextSourcePollAtUtc` on its heartbeat, shown per instance
+  on the server-status screen. One migration adds the discard columns, the poll-request table and the
+  heartbeat column.
 - [x] Initial-sync concurrency fix (ADR-122): initial calendar sync now runs inside the shared
   cross-instance advisory fence (was unfenced), closing the two-worker race that split a user's events
   across two calendars — the root cause of a live "500 events missing on Google" incident

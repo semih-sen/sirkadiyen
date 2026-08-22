@@ -49,6 +49,19 @@ public sealed class ScheduleDiffReviewService(
         return store.ListByDispatchStateAsync(dispatchState, limit, cancellationToken);
     }
 
+    /// <summary>
+    /// Lists the most recent diffs in any state, newest first, for the history view (ADR-127).
+    /// </summary>
+    public Task<IReadOnlyList<ScheduleDiffSummary>> ListRecentAsync(
+        int limit,
+        string? sourceId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
+
+        return store.ListRecentAsync(limit, sourceId, cancellationToken);
+    }
+
     /// <summary>Releases a held diff on a named operator's behalf.</summary>
     public Task<ScheduleDiffReleaseResult> ReleaseAsync(
         Guid scheduleDiffId,
@@ -75,6 +88,22 @@ public sealed class ScheduleDiffReviewService(
             scheduleDiffId,
             retriedBy,
             retryReason,
+            timeProvider.GetUtcNow(),
+            cancellationToken);
+
+    /// <summary>
+    /// Discards a held diff on a named operator's behalf so it is never dispatched (ADR-127). The
+    /// schedule is corrected by a superseding revision, not by mutating this diff (ADR-033).
+    /// </summary>
+    public Task<ScheduleDiffDiscardResult> DiscardAsync(
+        Guid scheduleDiffId,
+        string discardedBy,
+        string discardReason,
+        CancellationToken cancellationToken) =>
+        store.DiscardAsync(
+            scheduleDiffId,
+            discardedBy,
+            discardReason,
             timeProvider.GetUtcNow(),
             cancellationToken);
 }

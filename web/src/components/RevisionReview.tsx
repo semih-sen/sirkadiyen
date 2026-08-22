@@ -1,7 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { approveRevision, getRevision, listRevisions, rejectRevision, ApiError } from '@/lib/api';
+import {
+  approveRevision,
+  getRevision,
+  listRevisions,
+  listRecentRevisions,
+  rejectRevision,
+  ApiError,
+} from '@/lib/api';
 import { Tabs, formatDateTime } from '@/components/AdminData';
 import type {
   RevisionFindingView,
@@ -54,9 +61,12 @@ function Finding({ finding }: { finding: RevisionFindingView }) {
  * Rejected is included because rejection is terminal: once a revision leaves the review queue the
  * only surface that can still answer "why did this never reach a calendar" is this one.
  */
-const QUEUES: { value: RevisionState; label: string }[] = [
+type RevisionTab = RevisionState | 'history';
+
+const QUEUES: { value: RevisionTab; label: string }[] = [
   { value: 'ReviewRequired', label: 'İnceleme bekleyen' },
   { value: 'Rejected', label: 'Reddedilen' },
+  { value: 'history', label: 'Geçmiş' },
 ];
 
 function ReviewActions({
@@ -198,10 +208,12 @@ function SettledRecord({ detail }: { detail: ScheduleRevisionDetail }) {
 function RevisionRow({
   summary,
   actionable,
+  showState,
   onSettled,
 }: {
   summary: ScheduleRevisionSummary;
   actionable: boolean;
+  showState?: boolean;
   onSettled: () => void;
 }) {
   const [detail, setDetail] = useState<ScheduleRevisionDetail | null>(null);
@@ -230,6 +242,7 @@ function RevisionRow({
       >
         <span style={{ fontWeight: 600 }}>{summary.sourceId}</span>
         <span className="value" style={{ fontSize: 13 }}>
+          {showState && <span className="badge badge-neutral" style={{ marginRight: 8 }}>{summary.state}</span>}
           {summary.recordCount} kayıt · {open ? '▲' : '▼'}
         </span>
       </button>
@@ -258,7 +271,7 @@ function RevisionRow({
 }
 
 export function RevisionReview() {
-  const [queue, setQueue] = useState<RevisionState>('ReviewRequired');
+  const [queue, setQueue] = useState<RevisionTab>('ReviewRequired');
   const [revisions, setRevisions] = useState<ScheduleRevisionSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -266,7 +279,9 @@ export function RevisionReview() {
     setRevisions(null);
     setError(null);
     try {
-      setRevisions(await listRevisions(queue));
+      setRevisions(
+        queue === 'history' ? await listRecentRevisions() : await listRevisions(queue),
+      );
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'İnceleme kuyruğu yüklenemedi.');
     }
@@ -282,13 +297,23 @@ export function RevisionReview() {
     <div>
       <Tabs
         value={String(queue)}
-        onChange={(value) => setQueue(value as RevisionState)}
+        onChange={(value) => setQueue(value as RevisionTab)}
         items={QUEUES.map((item) => ({ value: String(item.value), label: item.label }))}
       />
+      {queue === 'history' && (
+        <p className="muted" style={{ margin: '10px 0 4px', fontSize: 13 }}>
+          Her durumdaki en yeni revizyonlar (yayımlanan, geçersiz kılınan, reddedilen dahil), en yeni
+          önce. Salt görüntüleme.
+        </p>
+      )}
       {revisions === null && !error && <p className="loading-note">Yükleniyor…</p>}
       {revisions !== null && revisions.length === 0 && (
         <p className="muted">
-          {actionable ? 'İnceleme bekleyen revizyon yok.' : 'Reddedilmiş revizyon yok.'}
+          {actionable
+            ? 'İnceleme bekleyen revizyon yok.'
+            : queue === 'history'
+              ? 'Revizyon geçmişi boş.'
+              : 'Reddedilmiş revizyon yok.'}
         </p>
       )}
       {revisions?.map((summary) => (
@@ -296,6 +321,7 @@ export function RevisionReview() {
           key={summary.revisionId}
           summary={summary}
           actionable={actionable}
+          showState={queue === 'history'}
           onSettled={() => void load()}
         />
       ))}

@@ -31,8 +31,20 @@ public sealed class ScheduleSourcePoller(
 {
     private static readonly JsonSerializerOptions JsonOptions = ContractJson.CreateOptions();
 
+    public Task<ScheduleSourcePollResult> PollAsync(
+        ScheduleSource source,
+        CancellationToken cancellationToken) =>
+        PollAsync(source, forceReparse: false, cancellationToken);
+
+    /// <param name="forceReparse">
+    /// When <see langword="true"/>, a new parse run is opened even if the stored snapshot has
+    /// already been parsed by this profile and version (ADR-127). Used by an operator-triggered
+    /// re-poll so an unchanged document can be re-run after a profile or configuration change; the
+    /// fingerprint is salted so the run's identity differs from the already-parsed one.
+    /// </param>
     public async Task<ScheduleSourcePollResult> PollAsync(
         ScheduleSource source,
+        bool forceReparse,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(source);
@@ -43,7 +55,7 @@ public sealed class ScheduleSourcePoller(
         // source, so this cycle continues from the snapshot already stored.
         if (source.Transport is ScheduleSourceTransport.AdministrativeUpload)
         {
-            return await PollUploadedSourceAsync(source, cancellationToken);
+            return await PollUploadedSourceAsync(source, forceReparse, cancellationToken);
         }
 
         if (DescribeUnreadable(source) is ScheduleSourcePollOutcome unreadable)
@@ -119,6 +131,7 @@ public sealed class ScheduleSourcePoller(
             stored.Snapshot,
             stored.Changed,
             acquired: stored.Changed ? snapshot : null,
+            forceReparse,
             cancellationToken);
     }
 
@@ -162,6 +175,7 @@ public sealed class ScheduleSourcePoller(
     /// </remarks>
     private async Task<ScheduleSourcePollResult> PollUploadedSourceAsync(
         ScheduleSource source,
+        bool forceReparse,
         CancellationToken cancellationToken)
     {
         if (await operationalFreeze.IsFrozenAsync(Scope(source), cancellationToken))
@@ -189,6 +203,7 @@ public sealed class ScheduleSourcePoller(
             stored,
             snapshotChanged: false,
             acquired: null,
+            forceReparse,
             cancellationToken);
     }
 
@@ -201,6 +216,7 @@ public sealed class ScheduleSourcePoller(
         SourceSnapshot stored,
         bool snapshotChanged,
         NormalizedSpreadsheetSnapshot? acquired,
+        bool forceReparse,
         CancellationToken cancellationToken)
     {
         string correlationId = Guid.CreateVersion7().ToString("N");
@@ -219,16 +235,28 @@ public sealed class ScheduleSourcePoller(
         IReadOnlyList<DateOnly> rotationCoverage = await ResolveRotationCoverageAsync(
             source,
             cancellationToken);
+        string companionFingerprint = ParseRunCompanionFingerprint.Compute(
+            [.. companions.Select(static companion =>
+                new CompanionEvidence(companion.SourceId, companion.ContentHash))],
+            rotationCoverage);
+
+        // A forced re-poll replaces the fingerprint with a unique token so the run's identity
+        // differs from the already-parsed one, which is what makes BeginOrResumeAsync open a fresh
+        // run for an unchanged snapshot and profile rather than short-circuit as already parsed
+        // (ADR-127). A one-off forced run needs no future matching, so encoding the companion
+        // evidence into it is unnecessary; the token stays well within the fingerprint length limit.
+        if (forceReparse)
+        {
+            companionFingerprint = $"force:{Guid.CreateVersion7():N}";
+        }
+
         BeginParseRunResult parseRun = await parseResultStore.BeginOrResumeAsync(
             stored,
             source,
             correlationId,
             timeProvider.GetUtcNow(),
             parseRunOptions.StaleRunTimeout,
-            ParseRunCompanionFingerprint.Compute(
-                [.. companions.Select(static companion =>
-                    new CompanionEvidence(companion.SourceId, companion.ContentHash))],
-                rotationCoverage),
+            companionFingerprint,
             cancellationToken);
 
         if (!parseRun.ShouldInvokeParser)

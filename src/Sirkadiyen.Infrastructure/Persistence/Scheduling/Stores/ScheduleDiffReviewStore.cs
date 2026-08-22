@@ -52,6 +52,29 @@ public sealed class ScheduleDiffReviewStore(SirkadiyenDbContext dbContext) : ISc
         return [.. diffs.Select(Summarize)];
     }
 
+    public async Task<IReadOnlyList<ScheduleDiffSummary>> ListRecentAsync(
+        int limit,
+        string? sourceId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
+
+        IQueryable<ScheduleDiff> query = dbContext.ScheduleDiffs.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(sourceId))
+        {
+            string trimmed = sourceId.Trim();
+            query = query.Where(diff => diff.SourceId.Value == trimmed);
+        }
+
+        List<ScheduleDiff> diffs = await query
+            .OrderByDescending(diff => diff.CreatedAtUtc)
+            .ThenByDescending(diff => diff.Id)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
+
+        return [.. diffs.Select(Summarize)];
+    }
+
     public async Task<ScheduleDiffDetail?> FindAsync(
         Guid scheduleDiffId,
         int entryLimit,
@@ -237,6 +260,60 @@ public sealed class ScheduleDiffReviewStore(SirkadiyenDbContext dbContext) : ISc
         };
     }
 
+    public async Task<ScheduleDiffDiscardResult> DiscardAsync(
+        Guid scheduleDiffId,
+        string discardedBy,
+        string discardReason,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken)
+    {
+        ScheduleDiff? diff = await dbContext.ScheduleDiffs
+            .SingleOrDefaultAsync(candidate => candidate.Id == scheduleDiffId, cancellationToken);
+
+        if (diff is null)
+        {
+            return new ScheduleDiffDiscardResult
+            {
+                Outcome = ScheduleDiffDiscardOutcome.DiffNotFound,
+            };
+        }
+
+        if (!diff.IsDiscardable)
+        {
+            // Only a held diff can be discarded. A Ready, Released or already-discarded diff is
+            // corrected forward by the next revision (ADR-033), never withdrawn.
+            return new ScheduleDiffDiscardResult
+            {
+                Outcome = ScheduleDiffDiscardOutcome.NotHeld,
+                ObservedState = diff.State,
+            };
+        }
+
+        diff.Discard(discardedBy, discardReason, atUtc);
+
+        try
+        {
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            // A worker or another operator changed this diff between the read and the write. The
+            // discard is refused rather than reapplied, exactly as a release is.
+            dbContext.ChangeTracker.Clear();
+            return new ScheduleDiffDiscardResult
+            {
+                Outcome = ScheduleDiffDiscardOutcome.ConcurrentChange,
+            };
+        }
+
+        return new ScheduleDiffDiscardResult
+        {
+            Outcome = ScheduleDiffDiscardOutcome.Discarded,
+            ObservedState = diff.State,
+            DiscardedAtUtc = atUtc,
+        };
+    }
+
     private async Task<Dictionary<Guid, ScheduleDiffRecordView>> LoadRecordsAsync(
         Guid[] recordIds,
         CancellationToken cancellationToken)
@@ -294,6 +371,10 @@ public sealed class ScheduleDiffReviewStore(SirkadiyenDbContext dbContext) : ISc
         ReleasedBy = diff.ReleasedBy,
         ReleaseReason = diff.ReleaseReason,
         ReleasedAtUtc = diff.ReleasedAtUtc,
+        IsDiscardable = diff.IsDiscardable,
+        DiscardedBy = diff.DiscardedBy,
+        DiscardReason = diff.DiscardReason,
+        DiscardedAtUtc = diff.DiscardedAtUtc,
         CalendarDispatchState = diff.CalendarDispatchState,
         DispatchAttempts = diff.DispatchAttempts,
         DispatchedAtUtc = diff.DispatchedAtUtc,

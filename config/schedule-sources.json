@@ -32,10 +32,33 @@
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
       "supportedAudienceSelectors": {
-        "practiceGroup": ["A", "B", "C", "D", "E", "F", "G", "H"],
+        "practiceGroup": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F",
+          "G",
+          "H"
+        ],
         "practiceSubgroup": [
-          "A1", "A2", "B1", "B2", "C1", "C2", "D1", "D2",
-          "E1", "E2", "F1", "F2", "G1", "G2", "H1", "H2"
+          "A1",
+          "A2",
+          "B1",
+          "B2",
+          "C1",
+          "C2",
+          "D1",
+          "D2",
+          "E1",
+          "E2",
+          "F1",
+          "F2",
+          "G1",
+          "G2",
+          "H1",
+          "H2"
         ]
       },
       "fixturePath": "sheets/donem-1-tr/xlsx/2025-2026 Dönem 1 Türkçe Uygulama Tablosu (1).xlsx",
@@ -71,8 +94,14 @@
       "programLanguage": "english",
       "timeZoneId": "Europe/Istanbul",
       "supportedAudienceSelectors": {
-        "practiceGroup": ["İ"],
-        "practiceSubgroup": ["İ1", "İ2", "İ3"]
+        "practiceGroup": [
+          "İ"
+        ],
+        "practiceSubgroup": [
+          "İ1",
+          "İ2",
+          "İ3"
+        ]
       },
       "fixturePath": "sheets/donem-1-ing/xlsx/2025-2026 Term 1 Medicine Program in English-Med. Skill Practices.xlsx",
       "notes": "The committed 2025-2026 fixture states the three English cohorts İ1, İ2 and İ3."
@@ -91,16 +120,15 @@
       "classYear": 2,
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
-      "groupRotationSourceIds": ["G2-ANATOMY-AUTUMN", "G2-ANATOMY-SPRING"],
-      "fixturePath": "sheets/donem-2-tr/xlsx/2025-2026 Dönem 2 Türkçe Tıp Programı Ders Programı.xlsx",
-      "notes": "Rolled over to 2026-2027 (ADR-115). The sourceUri, externalId and fixturePath here are still the pre-rollover ones: the running catalog is edited from /admin/sources (ADR-114) and the new year's workbook is not committed, so this file states the year the cohort is published under, not the document it is published from. Names the anatomy group lists as the owners of its dissection rotation (ADR-126): for a dissection date they have not published, this workbook publishes all three hours with the hour named, and uploading a list returns those dates to it."
+      "fixturePath": "sheets/donem-2-tr/xlsx/2026-2027 Dönem 2 Türkçe Tıp Programı Ders Programı.xlsx",
+      "groupRotationSourceIds": ["G2-ANATOMY-AUTUMN", "G2-ANATOMY-SPRING"]
     },
     {
       "sourceId": "G2-TR-PRACTICE",
       "displayName": "Dönem 2 Türkçe uygulama programı",
       "transport": "googleSheets",
       "documentFormat": "googleSheet",
-      "sourceUri": "https://docs.google.com/spreadsheets/d/1SezCE6ZoHcNScL7Z1epqJQ9Q8B6GMFeO0ykp16Jr0rw/edit?gid=1779555249#gid=1779555249",
+      "sourceUri": "https://docs.google.com/spreadsheets/d/1SezCE6ZoHcNScL7Z1epqJQ9Q8B6GMFeO0ykp16Jr0rw",
       "externalId": "1SezCE6ZoHcNScL7Z1epqJQ9Q8B6GMFeO0ykp16Jr0rw",
       "sheetGid": 1779555249,
       "parserProfile": "grade2_practice_v1",
@@ -110,10 +138,19 @@
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
       "supportedAudienceSelectors": {
-        "practiceGroup": ["A", "B", "C", "D", "E", "F", "G", "H"]
+        "practiceGroup": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F",
+          "G",
+          "H"
+        ]
       },
       "fixturePath": "sheets/donem-2-tr/xlsx/2026-2027 Dönem 2 Türkçe Tıp Programı Uygulama Tablosu (1).xlsx",
-      "notes": "Rolled over to 2026-2027 (ADR-115). The sourceUri, externalId and fixturePath here are still the pre-rollover ones: the running catalog is edited from /admin/sources (ADR-114) and the new year's workbook is not committed, so this file states the year the cohort is published under, not the document it is published from. The committed 2025-2026 fixture states eight practice cohorts A-H and no subgroup values. It is also the only committed source that writes a numeric date, which is why this profile declares dayFirst (ADR-075)."
+      "notes": "The committed 2025-2026 fixture states eight practice cohorts A-H and no subgroup values. It is also the only committed source that writes a numeric date, which is why this profile declares dayFirst (ADR-075)."
     },
     {
       "sourceId": "G2-VERTICAL-SPRING",
@@ -129,10 +166,33 @@
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
       "supportedAudienceSelectors": {
-        "practiceGroup": ["A", "B", "C", "D", "E", "F", "G", "H"],
+        "practiceGroup": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F",
+          "G",
+          "H"
+        ],
         "practiceSubgroup": [
-          "A1", "A2", "B1", "B2", "C1", "C2", "D1", "D2",
-          "E1", "E2", "F1", "F2", "G1", "G2", "H1", "H2"
+          "A1",
+          "A2",
+          "B1",
+          "B2",
+          "C1",
+          "C2",
+          "D1",
+          "D2",
+          "E1",
+          "E2",
+          "F1",
+          "F2",
+          "G1",
+          "G2",
+          "H1",
+          "H2"
         ]
       },
       "fixturePath": "sheets/donem-2-tr/Dönem 2 Beceri Uyg BAHAR Takvim 26.01.2025.docx",
@@ -152,10 +212,33 @@
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
       "supportedAudienceSelectors": {
-        "practiceGroup": ["A", "B", "C", "D", "E", "F", "G", "H"],
+        "practiceGroup": [
+          "A",
+          "B",
+          "C",
+          "D",
+          "E",
+          "F",
+          "G",
+          "H"
+        ],
         "practiceSubgroup": [
-          "A1", "A2", "B1", "B2", "C1", "C2", "D1", "D2",
-          "E1", "E2", "F1", "F2", "G1", "G2", "H1", "H2"
+          "A1",
+          "A2",
+          "B1",
+          "B2",
+          "C1",
+          "C2",
+          "D1",
+          "D2",
+          "E1",
+          "E2",
+          "F1",
+          "F2",
+          "G1",
+          "G2",
+          "H1",
+          "H2"
         ]
       },
       "fixturePath": "sheets/donem-2-tr/Dönem 2 Beceri uygulama takvimi güz.docx",
@@ -174,10 +257,14 @@
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
       "supportedAudienceSelectors": {
-        "anatomyGroup": ["1", "2", "3"]
+        "anatomyGroup": [
+          "1",
+          "2",
+          "3"
+        ]
       },
       "sharedDocumentGroup": "g2-anatomy-autumn",
-      "fixturePath": "sheets/donem-2-tr/2. SINIF SALON GRUP SAATLERİ 2025-2026 GÜZ.docx",
+      "fixturePath": "sheets/donem-2-tr/2. SINIF SALON GRUP SAATLERİ 2025-2026 GÜZ.docx",
       "notes": "The dissection rotation the annual program's three identical DİSEKSİYON rows defer to (ADR-073, ADR-078). The document states exactly the three anatomy groups 1, 2 and 3, which are independent of the practice group. It is handed out once at the start of the semester, states no URL anywhere, and is acquired by administrative upload (ADR-079)."
     },
     {
@@ -193,10 +280,14 @@
       "programLanguage": "english",
       "timeZoneId": "Europe/Istanbul",
       "supportedAudienceSelectors": {
-        "anatomyGroup": ["1", "2", "3"]
+        "anatomyGroup": [
+          "1",
+          "2",
+          "3"
+        ]
       },
       "sharedDocumentGroup": "g2-anatomy-autumn",
-      "fixturePath": "sheets/donem-2-tr/2. SINIF SALON GRUP SAATLERİ 2025-2026 GÜZ.docx",
+      "fixturePath": "sheets/donem-2-tr/2. SINIF SALON GRUP SAATLERİ 2025-2026 GÜZ.docx",
       "notes": "The English program's half of the same document as G2-ANATOMY-AUTUMN, which is handed to both programs (ADR-080). One upload to either source becomes evidence for both, because a canonical record reaches a student only when its program language matches theirs. The anatomy groups 1, 2 and 3 are the document's own and are not divided by program."
     },
     {
@@ -212,10 +303,14 @@
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
       "supportedAudienceSelectors": {
-        "anatomyGroup": ["1", "2", "3"]
+        "anatomyGroup": [
+          "1",
+          "2",
+          "3"
+        ]
       },
       "sharedDocumentGroup": "g2-anatomy-spring",
-      "fixturePath": "sheets/donem-2-tr/2. SINIF SALON GRUP SAATLERİ 2025-2026  BAHAR.docx",
+      "fixturePath": "sheets/donem-2-tr/2. SINIF SALON GRUP SAATLERİ 2025-2026  BAHAR.docx",
       "notes": "As G2-ANATOMY-AUTUMN, for the spring semester. One of its days states a year that is a year out and is refused whole, so that day's three sessions are absent by design until the document is corrected and re-uploaded."
     },
     {
@@ -231,10 +326,14 @@
       "programLanguage": "english",
       "timeZoneId": "Europe/Istanbul",
       "supportedAudienceSelectors": {
-        "anatomyGroup": ["1", "2", "3"]
+        "anatomyGroup": [
+          "1",
+          "2",
+          "3"
+        ]
       },
       "sharedDocumentGroup": "g2-anatomy-spring",
-      "fixturePath": "sheets/donem-2-tr/2. SINIF SALON GRUP SAATLERİ 2025-2026  BAHAR.docx",
+      "fixturePath": "sheets/donem-2-tr/2. SINIF SALON GRUP SAATLERİ 2025-2026  BAHAR.docx",
       "notes": "As G2-ANATOMY-AUTUMN-EN, for the spring semester."
     },
     {
@@ -242,38 +341,38 @@
       "displayName": "Dönem 2 İngilizce yıllık program",
       "transport": "googleSheets",
       "documentFormat": "googleSheet",
-      "sourceUri": "https://docs.google.com/spreadsheets/d/1ff3F_ol8spKAmq0-veG-4rfvvIoRyJNa7fOd5V3sC3c/edit?gid=198851210",
-      "externalId": "1ff3F_ol8spKAmq0-veG-4rfvvIoRyJNa7fOd5V3sC3c",
-      "sheetGid": 198851210,
+      "sourceUri": "https://docs.google.com/spreadsheets/d/124piafnwwDABuaDRt_tiOHCQR72HwiYqw_lPxfn3GVU/edit?gid=582248845",
+      "externalId": "124piafnwwDABuaDRt_tiOHCQR72HwiYqw_lPxfn3GVU",
+      "sheetGid": 582248845,
       "parserProfile": "grade2_yearly_v1",
       "parserProfileVersion": "1.1.0",
-      "academicYear": "2025-2026",
+      "academicYear": "2026-2027",
       "classYear": 2,
       "programLanguage": "english",
       "timeZoneId": "Europe/Istanbul",
-      "groupRotationSourceIds": ["G2-ANATOMY-AUTUMN-EN", "G2-ANATOMY-SPRING-EN"],
-      "notes": "Names the anatomy group lists as the owners of its dissection rotation (ADR-126): for a dissection date they have not published, this workbook publishes all three hours with the hour named, and uploading a list returns those dates to it.",
-      "fixturePath": "sheets/donem-2-ing/xlsx/2025-2026 Term 2 Medicine Program in English Course Program.....xlsx"
+      "fixturePath": "sheets/donem-2-ing/xlsx/2026-2027 Term 2 Medicine Program in English Course Program.....xlsx"
     },
     {
       "sourceId": "G2-EN-PRACTICE",
       "displayName": "Dönem 2 İngilizce uygulama programı",
       "transport": "googleSheets",
       "documentFormat": "googleSheet",
-      "sourceUri": "https://docs.google.com/spreadsheets/d/1YPWACCifZGY5-7IJ5_Yzzya4aqubziKN5LlnMx1ST_8/edit?gid=1629561847",
-      "externalId": "1YPWACCifZGY5-7IJ5_Yzzya4aqubziKN5LlnMx1ST_8",
-      "sheetGid": 1629561847,
+      "sourceUri": "https://docs.google.com/spreadsheets/d/1SjEJVjfrmDqrCp2HWnsiz_eIlHO7xC5oELQWRqrKbzk/edit?gid=689406514",
+      "externalId": "1SjEJVjfrmDqrCp2HWnsiz_eIlHO7xC5oELQWRqrKbzk",
+      "sheetGid": 689406514,
       "parserProfile": "grade2_practice_v1",
       "parserProfileVersion": "1.2.0",
-      "academicYear": "2025-2026",
+      "academicYear": "2026-2027",
       "classYear": 2,
       "programLanguage": "english",
       "timeZoneId": "Europe/Istanbul",
       "supportedAudienceSelectors": {
-        "practiceGroup": ["İ1", "İ2"]
+        "practiceGroup": [
+          "İ1",
+          "İ2"
+        ]
       },
-      "fixturePath": "sheets/donem-2-ing/xlsx/2024-2025 Term 2 Medicine Program in English PRACTICUM TABLE.xlsx",
-      "notes": "The original filename says 2024-2025, but the worksheet's 39 dated practice slots run from September 2025 through May 2026 and state groups İ1/İ2. One 2024 value exists only in the anatomy row that this profile explicitly defers to the anatomy source (ADR-084)."
+      "fixturePath": "sheets/donem-2-ing/xlsx/2026-2027 Term 2 Medicine Program in English PRACTICUM TABLE.xlsx"
     },
     {
       "sourceId": "G3-TR-A-ANNUAL",
@@ -289,12 +388,19 @@
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
       "supportedAudienceSelectors": {
-        "curriculumGroup": ["3-A", "3-B"]
+        "curriculumGroup": [
+          "3-A",
+          "3-B"
+        ]
       },
       "authoritativeAudienceSelectors": {
-        "curriculumGroup": ["3-A"]
+        "curriculumGroup": [
+          "3-A"
+        ]
       },
-      "companionSourceIds": ["G3-TR-A-BEDSIDE"],
+      "companionSourceIds": [
+        "G3-TR-A-BEDSIDE"
+      ],
       "fixturePath": "sheets/donem-3-tr-A/2026-2027 Dönem 3 A Türkçe Tıp Ders Programı.xlsx",
       "notes": "The annual states the date and time of every bedside session; the bedside companion states what each session is about, and only that topic is taken from it (ADR-100, ADR-102)."
     },
@@ -312,12 +418,19 @@
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
       "supportedAudienceSelectors": {
-        "curriculumGroup": ["3-A", "3-B"]
+        "curriculumGroup": [
+          "3-A",
+          "3-B"
+        ]
       },
       "authoritativeAudienceSelectors": {
-        "curriculumGroup": ["3-B"]
+        "curriculumGroup": [
+          "3-B"
+        ]
       },
-      "companionSourceIds": ["G3-TR-B-BEDSIDE"],
+      "companionSourceIds": [
+        "G3-TR-B-BEDSIDE"
+      ],
       "fixturePath": "sheets/donem-3-tr-B/2026-2027 Dönem 3 B Türkçe Tıp Ders Programı.xlsx",
       "notes": "The annual states the date and time of every bedside session; the bedside companion states what each session is about, and only that topic is taken from it (ADR-100, ADR-102)."
     },
@@ -365,8 +478,19 @@
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
       "supportedAudienceSelectors": {
-        "curriculumGroup": ["3-A"],
-        "facultyPracticeGroup": ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8"]
+        "curriculumGroup": [
+          "3-A"
+        ],
+        "facultyPracticeGroup": [
+          "A1",
+          "A2",
+          "A3",
+          "A4",
+          "A5",
+          "A6",
+          "A7",
+          "A8"
+        ]
       },
       "fixturePath": "sheets/donem-3-tr-A/Dönem 3 ÖĞRETİM ÜYESİ A GRUBU UYGULAMA TABLOSU VE KONULARI 2026-2027 (1).xlsx"
     },
@@ -384,8 +508,19 @@
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
       "supportedAudienceSelectors": {
-        "curriculumGroup": ["3-B"],
-        "facultyPracticeGroup": ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8"]
+        "curriculumGroup": [
+          "3-B"
+        ],
+        "facultyPracticeGroup": [
+          "B1",
+          "B2",
+          "B3",
+          "B4",
+          "B5",
+          "B6",
+          "B7",
+          "B8"
+        ]
       },
       "fixturePath": "sheets/donem-3-tr-B/Dönem 3 ÖĞRETİM ÜYESİ B GRUBU UYGULAMA TABLOSU VE KONULARI 2026-2027 (2).xlsx"
     },

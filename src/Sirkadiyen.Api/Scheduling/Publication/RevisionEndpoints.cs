@@ -26,6 +26,9 @@ public static class RevisionEndpoints
         revisions.MapGet("/", ListAsync)
             .WithSummary("Lists revisions in one state, oldest first.");
 
+        revisions.MapGet("/recent", ListRecentAsync)
+            .WithSummary("Lists the most recent revisions in any state, newest first.");
+
         revisions.MapGet("/{id:guid}", FindAsync)
             .WithSummary("Returns one revision with the findings behind its state.");
 
@@ -55,6 +58,23 @@ public static class RevisionEndpoints
         }
 
         return Results.Ok(await store.ListByStateAsync(state, limit, cancellationToken));
+    }
+
+    private static async Task<IResult> ListRecentAsync(
+        IScheduleRevisionReadStore store,
+        CancellationToken cancellationToken,
+        string? sourceId = null,
+        int limit = 50)
+    {
+        if (limit is < 1 or > MaximumListLimit)
+        {
+            return Results.Problem(
+                title: "Invalid limit",
+                detail: $"'limit' must be between 1 and {MaximumListLimit}.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        return Results.Ok(await store.ListRecentAsync(limit, sourceId, cancellationToken));
     }
 
     private static async Task<IResult> FindAsync(

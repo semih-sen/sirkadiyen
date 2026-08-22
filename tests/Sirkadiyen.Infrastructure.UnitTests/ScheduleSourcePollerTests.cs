@@ -615,6 +615,36 @@ public sealed class ScheduleSourcePollerTests
     }
 
     /// <summary>
+    /// A forced re-poll keys the run on a unique token so it opens a fresh run even for an unchanged
+    /// snapshot and profile, rather than short-circuiting as already parsed (ADR-127).
+    /// </summary>
+    [Fact]
+    public async Task AForcedRepollKeysTheRunOnAUniqueToken()
+    {
+        ScheduleSource source = Source();
+        NormalizedSpreadsheetSnapshot snapshot = Snapshot(source);
+        FakeParseResultStore resultStore = new(shouldInvokeParser: true);
+        ScheduleSourcePoller poller = new(
+            new FakeSnapshotAcquirer(snapshot),
+            new FakeDriveDocumentAcquirer(snapshot),
+            new FakeSnapshotStore(StoredSnapshot(source, snapshot), changed: true),
+            new FakeParserClient(),
+            resultStore,
+            new FakeGroupRotationCoverageStore(),
+            ValidationService(),
+            new FakeOperationalFreezeStore(),
+            new ParseRunOptions(),
+            new FixedTimeProvider(new DateTimeOffset(2026, 8, 21, 9, 0, 0, TimeSpan.Zero)));
+
+        await poller.PollAsync(source, forceReparse: true, CancellationToken.None);
+
+        // The salt replaces the fingerprint so the run's identity cannot match the already-parsed
+        // one, and it stays within the fingerprint length limit.
+        Assert.StartsWith("force:", resultStore.CompanionFingerprint, StringComparison.Ordinal);
+        Assert.True(resultStore.CompanionFingerprint!.Length <= ParseRunCompanionFingerprint.MaxLength);
+    }
+
+    /// <summary>
     /// The Grade 2 Turkish annual as the catalog declares it: its dissection rows
     /// defer to the anatomy group lists for the dates those have published
     /// (ADR-126).

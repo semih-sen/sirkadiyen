@@ -33,14 +33,15 @@ public sealed class WorkerInstanceHeartbeat
         string status,
         string currentStage,
         DateTimeOffset lastActivityAtUtc,
-        DateTimeOffset heartbeatAtUtc)
+        DateTimeOffset heartbeatAtUtc,
+        DateTimeOffset? nextSourcePollAtUtc)
     {
         WorkerInstanceHeartbeat heartbeat = new()
         {
             InstanceId = Bounded(instanceId, MaximumInstanceIdLength, nameof(instanceId)),
             StartedAtUtc = Utc(startedAtUtc, nameof(startedAtUtc)),
         };
-        heartbeat.Beat(status, currentStage, lastActivityAtUtc, heartbeatAtUtc);
+        heartbeat.Beat(status, currentStage, lastActivityAtUtc, heartbeatAtUtc, nextSourcePollAtUtc);
         return heartbeat;
     }
 
@@ -60,17 +61,28 @@ public sealed class WorkerInstanceHeartbeat
     /// <summary>When this row was last written; the liveness signal.</summary>
     public DateTimeOffset LastHeartbeatAtUtc { get; private set; }
 
+    /// <summary>
+    /// When this instance next intends to poll the schedule sources (ADR-127), or <c>null</c> before
+    /// it has completed its first cycle. Polling is a single global cadence, not per source, so this
+    /// is one time per instance rather than one per source.
+    /// </summary>
+    public DateTimeOffset? NextSourcePollAtUtc { get; private set; }
+
     /// <summary>Updates the mutable fields of an existing row for a new heartbeat.</summary>
     public void Beat(
         string status,
         string currentStage,
         DateTimeOffset lastActivityAtUtc,
-        DateTimeOffset heartbeatAtUtc)
+        DateTimeOffset heartbeatAtUtc,
+        DateTimeOffset? nextSourcePollAtUtc)
     {
         Status = Bounded(status, MaximumStatusLength, nameof(status));
         CurrentStage = Bounded(currentStage, MaximumStageLength, nameof(currentStage));
         LastActivityAtUtc = Utc(lastActivityAtUtc, nameof(lastActivityAtUtc));
         LastHeartbeatAtUtc = Utc(heartbeatAtUtc, nameof(heartbeatAtUtc));
+        NextSourcePollAtUtc = nextSourcePollAtUtc is { } next
+            ? Utc(next, nameof(nextSourcePollAtUtc))
+            : null;
     }
 
     private static string Bounded(string value, int maximumLength, string parameterName)

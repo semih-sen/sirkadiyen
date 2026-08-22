@@ -6,6 +6,7 @@ using Sirkadiyen.Application.Administration;
 using Sirkadiyen.Application.Auditing;
 using Sirkadiyen.Application.Scheduling.Ingestion;
 using Sirkadiyen.Domain.Auditing;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
 namespace Sirkadiyen.Api.Administration;
 
@@ -31,6 +32,15 @@ public static class SourceStatusEndpoints
 
         sources.MapGet("/{sourceId}", FindAsync)
             .WithSummary("Returns one source's status with its parser profile and recent snapshots.");
+
+        sources.MapPost("/{sourceId}/poll", RequestPollAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
+            .WithSummary("Queues an immediate poll of one source, executed by the worker next cycle.")
+            .WithDescription(
+                "Enqueues a poll request the worker drains on its next cycle (ADR-127). With "
+                + "'force', a new parse run is opened even if the stored document is unchanged, so a "
+                + "source can be re-run after a profile or configuration change. Acquisition stays in "
+                + "the worker, where the source clients live.");
 
         sources.MapPost("/snapshots/{snapshotId:guid}/prune-payload", PrunePayloadAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
@@ -61,6 +71,43 @@ public static class SourceStatusEndpoints
                 title: "Source not found",
                 detail: $"No source with ID '{sourceId}' exists.",
                 statusCode: StatusCodes.Status404NotFound);
+
+    private static async Task<IResult> RequestPollAsync(
+        string sourceId,
+        RequestSourcePollRequest request,
+        ClaimsPrincipal principal,
+        ISourceStatusReadStore status,
+        ISourcePollRequestStore pollRequests,
+        TimeProvider timeProvider,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        // Confirmed against the running catalog rather than trusted from the route, so a mistyped id
+        // is a 404 instead of a queued request the worker later cannot resolve.
+        if (await status.FindAsync(sourceId, cancellationToken) is null)
+        {
+            return Results.Problem(
+                title: "Source not found",
+                detail: $"No source with ID '{sourceId}' exists.",
+                statusCode: StatusCodes.Status404NotFound);
+        }
+
+        await pollRequests.EnqueueAsync(
+            SourceId.Parse(sourceId),
+            request.Force,
+            UserClaimsPrincipalFactory.GetRequiredEmail(principal),
+            timeProvider.GetUtcNow(),
+            cancellationToken);
+
+        return Results.Accepted(
+            value: new RequestSourcePollResponse
+            {
+                SourceId = sourceId,
+                Force = request.Force,
+                Queued = true,
+            });
+    }
 
     private static async Task<IResult> PrunePayloadAsync(
         Guid snapshotId,
@@ -145,6 +192,22 @@ public static class SourceStatusEndpoints
                     statusCode: StatusCodes.Status409Conflict);
         }
     }
+}
+
+/// <summary>An operator's request to poll one source now (ADR-127).</summary>
+public sealed record RequestSourcePollRequest
+{
+    /// <summary>Whether to reparse even if the stored document is unchanged.</summary>
+    public bool Force { get; init; }
+}
+
+public sealed record RequestSourcePollResponse
+{
+    public required string SourceId { get; init; }
+
+    public required bool Force { get; init; }
+
+    public required bool Queued { get; init; }
 }
 
 /// <summary>The reason an operator gives for removing a snapshot's payload (ADR-120).</summary>

@@ -228,6 +228,68 @@ public sealed class ScheduleDiffTests
     }
 
     [Fact]
+    public void DiscardingAHeldDiffRecordsWhoAndKeepsTheHoldReason()
+    {
+        ScheduleDiff diff = Create(
+            Entries(ScheduleDiffChange.Deleted, 12),
+            Entries(ScheduleDiffChange.Unchanged, 28));
+        string holdReason = diff.HoldReason!;
+
+        Assert.True(diff.IsDiscardable);
+        diff.Discard("semih", "Stale diff from before the profile bump.", Now.AddHours(2));
+
+        Assert.Equal(ScheduleDiffState.Discarded, diff.State);
+        Assert.False(diff.IsDispatchable);
+        Assert.Equal("semih", diff.DiscardedBy);
+        Assert.Equal(Now.AddHours(2), diff.DiscardedAtUtc);
+        Assert.Equal(holdReason, diff.HoldReason);
+        Assert.False(diff.IsDiscardable);
+    }
+
+    [Fact]
+    public void AnAmbiguousDiffCanStillBeDiscarded()
+    {
+        // Discarding decides nothing about which record became which — it just drops the diff — so
+        // unlike a release it is allowed on an ambiguity hold.
+        ScheduleDiff diff = Create(
+            Entries(ScheduleDiffChange.Ambiguous, 2),
+            Entries(ScheduleDiffChange.Unchanged, 100));
+
+        Assert.False(diff.IsReleasable);
+        Assert.True(diff.IsDiscardable);
+        diff.Discard("semih", "Superseded by a corrected revision.", Now);
+
+        Assert.Equal(ScheduleDiffState.Discarded, diff.State);
+        Assert.False(diff.IsDispatchable);
+    }
+
+    [Fact]
+    public void AReadyDiffCannotBeDiscarded()
+    {
+        ScheduleDiff diff = Create(Entries(ScheduleDiffChange.Created, 3));
+
+        Assert.False(diff.IsDiscardable);
+        Assert.Throws<InvalidOperationException>(
+            () => diff.Discard("semih", "No reason to.", Now));
+    }
+
+    [Fact]
+    public void ADiscardMustNameAnOperatorAndAReason()
+    {
+        ScheduleDiff diff = Create(
+            Entries(ScheduleDiffChange.Deleted, 12),
+            Entries(ScheduleDiffChange.Unchanged, 28));
+
+        Assert.Throws<ArgumentException>(() => diff.Discard(" ", "A reason.", Now));
+        Assert.Throws<ArgumentException>(() => diff.Discard("semih", " ", Now));
+        Assert.Throws<ArgumentOutOfRangeException>(() => diff.Discard(
+            new string('x', ScheduleDiff.MaximumDiscardedByLength + 1),
+            "A reason.",
+            Now));
+        Assert.Equal(ScheduleDiffState.Held, diff.State);
+    }
+
+    [Fact]
     public void AReadyDiffStartsPendingDispatchAndUntried()
     {
         ScheduleDiff diff = Create(Entries(ScheduleDiffChange.Created, 3));

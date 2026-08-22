@@ -33,6 +33,9 @@ public sealed record WorkerHeartbeatBeat
     public required string CurrentStage { get; init; }
 
     public required DateTimeOffset LastActivityAtUtc { get; init; }
+
+    /// <summary>When the instance next intends to poll the schedule sources, if known (ADR-127).</summary>
+    public DateTimeOffset? NextSourcePollAtUtc { get; init; }
 }
 
 /// <summary>A read projection of one instance's last heartbeat.</summary>
@@ -49,4 +52,6 @@ public sealed record WorkerInstanceView
     public required DateTimeOffset LastActivityAtUtc { get; init; }
 
     public required DateTimeOffset LastHeartbeatAtUtc { get; init; }
+
+    public DateTimeOffset? NextSourcePollAtUtc { get; init; }
 }

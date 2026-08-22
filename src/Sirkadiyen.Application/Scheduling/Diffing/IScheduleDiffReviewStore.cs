@@ -45,6 +45,20 @@ public interface IScheduleDiffReviewStore
         int limit,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Lists the most recently created diffs in any state, newest first, optionally for one source
+    /// (ADR-127).
+    /// </summary>
+    /// <remarks>
+    /// The state- and dispatch-based queues only surface diffs an operator can still act on. This is
+    /// the history view: it shows released, discarded and dispatched diffs too, so an operator can
+    /// see what a source has already done and why a lesson is on a calendar.
+    /// </remarks>
+    Task<IReadOnlyList<ScheduleDiffSummary>> ListRecentAsync(
+        int limit,
+        string? sourceId,
+        CancellationToken cancellationToken);
+
     Task<ScheduleDiffReleaseResult> ReleaseAsync(
         Guid scheduleDiffId,
         string releasedBy,
@@ -60,6 +74,16 @@ public interface IScheduleDiffReviewStore
         Guid scheduleDiffId,
         string retriedBy,
         string retryReason,
+        DateTimeOffset atUtc,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Discards a held diff on a named operator's behalf so it is never dispatched (ADR-127).
+    /// </summary>
+    Task<ScheduleDiffDiscardResult> DiscardAsync(
+        Guid scheduleDiffId,
+        string discardedBy,
+        string discardReason,
         DateTimeOffset atUtc,
         CancellationToken cancellationToken);
 }
@@ -102,6 +126,15 @@ public sealed record ScheduleDiffSummary
     public string? ReleaseReason { get; init; }
 
     public DateTimeOffset? ReleasedAtUtc { get; init; }
+
+    /// <summary>Whether an operator may discard this diff (ADR-127).</summary>
+    public required bool IsDiscardable { get; init; }
+
+    public string? DiscardedBy { get; init; }
+
+    public string? DiscardReason { get; init; }
+
+    public DateTimeOffset? DiscardedAtUtc { get; init; }
 
     /// <summary>How far the fan-out onto student calendars has progressed (ADR-059).</summary>
     public required CalendarDispatchState CalendarDispatchState { get; init; }
@@ -209,6 +242,29 @@ public enum ScheduleDiffReleaseOutcome
 
     /// <summary>Another operator changed the diff during this release.</summary>
     ConcurrentRelease,
+}
+
+public sealed record ScheduleDiffDiscardResult
+{
+    public required ScheduleDiffDiscardOutcome Outcome { get; init; }
+
+    /// <summary>The state observed when the discard was refused.</summary>
+    public ScheduleDiffState? ObservedState { get; init; }
+
+    public DateTimeOffset? DiscardedAtUtc { get; init; }
+}
+
+public enum ScheduleDiffDiscardOutcome
+{
+    Discarded,
+
+    DiffNotFound,
+
+    /// <summary>The diff was never held, or somebody released or discarded it first.</summary>
+    NotHeld,
+
+    /// <summary>Another operator changed the diff during this discard.</summary>
+    ConcurrentChange,
 }
 
 public sealed record ScheduleDiffRetryResult
