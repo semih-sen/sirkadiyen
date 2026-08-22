@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useId, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { OnboardingGate } from '@/components/OnboardingGate';
@@ -18,6 +18,39 @@ const SELECTOR_LABELS: Record<string, string> = { practiceGroup: 'Uygulama grubu
 
 function localDate(value: string) { return new Intl.DateTimeFormat('tr-TR', { dateStyle: 'full', timeZone: 'Europe/Istanbul' }).format(new Date(`${value}T12:00:00+03:00`)); }
 function localTime(value?: string | null) { return value ? value.slice(0, 5) : null; }
+
+/** A human, glanceable "how long ago" for the last calendar write; falls back to the full timestamp. */
+function relativeTime(value?: string | null): string | null {
+  if (!value) return null;
+  const then = new Date(value).getTime();
+  if (Number.isNaN(then)) return null;
+  const minutes = Math.round((Date.now() - then) / 60000);
+  if (minutes < 1) return 'az önce';
+  if (minutes < 60) return `${minutes} dakika önce`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} saat önce`;
+  const days = Math.round(hours / 24);
+  if (days < 30) return `${days} gün önce`;
+  return formatDateTime(value);
+}
+
+/** A card whose body can be folded away. The header is a native button so the
+ *  disclosure is keyboard- and screen-reader-accessible (reuses the palette's
+ *  disclosure chevron). */
+function CollapsibleCard({ title, subtitle, count, defaultOpen = true, children }: { title: string; subtitle?: string; count?: ReactNode; defaultOpen?: boolean; children: ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
+  const panelId = useId();
+  return (
+    <section className="card card-content collapsible-card">
+      <button type="button" className="collapsible-head" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen((current) => !current)}>
+        <span className="collapsible-heading"><h3 style={{ fontSize: 16 }}>{title}</h3>{subtitle && <span className="muted" style={{ fontSize: 12 }}>{subtitle}</span>}</span>
+        {count != null && <span className="collapsible-count">{count}</span>}
+        <span className="disclosure-chevron" aria-hidden="true" />
+      </button>
+      <div id={panelId} hidden={!open}>{children}</div>
+    </section>
+  );
+}
 
 function Dashboard() {
   const router = useRouter();
@@ -57,21 +90,23 @@ function Dashboard() {
 
   const synced = status?.initialSyncState === 'Completed';
   const reconcileEligible = synced && status?.hasManagedCalendar;
+  const nextEvent = upcoming?.[0] ?? null;
+  const lastUpdated = relativeTime(status?.lastWrittenAtUtc);
   const subtitle = profile ? `${user?.displayName ?? user?.email} · Dönem ${profile.classYear}` : (user?.displayName ?? user?.email ?? undefined);
 
   return <div className="student-shell"><StudentTopbar subtitle={subtitle} onSignOut={onSignOut} /><main id="main" style={{ padding: '32px 0 80px' }}><div className="container">
     <Banner tone={synced ? 'info' : 'warning'}><strong>{synced ? 'Takvimin güncel.' : 'Senkronizasyon tamamlanmadı.'}</strong><div className="muted" style={{ marginTop: 2, fontSize: 13.5 }}>{errors.status ?? (synced ? `Takvimindeki yönetilen etkinlik sayısı: ${status?.mappedEventCount ?? 0}.` : `Durum: ${status?.initialSyncState ?? '—'}.`)}</div></Banner>
     <div className="dashboard-grid">
       <div className="stack" style={{ gap: 20 }}>
-        <section className="card card-content"><h3 style={{ fontSize: 16 }}>Senkronizasyon görünümü</h3>{errors.status ? <p className="error">{errors.status}</p> : !status ? <p className="loading-note">Yükleniyor…</p> : <div style={{ marginTop: 10 }}>
-          <div className="summary-row"><span className="muted">Takvimdeki etkinlik</span><strong>{status.mappedEventCount}</strong></div>
-          <div className="summary-row"><span className="muted">İlk yazımdaki içerikte</span><strong>{status.createdEventCount}</strong></div>
-          <div className="summary-row"><span className="muted">Sonradan güncellenmiş</span><strong>{status.updatedEventCount}</strong></div>
-          <div className="summary-row"><span className="muted">Son takvim yazımı</span><strong>{formatDateTime(status.lastWrittenAtUtc)}</strong></div>
-          <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>Bu sayılar kalıcı takvim envanterini anlatır; tek bir senkronizasyon çalışmasının sonuç sayaçları değildir.</p>
+        <section className="card card-content"><h3 style={{ fontSize: 16 }}>Takvim özeti</h3>{errors.status ? <p className="error">{errors.status}</p> : !status ? <p className="loading-note">Yükleniyor…</p> : <div style={{ marginTop: 10 }}>
+          {nextEvent && <div className="summary-row"><span className="muted">Sıradaki ders</span><span style={{ textAlign: 'right' }}><strong style={{ display: 'block' }}>{nextEvent.title}</strong><small className="muted">{localDate(nextEvent.localDate)}{nextEvent.isAllDay ? ' · Tüm gün' : ` · ${localTime(nextEvent.startLocalTime)}`}</small></span></div>}
+          <div className="summary-row"><span className="muted">Önümüzdeki 14 gün</span><strong>{upcoming === null ? '—' : `${upcoming.length} ders`}</strong></div>
+          <div className="summary-row"><span className="muted">Takvimdeki toplam ders</span><strong>{status.mappedEventCount}</strong></div>
+          <div className="summary-row"><span className="muted">Son güncelleme</span><strong>{lastUpdated ?? '—'}</strong></div>
+          <div className="summary-row"><span className="muted">Google Calendar</span><span className={`badge ${status.hasManagedCalendar ? 'badge-success' : 'badge-neutral'}`}>{status.hasManagedCalendar ? 'Bağlı' : 'Bekleniyor'}</span></div>
         </div>}</section>
-        <section className="card card-content"><h3 style={{ fontSize: 16 }}>Sıradaki dersler</h3>{errors.upcoming ? <p className="error">{errors.upcoming}</p> : upcoming === null ? <p className="loading-note">Yükleniyor…</p> : upcoming.length === 0 ? <p className="muted" style={{ marginTop: 10 }}>Önümüzdeki 14 günde yönetilen etkinlik bulunmuyor.</p> : <div style={{ marginTop: 10 }}>{upcoming.map((event) => <article className="detail-section" key={event.stableIdentity} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}><div className="cluster" style={{ justifyContent: 'space-between' }}><strong>{event.title}</strong><span className="badge badge-neutral">{event.eventType}</span></div><p style={{ marginTop: 5 }}>{localDate(event.localDate)} · {event.isAllDay ? 'Tüm gün' : `${localTime(event.startLocalTime)}–${localTime(event.endLocalTime)}`}</p>{(event.location || event.instructor) && <p className="muted" style={{ fontSize: 13 }}>{[event.location, event.instructor].filter(Boolean).join(' · ')}</p>}{event.departments.length > 0 && <p className="muted" style={{ fontSize: 12 }}>{event.departments.join(', ')}</p>}</article>)}</div>}</section>
-        <section className="card card-content"><h3 style={{ fontSize: 16 }}>Son program değişiklikleri</h3><p className="muted" style={{ fontSize: 12, marginTop: 4 }}>Mevcut takvim kayıtlarındaki oluşturma ve güncellemeler gösterilir; silmeler bu akışta yer almaz.</p>{errors.changes ? <p className="error">{errors.changes}</p> : changes === null ? <p className="loading-note">Yükleniyor…</p> : changes.length === 0 ? <p className="muted" style={{ marginTop: 10 }}>Gösterilecek yakın tarihli değişiklik yok.</p> : <div style={{ marginTop: 10 }}>{changes.map((change) => <div className="summary-row" key={`${change.stableIdentity}-${change.changedAtUtc}`}><span><strong>{change.title}</strong><small className="muted" style={{ display: 'block' }}>{localDate(change.localDate)} · {formatDateTime(change.changedAtUtc)}</small></span><span className={`badge ${statusBadge(change.kind)}`}>{change.kind === 'Created' ? 'Oluşturuldu' : 'Güncellendi'}</span></div>)}</div>}</section>
+        <CollapsibleCard title="Sıradaki dersler" count={upcoming?.length ?? undefined} defaultOpen>{errors.upcoming ? <p className="error">{errors.upcoming}</p> : upcoming === null ? <p className="loading-note">Yükleniyor…</p> : upcoming.length === 0 ? <p className="muted" style={{ marginTop: 10 }}>Önümüzdeki 14 günde yönetilen etkinlik bulunmuyor.</p> : <div style={{ marginTop: 10 }}>{upcoming.map((event) => <article className="detail-section" key={event.stableIdentity} style={{ padding: '12px 0', borderBottom: '1px solid var(--border)' }}><div className="cluster" style={{ justifyContent: 'space-between' }}><strong>{event.title}</strong><span className="badge badge-neutral">{event.eventType}</span></div><p style={{ marginTop: 5 }}>{localDate(event.localDate)} · {event.isAllDay ? 'Tüm gün' : `${localTime(event.startLocalTime)}–${localTime(event.endLocalTime)}`}</p>{(event.location || event.instructor) && <p className="muted" style={{ fontSize: 13 }}>{[event.location, event.instructor].filter(Boolean).join(' · ')}</p>}{event.departments.length > 0 && <p className="muted" style={{ fontSize: 12 }}>{event.departments.join(', ')}</p>}</article>)}</div>}</CollapsibleCard>
+        <CollapsibleCard title="Son program değişiklikleri" subtitle="Oluşturma ve güncellemeler gösterilir; silmeler bu akışta yer almaz." count={changes?.length ?? undefined} defaultOpen={false}>{errors.changes ? <p className="error">{errors.changes}</p> : changes === null ? <p className="loading-note">Yükleniyor…</p> : changes.length === 0 ? <p className="muted" style={{ marginTop: 10 }}>Gösterilecek yakın tarihli değişiklik yok.</p> : <div style={{ marginTop: 10 }}>{changes.map((change) => <div className="summary-row" key={`${change.stableIdentity}-${change.changedAtUtc}`}><span><strong>{change.title}</strong><small className="muted" style={{ display: 'block' }}>{localDate(change.localDate)} · {formatDateTime(change.changedAtUtc)}</small></span><span className={`badge ${statusBadge(change.kind)}`}>{change.kind === 'Created' ? 'Oluşturuldu' : 'Güncellendi'}</span></div>)}</div>}</CollapsibleCard>
         <section className="card card-content"><h3 style={{ fontSize: 16 }}>Bir sorun mu var?</h3><p className="muted" style={{ marginTop: 8, fontSize: 14 }}>Onarım talebi, yönetilen takvimi silmeden envanter denetimini öne alır.</p><button className="btn btn-secondary btn-sm" type="button" disabled={!reconcileEligible || reconcileBusy} onClick={() => void reconcile()} style={{ marginTop: 14 }}>{reconcileBusy ? <><span className="spinner" aria-hidden="true" />Gönderiliyor…</> : <>Onarım talebi oluştur<span aria-hidden="true">→</span></>}</button>{!reconcileEligible && <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>İlk senkronizasyon ve yönetilen takvim tamamlandığında kullanılabilir.</p>}{reconcileNotice && <p role="status" style={{ marginTop: 10 }}>{reconcileNotice}</p>}</section>
         <DepartmentColorEditor mode="user" collapsible />
       </div>

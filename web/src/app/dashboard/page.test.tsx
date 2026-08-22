@@ -23,10 +23,10 @@ describe('Dashboard', () => {
 
   it('renders authoritative counts, empty changes and all-day events', async () => {
     render(<DashboardPage />);
-    expect(await screen.findByText('Resmî tatil')).toBeInTheDocument();
-    expect(screen.getByText(/Tüm gün/)).toBeInTheDocument();
+    expect((await screen.findAllByText('Resmî tatil')).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Tüm gün/).length).toBeGreaterThan(0);
     expect(screen.getByText('Gösterilecek yakın tarihli değişiklik yok.')).toBeInTheDocument();
-    expect(screen.getByText('Sonradan güncellenmiş')).toBeInTheDocument();
+    expect(screen.getByText('Takvimdeki toplam ders')).toBeInTheDocument();
   });
 
   it('reports rate limiting for reconciliation', async () => {

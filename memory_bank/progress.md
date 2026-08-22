@@ -312,6 +312,11 @@
 - [x] Public + legal surface (landing `/`, `/gizlilik`, `/kosullar`, `/iletisim`)
   and re-skinned onboarding/dashboard/admin against the design system
 - [x] Automated frontend tests (Vitest + React Testing Library, ADR-090)
+- [x] Student dashboard UX polish (2026-08-22): "Sıradaki dersler" and "Son program
+  değişiklikleri" are collapsible cards; the ledger-count "Senkronizasyon görünümü" card is
+  replaced by a student-useful "Takvim özeti" (next lesson, 14-day count, total, relative last
+  update, Calendar badge); the initial-sync page gained a real progress bar (indeterminate sweep
+  while running, 100% only on backend Completed) replacing the frozen fake 99%
 - [ ] Production deployment topology and reverse-proxy config
 
 ## Current next action

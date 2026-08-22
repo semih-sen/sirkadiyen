@@ -2127,6 +2127,73 @@ body.has-drawer {
   gap: 0 16px;
 }
 
+/* --- İlk senkronizasyon ilerleme çubuğu ---------------------------------- */
+.sync-progress {
+  margin-top: 28px;
+  display: grid;
+  gap: 10px;
+}
+.sync-progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sync-progress-label {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 15px;
+}
+.sync-progress-value {
+  font-weight: 800;
+  color: var(--fg);
+}
+.sync-progress-foot {
+  font-size: 13px;
+}
+.progress-track {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--fg) 10%, var(--canvas));
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  width: 0;
+  border-radius: inherit;
+  background: var(--fg);
+  transition: width 0.4s ease;
+}
+.progress-fill--done {
+  background: var(--success);
+}
+.progress-fill--indeterminate {
+  width: 40% !important;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--fg) 30%, transparent),
+    var(--fg),
+    color-mix(in oklab, var(--fg) 30%, transparent)
+  );
+  animation: progress-sweep 1.25s ease-in-out infinite;
+}
+@keyframes progress-sweep {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .progress-fill--indeterminate {
+    animation: none;
+    transform: none;
+    width: 66% !important;
+  }
+}
+
 @media (max-width: 860px) {
   .sync-grid,
   .contact-grid {
@@ -2472,6 +2539,51 @@ body.has-drawer {
 /* Katlanmış paletin araç çubuğu, kendi paneli içinde yapışkan kalmamalı. */
 .color-studio--collapsible .color-toolbar {
   position: static;
+}
+
+/* --- Katlanabilir kart (panel bölümleri) --------------------------------- */
+.collapsible-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.collapsible-heading {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  flex: 1;
+}
+.collapsible-heading h3 {
+  margin: 0;
+}
+.collapsible-count {
+  flex: none;
+  min-width: 24px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--fg) 10%, var(--canvas));
+  color: var(--fg);
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+.collapsible-head .disclosure-chevron {
+  flex: none;
+  color: var(--ink-70);
+}
+.collapsible-head:hover .disclosure-chevron {
+  color: var(--fg-ink);
+}
+.collapsible-head[aria-expanded="true"] .disclosure-chevron {
+  transform: translateY(1px) rotate(225deg);
 }
 
 @media (max-width: 640px) {

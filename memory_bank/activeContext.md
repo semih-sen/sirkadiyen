@@ -94,6 +94,39 @@ revision can be rejected** and **a terminally failed diff can be retried**, both
 reason-required `SuperAdmin` routes, with the failed-dispatch queue made enumerable by
 `GET /api/diffs?dispatchState=Failed`.
 
+## Latest implementation session (2026-08-22, student dashboard + initial-sync progress UX)
+
+Frontend-only polish, continuing the 9d4a1d2 collapsible-palette work. No backend, contract, or
+worker change; all data comes from the existing student read endpoints.
+
+- **Two more dashboard sections are collapsible.** A local `CollapsibleCard` (in
+  `web/src/app/dashboard/page.tsx`, a native `<button>` header + `hidden` panel, reusing the palette's
+  `.disclosure-chevron`; new `.collapsible-*` CSS) now wraps "Sıradaki dersler" (default open) and
+  "Son program değişiklikleri" (default collapsed). Content stays in the DOM when collapsed (`hidden`
+  attr), so the RTL tests still find it.
+- **The old "Senkronizasyon görünümü" card was ledger-internal noise** (Takvimdeki etkinlik / İlk
+  yazımdaki içerikte / Sonradan güncellenmiş / Son takvim yazımı — durable-ledger counters a student
+  has no use for). Replaced by a **"Takvim özeti"** card built from data already fetched: next lesson
+  (title + local date/time from `upcoming[0]`), lesson count in the next 14 days, total managed
+  lessons, a human relative "Son güncelleme" (`relativeTime` helper over `lastWrittenAtUtc`), and a
+  Google Calendar connected/waiting badge.
+- **Initial-sync page (`web/src/app/onboarding/sync/page.tsx`) had no real progress bar and a
+  fabricated percentage that jumped to 99% and looked frozen.** The backend exposes only
+  Pending→InProgress→Completed + a live ledger count and *no total*, so a truthful mid-run percentage
+  is impossible. Replaced with a real bar (`.sync-progress`/`.progress-track`/`.progress-fill` +
+  `progress-sweep` keyframe, reduced-motion fallback): determinate 4% at rest / 100% green on
+  Completed, an **indeterminate animated sweep while in progress**, with the growing "N etkinlik
+  yazıldı" count as the concrete signal. "%100 only on backend Completed" (plan §5.7) preserved.
+- **Gate to dashboard-before-sync-done was already correct and is unchanged.** Enforced at both ends:
+  the sync page redirects only when `onboarding.state === 'Active'`, and `OnboardingGate allow={['Active']}`
+  on `/dashboard` bounces any earlier state back through `routeForOnboardingState` → sync. The info
+  banner copy now states this plainly instead of the old "%99'da bekleyebilir" note.
+- **Tests/build:** 80 frontend tests pass (dashboard test updated: the next-lesson summary duplicates
+  the upcoming title so it uses `findAllByText`, and the removed "Sonradan güncellenmiş" assertion is
+  now "Takvimdeki toplam ders"). `npm run typecheck` clean, `npm run build` clean (25 routes). `next lint`
+  is not configured (interactive prompt) so it was not run — pre-existing. Not verified in a live browser:
+  both pages are session-gated and need the backend + a Google credential, which are unavailable here.
+
 ## Latest implementation session (2026-08-21, worker-instance monitoring)
 
 **Added multi-instance worker observability** (ADR-124), directly motivated by the ADR-122 incident:

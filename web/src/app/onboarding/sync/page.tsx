@@ -94,8 +94,17 @@ function InitialSync() {
   }, [poll]);
 
   const state = status?.initialSyncState;
-  // %100 is shown only on a backend Completed (plan §5.7 critical rule).
-  const percent = state === 'Completed' ? 100 : state === 'InProgress' ? 99 : busy ? 5 : 0;
+  const writtenCount = status?.mappedEventCount ?? 0;
+  const completed = state === 'Completed';
+  // The backend exposes only Pending → InProgress → Completed and the live ledger
+  // count — never a total — so a truthful percentage cannot be computed mid-run.
+  // We therefore show a determinate bar only at the two ends (0% / 100%) and an
+  // indeterminate, animated bar while work is in flight, with the growing event
+  // count as the concrete progress signal. This replaces the old bar that jumped
+  // to a fabricated 99% and then appeared frozen there. (plan §5.7: %100 only on
+  // a backend-confirmed Completed.)
+  const inProgress = !completed && (state === 'InProgress' || busy);
+  const overall = completed ? '%100' : inProgress ? 'Sürüyor…' : busy ? 'Başlatılıyor…' : 'Bekleniyor';
 
   return (
     <AuthShell wide>
@@ -109,6 +118,31 @@ function InitialSync() {
         Ders programın Google takvimine yazılıyor. Bu işlem birkaç dakika sürebilir; sayfayı açık
         bırakabilir ya da daha sonra geri dönebilirsin. Önceki adımlar sunucuda kayıtlı.
       </p>
+
+      <div
+        className="sync-progress"
+        role="progressbar"
+        aria-label="İlk senkronizasyon ilerlemesi"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        {...(completed ? { 'aria-valuenow': 100 } : inProgress ? {} : { 'aria-valuenow': 0 })}
+      >
+        <div className="sync-progress-head">
+          <span className="sync-progress-label">{completed ? 'Senkronizasyon tamamlandı' : inProgress ? 'Etkinlikler yazılıyor' : 'Senkronizasyon hazırlanıyor'}</span>
+          <span className="sync-progress-value mono">{overall}</span>
+        </div>
+        <div className="progress-track">
+          <div
+            className={`progress-fill${completed ? ' progress-fill--done' : inProgress ? ' progress-fill--indeterminate' : ''}`}
+            style={completed ? { width: '100%' } : inProgress ? undefined : { width: '4%' }}
+          />
+        </div>
+        <div className="sync-progress-foot muted">
+          {completed
+            ? `${writtenCount} etkinlik takvimine yazıldı.`
+            : `${writtenCount} etkinlik yazıldı${inProgress ? '…' : ''}`}
+        </div>
+      </div>
 
       <div className="sync-grid">
         <ol className="timeline">
@@ -128,7 +162,7 @@ function InitialSync() {
         <div className="card card-content" style={{ alignSelf: 'start' }}>
           <div className="summary-row">
             <span>Genel</span>
-            <span className="value mono">{percent}%</span>
+            <span className="value">{overall}</span>
           </div>
           <div className="summary-row">
             <span>Durum</span>
@@ -138,15 +172,16 @@ function InitialSync() {
             <span>
               Yazılan etkinlik <span className="proto-data-tag">defterden</span>
             </span>
-            <span className="value mono">{status?.mappedEventCount ?? 0}</span>
+            <span className="value mono">{writtenCount}</span>
           </div>
         </div>
       </div>
 
-      {state !== 'Completed' && (
+      {!completed && (
         <div style={{ marginTop: 20 }}>
           <Banner tone="info">
-            İlerleme %99’da bekleyebilir; %100 yalnızca sunucu senkronizasyonu onayladığında görünür.
+            Senkronizasyon tamamlanana kadar bu sayfada kalırsın; panele yalnızca takvimin tümüyle
+            hazır olduğunda geçilir. Sayfayı kapatsan bile işlem sunucuda sürer.
           </Banner>
         </div>
       )}
