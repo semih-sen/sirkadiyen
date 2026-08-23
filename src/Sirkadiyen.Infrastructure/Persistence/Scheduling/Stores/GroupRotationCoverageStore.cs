@@ -30,14 +30,19 @@ public sealed class GroupRotationCoverageStore(SirkadiyenDbContext dbContext)
         // Only a published revision counts. A parsed-but-unpublished group list
         // says nothing to a student yet, and treating it as coverage would remove
         // the fallback events before anything replaced them.
-        List<string> owners = [.. rotationSourceIds.Select(static id => id.Value)];
+        //
+        // The owners are held as SourceId, not string: SourceId is a value-
+        // converted column, so `owners.Contains(record.SourceId)` translates to
+        // SQL, while comparing `record.SourceId.Value` does not — EF cannot read
+        // through the conversion mid-query and the whole poll throws (ADR-126).
+        List<SourceId> owners = [.. rotationSourceIds];
         IQueryable<DateOnly> query =
             from record in dbContext.CanonicalScheduleRecords.AsNoTracking()
             join revision in dbContext.ScheduleRevisions.AsNoTracking()
                 on record.ScheduleRevisionId equals revision.Id
             where revision.State == RevisionState.Published
                 && record.RecordStatus == CanonicalRecordStatus.Scheduled
-                && owners.Contains(record.SourceId.Value)
+                && owners.Contains(record.SourceId)
                 && record.AcademicYear == academicYear
                 && record.ClassYear == classYear
                 && record.ProgramLanguage == programLanguage
