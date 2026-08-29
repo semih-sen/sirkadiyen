@@ -252,7 +252,7 @@
       "sourceUri": "urn:sirkadiyen:upload:G2-ANATOMY-AUTUMN",
       "parserProfile": "grade2_anatomy_autumn_v1",
       "parserProfileVersion": "1.0.0",
-      "academicYear": "2025-2026",
+      "academicYear": "2026-2027",
       "classYear": 2,
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
@@ -265,7 +265,7 @@
       },
       "sharedDocumentGroup": "g2-anatomy-autumn",
       "fixturePath": "sheets/donem-2-tr/2. SINIF SALON GRUP SAATLERİ 2025-2026 GÜZ.docx",
-      "notes": "The dissection rotation the annual program's three identical DİSEKSİYON rows defer to (ADR-073, ADR-078). The document states exactly the three anatomy groups 1, 2 and 3, which are independent of the practice group. It is handed out once at the start of the semester, states no URL anywhere, and is acquired by administrative upload (ADR-079)."
+      "notes": "The dissection rotation the annual program's three identical DİSEKSİYON rows defer to (ADR-073, ADR-078). The document states exactly the three anatomy groups 1, 2 and 3, which are independent of the practice group. It is handed out once at the start of the semester, states no URL anywhere, and is acquired by administrative upload (ADR-079). Moved to 2026-2027 with the rest of the Grade 2 cohort (ADR-129); the 2026-2027 group list has NOT been uploaded yet, so this source publishes nothing and grade2_yearly_v1 covers the gap with the ADR-126 fallback. `fixturePath` still names the 2025-2026 document, which is kept only so the committed snapshot fixture can be regenerated."
     },
     {
       "sourceId": "G2-ANATOMY-AUTUMN-EN",
@@ -275,7 +275,7 @@
       "sourceUri": "urn:sirkadiyen:upload:G2-ANATOMY-AUTUMN-EN",
       "parserProfile": "grade2_anatomy_autumn_v1",
       "parserProfileVersion": "1.0.0",
-      "academicYear": "2025-2026",
+      "academicYear": "2026-2027",
       "classYear": 2,
       "programLanguage": "english",
       "timeZoneId": "Europe/Istanbul",
@@ -288,7 +288,7 @@
       },
       "sharedDocumentGroup": "g2-anatomy-autumn",
       "fixturePath": "sheets/donem-2-tr/2. SINIF SALON GRUP SAATLERİ 2025-2026 GÜZ.docx",
-      "notes": "The English program's half of the same document as G2-ANATOMY-AUTUMN, which is handed to both programs (ADR-080). One upload to either source becomes evidence for both, because a canonical record reaches a student only when its program language matches theirs. The anatomy groups 1, 2 and 3 are the document's own and are not divided by program."
+      "notes": "The English program's half of the same document as G2-ANATOMY-AUTUMN, which is handed to both programs (ADR-080). One upload to either source becomes evidence for both, because a canonical record reaches a student only when its program language matches theirs. The anatomy groups 1, 2 and 3 are the document's own and are not divided by program. Moved to 2026-2027 with its Turkish counterpart (ADR-129) and likewise awaiting the new year's upload."
     },
     {
       "sourceId": "G2-ANATOMY-SPRING",
@@ -298,7 +298,7 @@
       "sourceUri": "urn:sirkadiyen:upload:G2-ANATOMY-SPRING",
       "parserProfile": "grade2_anatomy_spring_v1",
       "parserProfileVersion": "1.0.0",
-      "academicYear": "2025-2026",
+      "academicYear": "2026-2027",
       "classYear": 2,
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
@@ -311,7 +311,7 @@
       },
       "sharedDocumentGroup": "g2-anatomy-spring",
       "fixturePath": "sheets/donem-2-tr/2. SINIF SALON GRUP SAATLERİ 2025-2026  BAHAR.docx",
-      "notes": "As G2-ANATOMY-AUTUMN, for the spring semester. One of its days states a year that is a year out and is refused whole, so that day's three sessions are absent by design until the document is corrected and re-uploaded."
+      "notes": "As G2-ANATOMY-AUTUMN, for the spring semester. Moved to 2026-2027 (ADR-129) and awaiting the new year's upload. In the 2025-2026 document one day stated a year that was a year out and was refused whole; check whether the 2026-2027 document repeats it."
     },
     {
       "sourceId": "G2-ANATOMY-SPRING-EN",
@@ -321,7 +321,7 @@
       "sourceUri": "urn:sirkadiyen:upload:G2-ANATOMY-SPRING-EN",
       "parserProfile": "grade2_anatomy_spring_v1",
       "parserProfileVersion": "1.0.0",
-      "academicYear": "2025-2026",
+      "academicYear": "2026-2027",
       "classYear": 2,
       "programLanguage": "english",
       "timeZoneId": "Europe/Istanbul",
@@ -334,7 +334,7 @@
       },
       "sharedDocumentGroup": "g2-anatomy-spring",
       "fixturePath": "sheets/donem-2-tr/2. SINIF SALON GRUP SAATLERİ 2025-2026  BAHAR.docx",
-      "notes": "As G2-ANATOMY-AUTUMN-EN, for the spring semester."
+      "notes": "As G2-ANATOMY-AUTUMN-EN, for the spring semester. Moved to 2026-2027 (ADR-129) and awaiting the new year's upload."
     },
     {
       "sourceId": "G2-EN-ANNUAL",

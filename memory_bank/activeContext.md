@@ -3020,3 +3020,43 @@ koşusu `groupRotationCoveredDates` göndermiyor, yani kapsanmamış hâli sın�
 depodaki çalışma kitabı ve snapshot fixture'ı hâlâ 2025-2026. Parse ediyor, yani bugün kırık
 bir şey yok; fakat fixture artık poller'ın okuduğu belgeyi tarif etmiyor. Ayrı bir iş: kendi
 altın gözden geçirmesini gerektiriyor.
+
+## 2026-2027 rollover: kaynak kaynak, belgesiyle birlikte (2026-08-29)
+
+Katalogdaki 23 kaynağın 11'i hâlâ 2025-2026'daydı. "Hepsini çevir" isteğinin doğrudan
+uygulaması yanlış olurdu: `academicYear` hem kararlı kimliğin bir bileşeni hem de
+`CalendarAudienceResolver`'ın kaydı öğrenciye eşlediği alan. ADR-115 bunun bedelini kaydediyor.
+
+İki belirleyici özellik:
+
+- **Yıl parse-run anahtarında değil.** Tek başına çevirmek hiçbir şeyi yeniden parse etmiyor;
+  bir sonraki poll değişmemiş snapshot'ta kısa devre oluyor. Çevirme ancak belge değiştiğinde
+  görünür oluyor — o an kaynak, belgede ne yazıyorsa onu yeni yılın etiketiyle yayımlıyor.
+  Yani belgesinden önce ilerletilmiş bir yıl işe yaramaz değil, **gecikmeli bir arıza**.
+- **Belgeler varsayılmadı, indirildi.** İki dikey koridor DOCX'i kataloğdaki Drive id'lerinden
+  indirildi: hâlâ 2025-2026 programını taşıyorlar (güz 2025, bahar 2026 baharı). Dört Dönem 1
+  Google Sheet'i worker'ın servis hesabı olmadan okunamıyor (HTTP 401).
+
+### Yapılan: dört anatomi kaynağı 2026-2027'ye taşındı (ADR-129)
+
+Şimdi taşınabilecek tek grup buydu, düzen için değil sebeple:
+
+- URL'leri yok. `administrativeUpload` altında yıl, **yüklenecek belgenin hangi yıl olarak parse
+  edileceğini** söylüyor; yani yüklemeden *önce* doğru olmak zorunda. 2025-2026'da bırakmak,
+  gelen 2026-2027 grup listesini geçen yılın damgasıyla parse etmek olurdu — ADR-115 arızasının
+  bir sonraki yüklemede tekrarı.
+- Kohort zaten taşındı. Dönem 2 Türkçe profilleri 2026-2027 damgalı, yani bu kaynakların
+  2025-2026 altında yayımladığı kayıtlar bugün kimseye ulaşmıyor.
+- Yoklukları zaten karşılanıyor: ADR-126 yedeği, kapsanmayan her diseksiyon gününün üç saatini
+  yayımlıyor ve kapsama sorgusu zaten devreden kaynağın kendi yılına bakıyor.
+
+### Hâlâ 2025-2026 — her biri kendi 2026-2027 belgesini bekliyor
+
+`G1-TR-ANNUAL`, `G1-TR-PRACTICE`, `G1-EN-ANNUAL`, `G1-EN-PRACTICE`, `G2-VERTICAL-AUTUMN`,
+`G2-VERTICAL-SPRING`, `SHARED-AMPHI`.
+
+Dönem 1'in dördünü taşımak ayrıca `CurrentSupportedProfileSchema`'yı da bağlıyor (Dönem 1 Türkçe
+ve İngilizce 2026-2027'ye, şema sürümü 1.4) ve o iki program için denetimli
+`POST /api/operations/profile-rollovers` çalıştırmayı gerektiriyor — üçü aynı değişikliğin
+parçası. `SHARED-AMPHI`'nin profili `weekly_amphitheatre_v1` hâlâ stub, hiçbir şey yayımlamıyor;
+yılı nominal.

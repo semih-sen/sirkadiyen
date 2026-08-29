@@ -7621,3 +7621,74 @@ Grade 2 fixture is still the 2025-2026 capture and stays at `_Y2025`.
   committed workbook and snapshot fixture are still the 2025-2026 ones. It parses, so nothing is
   broken today, but the fixture no longer describes the document the poller reads. Regenerating it is
   a separate change with its own golden review.
+
+## ADR-129: The 2026-2027 rollover is per source, and a year moves only with its document
+
+**Status:** Partially implemented — the four Grade 2 anatomy sources are moved; seven sources remain
+on 2025-2026 pending their new year's documents
+**Date:** 2026-08-29
+**Implements:** `academicYear` 2026-2027 on `G2-ANATOMY-AUTUMN`, `G2-ANATOMY-AUTUMN-EN`,
+`G2-ANATOMY-SPRING`, `G2-ANATOMY-SPRING-EN` in `config/schedule-sources.json`, with catalog notes
+stating what each is waiting for
+**Extends:** ADR-115 (a cohort's academic year is rolled over explicitly)
+**Relates to:** ADR-079, ADR-080 (the anatomy uploads), ADR-126 (the fallback covering their absence),
+ADR-103
+
+### Context
+
+Eleven of the twenty-three catalogued sources were still on 2025-2026 while Grade 2 and Grade 3 had
+moved. The obvious reading of "roll everything over" is to set `academicYear` on all eleven. It is
+the wrong one, and ADR-115 is the record of why: `academicYear` is both a stable-identity component
+and the field `CalendarAudienceResolver` matches a canonical record to a student on. Moving it
+re-identifies every record the source publishes.
+
+Two further properties decide the shape of this work:
+
+- **The year is not part of the parse-run key.** Changing it alone does not reparse anything; the
+  next poll short-circuits on the unchanged snapshot. The flip becomes visible only when the document
+  next changes — at which point the source publishes whatever that document says under the new year's
+  label. A year moved ahead of its document is therefore not merely useless, it is a delayed fault.
+- **The documents were checked, not assumed.** The two vertical-corridor DOCX files were downloaded
+  from the catalogued Drive ids: they still hold the 2025-2026 programme (autumn dated 2025, spring
+  dated spring 2026). The four Grade 1 Google Sheets are not readable without the worker's service
+  account, so nothing can be claimed about them here.
+
+### Decision
+
+**A source's `academicYear` moves in the same change as the document it points at, never before it.**
+
+The four Grade 2 anatomy sources are the one group that can move now, and they move for a reason
+rather than for tidiness:
+
+- They carry no URL. Under `administrativeUpload` (ADR-079) the year states *which year's document an
+  upload will be parsed as*, so it must be correct **before** the upload, not after. Leaving it at
+  2025-2026 would parse the incoming 2026-2027 group list into records stamped with last year — the
+  ADR-115 failure, reproduced on the next upload.
+- Their cohort has already moved. Grade 2 Turkish profiles are stamped 2026-2027, so records these
+  sources publish under 2025-2026 reach nobody today; the flip costs no reachable event.
+- Their absence is already covered. `grade2_yearly_v1` publishes all three dissection hours for any
+  date no group list covers (ADR-126), and the coverage query filters on the deferring source's own
+  year, so coverage was zero either way.
+
+The remaining seven stay on 2025-2026 and are listed below as open work, because moving them requires
+a document nobody has supplied.
+
+### Consequences
+
+- The catalog now says plainly, in each anatomy entry's notes, that the source is on 2026-2027 and
+  waiting for that year's upload, and that `fixturePath` still names the 2025-2026 document because
+  the committed snapshot fixture is regenerated from it.
+- If a 2025-2026 anatomy revision is currently published, the first upload after this change removes
+  its events (ledger-driven deletion) and inserts the new document's. That is the intended rollover,
+  but it is a visible calendar change and should be released deliberately.
+- `SupportedProfileSchemaCatalogCheck` still reports no divergence for Grade 2 Turkish: the schema
+  states 2026-2027 and the catalog now states it for annual, practice and anatomy. The two
+  vertical-corridor sources remain on 2025-2026, which the check tolerates by design — a cohort
+  mid-rollover is not a mismatch.
+- **Open — still on 2025-2026, each blocked on its 2026-2027 document:** `G1-TR-ANNUAL`,
+  `G1-TR-PRACTICE`, `G1-EN-ANNUAL`, `G1-EN-PRACTICE`, `G2-VERTICAL-AUTUMN`, `G2-VERTICAL-SPRING`,
+  `SHARED-AMPHI`. Moving the four Grade 1 sources also obliges bumping
+  `CurrentSupportedProfileSchema` (Grade 1 Turkish and English to 2026-2027, schema version 1.4) and
+  running the audited `POST /api/operations/profile-rollovers` for those two programs. `SHARED-AMPHI`
+  is a weekly dated file whose profile `weekly_amphitheatre_v1` is still a stub, so its year is
+  nominal and publishes nothing either way.

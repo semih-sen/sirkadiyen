@@ -1182,3 +1182,20 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
   için tek bir biçim farkı bildiriyor; bu dosyaya dokunulmadı, fark bu değişiklikten önce de
   vardı. `G2-TR-ANNUAL` katalogda 2026-2027'ye bakıyor ama fixture'ı hâlâ 2025-2026 —
   yeniden üretilmedi, ayrı bir altın gözden geçirmesi gerekiyor.
+
+## Anatomi kaynakları 2026-2027'ye taşındı, kalan yedi kaynak belgesini bekliyor (2026-08-29)
+
+- **Root cause:** Katalogdaki 11 kaynak hâlâ 2025-2026'daydı. `academicYear` hem kararlı kimlik
+  bileşeni hem de kayıt-öğrenci eşleşme alanı olduğu için toplu çevirme ADR-115 arızasını
+  tekrarlardı; ayrıntı ADR-129.
+- **Changed:** `config/schedule-sources.json` içinde dört `G2-ANATOMY-*` kaynağı 2026-2027'ye
+  alındı ve notları ne beklediklerini söyleyecek şekilde yazıldı; `sheets/source-manifest.md`
+  anatomi satırları güncellendi; ADR-129 eklendi. Başka hiçbir kaynağın yılı değiştirilmedi.
+- **Tests executed:** `dotnet test`: Api 8, Contracts 6, Infrastructure 736, Persistence 40 geçti
+  / 236 atlandı (Docker kapalı). Katalog JSON'u yeniden ayrıştırılarak doğrulandı. Parser tarafı
+  bu değişiklikten etkilenmiyor (altın senaryoları yılı kataloğdan değil test durumundan okuyor).
+- **Not done / not verified:** Dönem 1'in dört kaynağı, iki dikey koridor kaynağı ve SHARED-AMPHI
+  2025-2026'da bırakıldı — 2026-2027 belgeleri yok. Dikey koridor DOCX'leri indirilip içerikleri
+  doğrulandı (hâlâ 2025-2026). Dönem 1 elektronik tabloları servis hesabı olmadan okunamadı
+  (HTTP 401), yani içerikleri hakkında bir şey doğrulanmadı. `CurrentSupportedProfileSchema`
+  1.3'te bırakıldı; Dönem 1 taşınmadığı için bumplanmadı.
