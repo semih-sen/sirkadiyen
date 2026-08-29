@@ -64,6 +64,63 @@ the backend cannot truthfully advance beyond `ProfileRequired`. Their later
 modules will extend the derivation rather than accepting an onboarding state
 from the browser.
 
+## Student-list lookup
+
+Academic profile onboarding is student-number-first (ADR-085, ADR-132). The
+student types their ten-digit number and nothing else; the number identifies
+them and the faculty list that holds it states which program they are in, so a
+student cannot mis-select their own class year.
+
+`POST /api/profile/roster-lookup` takes `{ "studentNumber": "0101250001" }` and
+returns one of three outcomes.
+
+| Outcome | Meaning | What the form does |
+| --- | --- | --- |
+| `Matched` | Exactly one row of one list states the number | Prefills the class year, program language and every selector the list states, all editable |
+| `NotFound` | No configured list states it | Nothing is prefilled; the student fills the form in by hand |
+| `Ambiguous` | Two rows claim it, in one list or across two | Nothing is prefilled; the backend does not choose, and the student is sent to Student Affairs |
+
+It is a `POST` although it reads: a student number does not belong in a URL or
+in an access log. It requires the CSRF token and is rate limited to ten calls
+per five minutes per caller, because a lookup answers a ten-digit guess with a
+name.
+
+A match is a suggestion and never a claim that the profile is complete. The
+response therefore separates the two:
+
+- `suggestedSelectors` — what a list stated, filtered through the
+  supported-profile schema. A value the program does not allow is dropped and
+  explained in `notices`, because a suggestion the profile validator would
+  reject is worse than no suggestion.
+- `dimensionsRequiringInput` — required dimensions the lists said nothing usable
+  about. Grade 2 Turkish lists no anatomy group and Grade 3 Turkish no
+  faculty-practice cohort, so both cohorts always leave one field to the student.
+- `notices` — why each value was withheld: `ProgramNotOnboardable`,
+  `DimensionNotStatedByRoster`, `DimensionNotDeclaredByProgram`,
+  `ValueNotSupportedByProgram`, `RosterYearDiffersFromProgram`.
+- `someListsUnreadable` — whether a list could not be read when the lookup ran.
+  It matters with `NotFound`: "you are not on any list" and "we could not read
+  one of the lists" ask the student for different things.
+
+`givenName` and `familyName` are returned for visual confirmation only. They are
+never written to the database, copied into the profile, or logged. Two of the
+four lists publish them already masked, so a name may arrive as `HAY*******`.
+
+The lists are catalogued in `config/student-rosters.json`, which holds each
+list's location, cohort and column layout. The documents are published openly by
+the faculty, so the links are in source control; their contents are read at
+runtime into memory, refreshed hourly, and never persisted. A roster is not a
+schedule source: nothing parses it into canonical records, no snapshot is stored,
+and no revision is cut from it.
+
+A list existing does not open a program. The Grade 2 English and Grade 3 English
+lists are catalogued and suggest nothing, because those programs are absent from
+the supported-profile schema (ADR-084, ADR-098).
+
+Reading a list uses the same `SIRKADIYEN_GOOGLE` source credential the worker
+uses, which `common.env` already supplies to both hosts. Without it every list
+is reported as unreadable and onboarding continues by hand rather than failing.
+
 ## Administrative endpoints
 
 All administration endpoints require the persisted `SuperAdmin` role and a CSRF

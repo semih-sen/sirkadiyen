@@ -13,6 +13,7 @@ using Sirkadiyen.Api.Scheduling.Diffing;
 using Sirkadiyen.Api.Scheduling.Ingestion;
 using Sirkadiyen.Api.Scheduling.Publication;
 using Sirkadiyen.Api.StudentProfiles;
+using Sirkadiyen.Api.StudentRosters;
 
 namespace Sirkadiyen.Api.Composition;
 
@@ -35,6 +36,7 @@ internal static class ApiEndpointRouteBuilderExtensions
         app.MapAccountEndpoints();
         app.MapLicenseEndpoints();
         app.MapStudentProfileEndpoints();
+        app.MapStudentRosterEndpoints();
         app.MapCalendarAuthorizationEndpoints();
         app.MapCalendarSyncEndpoints();
         app.MapCalendarReconcileEndpoints();

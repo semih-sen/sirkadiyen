@@ -29,6 +29,13 @@ Environment=ASPNETCORE_ENVIRONMENT=Production
 # an administrative edit must survive the next deployment.
 Environment=SIRKADIYEN_SOURCES__CATALOG_PATH=/srv/sirkadiyen/shared/config/schedule-sources.json
 
+# The published student lists the profile lookup searches (ADR-132). Nothing
+# writes it, but it sits beside the source catalog so a corrected column layout
+# can be deployed on its own. Reading the lists themselves uses the
+# SIRKADIYEN_GOOGLE source credential common.env already supplies, which the API
+# now uses as well as the worker.
+Environment=SIRKADIYEN_ROSTERS__CATALOG_PATH=/srv/sirkadiyen/shared/config/student-rosters.json
+
 Restart=always
 RestartSec=5
 TimeoutStopSec=30

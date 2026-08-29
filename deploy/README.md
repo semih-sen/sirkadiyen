@@ -81,6 +81,11 @@ sudo mkdir -p /srv/sirkadiyen/shared/dataprotection-keys
 # worker artifact when it does not exist yet, and never overwrites it.
 sudo mkdir -p /srv/sirkadiyen/shared/config
 
+# The published student lists the profile lookup searches (ADR-132) live in the
+# same directory. Nothing writes this one - it holds locations and column
+# layouts, not people - but it sits here so a corrected layout can be installed
+# without a deployment. Copy config/student-rosters.json from the repository.
+
 # The deploy account writes releases and migration scripts; nothing else.
 sudo chown -R deploy:sirkadiyen /srv/sirkadiyen/{api,worker,parser,web} /srv/sirkadiyen/migrations
 sudo chmod -R 2775 /srv/sirkadiyen/{api,worker,parser,web} /srv/sirkadiyen/migrations

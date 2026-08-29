@@ -17,13 +17,16 @@ using Sirkadiyen.Application.Scheduling.Ingestion;
 using Sirkadiyen.Application.Scheduling.Publication;
 using Sirkadiyen.Application.Scheduling.Sources;
 using Sirkadiyen.Application.StudentProfiles;
+using Sirkadiyen.Application.StudentRosters;
 using Sirkadiyen.Domain.Identity;
+using Google.Apis.Sheets.v4;
 using Sirkadiyen.Infrastructure.Google;
 using Sirkadiyen.Infrastructure.Licensing;
 using Sirkadiyen.Infrastructure.Observability;
 using Sirkadiyen.Infrastructure.Persistence;
 using Sirkadiyen.Infrastructure.Scheduling.Ingestion;
 using Sirkadiyen.Infrastructure.Scheduling.Sources;
+using Sirkadiyen.Infrastructure.StudentRosters;
 using Sirkadiyen.Infrastructure.Security;
 
 namespace Sirkadiyen.Api.Composition;
@@ -186,6 +189,39 @@ internal static class ApiServiceCollectionExtensions
         });
         services.AddSingleton<IScheduleSourceCatalogFile, ScheduleSourceCatalogFile>();
         services.AddSingleton<IScheduleSourceCatalogSerializer, ScheduleSourceCatalogLoader>();
+
+        // The published student lists (ADR-085). The API reads them itself rather
+        // than taking them from the worker's pipeline, because a roster is not a
+        // schedule source: no snapshot is stored, no revision is cut, nothing is
+        // published from it, and the names it states may not be persisted at all.
+        // That last rule is what settles where the reading lives - it can only live
+        // in memory, in the process that answers the lookup.
+        GoogleSourceAccessOptions rosterAccess = new()
+        {
+            ClientId = configuration["SIRKADIYEN_GOOGLE:CLIENT_ID"],
+            ClientSecret = configuration["SIRKADIYEN_GOOGLE:CLIENT_SECRET"],
+            SourceRefreshToken = configuration["SIRKADIYEN_GOOGLE:SOURCE_REFRESH_TOKEN"],
+            ServiceAccountCredentialPath =
+                configuration["SIRKADIYEN_GOOGLE:SERVICE_ACCOUNT_CREDENTIAL_PATH"],
+        };
+        services.AddSingleton(rosterAccess);
+        services.AddSingleton<GoogleSheetsServiceFactory>();
+        services.AddSingleton<SheetsService>(provider =>
+            provider.GetRequiredService<GoogleSheetsServiceFactory>().Create(rosterAccess));
+        services.AddSingleton<GoogleSheetsSnapshotMapper>();
+        services.AddScoped<ISpreadsheetSnapshotAcquirer, GoogleSheetsSnapshotAcquirer>();
+        services.AddSirkadiyenGoogleDriveClient(rosterAccess);
+        services.AddSingleton<LocalXlsxSnapshotConverter>();
+        services.AddScoped<IDriveDocumentAcquirer, DriveDocumentAcquirer>();
+        services.AddSingleton<IStudentRosterCatalogSerializer, StudentRosterCatalogLoader>();
+        services.AddSingleton(new StudentRosterIndexOptions
+        {
+            CatalogPath = Path.GetFullPath(
+                configuration["SIRKADIYEN_ROSTERS:CATALOG_PATH"] ?? "config/student-rosters.json",
+                builder.Environment.ContentRootPath),
+        });
+        services.AddSingleton<IStudentRosterIndex, StudentRosterIndex>();
+        services.AddScoped<StudentRosterLookupService>();
         services.AddScoped<ScheduleSourceCatalogEditingService>();
         services.AddSirkadiyenPersistence(connectionString);
 

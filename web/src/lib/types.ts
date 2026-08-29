@@ -76,6 +76,34 @@ export interface SupportedProfileDimension {
 }
 
 // GET /api/profile
+/**
+ * What the published faculty student lists say about a student number (ADR-085).
+ *
+ * A match is a suggestion, never a claim that the profile is complete:
+ * `suggestedSelectors` is what a list stated and `dimensionsRequiringInput` is
+ * what the student still has to answer. `Ambiguous` means two rows claim the
+ * number and the backend deliberately did not choose between them.
+ */
+export interface StudentRosterLookupResponse {
+  outcome: 'Matched' | 'NotFound' | 'Ambiguous';
+  studentNumber: string;
+  givenName?: string | null;
+  familyName?: string | null;
+  academicYear?: string | null;
+  classYear?: number | null;
+  programLanguage?: ProgramLanguage | null;
+  suggestedSelectors: Record<string, string>;
+  dimensionsRequiringInput: string[];
+  notices: StudentRosterLookupNotice[];
+  someListsUnreadable: boolean;
+}
+
+export interface StudentRosterLookupNotice {
+  code: string;
+  dimension?: string | null;
+  message: string;
+}
+
 export interface StudentProfileView {
   userId: string;
   academicYear: string;

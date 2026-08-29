@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
-import { getProfileOptions, saveProfile, ApiError } from '@/lib/api';
+import { getProfileOptions, lookUpStudentRoster, saveProfile, ApiError } from '@/lib/api';
 import { Banner } from '@/components/ui';
 import type {
   ProgramLanguage,
   SaveStudentProfileResponse,
   StudentProfileView,
+  StudentRosterLookupResponse,
   SupportedProfileDimension,
   SupportedProfileOptions,
   SupportedProfileProgram,
@@ -59,10 +60,67 @@ function allowedValues(
 }
 
 /**
+ * The banner a lookup produces.
+ *
+ * A match is reported as a suggestion, never as a finished profile: it says what
+ * the list filled in and, separately, what the student still has to answer
+ * (ADR-085). A miss is not an error and does not block the form. An ambiguous
+ * number is neither — two rows claim it and nobody may pick one, so the student
+ * is sent to the faculty rather than guessing.
+ */
+export function RosterLookupNotice({ result }: { result: StudentRosterLookupResponse }) {
+  if (result.outcome === 'Ambiguous') {
+    return (
+      <Banner tone="warning">
+        Bu numara öğrenci listelerinde birden fazla kez geçiyor, bu yüzden hangisi olduğun
+        seçilemiyor. Alanları kendin doldurabilirsin; numaranın düzeltilmesi için öğrenci işlerine
+        başvurman gerekiyor.
+      </Banner>
+    );
+  }
+
+  if (result.outcome === 'NotFound') {
+    return result.someListsUnreadable ? (
+      <Banner tone="warning">
+        Öğrenci listelerinden en az biri şu anda okunamadı, bu yüzden numaran listede yok diyemiyoruz.
+        Alanları kendin doldurabilirsin.
+      </Banner>
+    ) : (
+      <Banner tone="neutral">
+        Numaran yayımlanmış öğrenci listelerinde bulunamadı. Alanları kendin doldurabilirsin.
+      </Banner>
+    );
+  }
+
+  const name = [result.givenName, result.familyName].filter(Boolean).join(' ');
+  const filled = Object.keys(result.suggestedSelectors).length;
+
+  return (
+    <Banner tone="info">
+      {name ? `${name} olarak bulundun. ` : 'Listede bulundun. '}
+      {filled > 0
+        ? `${filled} alan listeden dolduruldu; hepsini değiştirebilirsin. `
+        : 'Listeden doldurulabilecek bir alan yoktu. '}
+      {result.dimensionsRequiringInput.length > 0
+        ? `${result.dimensionsRequiringInput
+            .map((key) => DIMENSION_LABELS[key] ?? key)
+            .join(', ')} listede yazmıyor; bunu kendin seçmen gerekiyor.`
+        : 'Kalan alanları kontrol edip kaydet.'}
+    </Banner>
+  );
+}
+
+/**
  * The academic profile form, shared by the onboarding step and the later edit
  * surface. It renders `GET /api/profile/options` and submits `PUT /api/profile`;
  * it never decides what a valid combination is — the backend validates and this
  * form renders the problem it returns (AI_GUIDELINE §16).
+ *
+ * Onboarding is student-number-first (ADR-085): the number is asked for before
+ * anything else, the published faculty list is searched for it, and what the
+ * list states prefills the rest. Every prefilled value stays editable, and the
+ * form keeps saying which values came from a list and which the student still
+ * owes, because a successful lookup does not make a profile complete.
  *
  * `initial` prefills it from a stored profile. A stored program the schema no
  * longer defines is deliberately not hidden: the form shows the unsupported
@@ -92,6 +150,14 @@ export function AcademicProfileForm({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const [lookup, setLookup] = useState<StudentRosterLookupResponse | null>(null);
+  const [lookingUp, setLookingUp] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  // What the list suggested, kept so a field can say where its value came from
+  // and stop saying it once the student changes it.
+  const [suggested, setSuggested] = useState<Record<string, string>>({});
+  const [requiresInput, setRequiresInput] = useState<string[]>([]);
+
   useEffect(() => {
     getProfileOptions()
       .then(setOptions)
@@ -112,6 +178,12 @@ export function AcademicProfileForm({
     [options],
   );
 
+  function clearRosterSuggestions() {
+    setSuggested({});
+    setRequiresInput([]);
+    setLookup(null);
+  }
+
   function setSelector(key: string, value: string, dimensions: SupportedProfileDimension[]) {
     setSelectors((previous) => {
       const next = { ...previous, [key]: value };
@@ -123,6 +195,51 @@ export function AcademicProfileForm({
       }
       return next;
     });
+  }
+
+  async function onLookUp() {
+    const number = studentNumber.trim();
+    if (number.length !== 10) {
+      setLookupError('Aramak için 10 haneli numaranı gir.');
+      return;
+    }
+
+    setLookingUp(true);
+    setLookupError(null);
+    setError(null);
+    try {
+      const result = await lookUpStudentRoster(number);
+      setLookup(result);
+
+      if (result.outcome !== 'Matched') {
+        // Nothing is filled in from a miss or a conflict. Inventing a class year
+        // from the number's digits would be a guess wearing the faculty's
+        // authority.
+        setSuggested({});
+        setRequiresInput([]);
+        setLookingUp(false);
+        return;
+      }
+
+      if (result.classYear != null) {
+        setClassYear(result.classYear);
+      }
+      if (result.programLanguage != null) {
+        setLanguage(result.programLanguage);
+      }
+      setSelectors({ ...result.suggestedSelectors });
+      setSuggested({ ...result.suggestedSelectors });
+      setRequiresInput(result.dimensionsRequiringInput);
+      setLookingUp(false);
+    } catch (err) {
+      setLookingUp(false);
+      setLookup(null);
+      setLookupError(
+        err instanceof ApiError
+          ? err.message
+          : 'Öğrenci listesinde arama yapılamadı. Alanları kendin doldurabilirsin.',
+      );
+    }
   }
 
   async function onSubmit(event: FormEvent) {
@@ -177,6 +294,47 @@ export function AcademicProfileForm({
       </p>
 
       <form onSubmit={onSubmit} style={{ marginTop: 24 }}>
+        {/*
+          The number comes first, because it is what the faculty's own lists are
+          keyed by. Everything below it can be filled in from the list that holds
+          it (ADR-085).
+        */}
+        <div className="field">
+          <label htmlFor="studentNumber">Öğrenci numarası</label>
+          <input
+            id="studentNumber"
+            className="text-input"
+            value={studentNumber}
+            onChange={(event) => {
+              setStudentNumber(event.target.value.replace(/\D/g, '').slice(0, 10));
+              clearRosterSuggestions();
+            }}
+            inputMode="numeric"
+            placeholder="10 haneli numara"
+            maxLength={10}
+            required
+          />
+          <p className="field-hint">
+            Baştaki sıfırlar korunur; fakülte ve program hanesi seçilen programla tutarlı olmalı.
+          </p>
+          <button
+            className="btn btn-secondary"
+            type="button"
+            onClick={onLookUp}
+            disabled={lookingUp || studentNumber.trim().length !== 10}
+          >
+            {lookingUp ? 'Aranıyor…' : 'Öğrenci listesinde ara'}
+          </button>
+        </div>
+
+        {lookupError && (
+          <div className="error" role="alert" aria-live="polite">
+            {lookupError}
+          </div>
+        )}
+
+        {lookup && <RosterLookupNotice result={lookup} />}
+
         <div className="field">
           <label htmlFor="classYear">Sınıf</label>
           <select
@@ -186,6 +344,7 @@ export function AcademicProfileForm({
             onChange={(event) => {
               setClassYear(event.target.value === '' ? '' : Number(event.target.value));
               setSelectors({});
+              clearRosterSuggestions();
             }}
             required
           >
@@ -207,6 +366,7 @@ export function AcademicProfileForm({
             onChange={(event) => {
               setLanguage(event.target.value as ProgramLanguage | '');
               setSelectors({});
+              clearRosterSuggestions();
             }}
             required
           >
@@ -225,6 +385,11 @@ export function AcademicProfileForm({
         {program?.dimensions.map((dimension) => {
           const values = allowedValues(dimension, selectors);
           const disabled = dimension.dependsOn ? !selectors[dimension.dependsOn] : false;
+          const current = selectors[dimension.key] ?? '';
+          // The mark survives only while the value is still the list's. Once the
+          // student edits it, it is theirs and must not keep claiming otherwise.
+          const fromRoster = current !== '' && suggested[dimension.key] === current;
+          const owed = requiresInput.includes(dimension.key) && current === '';
           return (
             <div className="field" key={dimension.key}>
               <label htmlFor={dimension.key}>
@@ -234,7 +399,7 @@ export function AcademicProfileForm({
               <select
                 id={dimension.key}
                 className="select-input"
-                value={selectors[dimension.key] ?? ''}
+                value={current}
                 disabled={disabled}
                 required={dimension.required}
                 onChange={(event) => setSelector(dimension.key, event.target.value, program.dimensions)}
@@ -246,24 +411,11 @@ export function AcademicProfileForm({
                   </option>
                 ))}
               </select>
+              {fromRoster && <p className="field-hint">Öğrenci listesinden dolduruldu; değiştirebilirsin.</p>}
+              {owed && <p className="field-hint">Listede yazmıyor; bunu kendin seçmen gerekiyor.</p>}
             </div>
           );
         })}
-
-        <div className="field">
-          <label htmlFor="studentNumber">Öğrenci numarası</label>
-          <input
-            id="studentNumber"
-            className="text-input"
-            value={studentNumber}
-            onChange={(event) => setStudentNumber(event.target.value.replace(/\D/g, '').slice(0, 10))}
-            inputMode="numeric"
-            placeholder="10 haneli numara"
-            maxLength={10}
-            required
-          />
-          <p className="field-hint">Baştaki sıfırlar korunur; fakülte ve program hanesi seçilen programla tutarlı olmalı.</p>
-        </div>
 
         <button className="btn btn-primary btn-block" type="submit" disabled={busy || !program}>
           {busy ? busyLabel : submitLabel}

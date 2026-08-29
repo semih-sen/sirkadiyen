@@ -49,6 +49,7 @@ import type {
   SourceDocumentUploadAuditEntry,
   SourceDocumentUploadResponse,
   StudentProfileView,
+  StudentRosterLookupResponse,
   SupportedProfileOptions,
   UploadableSourceView,
   AdminLicenseDetail,
@@ -351,6 +352,20 @@ export function getProfileOptions(): Promise<SupportedProfileOptions> {
 export async function getProfile(): Promise<StudentProfileView | null> {
   const result = await request<StudentProfileView | undefined>('/api/profile/', { allowEmpty: true });
   return result ?? null;
+}
+
+/**
+ * Looks the student number up in the published faculty lists.
+ *
+ * A POST although it reads: a student number does not belong in a URL or in an
+ * access log. The endpoint is rate limited, so a caller must not retry it in a
+ * loop.
+ */
+export function lookUpStudentRoster(studentNumber: string): Promise<StudentRosterLookupResponse> {
+  return request<StudentRosterLookupResponse>('/api/profile/roster-lookup', {
+    method: 'POST',
+    body: { studentNumber },
+  });
 }
 
 export function saveProfile(body: SaveStudentProfileRequest): Promise<SaveStudentProfileResponse> {

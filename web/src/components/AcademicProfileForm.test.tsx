@@ -1,11 +1,12 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { AcademicProfileForm, ProfileSaveNotice } from './AcademicProfileForm';
+import { AcademicProfileForm, ProfileSaveNotice, RosterLookupNotice } from './AcademicProfileForm';
 
 const api = vi.hoisted(() => ({
   getProfileOptions: vi.fn(),
   saveProfile: vi.fn(),
+  lookUpStudentRoster: vi.fn(),
   ApiError: class ApiError extends Error {},
 }));
 vi.mock('@/lib/api', () => api);
@@ -153,6 +154,133 @@ describe('AcademicProfileForm', () => {
         expect.objectContaining({ calendarResyncRequested: true }),
       ),
     );
+  });
+});
+
+describe('AcademicProfileForm roster lookup', () => {
+  const matched = {
+    outcome: 'Matched' as const,
+    studentNumber: '0101250001',
+    givenName: 'HAY*******',
+    familyName: 'KIY***',
+    academicYear: '2025-2026',
+    classYear: 2,
+    programLanguage: 'Turkish' as const,
+    suggestedSelectors: { practiceGroup: 'A', practiceSubgroup: 'A1' },
+    dimensionsRequiringInput: ['anatomyGroup'],
+    notices: [],
+    someListsUnreadable: false,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    api.getProfileOptions.mockResolvedValue(options);
+  });
+
+  it('fills the form from the list and keeps every filled value editable', async () => {
+    api.lookUpStudentRoster.mockResolvedValue(matched);
+    render(
+      <AcademicProfileForm submitLabel="Kaydet" busyLabel="Kaydediliyor…" onSaved={() => {}} />,
+    );
+
+    await userEvent.type(await screen.findByLabelText('Öğrenci numarası'), '0101250001');
+    await userEvent.click(screen.getByRole('button', { name: 'Öğrenci listesinde ara' }));
+
+    expect(await screen.findByLabelText('Sınıf')).toHaveValue('2');
+    expect(screen.getByLabelText('Program dili')).toHaveValue('Turkish');
+    expect(screen.getByLabelText(/Uygulama grubu/)).toHaveValue('A');
+
+    // ADR-085: a roster value is a suggestion. Changing one must be possible and
+    // must stop the field claiming the faculty said it.
+    await userEvent.selectOptions(screen.getByLabelText(/Uygulama grubu/), 'C');
+    expect(screen.getByLabelText(/Uygulama grubu/)).toHaveValue('C');
+  });
+
+  it('does not fill anything in when the number is on two lists', async () => {
+    // Two rows claim the number and the backend deliberately did not choose. The
+    // form must not choose either.
+    api.lookUpStudentRoster.mockResolvedValue({
+      ...matched,
+      outcome: 'Ambiguous',
+      givenName: null,
+      familyName: null,
+      classYear: null,
+      programLanguage: null,
+      suggestedSelectors: {},
+      dimensionsRequiringInput: [],
+    });
+    render(
+      <AcademicProfileForm submitLabel="Kaydet" busyLabel="Kaydediliyor…" onSaved={() => {}} />,
+    );
+
+    await userEvent.type(await screen.findByLabelText('Öğrenci numarası'), '0101240080');
+    await userEvent.click(screen.getByRole('button', { name: 'Öğrenci listesinde ara' }));
+
+    expect(await screen.findByText(/birden fazla kez geçiyor/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Sınıf')).toHaveValue('');
+  });
+
+  it('leaves the form usable when the lookup itself fails', async () => {
+    // A lookup is a convenience. Losing it must not block onboarding.
+    api.lookUpStudentRoster.mockRejectedValue(new api.ApiError('429'));
+    render(
+      <AcademicProfileForm submitLabel="Kaydet" busyLabel="Kaydediliyor…" onSaved={() => {}} />,
+    );
+
+    await userEvent.type(await screen.findByLabelText('Öğrenci numarası'), '0101250001');
+    await userEvent.click(screen.getByRole('button', { name: 'Öğrenci listesinde ara' }));
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText('Sınıf'), '2');
+    expect(screen.getByLabelText('Sınıf')).toHaveValue('2');
+  });
+});
+
+describe('RosterLookupNotice', () => {
+  it('names what the list filled in and, separately, what the student still owes', () => {
+    // A successful lookup does not make a profile complete, and the notice may
+    // never imply that it does (ADR-085).
+    render(
+      <RosterLookupNotice
+        result={{
+          outcome: 'Matched',
+          studentNumber: '0101250001',
+          givenName: 'HAY*******',
+          familyName: 'KIY***',
+          academicYear: '2026-2027',
+          classYear: 2,
+          programLanguage: 'Turkish',
+          suggestedSelectors: { practiceGroup: 'A', practiceSubgroup: 'A1' },
+          dimensionsRequiringInput: ['anatomyGroup'],
+          notices: [],
+          someListsUnreadable: false,
+        }}
+      />,
+    );
+
+    const notice = screen.getByRole('status');
+    expect(notice).toHaveTextContent('HAY******* KIY***');
+    expect(notice).toHaveTextContent('2 alan listeden dolduruldu');
+    expect(notice).toHaveTextContent('Anatomi grubu listede yazmıyor');
+  });
+
+  it('distinguishes an unreadable list from an absent student', () => {
+    // "We could not read your list" and "you are not on any list" ask the student
+    // for different things.
+    render(
+      <RosterLookupNotice
+        result={{
+          outcome: 'NotFound',
+          studentNumber: '0101250001',
+          suggestedSelectors: {},
+          dimensionsRequiringInput: [],
+          notices: [],
+          someListsUnreadable: true,
+        }}
+      />,
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent('okunamadı');
   });
 });
 

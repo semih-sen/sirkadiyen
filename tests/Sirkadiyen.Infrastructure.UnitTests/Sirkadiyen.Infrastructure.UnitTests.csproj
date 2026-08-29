@@ -25,6 +25,9 @@
     <None Include="../../config/schedule-sources.json" Link="fixtures/schedule-sources.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="../../config/student-rosters.json" Link="fixtures/student-rosters.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="../../sheets/donem-1-tr/xlsx/2025-2026 D1 Türkçe Tıp Ders Programı.xlsx" Link="fixtures/g1-tr-annual.xlsx">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

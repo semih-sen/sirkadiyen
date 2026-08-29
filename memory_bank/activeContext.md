@@ -3185,3 +3185,51 @@ edilebiliyor.
 
 `G2-VERTICAL-AUTUMN`, `G2-VERTICAL-SPRING` (Drive dosyaları indirildi, hâlâ 2025-2026 programı) ve
 `SHARED-AMPHI` (profili stub, hiçbir şey yayımlamıyor).
+
+
+## Öğrenci listesi araması kuruldu (ADR-085 → ADR-132) (2026-08-29)
+
+Dört yayımlanmış fakülte listesi (Dönem 2 TR/İNG, Dönem 3 TR/İNG) kataloglandı ve öğrenci
+numarasıyla arama uçtan uca çalışıyor. Belgeler okulun sitesinde herkese açık, bu yüzden
+**bağlantılar** `config/student-rosters.json` içinde duruyor; **içerikleri** çalışma zamanında
+okunuyor ve hiçbir yere yazılmıyor.
+
+### Kataloğa dokunmadan önce belgeler okundu, üçü olduğu gibi kullanılamazdı
+
+- Grup değerleri **birleştirilmiş hücrelerde**: değer kümenin en üstünde bir kere yazılı. Satır
+  satır okuyan bir okuyucu Dönem 2 TR'de 8 grup yerine 1 grup + 383 boş görürdü.
+- Beş öğrenci numarası Excel'de sayı olarak saklanmış ve baştaki sıfırını kaybetmiş.
+- Dört numara `01` yerine `97` ile başlıyor; `StudentProfileValidator` bunları reddediyor.
+- `0101240080` hem Dönem 2 TR hem Dönem 3 TR listesinde — ADR-085'in öngördüğü belirsiz eşleşme
+  ilk günden gerçek veride.
+- Dönem 2 İNG listesi iki boyutun bağımsız olduğunu **kendisi kanıtlıyor**: `İ1`/`İ2` sınırı 56.
+  satırda, `i1`/`i2`/`i3` sınırları 34 ve 78'de; `i2` her iki genel gruba taşıyor.
+
+### Tasarımın taşıyıcı kararları
+
+- **Roster bir schedule source değil**, kendi kataloğunu alıyor: parse edilmiyor, snapshot
+  saklanmıyor, revizyon kesilmiyor. Paylaştığı tek şey taşıma katmanı ve normalize snapshot şekli.
+- **Okuma API'nin belleğinde.** ADR-085 ad/soyadın saklanmasını yasaklıyor; bu, okumayı
+  kalıcılaştırmayı ve dolayısıyla worker'ın üretip API'nin sorgulamasını da eliyor.
+- **Birleştirme aralığı, kümenin kanıtı.** Aralık dışındaki boş hücre üstteki satırdan
+  doldurulmuyor — belgenin birleştirmediği boşluk, belgenin söylemediği şeydir.
+- **Değer eşlemeleri tek tek bildiriliyor, asla büyük harfe çevrilmiyor.** `a1` → `A1` doğru
+  okunurdu, ama Türkçe büyütme İngilizce listenin `i1`'ini `İ1` yapar; o başka bir programın başka
+  bir boyutunun değeri. ADR-130 aynı katlamayı parser içinde sınırlamak zorunda kalmıştı.
+- **Öneri şemadan geçiriliyor.** Programın kabul etmediği değer önerilmiyor, açıklanıyor;
+  doğrulayıcının reddedeceği bir öneri, önerisizlikten kötüdür.
+- Uç nokta `POST` (numara URL'ye ve erişim loguna girmesin) ve oran sınırlı — sınırsız olsa
+  fakülteyi tek tek tahminle sayardı.
+
+### Bugün gerçekte ne prefill ediliyor
+
+Yalnızca iki liste, ikisi de zorunlu bir boyutu öğrenciye bırakıyor: Dönem 2 TR anatomi grubunu
+söylemiyor, Dönem 3 TR öğretim üyesi kohortunu (fakülte henüz atamadı). İki İngilizce liste hiçbir
+şey önermiyor — Dönem 2 İNG programı ADR-084 ile kapalı, Dönem 3 İNG ADR-098 ile seçici bildirmiyor.
+Belgenin var olması programı açmıyor.
+
+### Yapılmayanlar
+
+`97` önekli dört öğrenci hâlâ profil kaydedemiyor; fakülte kodu kuralını gevşetmek ürün kararı ve
+alınmadı. Liste düzenlenirse arama bir saate kadar önceki okumayı sunabilir; API yeniden
+başlatılmadan yenilemeye zorlamanın yolu yok.

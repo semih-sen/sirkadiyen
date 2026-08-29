@@ -1,0 +1,157 @@
+{
+  "catalogVersion": "1.0",
+  "rosters": [
+    {
+      "rosterId": "G2-TR-ROSTER",
+      "displayName": "Dönem 2 Türkçe öğrenci listesi",
+      "transport": "googleSheets",
+      "documentFormat": "googleSheet",
+      "sourceUri": "https://docs.google.com/spreadsheets/d/1JKQHtNaOixMEVFfWKdo1vh2MKISbMaXMWQjDMl_gAAM/edit?gid=143571180",
+      "externalId": "1JKQHtNaOixMEVFfWKdo1vh2MKISbMaXMWQjDMl_gAAM",
+      "sheetGid": 143571180,
+      "academicYear": "2026-2027",
+      "classYear": 2,
+      "programLanguage": "turkish",
+      "layout": {
+        "worksheetTitle": "Sayfa1",
+        "headerRow": 1,
+        "studentNumberHeader": "Öğrenci No",
+        "givenNameHeader": "Ad",
+        "familyNameHeader": "Soyad",
+        "dimensionColumns": [
+          {
+            "header": "GRUP",
+            "dimension": "practiceGroup",
+            "statedOncePerMergedRun": true,
+            "valueMap": {
+              "A": "A",
+              "B": "B",
+              "C": "C",
+              "D": "D",
+              "E": "E",
+              "F": "F",
+              "G": "G",
+              "H": "H"
+            }
+          },
+          {
+            "header": "Alt Grup",
+            "dimension": "practiceSubgroup",
+            "statedOncePerMergedRun": true,
+            "valueMap": {
+              "a1": "A1",
+              "a2": "A2",
+              "b1": "B1",
+              "b2": "B2",
+              "c1": "C1",
+              "c2": "C2",
+              "d1": "D1",
+              "d2": "D2",
+              "e1": "E1",
+              "e2": "E2",
+              "f1": "F1",
+              "f2": "F2",
+              "g1": "G1",
+              "g2": "G2",
+              "h1": "H1",
+              "h2": "H2"
+            }
+          }
+        ]
+      },
+      "notes": "384 students. Both group columns state their value once for a run of students and merge the rest of the run, so the merged ranges are what defines a cohort, not the rows. The subgroup column writes 'a1' where the schema says 'A1'; the mapping is declared value by value rather than case-folded, because Turkish upper-casing turns 'i' into 'İ' and would invent a cohort out of an English list (ADR-130). The list states no anatomyGroup, which Grade 2 Turkish also requires, so a student always enters that one. Three numbers begin '97' rather than the faculty code '01' and are refused by StudentProfileValidator, so those students cannot save a profile today. Two numbers are stored numerically and have lost a leading zero. Student number 0101240080 is also on the Grade 3 Turkish list, which makes it ambiguous."
+    },
+    {
+      "rosterId": "G2-EN-ROSTER",
+      "displayName": "Dönem 2 İngilizce öğrenci listesi",
+      "transport": "googleDriveFile",
+      "documentFormat": "xlsx",
+      "sourceUri": "https://drive.google.com/file/d/1xLEHEnFMoVBK2MaAOAimI779PMneJMSv/view",
+      "externalId": "1xLEHEnFMoVBK2MaAOAimI779PMneJMSv",
+      "academicYear": "2026-2027",
+      "classYear": 2,
+      "programLanguage": "english",
+      "layout": {
+        "worksheetTitle": "İNG",
+        "headerRow": 1,
+        "studentNumberHeader": "Öğrenci No",
+        "givenNameHeader": "Ad",
+        "familyNameHeader": "Soyad",
+        "dimensionColumns": [
+          {
+            "header": "Genel Grup",
+            "dimension": "generalGroup",
+            "statedOncePerMergedRun": true,
+            "valueMap": {
+              "İ1": "İ1",
+              "İ2": "İ2"
+            }
+          },
+          {
+            "header": "Genel Alt Grup",
+            "dimension": "generalSubgroup",
+            "statedOncePerMergedRun": true,
+            "valueMap": {
+              "i1": "i1",
+              "i2": "i2",
+              "i3": "i3"
+            }
+          }
+        ]
+      },
+      "notes": "113 students. The Grade 2 English program is deliberately absent from the supported profile schema (ADR-084), so this list suggests nothing until that program opens; it is catalogued because the document exists and its shape is now known. The two dimensions are genuinely independent and the document proves it: the İ1/İ2 boundary falls on row 56 while the i1/i2/i3 boundaries fall on rows 34 and 78, so i2 spans both general groups. They must not be collapsed on the grounds that their labels differ mostly by typography (ADR-085). One number is stored numerically and has lost a leading zero. The faculty publishes given names and surnames already masked here."
+    },
+    {
+      "rosterId": "G3-TR-ROSTER",
+      "displayName": "Dönem 3 Türkçe öğrenci listesi",
+      "transport": "googleSheets",
+      "documentFormat": "googleSheet",
+      "sourceUri": "https://docs.google.com/spreadsheets/d/1vF78Lvjyt40U1ConEhJOCAXhhn0zAGmeq6oX2o0NGLY/edit?gid=188613521",
+      "externalId": "1vF78Lvjyt40U1ConEhJOCAXhhn0zAGmeq6oX2o0NGLY",
+      "sheetGid": 188613521,
+      "academicYear": "2026-2027",
+      "classYear": 3,
+      "programLanguage": "turkish",
+      "layout": {
+        "worksheetTitle": "Sayfa1",
+        "headerRow": 1,
+        "studentNumberHeader": "Öğrenci No",
+        "givenNameHeader": "Ad",
+        "familyNameHeader": "Soyad",
+        "dimensionColumns": [
+          {
+            "header": "Grubu",
+            "dimension": "curriculumGroup",
+            "statedOncePerMergedRun": true,
+            "valueMap": {
+              "A GRUBU": "3-A",
+              "B GRUBU": "3-B"
+            }
+          }
+        ]
+      },
+      "notes": "331 students in two merged runs: rows 2-169 are the A curriculum group and rows 170-332 the B one. The list states the curriculum group only. Grade 3 Turkish also requires facultyPracticeGroup, and the faculty has not assigned those cohorts for 2026-2027 yet, so a student always enters that one. One number is stored numerically and has lost a leading zero, one begins '97' rather than the faculty code and is refused by StudentProfileValidator, and 0101240080 is also on the Grade 2 Turkish list. The used range runs to column Z although only A-D hold anything."
+    },
+    {
+      "rosterId": "G3-EN-ROSTER",
+      "displayName": "Dönem 3 İngilizce öğrenci listesi",
+      "transport": "googleSheets",
+      "documentFormat": "googleSheet",
+      "sourceUri": "https://docs.google.com/spreadsheets/d/1w-y62cAOatZWOhB-_WrxdatIzWyFyZ5rmcupQU2BVEM/edit?gid=1228118854",
+      "externalId": "1w-y62cAOatZWOhB-_WrxdatIzWyFyZ5rmcupQU2BVEM",
+      "sheetGid": 1228118854,
+      "academicYear": "2026-2027",
+      "classYear": 3,
+      "programLanguage": "english",
+      "layout": {
+        "worksheetTitle": "Sayfa1",
+        "headerRow": 1,
+        "studentNumberHeader": "OgrenciNo",
+        "givenNameHeader": "Ad",
+        "familyNameHeader": "Soyad",
+        "dimensionColumns": []
+      },
+      "notes": "96 students, and the only list of the four that states no group at all. That is a statement rather than an omission: the Grade 3 English program states no A/B division, which is exactly why it declares no selector and is absent from the supported profile schema (ADR-098). A lookup here confirms identity and suggests nothing. Its header is written 'OgrenciNo' without Turkish letters or a space, unlike the other three. No malformed numbers."
+    }
+  ]
+}

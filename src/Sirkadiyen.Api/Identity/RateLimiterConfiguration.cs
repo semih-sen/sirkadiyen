@@ -51,5 +51,21 @@ public static class RateLimiterConfiguration
                     QueueLimit = 0,
                     AutoReplenishment = true,
                 }));
+        options.AddPolicy(
+            RateLimitingPolicies.RosterLookup,
+            context => RateLimitPartition.GetFixedWindowLimiter(
+                $"{context.User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "anonymous"}:"
+                    + $"{context.Connection.RemoteIpAddress?.ToString() ?? "unknown"}",
+                static _ => new FixedWindowRateLimiterOptions
+                {
+                    // The lookup answers a ten-digit number with a student's name, so
+                    // unbounded it would enumerate the faculty one guess at a time. A
+                    // student needs the endpoint once, and a few times if they mistype
+                    // (AI_GUIDELINE §15).
+                    PermitLimit = 10,
+                    Window = TimeSpan.FromMinutes(5),
+                    QueueLimit = 0,
+                    AutoReplenishment = true,
+                }));
     }
 }

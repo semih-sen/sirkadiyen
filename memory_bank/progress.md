@@ -1263,3 +1263,29 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
   (revizyon her seferinde tutulacak) ve iki yıllık kitapta beşer `HER HAFTA ...` satırı (o haftalık
   online dersler takvime düşmüyor). `ruff format --check` hâlâ dokunulmamış `parsers/bedside.py`
   için tek bir fark bildiriyor.
+
+
+## Öğrenci listesi araması (ADR-085) uygulandı (2026-08-29)
+
+- **Root cause:** Değil — ADR-085 kabul edilmiş ama hiç inşa edilmemişti. Ayrıntı: ADR-132.
+- **Changed:** Yeni `config/student-rosters.json` (dört yayımlanmış liste: konum, kohort, düzen,
+  değer eşlemeleri, kusur notları). Application'da `StudentRosters/` — katalog modeli, okuyucu,
+  okuma sözleşmeleri, arama servisi ve sözleşmeleri, `IStudentRosterIndex`. Infrastructure'da
+  `StudentRosterCatalogLoader` ve bellekte tutan `StudentRosterIndex` (bir saatlik yenileme,
+  başarısız listede önceki okumayı koruyup hatayı ayrıca bildiriyor). API'de
+  `POST /api/profile/roster-lookup` (antiforgery + yeni `RosterLookup` oran sınırı) ve
+  yanıt sözleşmesi; Sheets/Drive edinicileri artık API'de de kayıtlı. Frontend'de
+  `AcademicProfileForm` numara-önce akışına geçti: arama düğmesi, `RosterLookupNotice`, alan başına
+  "listeden dolduruldu" / "kendin seçmen gerekiyor" ayrımı; `lookUpStudentRoster` ve tipleri.
+  `decisionLog.md`'de ADR-085 durumu "implemented by ADR-132" olarak işaretlendi.
+- **Tests executed:** `dotnet build` 0 uyarı/0 hata. `dotnet test`: Api 11, Contracts 6,
+  Infrastructure 769, Persistence 40 geçti / 236 atlandı (Docker kapalı). Web: `tsc --noEmit` temiz,
+  `vitest run` 85 test geçti. Okuyucu ayrıca dört gerçek belgeye karşı geçici bir testle
+  doğrulandı — 384/113/331/96 öğrenci, sıfır reddedilen satır, beş geri kazanılmış baş sıfır; o test
+  silindi çünkü belgeler kişisel veri içeriyor ve depoya giremez.
+- **Not done / not verified:** Tarayıcıda doğrulanmadı — akış API ve PostgreSQL gerektiriyor, Docker
+  kapalı. `97` önekli dört öğrenci hâlâ `StudentProfileValidator` tarafından reddediliyor (ürün
+  kararı, alınmadı). Liste düzenlenirse bir saate kadar eski okuma sunulabilir; zorla yenileme yok.
+  Dönem 2 İNG ve Dönem 3 İNG listeleri kataloglandı ama hiçbir şey önermiyor (ADR-084, ADR-098).
+  API artık `SIRKADIYEN_GOOGLE` kaynak kimlik bilgisine ihtiyaç duyuyor; yoksa her liste
+  "okunamadı" olarak bildiriliyor, onboarding çökmüyor.

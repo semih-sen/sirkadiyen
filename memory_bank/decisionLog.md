@@ -4492,7 +4492,7 @@ incomplete calendar as synchronized.
 
 ## ADR-085: Use the student number to suggest roster data, while keeping profile groups editable
 
-**Status:** Accepted, not yet implemented
+**Status:** Accepted; implemented by ADR-132
 **Date:** 2026-08-03
 **Amends:** ADR-055, ADR-056, ADR-084
 
@@ -7880,3 +7880,104 @@ that cost Grade 2 Turkish a year of calendars, so the schema moves here rather t
 - **Open:** the Grade 2 Turkish annual, practice and anatomy sources are catalogued for 2026-2027
   while their committed fixtures are still the 2025-2026 documents (ADR-128, ADR-129). Unchanged by
   this work and still a separate change per source.
+
+---
+
+## ADR-132: The student lists are a catalogued, in-memory read, and a match is only ever a suggestion
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-29
+**Implements:** ADR-085
+**Relates to:** ADR-084 (Grade 2 English stays closed), ADR-098 (Grade 3 English declares no
+selector), ADR-115 (a cohort's year and its sources' year move together), ADR-130 (a Turkish `i`
+fold must be bounded)
+
+### Context
+
+ADR-085 accepted student-number-first onboarding and was never built. The four faculty lists have
+now been supplied for 2026-2027: Grade 2 Turkish (384 students), Grade 2 English (113), Grade 3
+Turkish (331) and Grade 3 English (96). They are published openly on the school's website.
+
+Reading them before designing anything was worth the step. What they actually do:
+
+- **Group values live in merged cells.** A group is written once at the top of a run and the rest of
+  the run is merged into it. Read row by row, the Grade 2 Turkish list states one group and 383
+  blanks.
+- **Five student numbers across the four lists were stored numerically** and lost their leading
+  zero: `0101240072` arrives as `101240072`.
+- **Four numbers begin `97` rather than the Istanbul Medical Faculty code `01`**, which
+  `StudentProfileValidator` refuses. Those students cannot save a profile at all today, lookup or
+  no lookup.
+- **`0101240080` is on both the Grade 2 and the Grade 3 Turkish list.** The ambiguous match ADR-085
+  anticipated exists in the data on day one.
+- **The two Grade 2 lists publish names already masked** (`HAY*******`); the Grade 3 lists do not.
+- **The Grade 2 English list proves its two divisions are independent**: the `İ1`/`İ2` boundary falls
+  on row 56 while the `i1`/`i2`/`i3` boundaries fall on rows 34 and 78, so `i2` spans both general
+  groups.
+- **The Grade 3 English list states no group at all**, which matches the program stating no A/B
+  division (ADR-098).
+
+### Decision
+
+**Catalog the lists like sources, read them in memory, and let a match suggest without ever
+deciding.**
+
+- `config/student-rosters.json` names each list's location, cohort and layout. The documents are
+  public, so the link is safe in source control; their contents are read at runtime and never
+  committed. Test fixtures are written by hand rather than captured, because the real lists hold
+  names and numbers.
+- A roster is **not** a schedule source and gets its own catalog: nothing parses it into canonical
+  records, no snapshot is stored, no revision is cut, nothing is published from it. What it shares
+  with a source is the acquisition transport and the normalized snapshot shape, so no second
+  spreadsheet reader exists.
+- **The API reads the lists itself, into memory, with a one-hour refresh.** ADR-085 forbids
+  Sirkadiyen from retaining a student's name, which rules out persisting a reading and therefore
+  rules out the worker producing one for the API to query. The reading lives in the process that
+  answers the lookup and dies with it. §5 assigns snapshot acquisition to the worker; that bullet is
+  about the source-polling pipeline, and this deliberately sits outside it.
+- **Merged ranges are the evidence for a group run.** An empty cell inside a declared merged range
+  takes the range's value; an empty cell outside one is refused, never carried down from the row
+  above. A gap the document did not merge is a gap the document did not state.
+- **A leading zero is restored, and nothing else is.** Padding a numeric value to ten digits is
+  unambiguous because every valid number is exactly ten digits, so a nine-digit numeric value is
+  missing exactly one zero. It is reported as a warning even so, because the document is wrong even
+  where the value is recoverable.
+- **Value mappings are declared exhaustively, never case-folded.** The Grade 2 Turkish list writes
+  `a1` where the schema says `A1`, and upper-casing would read that correctly — and, in Turkish,
+  turn the English list's `i1` into `İ1`, a value belonging to a different dimension of a different
+  program. ADR-130 had to bound the same fold inside the parser; here it is simply never applied.
+- **A number two rows claim is `Ambiguous` and nothing is filled in.** Not in one list and not
+  across two.
+- **A suggestion is filtered through the supported-profile schema.** A value the program does not
+  allow is explained rather than offered, because a suggestion the validator would reject is worse
+  than none. A list catalogued for a year the program is not on suggests nothing at all — the
+  ADR-115 failure in roster form.
+- **The result separates what was suggested from what the student still owes**, and the form keeps
+  that distinction visible per field, dropping the "from the list" mark as soon as the student edits
+  the value.
+- The lookup is a `POST` although it reads, so a student number never enters a URL or an access log,
+  and it is rate limited to ten calls per five minutes per caller: unbounded, it would enumerate the
+  faculty one guess at a time.
+
+### Consequences
+
+- All four lists read cleanly: 384, 113, 331 and 96 students, zero refused rows, five restored
+  leading zeros. The Grade 2 Turkish cohorts come out as the sixteen the merged ranges describe.
+- **Only two lists can actually prefill anything today**, and both leave a required dimension to the
+  student. Grade 2 Turkish states the practice group and subgroup but not the anatomy rotation;
+  Grade 3 Turkish states the curriculum group, and the faculty has not assigned the 2026-2027
+  faculty-practice cohorts yet.
+- **The two English lists suggest nothing at all.** Grade 2 English is deliberately closed until its
+  audience paths are parser-complete (ADR-084) and Grade 3 English declares no selector (ADR-098).
+  They are catalogued because the documents exist and their shape is now known; a list existing does
+  not open a program.
+- **The four `97`-prefixed students still cannot save a profile.** The lookup finds them and the
+  validator then refuses their number. Relaxing the faculty-code rule is a product decision and was
+  not taken here.
+- The API now reads sources too, using the same `SIRKADIYEN_GOOGLE` credential the worker uses. No
+  new secret: `common.env` already carries those values to both hosts. A deployment that somehow
+  lacks them reports every list as unreadable rather than failing onboarding, and a miss is
+  distinguished from an unreadable list in the response, because "you are not on any list" and "we
+  could not read one" ask the student for different things.
+- **Open:** if a list is edited, a lookup may serve the previous reading for up to an hour. There is
+  no way to force a refresh short of restarting the API.
