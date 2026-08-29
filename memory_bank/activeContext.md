@@ -3060,3 +3060,128 @@ ve İngilizce 2026-2027'ye, şema sürümü 1.4) ve o iki program için denetiml
 `POST /api/operations/profile-rollovers` çalıştırmayı gerektiriyor — üçü aynı değişikliğin
 parçası. `SHARED-AMPHI`'nin profili `weekly_amphitheatre_v1` hâlâ stub, hiçbir şey yayımlamıyor;
 yılı nominal.
+
+## grade1_yearly_v1 1.6.0: aynı başlıksız sütun (2026-08-29)
+
+2026-2027 Dönem 1 belgeleri doğrulanırken Türkçe yıllık kitabın da tümüyle reddedildiği görüldü —
+`DÖNEM 1` için `worksheetWithoutHeaderRow`, snapshot için `noParsableWorksheet`. `A1` boş, altındaki
+sütun her satırda `Dönem 1` diyor. G2-EN ile birebir aynı durum.
+
+Yani bu bir belgenin kazası değil, fakültenin elektronik tablo alışkanlığı: dört yıllık kitaptan
+üçünde dönem sütununun başlığı yok. `grade1_yearly_v1` de bildirimi aldı (1.6.0, ADR-128 uzatıldı).
+
+Yedek olduğunun kanıtı: commit'li iki Dönem 1 altın dosyası yeniden üretildi ve önceki
+sürümlerinden **yalnızca profil sürüm dizesi ile onu içeren yanıt özetinde** ayrılıyor. Tek bir
+aday, uyarı veya sayaç oynamadı — çünkü commit'li iki kitap da sütunu hâlâ etiketliyor.
+
+`config/schedule-sources.json` içinde G1-TR-ANNUAL ve G1-EN-ANNUAL sabit sürümü 1.6.0'a alındı.
+Bu, saklı snapshot'ların yeniden parse edilmesini tetikler; çıktı aynı olduğu için diff tümüyle
+`Unchanged` çıkar ve takvimlere dokunulmaz.
+
+Testte bir sabit ayrılmak zorunda kaldı: "etiketsiz sütun yalnızca bildirildiği yerde okunur"
+testinin olumsuz tarafı varsayılan `grade1_yearly_v1` tanımını kullanıyordu. Üç gerçek yıllık
+profilin üçü de artık bildirdiğine göre o taraf hiçbir kayıtlı profilin yapmadığı bir şeyi iddia
+eder hâle gelirdi; açık bir `UNDECLARED_TERM_PROFILE`'a taşındı. Sınanan davranış aynı.
+
+### Sırada (kullanıcı onayıyla, madde 2)
+
+`G1-EN-PRACTICE`: kaynak aynı kohortu `İ1` (U+0130) ve `i1` (ASCII) diye iki türlü yazıyor.
+Parser ASCII olanı `I1` diye yayımlıyor, U+0130 olanı reddediyor — 734 hücreden 36 aday. Yayımlanan
+`I1`/`I2` katalogdaki `İ1`/`İ2`/`İ3` ile eşleşmediği için hiçbir öğrenciye ulaşmaz. `grade2_practice_v1`
+bunu ADR-084'te `ENGLISH_PRACTICE_GROUPS` bildirimiyle çözmüş; Dönem 1'de karşılığı yok. Ayrıca
+katalog `İ` + alt gruplar diyor, Dönem 2 ise bunların **bağımsız** gruplar olduğunu kaydetmiş —
+hangisinin doğru olduğu belgeden okunup bir ADR'ye bağlanmalı.
+
+## G1-EN-PRACTICE: bir kohort, iki yazım (2026-08-29)
+
+`G1-EN-PRACTICE` katalogda kayıtlı ama commit'li fixture'ı hiç olmamış — yani bugüne dek hiç parse
+edilmemiş. 2026-2027 kitabına karşı çalıştırıldığında 734 hücreden yalnızca 36 aday çıktı.
+
+Sebep: kaynak aynı kohortu iki türlü yazıyor. `İ1` (U+0130) 21 hücre, `i1` (ASCII) 20; `İ2` 27,
+`i2` 14; `İ3` 4. Türkçe bu harfi dört glifle yazıyor (`i`/`İ` noktalı, `ı`/`I` noktasız) ve çiftler
+ASCII'deki gibi birbirine katlanmıyor. `comparison_key` dördünü de `i`'ye katlıyordu;
+`parse_group_expression`'ın `[A-Za-z]` desenleri katlamıyordu.
+
+Sonuç retten kötüydü: ASCII hücreler çözülüp `practiceSubgroup=I1` yayımlıyordu — katalogun
+bildirmediği, hiçbir öğrenci profilinde bulunmayan bir değer — noktalı hücreler ise sessizce
+düşüyordu. Tek kohort, ulaşılamaz bir hedef kitle ile sessiz kayıp arasında bölünmüştü.
+
+Düzeltme (ADR-130), üç parça:
+
+1. **Paylaşılan okuyucuda katlama, yalnızca tek harfli etiket için.** Sınır taşıyıcı kısım:
+   bütün bir kelimeyi katlamak `TELAFİ`'yi altı ASCII harfe çeviriyor ve uzun koşu kabul eden bir
+   profil bunu altı kohort olarak okuyor. Bugün reddediliyor ama yalnızca o profiller alfabelerini
+   de sınırladığı için — bir normalizasyon primitifi güvenliği için çağıranın sınırına
+   dayanamaz. Bunu `g2-tr-practice` altın dosyası ilk denemede yakaladı.
+2. **`grade1_practice_v1`'de alfabe programa göre sınırlı.** Türkçe `A`-`H`, İngilizce `İ1`-`İ3`;
+   program hücreden değil istekten geliyor. Değerler katalogun bildirdiği yazıma geri eşleniyor.
+3. **Motor 0.3.0 + grup okuyucusunu kullanan beş profil bumplandı** (`version.py` politikası).
+
+Alt grup modeli korundu, ADR-084'ün bağımsız grup modeline geçilmedi: katalog, şema ve
+`ScheduleSourceCatalogTests` zaten `İ` + üç alt grup diyor ve kitap hiç yalın `İ` yazmıyor. Boyut
+değiştirmek şema değişikliği ve profil rollover'ı gerektirirdi — tümüyle karakter işlemeyle ilgili
+bir hata için.
+
+**Sonuç:** 36 → **88 aday** (`İ1` 41, `İ2` 41, `İ3` 4, iki tüm-kohort). Kalan 13 reddedilen hücre
+kaynağın kendi düzen gürültüsü (`telafi`, grup sütununa düşmüş tarih serileri ve saat aralıkları).
+`G1-TR-PRACTICE` 302 adayla değişmedi. Yirmi altın dosyasının hepsi yeniden üretildi ve **değişen
+her satır bir sürüm dizesi ya da onu içeren özet** — hiçbir aday, uyarı, sayaç veya hedef kitle
+seçicisi oynamadı.
+
+Dönem 2'deki aynı gizli hata da kapandı: `grade2_practice_v1`'in İ-tablosu artık noktalı yazım için
+gerçekten erişilebilir.
+
+## Dönem 1 rollover'ı: belge + katalog + şema tek değişiklikte (2026-08-29)
+
+ADR-129 yedi kaynağı 2025-2026'da bırakmıştı, her biri kendi belgesini bekliyordu. Dördü geldi:
+2026-2027 Dönem 1 Türkçe ve İngilizce yıllık + uygulama kitapları.
+
+Kataloğa dokunmadan önce doğrulamak işe yaradı — dördünden üçü olduğu gibi taşınamazdı:
+
+- Türkçe yıllık kitap tümüyle reddediliyordu; ADR-128'in Dönem 2 İngilizce'de bulduğu hatanın
+  aynısı, aynı bildirimle çözüldü.
+- İngilizce uygulama kitabı hücrelerinin yalnızca 36'sını yayımlıyor ve bunları hiçbir öğrencinin
+  taşımadığı bir kohort değerine adresliyordu (ADR-130).
+- Dördü de Drive'da duran **XLSX**, yerel Google Sheet değil — üçü ise katalogda `googleSheets` +
+  `sheetGid` olarak kayıtlıydı. Transport, fakültenin belgeyi nasıl yayımladığının bir özelliği ve
+  değişmiş.
+
+### Şema neden bu adıma dahil edildi
+
+ADR-115'in kuralı: bir programın akademik yılı ile kaynaklarının akademik yılı iki kez söylenen tek
+bir olgu. Katalog yarısını şimdi, şema yarısını sonra yapmak tam da Dönem 2 Türkçe'ye bir yıllık
+takvim kaybettiren ayrışmayı yeniden kurardı. O yüzden `CurrentSupportedProfileSchema` 1.4'e alındı,
+Dönem 1 Türkçe ve İngilizce 2026-2027'ye taşındı.
+
+Bildirilen dört programın dördü de artık aynı yılda, bu yüzden programlar ayrışıkken gereken
+`RolledOverAcademicYear` sabiti `AcademicYear`'a geri katlandı. **Program başına alan duruyor** —
+mekanizma önemli olan, bir sonraki rollover değerleri yeniden ayıracak.
+
+### Sonuç
+
+Türkçe yıllık 794 aday, İngilizce yıllık 982, Türkçe uygulama 302, İngilizce uygulama 88.
+`g1-en-practice` ilk kez bir fixture ve altın dosyasına kavuştu — baştan beri katalogdaydı ve ne
+yayımladığını kanıtlayan hiçbir şey yoktu; ulaşılamaz bir hedef kitleye yayımlaması da bu yüzden
+fark edilmemişti.
+
+### Operatör adımı çalıştırılmadı
+
+`POST /api/operations/profile-rollovers` mevcut Dönem 1 profillerini 2026-2027'ye taşıyor. Çalışana
+kadar depodaki her Dönem 1 profili hâlâ 2025-2026 diyor ve bu kaynaklardan hiçbir şey almıyor.
+Önce şema deploy edilmeli; uç nokta, deploy edilmiş şemanın söylemediği bir yılı reddediyor
+(ADR-115). Şema 1.3'te kalmış bir Dönem 1 profili, rollover öncesi damgalanmış olarak ayırt
+edilebiliyor.
+
+### Kaynak kalitesi: iki kusur kataloglandı, etrafından dolanılmadı
+
+- `G1-TR-PRACTICE` A69: 2026-11-19 ile 2026-11-20 satırlarının arasında **2020-11-20**. Parser
+  yazıldığı gibi yayımlıyor, revizyon doğrulaması `RecordDateOutsideAcademicYear` ile her seferinde
+  tutuyor. Belge düzeltilene kadar bu kaynağın revizyonu otomatik geçmeyecek.
+- Her iki yıllık kitapta beşer satır tarih yerine `HER HAFTA PAZARTESİ`/`SALI` yazıyor. Reddediliyor,
+  yani o haftalık online dersler (Güzel Sanatlar, Türk Dili) hiçbir takvime düşmüyor. Bir hafta günü
+  ifadesinden tarih türetmek, açık bir profil kuralı olmadan parser'ın yapmaması gereken şey.
+
+### Hâlâ 2025-2026
+
+`G2-VERTICAL-AUTUMN`, `G2-VERTICAL-SPRING` (Drive dosyaları indirildi, hâlâ 2025-2026 programı) ve
+`SHARED-AMPHI` (profili stub, hiçbir şey yayımlamıyor).

@@ -33,7 +33,7 @@ from sirkadiyen_parser.profiles import ParserProfileDefinition, get_profile
 
 PROFILE = ParserProfileDefinition(
     "grade2_practice_v1",
-    "1.2.0",
+    "1.3.0",
     "practice",
     NumericDateOrder.DAY_FIRST,
     ("practiceGroup",),

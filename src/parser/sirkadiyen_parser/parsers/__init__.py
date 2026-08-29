@@ -24,8 +24,8 @@ ParserImplementation = Callable[
 ]
 
 _IMPLEMENTATIONS: dict[tuple[str, str], ParserImplementation] = {
-    ("grade1_yearly_v1", "1.5.0"): parse_annual_snapshot,
-    ("grade1_practice_v1", "1.0.0"): parse_practice_snapshot,
+    ("grade1_yearly_v1", "1.6.0"): parse_annual_snapshot,
+    ("grade1_practice_v1", "1.1.0"): parse_practice_snapshot,
     # The Grade 2 annual workbooks are the same row-oriented layout as Grade 1 in
     # both languages, so they share the implementation and differ only in what the
     # profile definition declares (ADR-073).
@@ -34,17 +34,17 @@ _IMPLEMENTATIONS: dict[tuple[str, str], ParserImplementation] = {
     # the Grade 1 one, so it has its own implementation (ADR-074). Only the
     # Turkish source is registered: the committed English fixture is from the
     # previous academic year.
-    ("grade2_practice_v1", "1.2.0"): parse_practice_slot_snapshot,
+    ("grade2_practice_v1", "1.3.0"): parse_practice_slot_snapshot,
     # The skill-practice calendar the annual and practice profiles both defer to.
     # It is published as a Word document and reaches the parser on the same
     # normalized snapshot contract as a workbook (ADR-076, ADR-077).
-    ("grade2_vertical_corridor_v1", "1.0.0"): parse_vertical_corridor_snapshot,
+    ("grade2_vertical_corridor_v1", "1.1.0"): parse_vertical_corridor_snapshot,
     # The two anatomy group lists are one document per semester with one layout,
     # so they share an implementation the way the Grade 2 annual profile serves
     # both languages. The profiles stay separate because the sources are
     # separate: each states its own semester's dates (ADR-078).
-    ("grade2_anatomy_autumn_v1", "1.0.0"): parse_anatomy_snapshot,
-    ("grade2_anatomy_spring_v1", "1.0.0"): parse_anatomy_snapshot,
+    ("grade2_anatomy_autumn_v1", "1.1.0"): parse_anatomy_snapshot,
+    ("grade2_anatomy_spring_v1", "1.1.0"): parse_anatomy_snapshot,
     # The Grade 3 annual workbooks are the same row-oriented layout again, in both
     # languages and for both curriculum groups. What they add is an audience: the
     # class is split in two, so the profile declares `curriculumGroup` and the

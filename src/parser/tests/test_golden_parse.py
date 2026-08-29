@@ -37,7 +37,7 @@ def _registered_version(profile_name: str) -> str:
     """The single registered version for a profile, so cases need not repeat it.
 
     Profiles are versioned independently (a behaviour change bumps only its own
-    profile, e.g. grade1_yearly_v1 to 1.5.0), so the version is read
+    profile, e.g. grade1_yearly_v1 to 1.6.0), so the version is read
     from the registry rather than shared across every case.
     """
     versions = [version for (name, version) in implemented_profiles() if name == profile_name]
@@ -45,10 +45,14 @@ def _registered_version(profile_name: str) -> str:
     return versions[0]
 
 
-#: The year Grades 1 and 2 were captured for.
+#: The year the committed Grade 2 fixtures were captured for. Their catalog
+#: entries have moved to 2026-2027 ahead of the documents in several cases
+#: (ADR-128, ADR-129); a case states the year of the workbook in the fixture, not
+#: the year the catalog is pointing at.
 _Y2025 = "2025-2026"
 
-#: The year the Grade 3 rollover captured (ADR-103).
+#: The year the Grade 3 rollover captured (ADR-103), and the year the Grade 1
+#: workbooks moved to (ADR-131).
 _Y2026 = "2026-2027"
 
 #: No companion evidence, which is the case for every source but two.
@@ -70,7 +74,7 @@ CASES = (
         "real/g1-tr-annual.snapshot.json",
         1,
         "turkish",
-        _Y2025,
+        _Y2026,
         _ALONE,
         _UNNARROWED,
         "parse/g1-tr-annual.json",
@@ -80,7 +84,7 @@ CASES = (
         "real/g1-en-annual.snapshot.json",
         1,
         "english",
-        _Y2025,
+        _Y2026,
         _ALONE,
         _UNNARROWED,
         "parse/g1-en-annual.json",
@@ -90,10 +94,24 @@ CASES = (
         "real/g1-tr-practice.snapshot.json",
         1,
         "turkish",
-        _Y2025,
+        _Y2026,
         _ALONE,
         _UNNARROWED,
         "parse/g1-tr-practice.json",
+    ),
+    # The English practice table was catalogued from the start and had no fixture
+    # until now, so nothing proved what it published. It turned out to publish a
+    # cohort value no student holds (ADR-130); this case is what would have
+    # caught that.
+    (
+        "grade1_practice_v1",
+        "real/g1-en-practice.snapshot.json",
+        1,
+        "english",
+        _Y2026,
+        _ALONE,
+        _UNNARROWED,
+        "parse/g1-en-practice.json",
     ),
     (
         "grade2_yearly_v1",

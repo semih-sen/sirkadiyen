@@ -10,6 +10,19 @@ requires bumping this value *and* bumping every parser-profile version whose
 output can change, because only the profile version travels on the wire.
 """
 
+#: 0.3.0 reads a one-letter cohort label written with a Turkish dotted or dotless
+#: `i` as the ASCII letter `comparison_key` already folds it to, so `İ1` and `i1`
+#: are one cohort rather than one cohort and one refusal (ADR-130). Longer tokens
+#: are deliberately not folded, so no ordinary word became readable as a cohort
+#: run. No committed fixture's output moved. Every profile that reads a group
+#: expression is bumped with it — `grade1_practice_v1`, `grade2_practice_v1`,
+#: `grade2_vertical_corridor_v1` and the two `grade2_anatomy_*` profiles — for
+#: the reason 0.2.0 gave: a stored snapshot cannot be proved free of such a cell
+#: the way the fixtures can. Only `grade1_practice_v1` has a known document whose
+#: output actually moves; for the others the difference a stored cell could make
+#: is which refusal reason it is counted under. `grade3_faculty_practice_v1`
+#: reads cohorts with its own pattern and is untouched.
+#:
 #: 0.2.0 refuses a numeric time cell that is not a day fraction instead of
 #: reducing it modulo one day, which used to publish a lesson at midnight
 #: (ADR-073). No committed fixture's output moved, but the rule is a behavioural
@@ -17,4 +30,4 @@ output can change, because only the profile version travels on the wire.
 #: `grade1_yearly_v1` 1.5.0 reparses its stored snapshots, which cannot be proved
 #: free of such a cell the way the fixtures can. `grade1_practice_v1` reads only
 #: time ranges written as text and is untouched.
-PARSER_ENGINE_VERSION = "0.2.0"
+PARSER_ENGINE_VERSION = "0.3.0"

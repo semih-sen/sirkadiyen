@@ -1,6 +1,6 @@
 {
   "fixture": "real/g2-vertical-autumn.snapshot.json",
-  "parserEngineVersion": "0.2.0",
+  "parserEngineVersion": "0.3.0",
   "payload": {
     "candidateCount": 12,
     "candidateDigests": [
@@ -355,9 +355,9 @@
     ],
     "parserProfile": {
       "name": "grade2_vertical_corridor_v1",
-      "version": "1.0.0"
+      "version": "1.1.0"
     },
-    "responseDigest": "sha256:4aed23203ddfd66f96d4610b6f3c037b136b3cd11212f6d9254df4c3c5c75684",
+    "responseDigest": "sha256:626b7cf2815f5e987a92f26a43c79d4f53505373a15220ed234f3c855d7f485c",
     "snapshotId": "fixture:sha256:e4f3131aee515c104520accd68e80794ce3ccf1f80bb9ea44ff0db0c95ebf1e3",
     "sourceId": "G2-VERTICAL-AUTUMN",
     "status": "completedWithWarnings",

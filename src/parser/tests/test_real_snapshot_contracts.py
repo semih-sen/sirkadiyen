@@ -11,9 +11,10 @@ FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "real"
 @pytest.mark.parametrize(
     ("filename", "source_id", "title", "rows", "columns", "worksheets"),
     (
-        ("g1-tr-annual.snapshot.json", "G1-TR-ANNUAL", "DÖNEM 1", 942, 13, 1),
-        ("g1-tr-practice.snapshot.json", "G1-TR-PRACTICE", "Sayfa1", 335, 14, 1),
-        ("g1-en-annual.snapshot.json", "G1-EN-ANNUAL", "CLASS 1", 985, 26, 2),
+        ("g1-tr-annual.snapshot.json", "G1-TR-ANNUAL", "DÖNEM 1", 1070, 13, 1),
+        ("g1-tr-practice.snapshot.json", "G1-TR-PRACTICE", "Sayfa1", 301, 13, 1),
+        ("g1-en-annual.snapshot.json", "G1-EN-ANNUAL", "CLASS 1", 1130, 7, 2),
+        ("g1-en-practice.snapshot.json", "G1-EN-PRACTICE", "Sayfa1", 263, 15, 1),
         ("g3-tr-a-annual.snapshot.json", "G3-TR-A-ANNUAL", "A GRUBU", 1259, 7, 1),
         ("g3-tr-b-annual.snapshot.json", "G3-TR-B-ANNUAL", "B GRUBU", 1244, 7, 1),
         ("g3-en-annual.snapshot.json", "G3-EN-ANNUAL", "İNG", 1247, 7, 1),

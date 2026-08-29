@@ -80,9 +80,14 @@ def test_a_profile_advertises_whether_it_reads_an_unlabelled_term_column() -> No
     declared = {
         profile["name"]: profile["term_column_may_be_unlabelled"] for profile in response.json()
     }
+    # All three annual profiles now declare it: Grade 3 has never labelled the
+    # column, and the Grade 1 Turkish and Grade 2 English workbooks stopped.
+    assert declared["grade1_yearly_v1"] is True
     assert declared["grade2_yearly_v1"] is True
     assert declared["grade3_yearly_v1"] is True
-    assert declared["grade1_yearly_v1"] is False
+    # A profile reading a different layout must not inherit the exception.
+    assert declared["grade1_practice_v1"] is False
+    assert declared["grade2_practice_v1"] is False
 
 
 def test_the_annual_profile_is_advertised_as_implemented() -> None:
@@ -130,7 +135,7 @@ def test_a_request_without_source_context_is_refused() -> None:
 
 def test_the_annual_profile_parses_a_snapshot_over_http() -> None:
     request = json.loads(CONTRACT_FIXTURE.read_text(encoding="utf-8"))
-    request["parserProfile"] = {"name": "grade1_yearly_v1", "version": "1.5.0"}
+    request["parserProfile"] = {"name": "grade1_yearly_v1", "version": "1.6.0"}
 
     response = client.post("/v1/parse", json=request)
 

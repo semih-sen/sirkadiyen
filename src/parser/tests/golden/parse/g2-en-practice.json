@@ -1,6 +1,6 @@
 {
   "fixture": "real/g2-en-practice.snapshot.json",
-  "parserEngineVersion": "0.2.0",
+  "parserEngineVersion": "0.3.0",
   "payload": {
     "candidateCount": 49,
     "candidateDigests": [
@@ -663,9 +663,9 @@
     ],
     "parserProfile": {
       "name": "grade2_practice_v1",
-      "version": "1.2.0"
+      "version": "1.3.0"
     },
-    "responseDigest": "sha256:ac0bfa8307e8e9f9735bcfa1c10b882a1b5abf2a7f979d4ec8ed1b611da5f39c",
+    "responseDigest": "sha256:a392fc072299cf0a9a4e694ff9a5ef8d8b0804cba35fe0196501a9735410f94c",
     "snapshotId": "fixture:sha256:26cd36e5dff608a021dfd17745b1bf5a3d07ab3e983b2e563a269749b08fa865",
     "sourceId": "G2-EN-PRACTICE",
     "status": "completedWithWarnings",

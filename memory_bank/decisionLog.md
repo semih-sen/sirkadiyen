@@ -7552,11 +7552,13 @@ Add four operator capabilities:
 
 ## ADR-128: A term column a workbook forgot to label is adopted rather than rejecting the snapshot
 
-**Status:** Accepted and implemented
+**Status:** Accepted and implemented; extended on 2026-08-29 to `grade1_yearly_v1`
 **Date:** 2026-08-29
-**Implements:** `term_column_may_be_unlabelled` on `grade2_yearly_v1`, bumped to 1.2.0; the
+**Implements:** `term_column_may_be_unlabelled` on `grade2_yearly_v1`, bumped to 1.2.0, and on
+`grade1_yearly_v1`, bumped to 1.6.0; the declaration reported by `GET /v1/profiles`; the
 regenerated `g2-en-annual` snapshot fixture and golden (2026-2027 capture); pinned
-`parserProfileVersion` for both Grade 2 annual sources in `config/schedule-sources.json`
+`parserProfileVersion` for both Grade 2 and both Grade 1 annual sources in
+`config/schedule-sources.json`
 **Extends:** ADR-017 (the annual reader selects columns by header alias, and the class year comes
 from request context rather than from the workbook)
 **Relates to:** ADR-073, ADR-126 (the dissection rotation and its fallback), ADR-115 (the 2026-2027
@@ -7621,6 +7623,28 @@ Grade 2 fixture is still the 2025-2026 capture and stays at `_Y2025`.
   committed workbook and snapshot fixture are still the 2025-2026 ones. It parses, so nothing is
   broken today, but the fixture no longer describes the document the poller reads. Regenerating it is
   a separate change with its own golden review.
+
+### Extension, same day: the Grade 1 Turkish workbook did the same thing
+
+Verifying the four Grade 1 documents for the 2026-2027 rollover found
+`2026-2027 D1 Türkçe Tıp Ders Programı.xlsx` rejected whole, with the same two findings in the same
+order: `worksheetWithoutHeaderRow` for `DÖNEM 1`, then `noParsableWorksheet`. Its `A1` is empty where
+the 2025-2026 capture wrote `Dönem`, and the column below it still states `Dönem 1` on every row.
+That is now two source families and three of the four annual workbooks — the pattern is the faculty's
+spreadsheet habit, not one document's accident.
+
+`grade1_yearly_v1` therefore declares it too, at 1.6.0. The declaration stays per profile for the
+reason it did above, and the proof that it is a fallback rather than a preference is the same: both
+committed Grade 1 goldens were regenerated and differ from their previous versions **only** in the
+profile version string and the response digest that contains it. Not one candidate, warning or metric
+moved, because both committed workbooks still label the column.
+
+One test constant had to be separated to keep this honest. `tests/test_parsers_annual.py` used its
+default `grade1_yearly_v1` definition as the negative case for "an unlabelled column is adopted only
+where it is declared". With all three real annual profiles now declaring it, that negative case would
+have been asserting something no registered profile does, so it moved to an explicit
+`UNDECLARED_TERM_PROFILE`. The behaviour under test — that the reader never adopts an unlabelled
+column on its own — is unchanged and still covered.
 
 ## ADR-129: The 2026-2027 rollover is per source, and a year moves only with its document
 
@@ -7692,3 +7716,167 @@ a document nobody has supplied.
   running the audited `POST /api/operations/profile-rollovers` for those two programs. `SHARED-AMPHI`
   is a weekly dated file whose profile `weekly_amphitheatre_v1` is still a stub, so its year is
   nominal and publishes nothing either way.
+
+## ADR-130: One cohort written two ways is one cohort, and each programme's alphabet is bounded
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-29
+**Implements:** the Turkish `i` fold in `normalization/groups.py`, parser engine 0.3.0,
+`TURKISH_COHORT_LETTERS` and `ENGLISH_PRACTICE_SUBGROUPS` in `parsers/practice.py`,
+`grade1_practice_v1` 1.1.0, and engine-carrying bumps of `grade2_practice_v1` 1.3.0,
+`grade2_vertical_corridor_v1` 1.1.0, `grade2_anatomy_autumn_v1` and `grade2_anatomy_spring_v1` 1.1.0
+**Extends:** ADR-020 (the lettered cohort model), ADR-084 (the English practice cohorts)
+**Caused by:** verifying the 2026-2027 Grade 1 documents for the rollover
+
+### Context
+
+`G1-EN-PRACTICE` is catalogued and has never had a committed fixture, so it had never actually been
+parsed. Run against the 2026-2027 workbook it produced 36 candidates from 734 cells, and the shortfall
+was not a layout the reader could not follow. The source writes one cohort two ways:
+
+| spelling | code point | cells |
+| --- | --- | --- |
+| `İ1` | U+0130 | 21 |
+| `i1` | U+0069 | 20 |
+| `İ2` | U+0130 | 27 |
+| `i2` | U+0069 | 14 |
+| `İ3` | U+0130 | 4 |
+
+Turkish writes this letter with four glyphs — `i`/`İ` dotted, `ı`/`I` dotless — and the pairs do not
+case-fold onto each other the way ASCII does. `comparison_key` has always folded all four to `i`. The
+token patterns in `parse_group_expression` are `[A-Za-z]`, and did not.
+
+The result was worse than a refusal. The ASCII cells resolved and published
+`practiceSubgroup=I1` — a value the catalog does not declare and no student's profile holds — while
+the dotted cells were dropped as `unrecognizedGroupToken`. One cohort was split between an
+unreachable audience and a silent loss, and nothing downstream could tell.
+
+`grade2_practice_v1` already answers the same question with an `ENGLISH_PRACTICE_GROUPS` table
+(ADR-084), but its gate has the same ASCII patterns in front of it. It works only because its
+committed workbook happens to write `i1` — the dotted spelling would be refused there too.
+
+### Decision
+
+**1. Fold the Turkish spellings of `i` in the shared token reader, for a one-letter label only.**
+
+The four glyphs are one letter, and `comparison_key` already says so; refusing two of them was an
+ASCII assumption, not a rule anyone decided. The fold is confined to a token that is a single letter
+plus at most two digits.
+
+That confinement is the load-bearing part. Folding a whole word turns `TELAFİ` — the make-up marker —
+into six ASCII letters, which a profile admitting long runs reads as six cohorts. It is refused today
+only because those profiles also bound their alphabet, and a normalization primitive must not depend
+on its caller's bound to be safe. Only this letter is folded; admitting `ğ`, `ş` or `ç` would make
+more ordinary words readable as cohort lists, which is what every bound in that module exists to stop.
+
+**2. Bound the admitted cohorts by programme in `grade1_practice_v1`.**
+
+One reader serves both workbooks and their alphabets do not overlap: Turkish states `A`-`H`, English
+states `İ1`-`İ3`. The programme comes from the request, not the cell (ADR-017), so neither document's
+tokens can address the other's students — the direction that matters is a stray `İ1` in the Turkish
+table reaching English calendars. The English values are mapped back to the spelling the catalog and
+the supported-profile schema declare, so what publishes is `İ1`, not `I1`.
+
+The subgroup model is kept rather than moved to ADR-084's independent-group model. Grade 1 English is
+one group `İ` split three ways, which is what the catalog, the schema and
+`ScheduleSourceCatalogTests` already state, and the workbook never writes a bare `İ`. Changing the
+dimension would oblige a schema change and a profile rollover to fix a bug that is entirely about
+character handling.
+
+**3. Bump the engine and every profile that reads a group expression.**
+
+`version.py` requires it: a behavioural change to a shared primitive bumps the engine *and* every
+profile whose output can change, because only the profile version travels on the wire. Engine 0.3.0,
+and 1.1.0/1.3.0 on the five implemented profiles that call the group reader.
+`grade3_faculty_practice_v1` reads cohorts with its own pattern and is untouched.
+
+### Consequences
+
+- `G1-EN-PRACTICE` goes from 36 candidates to **88**: `İ1` 41, `İ2` 41, `İ3` 4, two whole-cohort. The
+  13 cells still refused are the source's own layout noise — the `telafi` marker, and date serials and
+  time ranges sitting in group columns — each of which correctly states no audience.
+- `G1-TR-PRACTICE` is unchanged at 302 candidates under the new `A`-`H` bound.
+- **Every one of the twenty committed goldens was regenerated and every changed line is a version
+  string or the response digest containing one.** No candidate, warning, metric or audience selector
+  moved anywhere in the suite.
+- The five bumped profiles reparse their stored snapshots on the next poll. Output is identical for
+  anything the fixtures cover, so those diffs are all-unchanged; the bump exists because a stored
+  snapshot cannot be proved free of a dotted cell the way a fixture can.
+- The latent form of this bug in `grade2_practice_v1` is closed with it: its İ-table is now actually
+  reachable for the dotted spelling.
+- **Open:** Student Affairs is unlikely to normalize the source, which is why this is handled in the
+  parser. If they ever do, nothing here needs undoing — both spellings keep publishing one value.
+
+## ADR-131: The Grade 1 rollover moves the documents, the catalog and the schema in one change
+
+**Status:** Accepted and implemented; the profile rollover it obliges is an operator action and has
+not been run
+**Date:** 2026-08-29
+**Implements:** the four Grade 1 catalog entries re-pointed at the 2026-2027 workbooks with
+`transport` moved to `googleDriveFile`; the four regenerated snapshot fixtures and their goldens,
+including the first `g1-en-practice` fixture; `CurrentSupportedProfileSchema` 1.4 with every declared
+program on 2026-2027 and `RolledOverAcademicYear` folded away
+**Extends:** ADR-115 (a cohort's academic year is rolled over explicitly), ADR-129 (a year moves only
+with its document)
+**Relates to:** ADR-128 (the unlabelled term column), ADR-130 (the cohort spellings)
+
+### Context
+
+ADR-129 left seven sources on 2025-2026, each blocked on a document nobody had supplied. Four have
+now been supplied: the 2026-2027 Grade 1 Turkish and English annual and practice workbooks.
+
+Verifying them before touching the catalog was worth the step. Three of the four could not have been
+rolled over as they stood:
+
+- The Turkish annual workbook was rejected whole, for the reason ADR-128 had just found in the Grade
+  2 English one. It is fixed by the same declaration.
+- The English practice workbook published 36 of its cells and addressed them to a cohort value no
+  student holds, which ADR-130 answers.
+- All four are **XLSX files in Drive**, not native Google Sheets, while three were catalogued as
+  `googleSheets` with a `sheetGid`. The transport is a property of how the faculty publishes the
+  document, and it changed.
+
+### Decision
+
+**Move the documents, the catalog entries and the supported-profile schema in one change, and leave
+only the operator action outside it.**
+
+ADR-115's rule is that a program's academic year and its sources' academic year are one fact stated
+twice. Doing the catalog half now and the schema half later would recreate exactly the divergence
+that cost Grade 2 Turkish a year of calendars, so the schema moves here rather than as a follow-up.
+
+- The four entries take the new Drive ids, `transport: googleDriveFile`, `documentFormat: xlsx`, no
+  `sheetGid`, `academicYear: 2026-2027` and the new fixture paths.
+- Each entry's `notes` records what its document does that a reader has to know: the missing term
+  header, the two cohort spellings, the weekly-pattern rows, the mistyped 2020 date.
+- `CurrentSupportedProfileSchema` goes to 1.4 with Grade 1 Turkish and English on 2026-2027. Every
+  declared program is now on that year, so the `RolledOverAcademicYear` constant the rollover needed
+  while the programs disagreed is folded back into `AcademicYear`. The **per-program field stays** —
+  the mechanism is what matters, and the next rollover separates the values again.
+- `g1-en-practice` gets a fixture and a golden. It has been catalogued since the beginning with
+  nothing proving what it published, which is how it published an unreachable audience unnoticed.
+
+### Consequences
+
+- The four sources parse for 2026-2027: Turkish annual 794 candidates, English annual 982, Turkish
+  practice 302, English practice 88.
+- **The operator rollover has not been run.** `POST /api/operations/profile-rollovers` moves existing
+  Grade 1 profiles onto 2026-2027, and until it does, every stored Grade 1 profile still says
+  2025-2026 and receives nothing from these sources. Deploy the schema first; the endpoint refuses a
+  year the deployed schema does not state (ADR-115). A Grade 1 profile still on schema 1.3 is
+  identifiable as one stamped before the rollover.
+- `SupportedProfileSchemaCatalogCheck` reports no divergence: every declared program's year is a year
+  its cohort's sources publish for.
+- Two source-quality defects are catalogued rather than worked around. The Grade 1 Turkish practice
+  table dates one session 2020-11-20 between two November 2026 rows; the parser publishes it as
+  written and revision validation holds the revision under `RecordDateOutsideAcademicYear` every time
+  until the document is corrected. Both annual workbooks write five rows as `HER HAFTA PAZARTESİ`
+  rather than as dates, so those weekly online courses reach no calendar at all — inferring dates
+  from a weekday phrase is exactly what a parser profile may not do without a stated rule.
+- **Open — still on 2025-2026:** `G2-VERTICAL-AUTUMN`, `G2-VERTICAL-SPRING` and `SHARED-AMPHI`. The
+  two vertical-corridor Drive files were downloaded and still hold the 2025-2026 programme, so they
+  are blocked on a document exactly as before. `SHARED-AMPHI` is a weekly dated file whose profile
+  `weekly_amphitheatre_v1` is still a stub, so its year is nominal and it publishes nothing.
+- **Open:** the Grade 2 Turkish annual, practice and anatomy sources are catalogued for 2026-2027
+  while their committed fixtures are still the 2025-2026 documents (ADR-128, ADR-129). Unchanged by
+  this work and still a separate change per source.

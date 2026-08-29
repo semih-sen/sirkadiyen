@@ -29,6 +29,7 @@ from sirkadiyen_parser.contracts.parsing import (
     ParseSnapshotRequest,
     ParseSnapshotResponse,
     ParseSourceContext,
+    ProgramLanguage,
     ScheduleAudienceCandidate,
     ScheduleEventType,
     SourceEvidence,
@@ -78,6 +79,25 @@ HEADING_MERGE_WIDTH = 3
 
 DIMENSION_PRACTICE_GROUP = "practiceGroup"
 DIMENSION_PRACTICE_SUBGROUP = "practiceSubgroup"
+
+#: The cohort letters each programme states, bounded per programme so a token
+#: from one can never address the other's students (ADR-130).
+#:
+#: Turkish runs eight lettered groups, each split in two. English runs one group,
+#: `İ`, split three ways — the workbook writes `İ1`, `İ2` and `İ3` partitioning
+#: the class across a time slot and never writes a bare `İ`, which is the split
+#: the catalog and the supported-profile schema already model.
+TURKISH_COHORT_LETTERS = frozenset("ABCDEFGH")
+
+#: The English cohorts by their folded comparison key, mapping to the spelling
+#: the catalog declares. The workbook writes the same cohort as `İ1` and as `i1`
+#: in neighbouring cells, and both must publish one value: a student holds `İ1`,
+#: so `I1` would reach nobody.
+ENGLISH_PRACTICE_SUBGROUPS = {
+    "i1": "İ1",
+    "i2": "İ2",
+    "i3": "İ3",
+}
 
 VERTICAL_CORRIDOR_KEYS = frozenset({"dikey", "vertical"})
 ANATOMY_KEYS = frozenset({"anatomi", "anatomy", "diseksiyon", "dissection"})
@@ -622,7 +642,7 @@ def _parse_cell(
         )
         return
 
-    selectors = _audience_selectors(expression)
+    selectors = _audience_selectors(expression, program_language=context.program_language)
     if selectors is None:
         diagnostics.record_ignored_cell(
             REASON_UNSUPPORTED_GROUP_VALUE,
@@ -670,13 +690,23 @@ def split_trailing_note(text: str) -> tuple[str, str | None]:
     return normalized[: match.start()].strip(), match.group(1).strip() or None
 
 
-def _audience_selectors(expression: GroupExpression) -> list[AudienceSelector] | None:
+def _audience_selectors(
+    expression: GroupExpression,
+    *,
+    program_language: ProgramLanguage,
+) -> list[AudienceSelector] | None:
     """Turn a resolved group expression into audience selectors.
 
     ``A`` selects a whole practice group and ``A2`` selects one subgroup of it,
     so the two are reported under different dimensions. A value of any other
     shape names a cohort this profile does not model, and the caller refuses the
     cell rather than assigning it to the nearest dimension.
+
+    The admitted cohorts are bounded by the programme the source belongs to,
+    which the request states rather than the cell (ADR-130). Both workbooks share
+    this reader, and their alphabets do not overlap: without the bound a Turkish
+    document's stray ``İ1`` would address the English cohort, and an English
+    document's ``A`` would address a Turkish group that program does not run.
     """
     if expression.covers_all:
         return []
@@ -686,7 +716,23 @@ def _audience_selectors(expression: GroupExpression) -> list[AudienceSelector] |
         match = _GROUP_VALUE_PATTERN.match(value)
         if match is None:
             return None
-        dimension = DIMENSION_PRACTICE_SUBGROUP if match.group(2) else DIMENSION_PRACTICE_GROUP
+
+        letter, digit = match.group(1), match.group(2)
+        if program_language is ProgramLanguage.ENGLISH:
+            # `İ1` and `i1` both arrive here as `I1`, folded by the shared token
+            # reader. The cohort's own spelling is restored from the table, so
+            # the published value is the one a student's profile holds.
+            canonical = ENGLISH_PRACTICE_SUBGROUPS.get(comparison_key(value))
+            if canonical is None:
+                return None
+            selectors.append(
+                AudienceSelector(dimension=DIMENSION_PRACTICE_SUBGROUP, value=canonical)
+            )
+            continue
+
+        if letter not in TURKISH_COHORT_LETTERS:
+            return None
+        dimension = DIMENSION_PRACTICE_SUBGROUP if digit else DIMENSION_PRACTICE_GROUP
         selectors.append(AudienceSelector(dimension=dimension, value=value))
     return selectors
 

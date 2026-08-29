@@ -1,6 +1,6 @@
 {
   "fixture": "real/g2-anatomy-autumn.snapshot.json",
-  "parserEngineVersion": "0.2.0",
+  "parserEngineVersion": "0.3.0",
   "payload": {
     "candidateCount": 90,
     "candidateDigests": [
@@ -871,9 +871,9 @@
     ],
     "parserProfile": {
       "name": "grade2_anatomy_autumn_v1",
-      "version": "1.0.0"
+      "version": "1.1.0"
     },
-    "responseDigest": "sha256:25ab461e7559ca9a10d53343eb7b369e314fc92b5821da937eeaccad7b20f821",
+    "responseDigest": "sha256:7418d6b76ca5053dfd9df648775f089cc8633e5d98bad468ed2368d3b9c18329",
     "snapshotId": "fixture:sha256:732583bb338ce5dd6f7af6210bfb9fed79e521f8d6b8f070bed3cb6f53a7f0b1",
     "sourceId": "G2-ANATOMY-AUTUMN",
     "status": "completed",

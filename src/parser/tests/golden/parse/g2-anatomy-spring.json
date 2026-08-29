@@ -1,6 +1,6 @@
 {
   "fixture": "real/g2-anatomy-spring.snapshot.json",
-  "parserEngineVersion": "0.2.0",
+  "parserEngineVersion": "0.3.0",
   "payload": {
     "candidateCount": 66,
     "candidateDigests": [
@@ -718,9 +718,9 @@
     ],
     "parserProfile": {
       "name": "grade2_anatomy_spring_v1",
-      "version": "1.0.0"
+      "version": "1.1.0"
     },
-    "responseDigest": "sha256:4c6cb295756dbbb210249f8c579fee48a2a791012160c9eac2168ae4325f1a0c",
+    "responseDigest": "sha256:0720aa1f6ae4ae75d8c66c6ed2f0d5792cd7e6c6c68de3665dfb58aa1ce5a58e",
     "snapshotId": "fixture:sha256:32ebc77ae922806b11c3231c9b8ad95af761b9233a7e8ea493bffe56214608de",
     "sourceId": "G2-ANATOMY-SPRING",
     "status": "completedWithWarnings",

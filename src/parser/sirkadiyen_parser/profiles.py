@@ -74,10 +74,28 @@ _PROFILES = (
     # fixture's output moved, but a stored snapshot cannot be proved free of such
     # a cell, and the bump forces the worker to re-parse the stored annual
     # snapshots, since a parse run is keyed by (snapshot, profile, version).
-    ParserProfileDefinition("grade1_yearly_v1", "1.5.0", "annual", _UNDECLARED),
+    # 1.6.0 reads the term column the 2026-2027 Turkish workbook leaves without a
+    # header, exactly as `grade2_yearly_v1` 1.2.0 does (ADR-128): its A1 is empty
+    # where the 2025-2026 capture wrote `Dönem`, while the column below still
+    # states `Dönem 1` on every row. Without it the header row is unrecognizable
+    # and the snapshot is rejected whole. The English workbook of the same year
+    # still labels the column, and a labelled header is always preferred, so its
+    # output does not move.
+    ParserProfileDefinition(
+        "grade1_yearly_v1",
+        "1.6.0",
+        "annual",
+        _UNDECLARED,
+        term_column_may_be_unlabelled=True,
+    ),
+    # 1.1.0 bounds the cohort alphabet by programme and reads the English
+    # cohorts the workbook writes two ways (ADR-130). The Turkish table states
+    # A-H, the English one states İ1-İ3, and one reader served both without a
+    # bound: an `İ1` cell published nothing and an `i1` cell published `I1`,
+    # which is a value no student's profile holds. Both now publish `İ1`.
     ParserProfileDefinition(
         "grade1_practice_v1",
-        _PROFILE_VERSION,
+        "1.1.0",
         "practice",
         _UNDECLARED,
         ("practiceGroup", "practiceSubgroup"),
@@ -137,25 +155,30 @@ _PROFILES = (
     # misleading filename, admits its independent İ1/İ2 practice groups, and
     # reads the two compact slot-header spellings it actually contains
     # (ADR-084).
+    # 1.3.0 carries the engine 0.3.0 cohort-letter fold (ADR-130). Its committed
+    # workbook writes the English cohorts in ASCII, so no fixture output moved,
+    # but a stored snapshot cannot be proved free of the dotted spelling.
     ParserProfileDefinition(
         "grade2_practice_v1",
-        "1.2.0",
+        "1.3.0",
         "practice",
         NumericDateOrder.DAY_FIRST,
         ("practiceGroup",),
         group_rotation_subjects=("anatomi", "anatomy", "diseksiyon", "dissection"),
     ),
+    # 1.1.0: engine 0.3.0, as grade2_practice_v1 (ADR-130).
     ParserProfileDefinition(
         "grade2_anatomy_autumn_v1",
-        _PROFILE_VERSION,
+        "1.1.0",
         "anatomy",
         _UNDECLARED,
         ("anatomyGroup",),
         ("Diseksiyon",),
     ),
+    # 1.1.0: engine 0.3.0, as grade2_practice_v1 (ADR-130).
     ParserProfileDefinition(
         "grade2_anatomy_spring_v1",
-        _PROFILE_VERSION,
+        "1.1.0",
         "anatomy",
         _UNDECLARED,
         ("anatomyGroup",),
@@ -166,9 +189,12 @@ _PROFILES = (
     # selects students by the practice group they already have rather than by a
     # third group they would have to declare (ADR-020, ADR-077). The dissection
     # rotation is written into this grid too, and the anatomy sources own it.
+    # 1.1.0: engine 0.3.0, as grade2_practice_v1 (ADR-130). This document does
+    # carry the English programme's cohorts, which stay counted and unpublished
+    # under a Turkish source either way.
     ParserProfileDefinition(
         "grade2_vertical_corridor_v1",
-        _PROFILE_VERSION,
+        "1.1.0",
         "verticalCorridor",
         _UNDECLARED,
         ("practiceGroup", "practiceSubgroup"),

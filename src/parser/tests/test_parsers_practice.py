@@ -37,7 +37,7 @@ from sirkadiyen_parser.profiles import ParserProfileDefinition, get_profile
 
 PROFILE = ParserProfileDefinition(
     "grade1_practice_v1",
-    "1.0.0",
+    "1.1.0",
     "practice",
     NumericDateOrder.UNDECLARED,
     ("practiceGroup", "practiceSubgroup"),
@@ -46,7 +46,7 @@ PROFILE = ParserProfileDefinition(
 #: The same profile as if a real workbook had shown it writes ``03/10/2025``.
 DAY_FIRST_PROFILE = ParserProfileDefinition(
     "grade1_practice_v1",
-    "1.0.0",
+    "1.1.0",
     "practice",
     NumericDateOrder.DAY_FIRST,
     ("practiceGroup", "practiceSubgroup"),
@@ -129,6 +129,7 @@ def parse(
     worksheets: list[dict[str, Any]],
     *,
     profile: ParserProfileDefinition = PROFILE,
+    program_language: str = "turkish",
 ) -> ParseSnapshotResponse:
     request = ParseSnapshotRequest.model_validate(
         {
@@ -138,7 +139,7 @@ def parse(
             "sourceContext": {
                 "academicYear": "2025-2026",
                 "classYear": 1,
-                "programLanguage": "turkish",
+                "programLanguage": program_language,
                 "timeZoneId": "Europe/Istanbul",
             },
             "snapshot": {
@@ -161,11 +162,11 @@ def metrics(response: ParseSnapshotResponse) -> dict[str, float]:
 
 
 def test_the_registered_profile_is_the_practice_implementation() -> None:
-    profile = get_profile("grade1_practice_v1", "1.0.0")
+    profile = get_profile("grade1_practice_v1", "1.1.0")
 
     assert profile is not None
     assert get_parser(profile.name, profile.version) is parse_practice_snapshot
-    assert ("grade1_practice_v1", "1.0.0") in implemented_profiles()
+    assert ("grade1_practice_v1", "1.1.0") in implemented_profiles()
 
 
 def test_a_cell_becomes_a_candidate_for_the_group_it_names() -> None:
@@ -182,6 +183,71 @@ def test_a_cell_becomes_a_candidate_for_the_group_it_names() -> None:
     assert [(s.dimension, s.value) for s in first.audience.selectors] == [
         (DIMENSION_PRACTICE_GROUP, "A")
     ]
+
+
+#: Every way the English workbook's own cells spell one cohort. The dotted
+#: capital is what the catalog declares; the lowercase form is the same key
+#: pressed without caps lock, and the source uses both in neighbouring cells.
+#: The dotless pair is not in the document, but it is the same letter typed on a
+#: Turkish keyboard and costs nothing to accept (ADR-130).
+ENGLISH_COHORT_SPELLINGS = ["İ1", "i1", "I1", "ı1"]
+
+
+@pytest.mark.parametrize("spelling", ENGLISH_COHORT_SPELLINGS)
+def test_every_spelling_of_an_english_cohort_publishes_one_value(spelling: str) -> None:
+    """`İ1` and `i1` are one cohort, and both must publish the declared spelling.
+
+    Before ADR-130 the dotted form was refused outright and the ASCII form
+    published `I1` — a value no student's profile holds — so the same cohort was
+    split between a silent drop and an unreachable audience.
+    """
+    response = parse(
+        [block(rows=((DATE_SERIAL, "10:30-12:20", (spelling, "")),))],
+        program_language="english",
+    )
+
+    assert len(response.candidates) == 1
+    selectors = response.candidates[0].audience.selectors
+    assert [(s.dimension, s.value) for s in selectors] == [(DIMENSION_PRACTICE_SUBGROUP, "İ1")]
+
+
+def test_an_english_document_does_not_admit_a_turkish_cohort() -> None:
+    """The English program runs one group split three ways, and no `A`-`H`.
+
+    Both workbooks share this reader, so the alphabet is bounded by the
+    programme the request states rather than by the cell.
+    """
+    response = parse(
+        [block(rows=((DATE_SERIAL, "10:30-12:20", ("A", "")),))],
+        program_language="english",
+    )
+
+    assert response.candidates == []
+    assert metrics(response)["cells.ignored.unsupportedGroupValueShape"] == 1
+
+
+def test_a_turkish_document_does_not_admit_an_english_cohort() -> None:
+    """The mirror of the rule above, which is the direction that can leak.
+
+    The Turkish workbook states `A`-`H`; an `İ1` in it names the English cohort,
+    and publishing it would address a Turkish lesson to English students.
+    """
+    response = parse([block(rows=((DATE_SERIAL, "10:30-12:20", ("İ1", "")),))])
+
+    assert response.candidates == []
+    assert metrics(response)["cells.ignored.unsupportedGroupValueShape"] == 1
+
+
+def test_a_turkish_word_ending_in_the_dotted_letter_is_still_not_a_cohort() -> None:
+    """`TELAFİ` marks a make-up session and names no group.
+
+    Folding the letter must not lengthen the set of words that read as a run of
+    cohorts, so the fold is refused for anything longer than one letter.
+    """
+    response = parse([block(rows=((DATE_SERIAL, "10:30-12:20", ("TELAFİ", "")),))])
+
+    assert response.candidates == []
+    assert metrics(response)["cells.ignored.unresolvedGroupExpression"] == 1
 
 
 def test_an_empty_cell_is_not_a_lesson() -> None:

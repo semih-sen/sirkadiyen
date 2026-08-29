@@ -21,9 +21,10 @@ dotnet run --project tools/Sirkadiyen.SnapshotTool -- `
 
 | Fixture | Source | Notes |
 | --- | --- | --- |
-| `g1-tr-annual.snapshot.json` | `G1-TR-ANNUAL` | one worksheet, hidden rows, time cells the source turned into dates |
-| `g1-en-annual.snapshot.json` | `G1-EN-ANNUAL` | English headers, a second lookup worksheet, rows shifted by one column |
-| `g1-tr-practice.snapshot.json` | `G1-TR-PRACTICE` | rotation matrix, not yet parsed by any profile |
+| `g1-tr-annual.snapshot.json` | `G1-TR-ANNUAL` | the 2026-2027 workbook (ADR-131). One worksheet `DÖNEM 1`, 1070 rows; **the term column carries no header** and states `Dönem 1` on every row (ADR-128). Hidden rows, time cells the source turned into dates, and five rows writing a weekly pattern (`HER HAFTA PAZARTESİ`) where a date belongs, which are refused |
+| `g1-en-annual.snapshot.json` | `G1-EN-ANNUAL` | the 2026-2027 workbook (ADR-131). English headers — and unlike its Turkish counterpart it still labels the term column — plus a second lookup worksheet (`UYGULAMA YERLERİ`) holding no schedule, and five weekly-pattern rows |
+| `g1-tr-practice.snapshot.json` | `G1-TR-PRACTICE` | the 2026-2027 workbook (ADR-131): the rotation matrix over cohorts `A`-`H` with combined runs (`AB`, `CD`). One row dates a session 2020-11-20 between two November 2026 rows — a source typo, published as written and held by revision validation |
+| `g1-en-practice.snapshot.json` | `G1-EN-PRACTICE` | the 2026-2027 workbook, and the first fixture this source has ever had — it was catalogued from the start with nothing proving what it published (ADR-130). It writes the same cohort as `İ1` and as `i1` in neighbouring cells, and the three cohorts partition the class across a time slot |
 | `g2-tr-annual.snapshot.json` | `G2-TR-ANNUAL` | one worksheet `DÖNEM 2`; 119 bare `UYGULAMA` placeholders that defer to the practice program, 159 dissection rotation rows, one backwards time range |
 | `g2-tr-practice.snapshot.json` | `G2-TR-PRACTICE` | slot-column rotation: nine curriculum blocks, 15 slot-header rows, topic lists between them, four slot dates whose year is a year out, a whole-cohort session written into a merged run of cells |
 | `g2-en-practice.snapshot.json` | `G2-EN-PRACTICE` | the original workbook filename says 2024-2025, but its 39 dated practice slots run from September 2025 through May 2026; groups are `İ1`/`İ2`, and the lone 2024 value is in an anatomy row this profile defers to the anatomy source |

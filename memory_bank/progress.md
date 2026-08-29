@@ -1199,3 +1199,67 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
   doğrulandı (hâlâ 2025-2026). Dönem 1 elektronik tabloları servis hesabı olmadan okunamadı
   (HTTP 401), yani içerikleri hakkında bir şey doğrulanmadı. `CurrentSupportedProfileSchema`
   1.3'te bırakıldı; Dönem 1 taşınmadığı için bumplanmadı.
+
+## grade1_yearly_v1 1.6.0 — başlıksız dönem sütunu (2026-08-29)
+
+- **Root cause:** 2026-2027 Dönem 1 Türkçe kitabı da dönem sütununun başlığını boş bırakmış;
+  G2-EN ile aynı `noParsableWorksheet` reddi. ADR-128 uzatıldı.
+- **Changed:** `grade1_yearly_v1` 1.6.0 + `term_column_may_be_unlabelled`; parsers registry
+  anahtarı; `config/schedule-sources.json` içinde G1-TR/EN-ANNUAL sabit sürümü 1.6.0; iki Dönem 1
+  altın dosyası yeniden üretildi (yalnızca sürüm + özet değişti); `test_api.py` bildirim iddiası
+  üç yıllık profili de kapsayacak şekilde güncellendi ve iki uygulama profilinin bildirmediği
+  eklendi; testlerdeki olumsuz durum için `UNDECLARED_TERM_PROFILE` ayrıldı; parser README.
+- **Tests executed:** parser 512 test geçti, ruff + mypy temiz. `dotnet build` 0 uyarı/0 hata;
+  `dotnet test`: Api 8, Contracts 6, Infrastructure 736, Persistence 40 geçti / 236 atlandı.
+  Yeni 2026-2027 Türkçe kitabı bu bildirimle 794 aday üretiyor (2026-09-28 .. 2027-07-13).
+- **Not done / not verified:** Dönem 1 kaynaklarının katalog girişleri hâlâ 2025-2026 belgelerini
+  ve yılını gösteriyor — madde 3. `G1-EN-PRACTICE`'teki İ/i kohort tutarsızlığı (madde 2) ve
+  `G1-TR-PRACTICE`'teki 2020-11-20 yazım hatası düzeltilmedi. `ruff format --check` hâlâ
+  dokunulmamış `parsers/bedside.py` için tek bir fark bildiriyor.
+
+## G1-EN-PRACTICE kohort yazımları ve programa göre alfabe sınırı (2026-08-29)
+
+- **Root cause:** Kaynak aynı kohortu `İ1` (U+0130) ve `i1` (ASCII) diye yazıyor; grup okuyucusunun
+  desenleri ASCII-only olduğu için noktalı olanlar düşüyor, ASCII olanlar katalogun bildirmediği
+  `I1` değerini yayımlıyordu. 734 hücreden 36 aday. Ayrıntı: ADR-130.
+- **Changed:** `normalization/groups.py` tek harfli etiket için Türkçe `i` katlaması; parser motoru
+  0.3.0; `parsers/practice.py` içinde `TURKISH_COHORT_LETTERS` + `ENGLISH_PRACTICE_SUBGROUPS` ve
+  programa göre sınırlı `_audience_selectors`; `grade1_practice_v1` 1.1.0, `grade2_practice_v1`
+  1.3.0, `grade2_vertical_corridor_v1` 1.1.0, iki `grade2_anatomy_*` 1.1.0; katalogda on kaynağın
+  sabit sürümü; `ScheduleSourceCatalogTests` beklentileri; parser README.
+- **Tests executed:** parser 527 test geçti (yeni: dört yazımın tek değer yayımlaması, iki yönlü
+  program sınırı, `TELAFİ`'nin hâlâ kohort olmaması, primitif düzeyinde katlama ve ASCII koşusunun
+  etkilenmemesi) + ruff + mypy temiz. Yirmi altın dosyası yeniden üretildi; değişen her satır sürüm
+  ya da özet. `dotnet build` 0 uyarı/0 hata; `dotnet test`: Api 8, Contracts 6, Infrastructure 736,
+  Persistence 40 geçti / 236 atlandı.
+- **Not done / not verified:** `G1-EN-PRACTICE` için hâlâ commit'li fixture ve altın dosyası yok —
+  madde 3'te katalog girişleriyle birlikte eklenecek. Kaynaktaki 13 gürültü hücresi ve
+  `G1-TR-PRACTICE`'teki 2020-11-20 yazım hatası Öğrenci İşleri'nde. `ruff format --check` hâlâ
+  dokunulmamış `parsers/bedside.py` için tek bir fark bildiriyor.
+
+## Dönem 1 kaynakları 2026-2027'ye taşındı (2026-08-29)
+
+- **Root cause:** Değil — planlı rollover. ADR-129'un belge bekleyen yedi kaynağından dördünün
+  2026-2027 belgeleri geldi. Ayrıntı: ADR-131.
+- **Changed:** `config/schedule-sources.json` içinde dört Dönem 1 girişi yeni Drive id'lerine,
+  `transport: googleDriveFile` + `documentFormat: xlsx`'e (üçü `googleSheets` + `sheetGid` idi),
+  `academicYear: 2026-2027`'ye ve yeni fixture yollarına alındı; notlarına belgelerin bilinmesi
+  gereken özellikleri yazıldı. Dört snapshot fixture'ı yeniden üretildi, `g1-en-practice` ilk kez
+  eklendi (fixture + altın + `test_golden_parse` senaryosu + `test_real_snapshot_contracts` satırı);
+  dört Dönem 1 altın senaryosu `_Y2026`'ya geçti. `CurrentSupportedProfileSchema` 1.4: Dönem 1 TR/EN
+  2026-2027'ye, `RolledOverAcademicYear` `AcademicYear`'a katlandı (program başına alan duruyor).
+  `CurrentSupportedProfileSchemaTests` ve `ScheduleSourceCatalogTests` beklentileri (transport
+  sayıları 7/11 → 4/14, G1-TR-ANNUAL externalId + `SheetGid` null). Dört yeni xlsx `sheets/` altına;
+  fixture README ve `sheets/source-manifest.md` güncellendi (durum `Collected` → `ParserImplemented`,
+  aralıklar ve aday sayıları).
+- **Tests executed:** parser 530 test geçti, ruff + mypy temiz. `dotnet build` 0 uyarı/0 hata;
+  `dotnet test`: Api 8, Contracts 6, Infrastructure 736, Persistence 40 geçti / 236 atlandı.
+  Parse sonuçları: TR yıllık 794 aday, EN yıllık 982, TR uygulama 302, EN uygulama 88.
+- **Not done / not verified:** `POST /api/operations/profile-rollovers` **çalıştırılmadı** — operatör
+  adımı, önce şema deploy edilmeli; o zamana kadar depodaki Dönem 1 profilleri 2025-2026 damgalı ve
+  bu kaynaklardan hiçbir şey almıyor. `G2-VERTICAL-AUTUMN/SPRING` ve `SHARED-AMPHI` hâlâ 2025-2026.
+  Dönem 2 yıllık/uygulama/anatomi kaynaklarının katalog yılı ile fixture yılı hâlâ ayrışık
+  (ADR-128, ADR-129). Kaynak kusurları düzeltilmedi: G1-TR-PRACTICE'te 2020-11-20 yazım hatası
+  (revizyon her seferinde tutulacak) ve iki yıllık kitapta beşer `HER HAFTA ...` satırı (o haftalık
+  online dersler takvime düşmüyor). `ruff format --check` hâlâ dokunulmamış `parsers/bedside.py`
+  için tek bir fark bildiriyor.

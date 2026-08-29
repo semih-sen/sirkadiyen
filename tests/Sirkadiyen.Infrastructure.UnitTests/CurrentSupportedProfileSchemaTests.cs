@@ -18,8 +18,8 @@ public sealed class CurrentSupportedProfileSchemaTests
     [Fact]
     public void SchemaCarriesTheCurrentYearAndVersion()
     {
-        Assert.Equal("2025-2026", Schema.AcademicYear);
-        Assert.Equal("1.3", Schema.SchemaVersion);
+        Assert.Equal("2026-2027", Schema.AcademicYear);
+        Assert.Equal("1.4", Schema.SchemaVersion);
         Assert.NotEmpty(Schema.Programs);
     }
 
@@ -32,6 +32,12 @@ public sealed class CurrentSupportedProfileSchemaTests
     /// academic year matches the one stamped on their profile, so a Grade 3
     /// student stamped 2025-2026 would receive an empty calendar with every check
     /// downstream reporting success.
+    /// <para>
+    /// Every declared program is on 2026-2027 as of ADR-131, so the values agree
+    /// today. The assertion is per program rather than against one constant on
+    /// purpose: what must hold is that each program states the year of its own
+    /// sources, and the next rollover separates them again.
+    /// </para>
     /// </remarks>
     [Fact]
     public void EachProgramStatesTheYearItsOwnSourcesWereCapturedFor()
@@ -43,8 +49,11 @@ public sealed class CurrentSupportedProfileSchemaTests
             "2026-2027",
             Schema.FindProgram(2, ProgramLanguage.Turkish)!.AcademicYear);
         Assert.Equal(
-            "2025-2026",
+            "2026-2027",
             Schema.FindProgram(1, ProgramLanguage.Turkish)!.AcademicYear);
+        Assert.Equal(
+            "2026-2027",
+            Schema.FindProgram(1, ProgramLanguage.English)!.AcademicYear);
     }
 
     /// <summary>

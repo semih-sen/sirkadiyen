@@ -17,20 +17,26 @@ public sealed class ScheduleSourceCatalogTests
 
         Assert.Equal("1.0", catalog.CatalogVersion);
         Assert.Equal(23, catalog.Sources.Count);
-        Assert.Equal(7, catalog.Sources.Count(
+        Assert.Equal(4, catalog.Sources.Count(
             source => source.Transport == ScheduleSourceTransport.GoogleSheets));
-        Assert.Equal(11, catalog.Sources.Count(
+        Assert.Equal(14, catalog.Sources.Count(
             source => source.Transport == ScheduleSourceTransport.GoogleDriveFile));
         Assert.Single(catalog.Sources, source => source.Transport == ScheduleSourceTransport.HttpFile);
         Assert.Equal(4, catalog.Sources.Count(
             source => source.Transport == ScheduleSourceTransport.AdministrativeUpload));
 
+        // The faculty publishes the 2026-2027 Grade 1 workbooks as XLSX files in
+        // Drive rather than as Google Sheets, so the transport moved with the
+        // documents and the sheet gid went away with it (ADR-131).
         ScheduleSourceDefinition annual = Assert.Single(
             catalog.Sources,
             source => source.SourceId == "G1-TR-ANNUAL");
-        Assert.Equal("1Xwqz2bXHvH2oQ_utv_WIVzPFvLZyJEXHvwey-bVDt7A", annual.ExternalId);
-        Assert.Equal(1054469518, annual.SheetGid);
+        Assert.Equal(ScheduleSourceTransport.GoogleDriveFile, annual.Transport);
+        Assert.Equal(ScheduleDocumentFormat.Xlsx, annual.DocumentFormat);
+        Assert.Equal("1FcXgJIn7L9oFJKFCGLrSeefXHocrToAe", annual.ExternalId);
+        Assert.Null(annual.SheetGid);
         Assert.Equal("grade1_yearly_v1", annual.ParserProfile);
+        Assert.Equal("2026-2027", annual.AcademicYear);
 
         ScheduleSourceDefinition grade1EnglishPractice = Assert.Single(
             catalog.Sources,
@@ -45,7 +51,7 @@ public sealed class ScheduleSourceCatalogTests
         Assert.Equal(
             ["A", "B", "C", "D", "E", "F", "G", "H"],
             grade2TurkishPractice.SupportedAudienceSelectors!["practiceGroup"]);
-        Assert.Equal("1.2.0", grade2TurkishPractice.ParserProfileVersion);
+        Assert.Equal("1.3.0", grade2TurkishPractice.ParserProfileVersion);
 
         ScheduleSourceDefinition grade2EnglishPractice = Assert.Single(
             catalog.Sources,
@@ -53,7 +59,7 @@ public sealed class ScheduleSourceCatalogTests
         Assert.Equal(
             ["İ1", "İ2"],
             grade2EnglishPractice.SupportedAudienceSelectors!["practiceGroup"]);
-        Assert.Equal("1.2.0", grade2EnglishPractice.ParserProfileVersion);
+        Assert.Equal("1.3.0", grade2EnglishPractice.ParserProfileVersion);
 
         ScheduleSourceDefinition vertical = Assert.Single(
             catalog.Sources,

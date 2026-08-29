@@ -107,21 +107,24 @@ at.
 
 ### A term column a workbook forgot to label
 
-Selecting columns by alias needs the source to write the alias. The 2026-2027
-Grade 2 English workbook writes no header over its term column — `A1` is empty
-where the 2025-2026 capture wrote `Dönem` — while every row below it still
-states `Time Table 2`, so only the label went and the layout is unchanged. With
-no `term` alias anywhere in the header row the whole snapshot was rejected as
+Selecting columns by alias needs the source to write the alias. Two 2026-2027
+workbooks write no header over their term column — `A1` is empty where the
+2025-2026 capture wrote `Dönem` — while every row below still states the term
+(`Time Table 2` in the Grade 2 English workbook, `Dönem 1` in the Grade 1
+Turkish one), so only the label went and the layout is unchanged. With no
+`term` alias anywhere in the header row both snapshots were rejected as
 `noParsableWorksheet`.
 
 A profile may therefore declare `term_column_may_be_unlabelled`, reported by
-`GET /v1/profiles`. `grade2_yearly_v1` and `grade3_yearly_v1` do. It is a
-fallback, never a preference: it is tried only when no column carries a term
-alias, so the Turkish workbook of the same year, which still writes `Dönem`,
-is read exactly as before and its candidates are unchanged. The probe reads
-only columns left of the date column, only the first value each states, and
-adopts a column only when exactly one of them reads as a class year — two
-would be a guess about which one addresses the students (ADR-128).
+`GET /v1/profiles`. All three annual profiles now do: `grade3_yearly_v1` has
+never had a labelled column, and `grade1_yearly_v1` and `grade2_yearly_v1`
+joined it when their sources dropped theirs. It is a fallback, never a
+preference: it is tried only when no column carries a term alias, so the
+workbooks that still write `Dönem` are read exactly as before — the Grade 1
+goldens were regenerated and differ only in the profile version string. The
+probe reads only columns left of the date column, only the first value each
+states, and adopts a column only when exactly one of them reads as a class
+year — two would be a guess about which one addresses the students (ADR-128).
 
 Adopting a column is still a guess about layout, so what matters is how a wrong
 one fails: every row then states a class year the request context contradicts
@@ -180,6 +183,29 @@ and time from its row. It states the lettered cohort model explicitly (ADR-020),
 so `G` is group G and `A2` is a subgroup of group A, and it refuses any cell
 whose value it cannot fully read — a makeup marker naming no group publishes
 nothing rather than reaching every student.
+
+Which cohorts it admits is bounded by the programme the request states, not by
+the cell: the Turkish table runs `A`-`H`, the English one runs `İ1`-`İ3`, and one
+reader serves both. Without the bound a stray `İ1` in the Turkish workbook would
+address the English cohort (ADR-130).
+
+### One cohort written two ways
+
+Turkish writes the letter `i` with four glyphs — `i`/`İ` dotted and `ı`/`I`
+dotless — and the pairs do not case-fold onto each other the way ASCII does. The
+Grade 1 English practice workbook writes the same cohort as `İ1` in one cell and
+`i1` in the next, because the second is the first typed without caps lock.
+
+`comparison_key` has always folded all four to `i`; the group reader's token
+patterns were ASCII and did not. So the dotted cells were dropped and the ASCII
+cells published `I1` — a value the catalog does not declare and no student holds.
+One cohort, split between a silent loss and an unreachable audience.
+
+The shared reader now folds those spellings, but **only for a token that is one
+letter plus at most two digits**. Folding a whole word would turn `TELAFİ`, the
+make-up marker, into six ASCII letters that a profile admitting long runs reads
+as six cohorts. Each profile then maps the folded value back to the spelling its
+catalog declares, so `İ1` and `i1` both publish `İ1` (ADR-130).
 
 `parsers/practice_slots.py` reads the **transpose** of that matrix, which is how
 both Grade 2 practice tables are written (ADR-074, ADR-084): a column is a dated

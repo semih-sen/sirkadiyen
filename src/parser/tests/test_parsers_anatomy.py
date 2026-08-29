@@ -30,7 +30,7 @@ from sirkadiyen_parser.profiles import ParserProfileDefinition, get_profile
 
 PROFILE = ParserProfileDefinition(
     "grade2_anatomy_autumn_v1",
-    "1.0.0",
+    "1.1.0",
     "anatomy",
     NumericDateOrder.UNDECLARED,
     ("anatomyGroup",),
@@ -152,11 +152,11 @@ def metrics(response: ParseSnapshotResponse) -> dict[str, float]:
 
 @pytest.mark.parametrize("name", ("grade2_anatomy_autumn_v1", "grade2_anatomy_spring_v1"))
 def test_both_semesters_are_registered_against_one_implementation(name: str) -> None:
-    profile = get_profile(name, "1.0.0")
+    profile = get_profile(name, "1.1.0")
 
     assert profile is not None
-    assert get_parser(name, "1.0.0") is parse_anatomy_snapshot
-    assert (name, "1.0.0") in implemented_profiles()
+    assert get_parser(name, "1.1.0") is parse_anatomy_snapshot
+    assert (name, "1.1.0") in implemented_profiles()
 
 
 def test_the_test_profile_matches_the_registered_one() -> None:

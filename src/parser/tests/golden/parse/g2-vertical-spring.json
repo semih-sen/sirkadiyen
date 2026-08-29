@@ -1,6 +1,6 @@
 {
   "fixture": "real/g2-vertical-spring.snapshot.json",
-  "parserEngineVersion": "0.2.0",
+  "parserEngineVersion": "0.3.0",
   "payload": {
     "candidateCount": 30,
     "candidateDigests": [
@@ -554,9 +554,9 @@
     ],
     "parserProfile": {
       "name": "grade2_vertical_corridor_v1",
-      "version": "1.0.0"
+      "version": "1.1.0"
     },
-    "responseDigest": "sha256:a562ccf544e02bd9878cd004cf00ff422bb84594b396b5d03be49d46288c20dd",
+    "responseDigest": "sha256:b7994afe1f2b55efaf0be5c805c2752a0683b15759cc642fb84c4ac14068d1e9",
     "snapshotId": "fixture:sha256:94c0c308d1d6070ae185eba82d6e8037a290e3aaf4521ad7a654d58755d5c768",
     "sourceId": "G2-VERTICAL-SPRING",
     "status": "completedWithWarnings",

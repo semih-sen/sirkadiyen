@@ -20,41 +20,45 @@ namespace Sirkadiyen.Application.StudentProfiles;
 /// selector to declare and nothing to onboard beyond class year (ADR-098).
 /// </para>
 /// <para>
-/// The programs no longer share one academic year. The faculty published the
-/// 2026-2027 Grade 3 documents while Grades 1 and 2 were still on 2025-2026, and
-/// the Grade 2 Turkish annual and practice sources followed, so each program
-/// states the year its own sources were captured for (ADR-103, ADR-115).
+/// A program states the academic year its own sources were captured for,
+/// because during a rollover the programs do not share one (ADR-103, ADR-115).
+/// They agree again as of ADR-131: the Grade 1 workbooks were the last
+/// declared program still on 2025-2026, and moved with their catalog entries.
+/// The per-program field stays, because the next rollover separates them
+/// again.
 /// </para>
 /// </remarks>
 public static class CurrentSupportedProfileSchema
 {
     /// <summary>The year this schema revision was cut for.</summary>
-    public const string AcademicYear = "2025-2026";
-
-    /// <summary>
-    /// The year the rolled-over programs were captured for (ADR-103, ADR-115).
-    /// </summary>
     /// <remarks>
-    /// Grade 3 arrived on it, and Grade 2 Turkish joined it when its annual and
-    /// practice sources were moved. A program's year is what
-    /// <see cref="StudentProfileService"/> stamps on the profile, and
-    /// <c>CalendarAudienceResolver</c> matches a canonical record to a student on
-    /// it, so this constant and the catalog's <c>academicYear</c> for the same
-    /// cohort must move together. Once they did not, and every Grade 2 Turkish
-    /// calendar silently stopped receiving lessons (ADR-115).
+    /// Every declared program is on it again. Grade 3 arrived on 2026-2027
+    /// (ADR-103), Grade 2 Turkish joined when its annual and practice sources
+    /// moved (ADR-115), and Grade 1 Turkish and English followed when theirs did
+    /// (ADR-131), so the separate <c>RolledOverAcademicYear</c> that the rollover
+    /// needed while the programs disagreed is folded back into this one.
+    /// <para>
+    /// A program still states its own year, and that per-program field is the one
+    /// that matters: it is what <see cref="StudentProfileService"/> stamps on the
+    /// profile, and <c>CalendarAudienceResolver</c> matches a canonical record to
+    /// a student on it. This constant and the catalog's <c>academicYear</c> for
+    /// the same cohort must move together. Once they did not, and every Grade 2
+    /// Turkish calendar silently stopped receiving lessons (ADR-115).
+    /// </para>
     /// </remarks>
-    public const string RolledOverAcademicYear = "2026-2027";
+    public const string AcademicYear = "2026-2027";
 
     /// <summary>
     /// Bumped to 1.1 when Grade 2 Turkish was added (ADR-079), to 1.2 when
     /// Grade 3 Turkish arrived and each program began stating its own academic
-    /// year (ADR-103), and to 1.3 when Grade 2 Turkish rolled over to 2026-2027
-    /// (ADR-115). It is recorded on every stored profile, so a profile written
-    /// under an earlier version stays identifiable — and, for a Grade 2 profile
-    /// still on 1.2, identifiable as one stamped before the rollover and
-    /// therefore due for it.
+    /// year (ADR-103), to 1.3 when Grade 2 Turkish rolled over to 2026-2027
+    /// (ADR-115), and to 1.4 when Grade 1 Turkish and English rolled over with
+    /// their own sources (ADR-131). It is recorded on every stored profile, so a
+    /// profile written under an earlier version stays identifiable — and, for a
+    /// Grade 1 profile still on 1.3, identifiable as one stamped before the
+    /// rollover and therefore due for it.
     /// </summary>
-    public const string SchemaVersion = "1.3";
+    public const string SchemaVersion = "1.4";
 
     public static SupportedProfileSchema Create() => new()
     {
@@ -131,16 +135,17 @@ public static class CurrentSupportedProfileSchema
     /// student declares three selectors rather than two (ADR-078, ADR-079).
     /// <para>
     /// The program moved to 2026-2027 when the annual and practice sources were
-    /// re-pointed at the new year's workbooks (ADR-115). Its anatomy and
-    /// vertical-corridor sources have not moved yet, so the three selectors are
-    /// still evidenced — by the catalog as a whole rather than by the new year's
-    /// sources alone — and the lessons those sources publish will be absent from
-    /// a 2026-2027 calendar until their own documents are captured.
+    /// re-pointed at the new year's workbooks (ADR-115). Its anatomy sources are
+    /// catalogued for that year now too but still await their upload, and the
+    /// vertical-corridor pair has not moved at all (ADR-129), so the three
+    /// selectors are evidenced — by the catalog as a whole rather than by the new
+    /// year's documents alone — and the lessons those sources publish stay absent
+    /// from a 2026-2027 calendar until their own documents are captured.
     /// </para>
     /// </remarks>
     private static SupportedProfileProgram Grade2Turkish() => new()
     {
-        AcademicYear = RolledOverAcademicYear,
+        AcademicYear = AcademicYear,
         ClassYear = 2,
         ProgramLanguage = ProgramLanguage.Turkish,
         Dimensions =
@@ -186,7 +191,7 @@ public static class CurrentSupportedProfileSchema
     /// </remarks>
     private static SupportedProfileProgram Grade3Turkish() => new()
     {
-        AcademicYear = RolledOverAcademicYear,
+        AcademicYear = AcademicYear,
         ClassYear = 3,
         ProgramLanguage = ProgramLanguage.Turkish,
         Dimensions =

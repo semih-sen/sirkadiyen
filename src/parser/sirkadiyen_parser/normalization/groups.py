@@ -45,6 +45,28 @@ _GROUP_PREFIX_KEYS = frozenset({"grup", "gruplar", "group", "groups", "g"})
 #: names a group.
 _WORD_PREFIX_KEYS = frozenset({"grup", "gruplar", "group", "groups"})
 
+#: Turkish writes the letter ``i`` with four glyphs: ``i``/``İ`` carry the dot and
+#: ``ı``/``I`` do not, and the pair does not case-fold to the other pair the way
+#: ASCII does. The English practice cohorts are written ``İ1``, and the same
+#: document also writes them ``i1``, because a keyboard without caps lock
+#: produces the second. Both spell one cohort, and `comparison_key` already folds
+#: all four to ``i``; the token patterns below did not, so the dotted spellings
+#: were refused outright and a real source lost half its cells (ADR-130).
+#:
+#: Only this letter is folded, and only onto the ASCII letter it already compares
+#: equal to. This is not a wider alphabet: admitting `ğ`, `ş` or `ç` would let
+#: more ordinary words read as cohort lists, which is the hazard every bound in
+#: this module exists to prevent.
+_TURKISH_I_FOLD = str.maketrans({"İ": "i", "ı": "i"})
+
+#: The fold applies to a one-letter cohort label and nothing longer. A Turkish
+#: word ending in `İ` — `TELAFİ`, the makeup marker — would otherwise fold into
+#: six ASCII letters and read as a run of six cohorts. It is still refused today,
+#: but only because the profiles that admit long runs also bound their alphabet,
+#: and a normalization primitive must not depend on a caller's bound to stay
+#: safe. No source writes a multi-letter cohort containing this letter.
+_SINGLE_LETTER_LABEL_PATTERN = re.compile(r"^[A-Za-z]\d{0,2}$")
+
 _TOKEN_SEPARATOR_PATTERN = re.compile(r"\s*[,;+/]\s*|\s+ve\s+|\s+and\s+")
 # Group labels are short codes such as ``A``, ``B2`` or ``12``. Longer words are
 # heading or course text, and longer digit runs are dates, serials or room
@@ -172,6 +194,11 @@ def _expand_token(
     letter_groups: bool,
     max_letter_run: int,
 ) -> tuple[str, ...] | None:
+    # Folded before matching, not after: the patterns are ASCII, so a dotted `İ`
+    # would not reach them at all. The value produced is therefore the ASCII
+    # form, which is what `comparison_key` already made these spellings equal on;
+    # a profile that needs the cohort's own spelling maps it back (ADR-130).
+    token = _fold_turkish_i(token)
     range_match = _RANGE_PATTERN.match(token)
     if range_match is not None:
         return _expand_range(range_match)
@@ -193,6 +220,19 @@ def _expand_token(
         return None
 
     return (f"{letters.upper()}{digits.lstrip('0') or digits}",)
+
+
+def _fold_turkish_i(token: str) -> str:
+    """Read a one-letter label written with a Turkish ``i`` as its ASCII spelling.
+
+    Returns the token unchanged when it holds no such letter, and when folding it
+    would produce something longer than a single cohort label — which keeps every
+    ordinary word exactly as unreadable as it was before the fold existed.
+    """
+    folded = token.translate(_TURKISH_I_FOLD)
+    if folded == token:
+        return token
+    return folded if _SINGLE_LETTER_LABEL_PATTERN.match(folded) else token
 
 
 def _expand_range(match: re.Match[str]) -> tuple[str, ...] | None:

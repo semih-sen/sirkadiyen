@@ -50,17 +50,31 @@ from sirkadiyen_parser.profiles import ParserProfileDefinition, get_profile
 
 PROFILE = ParserProfileDefinition(
     "grade1_yearly_v1",
-    "1.5.0",
+    "1.6.0",
     "annual",
     NumericDateOrder.UNDECLARED,
+    term_column_may_be_unlabelled=True,
 )
 
 #: The same profile as if a real workbook had shown it writes ``01/10/2025``.
 DAY_FIRST_PROFILE = ParserProfileDefinition(
     "grade1_yearly_v1",
-    "1.5.0",
+    "1.6.0",
     "annual",
     NumericDateOrder.DAY_FIRST,
+    term_column_may_be_unlabelled=True,
+)
+
+#: A profile that has *not* declared the unlabelled term column, which is what
+#: every source family but the Grade 1, 2 and 3 annual ones is. It exists so the
+#: refusal stays testable now that the three real annual profiles all declare it
+#: (ADR-128): adopting an unlabelled column must remain a declared exception, not
+#: something the reader does on its own.
+UNDECLARED_TERM_PROFILE = ParserProfileDefinition(
+    "grade1_yearly_v1",
+    "1.6.0",
+    "annual",
+    NumericDateOrder.UNDECLARED,
 )
 
 #: The Grade 2 annual profile, which shares this implementation and differs only
@@ -250,11 +264,11 @@ def metrics(response: ParseSnapshotResponse) -> dict[str, float]:
 
 
 def test_the_registered_profile_is_the_annual_implementation() -> None:
-    profile = get_profile("grade1_yearly_v1", "1.5.0")
+    profile = get_profile("grade1_yearly_v1", "1.6.0")
 
     assert profile is not None
     assert get_parser(profile.name, profile.version) is parse_annual_snapshot
-    assert ("grade1_yearly_v1", "1.5.0") in implemented_profiles()
+    assert ("grade1_yearly_v1", "1.6.0") in implemented_profiles()
 
 
 def test_a_lesson_row_becomes_a_candidate() -> None:
@@ -1015,7 +1029,11 @@ def test_the_grade3_profile_is_the_annual_implementation() -> None:
 def test_an_unlabelled_term_column_is_read_only_where_it_is_declared() -> None:
     rows = lesson_row(1, term="Dönem 3A Grubu")
 
-    undeclared = parse([worksheet(rows, headers=UNLABELLED_TERM_HEADERS)], class_year=3)
+    undeclared = parse(
+        [worksheet(rows, headers=UNLABELLED_TERM_HEADERS)],
+        class_year=3,
+        profile=UNDECLARED_TERM_PROFILE,
+    )
     declared = parse(
         [worksheet(rows, headers=UNLABELLED_TERM_HEADERS)],
         class_year=3,

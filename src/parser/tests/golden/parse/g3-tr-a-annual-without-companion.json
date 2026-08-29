@@ -1,6 +1,6 @@
 {
   "fixture": "real/g3-tr-a-annual.snapshot.json",
-  "parserEngineVersion": "0.2.0",
+  "parserEngineVersion": "0.3.0",
   "payload": {
     "candidateCount": 1119,
     "candidateDigests": [

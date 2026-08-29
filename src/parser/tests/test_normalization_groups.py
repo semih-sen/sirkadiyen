@@ -160,3 +160,42 @@ def test_a_long_digit_run_is_not_a_group(text: str) -> None:
     # Date serials, years and room numbers share a column with group labels in
     # some sources. Reading one as a group would target the wrong cohort.
     assert not parse_group_expression(text, dimension=DIMENSION).resolved
+
+
+@pytest.mark.parametrize("text", ["İ1", "i1", "I1", "ı1"])
+def test_the_turkish_spellings_of_one_letter_read_as_one_label(text: str) -> None:
+    # Turkish writes this letter with four glyphs and does not case-fold the
+    # dotted pair onto the dotless one. `comparison_key` has always treated all
+    # four as `i`; the token patterns are ASCII and did not, so a source writing
+    # `İ1` lost the cell entirely (ADR-130).
+    expression = parse_group_expression(text, dimension=DIMENSION)
+
+    assert expression.resolved
+    assert expression.values == ("I1",)
+
+
+@pytest.mark.parametrize("text", ["TELAFİ", "ANATOMİ", "BİYOFİZİK"])
+def test_a_word_holding_that_letter_is_still_not_a_cohort_run(text: str) -> None:
+    # The fold is deliberately confined to a one-letter label. Applied to a whole
+    # word it would turn `TELAFİ` into six ASCII letters, which a profile reading
+    # long runs would accept as six cohorts. A normalization primitive must not
+    # rely on the caller's alphabet bound to stay safe.
+    expression = parse_group_expression(
+        text,
+        dimension=DIMENSION,
+        letter_groups=True,
+        max_letter_run=8,
+    )
+
+    assert not expression.resolved
+
+
+def test_an_ascii_letter_run_is_unaffected_by_the_fold() -> None:
+    expression = parse_group_expression(
+        "ABCD",
+        dimension=DIMENSION,
+        letter_groups=True,
+        max_letter_run=4,
+    )
+
+    assert expression.values == ("A", "B", "C", "D")

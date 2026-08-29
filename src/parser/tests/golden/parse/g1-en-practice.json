@@ -1,0 +1,812 @@
+{
+  "fixture": "real/g1-en-practice.snapshot.json",
+  "parserEngineVersion": "0.3.0",
+  "payload": {
+    "candidateCount": 88,
+    "candidateDigests": [
+      "1!R28C3|2026-10-13|08:30-10:20|practice|id:c770a1628373c374|content:e84ce329bb2c3bd8|Temel Yaşam Desteği Dr. Öğr. Üyesi Hacer Ayşen YAVRU",
+      "1!R28C4|2026-10-13|08:30-10:20|practice|id:7e30d195d68f5ca5|content:299fe3e60e6dbb33|Yaralı Taşıma Prof. Dr. Zeynep SOLAKOĞLU",
+      "1!R28C6|2026-10-13|08:30-10:20|practice|id:4b8f39488d8161ac|content:fbed15609c6a7c85|Mikroskop Kullanma Beceri Uygulaması - Değerlendirme",
+      "1!R29C3|2026-10-13|13:30-15:20|practice|id:a9c505bb778d73ff|content:ab2c38d1d6953dfb|Temel Yaşam Desteği Dr. Öğr. Üyesi Hacer Ayşen YAVRU",
+      "1!R29C4|2026-10-13|13:30-15:20|practice|id:05a7f57bc49d306b|content:6dca119691f84509|Yaralı Taşıma Prof. Dr. Zeynep SOLAKOĞLU",
+      "1!R29C5|2026-10-13|13:30-15:20|practice|id:db9135505a424abb|content:f3ad992f576eb401|Kırık-Çıkıklarda İlkyardım",
+      "1!R30C3|2026-10-14|10:30-12:20|practice|id:fa30230250b8c365|content:43c2fb35b67b0db0|Temel Yaşam Desteği Dr. Öğr. Üyesi Hacer Ayşen YAVRU",
+      "1!R30C4|2026-10-14|10:30-12:20|practice|id:69790b093218d219|content:c3f8953d78d29150|Yaralı Taşıma Prof. Dr. Zeynep SOLAKOĞLU",
+      "1!R30C6|2026-10-14|10:30-12:20|practice|id:9ed0699da39bcf7e|content:bb15982cc8dc08db|Mikroskop Kullanma Beceri Uygulaması - Değerlendirme",
+      "1!R31C5|2026-10-15|08:30-10:20|practice|id:45c541ec694f1d71|content:23c2c7340bf62679|Kırık-Çıkıklarda İlkyardım",
+      "1!R31C6|2026-10-15|08:30-10:20|practice|id:7771e1292e7c9639|content:d25211efd39e7a0a|Mikroskop Kullanma Beceri Uygulaması - Değerlendirme",
+      "1!R32C5|2026-10-16|08:30-10:20|practice|id:735e182ec070594e|content:06feebbf87a9ff53|Kırık-Çıkıklarda İlkyardım",
+      "1!R37C4|2026-10-21|10:30-12:20|practice|id:ca0290b4d0c97e06|content:e49f368c8d9466f7|Temel Biyofizik",
+      "1!R37C5|2026-10-21|10:30-12:20|practice|id:3e47cb132a84a4ed|content:d039b26d88aa75b9|Tıbbi Biyokimya",
+      "1!R38C4|2026-10-22|13:30-15:20|practice|id:a64b35f641fb9e9c|content:925810ee46d34a24|Temel Biyofizik",
+      "1!R38C5|2026-10-22|13:30-15:20|practice|id:70ebc74cfd1d15e6|content:aad3c8c66da018bf|Tıbbi Biyokimya",
+      "1!R39C4|2026-10-23|14:00-15:20|practice|id:35d065fb98b9db4d|content:ab0bdd6907001bf9|Temel Biyofizik",
+      "1!R40C4|2026-10-27|08:30-10:20|practice|id:a0e413765fad70d4|content:0b78f6d81d90b64a|Temel Biyofizik",
+      "1!R40C5|2026-10-27|08:30-10:20|practice|id:d1d7b507966cc90d|content:9f94d5a9f91333f2|Tıbbi Biyokimya",
+      "1!R41C5|2026-11-04|08:30-10:20|practice|id:b2c99ef69f0f9a78|content:8b0dcd9392f1522a|Tıbbi Biyokimya",
+      "1!R42C5|2026-11-06|08:30-10:20|practice|id:1992751a207acaa1|content:3e23dda411bbac8a|Tıbbi Biyokimya",
+      "1!R43C3|2026-11-09|13:30-15:20|practice|id:379ffa517a4c9324|content:9655a1197fc1a3fb|Tıbbi Biyoloji",
+      "1!R43C4|2026-11-09|13:30-15:20|practice|id:b7028659183d441e|content:abb4855bbddb9ece|Temel Biyofizik",
+      "1!R45C5|2026-11-10|13:30-15:20|practice|id:f6360e04ccf14be3|content:6f92f76eb456e89e|Tıbbi Biyokimya",
+      "1!R46C6|2026-11-13|08:30-10:20|practice|id:64fa4625827b9548|content:7c7c98e4b4a0f776|Fizyoloji",
+      "1!R47C5|2026-11-13|14:00-16:00|practice|id:3da3642c948e71b8|content:db644ef1643ac452|Tıbbi Biyokimya",
+      "1!R48C4|2026-11-16|08:30-10:20|practice|id:2b8f97b6d7b764e2|content:9ebebd9dfe8b9e6b|Temel Biyofizik",
+      "1!R48C5|2026-11-16|08:30-10:20|practice|id:9189e3c2b1102536|content:f4ff1df079f289f2|Tıbbi Biyokimya",
+      "1!R49C3|2026-11-16|10:30-12:20|practice|id:d6dfac9612e956ce|content:001590a8ff5f9a5a|Tıbbi Biyoloji",
+      "1!R50C6|2026-11-16|13:30-15:20|practice|id:8cf27f7662cc93d4|content:ccf8bb252c9d14c4|Fizyoloji",
+      "1!R80C5|2026-11-24|13:30-15:20|practice|id:0306421560c6add3|content:b44498830dbffecb|Tıbbi Biyokimya",
+      "1!R80C6|2026-11-24|13:30-15:20|practice|id:b898745525b93a1d|content:73b35a283e803ec1|Mikrobiyoloji",
+      "1!R83C3|2026-11-27|08:30-10:20|practice|id:4592b6e7c0694a1b|content:d5ea9ea62058690c|Tıbbi Biyoloji",
+      "1!R83C6|2026-11-27|08:30-10:20|practice|id:06e802ca1a05782e|content:486a8ac8ae32676a|Mikrobiyoloji",
+      "1!R84C5|2026-11-30|08:30-10:20|practice|id:2459d3138b664e1f|content:77b6476e6fe2ae63|Tıbbi Biyokimya",
+      "1!R88C3|2026-12-03|08:30-10:20|practice|id:8c2a71e537c10252|content:ca26f903eb3626bd|Tıbbi Biyoloji",
+      "1!R90C3|2026-12-04|08:30-10:20|practice|id:7707d93e180fabd1|content:3b456bc4439e84b1|Tıbbi Biyoloji",
+      "1!R91C3|2026-12-07|08:30-10:20|practice|id:d4286e3f58d3311f|content:53e98a898ab33a48|Tıbbi Biyoloji",
+      "1!R94C4|2026-12-09|08:30-10:20|practice|id:4b80666892955df0|content:a4ae646077a75576|Temel Biyofizik",
+      "1!R94C6|2026-12-09|08:30-10:20|practice|id:5c905c517a629656|content:82f158a855abfc94|Mikrobiyoloji",
+      "1!R95C4|2026-12-11|08:30-10:20|practice|id:ca1da6e670f03f15|content:818eefc359299789|Temel Biyofizik",
+      "1!R95C6|2026-12-11|08:30-10:20|practice|id:ed1e387d70ab0d2f|content:ffac3146da7c24f9|Mikrobiyoloji",
+      "1!R96C4|2026-12-14|10:30-12:20|practice|id:6d8418e460712220|content:b7f6117ab6e845b6|Temel Biyofizik",
+      "1!R96C6|2026-12-14|10:30-12:20|practice|id:5225d2d36206d45d|content:6f17dd1cc3549d0c|Mikrobiyoloji",
+      "1!R97C3|2026-12-14|13:30-15:20|practice|id:1f9567271b4ad1a0|content:ae574f870446910a|Tıbbi Biyoloji",
+      "1!R97C4|2026-12-14|13:30-15:20|practice|id:b900a819beb71cf6|content:477b1f43fa166211|Temel Biyofizik",
+      "1!R98C3|2026-12-15|08:30-10:20|practice|id:9b3bcfefe45c359b|content:b4949341e0694a66|Tıbbi Biyoloji",
+      "1!R99C3|2026-12-17|13:30-15:20|practice|id:234027722dd0803e|content:25deccbbc5f37575|Tıbbi Biyoloji",
+      "1!R99C6|2026-12-17|13:30-15:20|practice|id:4b5254c7662b7429|content:52e89662beb40a30|Mikrobiyoloji",
+      "1!R100C3|2026-12-18|08:30-10:20|practice|id:9246cdbf67c331aa|content:69b20228e356cd56|Tıbbi Biyoloji",
+      "1!R100C6|2026-12-18|08:30-10:20|practice|id:1a7ba7c85e0121ac|content:9c6a7d11bebbefba|Mikrobiyoloji",
+      "1!R101C3|2026-12-21|08:30-10:20|practice|id:7d4494d9d6c9e8f0|content:8a3fa04d216e953f|Tıbbi Biyoloji",
+      "1!R101C6|2026-12-21|08:30-10:20|practice|id:e4a228b2a1ed06f7|content:02e408116474a915|Mikrobiyoloji",
+      "1!R102C6|2026-12-21|13:30-15:20|practice|id:7c071ef1e47d0e1b|content:4f388ebb4b2fd031|Mikrobiyoloji",
+      "1!R103C6|2026-12-25|08:30-10:20|practice|id:daeb602edc4cf919|content:ea614d7fcb43ba3d|Mikrobiyoloji",
+      "1!R104C3|2026-12-28|10:30-12:20|practice|id:b57e78aff4b3a61b|content:50907cdc32f581de|Tıbbi Biyoloji",
+      "1!R104C6|2026-12-28|10:30-12:20|practice|id:da3b22e84f05f3a5|content:305858513db9b69a|Mikrobiyoloji",
+      "1!R105C6|2026-12-29|08:30-10:20|practice|id:73047a085dce9411|content:23bef4b29c1076d7|Mikrobiyoloji",
+      "1!R106C6|2027-01-04|10:30-12:20|practice|id:aef902eb63a1006b|content:40a844c5fbc2a14a|Mikrobiyoloji",
+      "1!R107C6|2027-01-04|08:30-10:20|practice|id:94972cbb3dc7b90f|content:e90a378b03279402|Mikrobiyoloji",
+      "1!R144C3|2027-02-18|13:30-15:20|practice|id:eb3b338787490620|content:bcdc4ee3824cb691|Tıbbi Biyoloji",
+      "1!R144C6|2027-02-18|13:30-15:20|practice|id:267930b642f08107|content:cd06dd0deb924381|Genel Histoloji Ve Embriyoloji",
+      "1!R145C3|2027-02-19|08:30-10:20|practice|id:189be3a23320ddfd|content:555c3c8b2ee0c804|Tıbbi Biyoloji",
+      "1!R145C6|2027-02-19|08:30-10:20|practice|id:a71e50b3a69e21ca|content:b3525bcd57800456|Genel Histoloji Ve Embriyoloji",
+      "1!R146C6|2027-02-22|10:30-12:20|practice|id:d3ff9342bde6106c|content:0dc37d588c235732|Genel Histoloji Ve Embriyoloji",
+      "1!R148C3|2027-02-25|13:30-15:20|practice|id:413a87afe33c25ce|content:55b377c3bc0fcd02|Tıbbi Biyoloji",
+      "1!R148C4|2027-02-25|13:30-15:20|practice|id:871967003e4f6b2f|content:a3f446977308f331|Biyofizik",
+      "1!R150C4|2027-02-26|14:00-15:50|practice|id:39a1a4abd1ca3a10|content:3b816ea3af029a3d|Biyofizik",
+      "1!R151C4|2027-03-04|08:30-10:20|practice|id:8ad58eb9ed02d153|content:e9d6a4d5a2e63c35|Biyofizik",
+      "1!R152C3|2027-03-05|08:30-10:20|practice|id:7974ef1229ddcc14|content:4001a867d25f7af1|Tıbbi Biyoloji",
+      "1!R152C6|2027-03-05|08:30-10:20|practice|id:84ab20cd6d656993|content:314e1b7ddf55648c|Genel Histoloji Ve Embriyoloji",
+      "1!R153C3|2027-03-15|08:30-10:20|practice|id:014bfedf3660584d|content:d386d2c693bff17d|Tıbbi Biyoloji",
+      "1!R153C6|2027-03-15|08:30-10:20|practice|id:da828c11cd7359f3|content:35c32a7a0e16e044|Genel Histoloji Ve Embriyoloji",
+      "1!R154C6|2027-03-16|13:30-15:20|practice|id:d358f7ebfd5ff249|content:674b1e3a80d0092c|Genel Histoloji Ve Embriyoloji",
+      "1!R155C3|2027-03-17|10:30-12:20|practice|id:674731bd1c20ee44|content:b5734fa4ff41c336|Tıbbi Biyoloji",
+      "1!R155C4|2027-03-17|10:30-12:20|practice|id:6fa68742ad5e7db5|content:a7601b0229ba2032|Biyofizik",
+      "1!R156C4|2027-03-24|08:30-10:20|practice|id:4fc5f70fb396527d|content:1586f2731412266a|Biyofizik",
+      "1!R158C4|2027-03-26|08:30-10:20|practice|id:0eb47e77efa2c19f|content:8c9439f1ba482a33|Biyofizik",
+      "1!R159C4|2027-03-29|10:30-12:20|practice|id:5a092f0ea0604972|content:c7d628047449b65f|Biyofizik",
+      "1!R160C3|2027-03-30|13:30-15:20|practice|id:61350172c8589bef|content:b39adcd984b70b44|Tıbbi Biyoloji",
+      "1!R160C4|2027-03-30|13:30-15:20|practice|id:f0ca31b4764e59f0|content:80721acff388cbb0|Biyofizik",
+      "1!R161C3|2027-03-31|08:30-10:20|practice|id:0b44013c2f08029c|content:690998ebbc5e01ab|Tıbbi Biyoloji",
+      "1!R161C4|2027-03-31|08:30-10:20|practice|id:55a2fa48562b009d|content:6d2cc3242332b744|Biyofizik",
+      "1!R162C4|2027-04-01|13:30-15:20|practice|id:dd3ab0117fb3ded4|content:53bf8599e7c1c411|Biyofizik",
+      "1!R171C5|2027-04-28|10:30-12:20|practice|id:a198ecff17c05be5|content:d89b86553e62b907|Fizyoloji",
+      "1!R211C4|2027-05-26|08:30-10:20|practice|id:48f2ba0223848817|content:607b129312e26dfa|Fizyoloji",
+      "1!R212C3|2027-05-31|08:30-10:20|practice|id:665837f1f150a22f|content:f70d12d72eef05fe|Genel Histoloji ve Embriyoloji",
+      "1!R213C3|2027-06-03|08:30-10:20|practice|id:8c3d956939baeede|content:a487a464ae73feb1|Genel Histoloji ve Embriyoloji"
+    ],
+    "confidenceIndicators": [],
+    "firstCandidate": {
+      "academicYear": "2026-2027",
+      "audience": {
+        "scope": "selectedGroups",
+        "selectors": [
+          {
+            "dimension": "practiceSubgroup",
+            "value": "İ1"
+          }
+        ]
+      },
+      "candidateId": "1!R28C3",
+      "classYear": 1,
+      "confidence": 1.0,
+      "contentHash": "sha256:e84ce329bb2c3bd8fc72a7753d40d5bffe8e35dc5d34c262ad5cfe4b9130e07c",
+      "curriculumBlock": "INTRODUCTION TO MEDICINE",
+      "departments": [],
+      "displayTitle": "Temel Yaşam Desteği Dr. Öğr. Üyesi Hacer Ayşen YAVRU",
+      "endLocalTime": "10:20:00",
+      "eventType": "practice",
+      "evidence": [
+        {
+          "extractionRule": "practice.subjectHeader",
+          "range": "C27",
+          "rawText": "Temel Yaşam Desteği\n Dr. Öğr. Üyesi Hacer Ayşen YAVRU",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        {
+          "extractionRule": "practice.dateCell",
+          "range": "A28",
+          "rawText": "46308",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        {
+          "extractionRule": "practice.timeRangeCell",
+          "range": "B28",
+          "rawText": "08:30-10:20",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        {
+          "extractionRule": "practice.groupCell",
+          "range": "C28",
+          "rawText": "İ1",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        }
+      ],
+      "identityComponents": [
+        {
+          "name": "academicYear",
+          "value": "2026-2027"
+        },
+        {
+          "name": "classYear",
+          "value": "1"
+        },
+        {
+          "name": "programLanguage",
+          "value": "english"
+        },
+        {
+          "name": "localDate",
+          "value": "2026-10-13"
+        },
+        {
+          "name": "startLocalTime",
+          "value": "08:30:00"
+        },
+        {
+          "name": "courseIdentity",
+          "value": "temel-yasam-destegi-dr-ogr-uyesi-hacer-aysen-yavru"
+        },
+        {
+          "name": "audience",
+          "value": "practiceSubgroup:İ1"
+        }
+      ],
+      "instructor": null,
+      "isAllDay": false,
+      "localDate": "2026-10-13",
+      "location": null,
+      "normalizedCourseIdentity": "temel-yasam-destegi-dr-ogr-uyesi-hacer-aysen-yavru",
+      "notes": null,
+      "programLanguage": "english",
+      "stableIdentity": "sha256:c770a1628373c374bd38c56247d511be53f1d7d13ea13c4e75589fac65776018",
+      "startLocalTime": "08:30:00",
+      "status": "scheduled",
+      "timeZoneId": "Europe/Istanbul"
+    },
+    "lastCandidate": {
+      "academicYear": "2026-2027",
+      "audience": {
+        "scope": "selectedGroups",
+        "selectors": [
+          {
+            "dimension": "practiceSubgroup",
+            "value": "İ2"
+          }
+        ]
+      },
+      "candidateId": "1!R213C3",
+      "classYear": 1,
+      "confidence": 1.0,
+      "contentHash": "sha256:a487a464ae73feb124df6a657a78b230f329c2e33484da531ee1bf2b05c01332",
+      "curriculumBlock": "MOVEMENT",
+      "departments": [],
+      "displayTitle": "Genel Histoloji ve Embriyoloji",
+      "endLocalTime": "10:20:00",
+      "eventType": "practice",
+      "evidence": [
+        {
+          "extractionRule": "practice.subjectHeader",
+          "range": "C210",
+          "rawText": "Genel Histoloji ve Embriyoloji",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        {
+          "extractionRule": "practice.dateCell",
+          "range": "A213",
+          "rawText": "46541",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        {
+          "extractionRule": "practice.timeRangeCell",
+          "range": "B213",
+          "rawText": "08:30-10:20",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        {
+          "extractionRule": "practice.groupCell",
+          "range": "C213",
+          "rawText": "İ2",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        }
+      ],
+      "identityComponents": [
+        {
+          "name": "academicYear",
+          "value": "2026-2027"
+        },
+        {
+          "name": "classYear",
+          "value": "1"
+        },
+        {
+          "name": "programLanguage",
+          "value": "english"
+        },
+        {
+          "name": "localDate",
+          "value": "2027-06-03"
+        },
+        {
+          "name": "startLocalTime",
+          "value": "08:30:00"
+        },
+        {
+          "name": "courseIdentity",
+          "value": "genel-histoloji-ve-embriyoloji"
+        },
+        {
+          "name": "audience",
+          "value": "practiceSubgroup:İ2"
+        }
+      ],
+      "instructor": null,
+      "isAllDay": false,
+      "localDate": "2027-06-03",
+      "location": null,
+      "normalizedCourseIdentity": "genel-histoloji-ve-embriyoloji",
+      "notes": null,
+      "programLanguage": "english",
+      "stableIdentity": "sha256:8c3d956939baeedeab0ddd7fbdc5c8cee6e90455299f0922a000b38100450698",
+      "startLocalTime": "08:30:00",
+      "status": "scheduled",
+      "timeZoneId": "Europe/Istanbul"
+    },
+    "metrics": [
+      {
+        "name": "audience.dimension.practiceSubgroup",
+        "unit": null,
+        "value": 86.0
+      },
+      {
+        "name": "blocks.detected",
+        "unit": null,
+        "value": 5.0
+      },
+      {
+        "name": "candidates.emitted",
+        "unit": null,
+        "value": 88.0
+      },
+      {
+        "name": "candidates.eventType.practice",
+        "unit": null,
+        "value": 88.0
+      },
+      {
+        "name": "cells.ignored",
+        "unit": null,
+        "value": 13.0
+      },
+      {
+        "name": "cells.ignored.unresolvedGroupExpression",
+        "unit": null,
+        "value": 13.0
+      },
+      {
+        "name": "cells.scanned",
+        "unit": null,
+        "value": 734.0
+      },
+      {
+        "name": "dates.rule.serialDate",
+        "unit": null,
+        "value": 86.0
+      },
+      {
+        "name": "rows.ignored",
+        "unit": null,
+        "value": 20.0
+      },
+      {
+        "name": "rows.ignored.blankRow",
+        "unit": null,
+        "value": 2.0
+      },
+      {
+        "name": "rows.ignored.missingDate",
+        "unit": null,
+        "value": 18.0
+      },
+      {
+        "name": "rows.scanned",
+        "unit": null,
+        "value": 106.0
+      },
+      {
+        "name": "subjects.ignored.outOfScope",
+        "unit": null,
+        "value": 2.0
+      },
+      {
+        "name": "worksheets.scanned",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "worksheets.selected",
+        "unit": null,
+        "value": 1.0
+      }
+    ],
+    "parserProfile": {
+      "name": "grade1_practice_v1",
+      "version": "1.1.0"
+    },
+    "responseDigest": "sha256:52809c542dbcad4ed8868a6f09c038d6cbb611e2c0e807818143ed14fb3b7831",
+    "snapshotId": "fixture:sha256:36df0ae4f3de4d09155f15905c26c13b428f0c310dabe96c56ba3facc9b9540b",
+    "sourceId": "G1-EN-PRACTICE",
+    "status": "completedWithWarnings",
+    "warnings": [
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "practice.groupCell",
+          "range": "C33",
+          "rawText": "telafi",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Cell 'telafi' does not state which groups attend (unrecognizedGroupToken), so no lesson was published for it.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "practice.groupCell",
+          "range": "D33",
+          "rawText": "telafi",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Cell 'telafi' does not state which groups attend (unrecognizedGroupToken), so no lesson was published for it.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "practice.groupCell",
+          "range": "E33",
+          "rawText": "telafi",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Cell 'telafi' does not state which groups attend (unrecognizedGroupToken), so no lesson was published for it.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "practice.groupCell",
+          "range": "F33",
+          "rawText": "telafi",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Cell 'telafi' does not state which groups attend (unrecognizedGroupToken), so no lesson was published for it.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "practice.row",
+          "range": "A34:F34",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Rows were ignored because of rule 'blankRow'. See metric 'rows.ignored.blankRow' for the total.",
+        "severity": "information"
+      },
+      {
+        "candidateId": null,
+        "code": "outOfScopeSubjectColumn",
+        "evidence": {
+          "extractionRule": "practice.subjectHeader",
+          "range": "G36",
+          "rawText": "PDÖ",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Subject 'PDÖ' is deliberately not synchronized, so its cells are counted as ignored rather than published.",
+        "severity": "information"
+      },
+      {
+        "candidateId": null,
+        "code": "outOfScopeSubjectColumn",
+        "evidence": {
+          "extractionRule": "practice.subjectHeader",
+          "range": "G141",
+          "rawText": "PDÖ",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Subject 'PDÖ' is deliberately not synchronized, so its cells are counted as ignored rather than published.",
+        "severity": "information"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "practice.groupCell",
+          "range": "E211:F211",
+          "rawText": "46437",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Cell '46437' does not state which groups attend (unrecognizedGroupToken), so no lesson was published for it.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "practice.groupCell",
+          "range": "E211:F211",
+          "rawText": "46437",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Cell '46437' does not state which groups attend (unrecognizedGroupToken), so no lesson was published for it.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "practice.groupCell",
+          "range": "G211",
+          "rawText": "14.00-16:50",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Cell '14.00-16:50' does not state which groups attend (unrecognizedGroupToken), so no lesson was published for it.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "practice.groupCell",
+          "range": "E212:F212",
+          "rawText": "46447",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Cell '46447' does not state which groups attend (unrecognizedGroupToken), so no lesson was published for it.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "practice.groupCell",
+          "range": "E212:F212",
+          "rawText": "46447",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Cell '46447' does not state which groups attend (unrecognizedGroupToken), so no lesson was published for it.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "practice.groupCell",
+          "range": "G212",
+          "rawText": "13:30-16:20",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Cell '13:30-16:20' does not state which groups attend (unrecognizedGroupToken), so no lesson was published for it.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "practice.groupCell",
+          "range": "E213:F213",
+          "rawText": "46451",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Cell '46451' does not state which groups attend (unrecognizedGroupToken), so no lesson was published for it.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "practice.groupCell",
+          "range": "E213:F213",
+          "rawText": "46451",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Cell '46451' does not state which groups attend (unrecognizedGroupToken), so no lesson was published for it.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "evidence": {
+          "extractionRule": "practice.groupCell",
+          "range": "G213",
+          "rawText": "14.00-16:50",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Cell '14.00-16:50' does not state which groups attend (unrecognizedGroupToken), so no lesson was published for it.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "practice.row",
+          "range": "A214:G214",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Row states no practice date, so its cells could not be scheduled.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "practice.row",
+          "range": "A215:G215",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Row states no practice date, so its cells could not be scheduled.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "practice.row",
+          "range": "A216:G216",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Row states no practice date, so its cells could not be scheduled.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "practice.row",
+          "range": "A217:G217",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Row states no practice date, so its cells could not be scheduled.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "practice.row",
+          "range": "A218:G218",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Row states no practice date, so its cells could not be scheduled.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "practice.row",
+          "range": "A219:G219",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Row states no practice date, so its cells could not be scheduled.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "practice.row",
+          "range": "A220:G220",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Row states no practice date, so its cells could not be scheduled.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "practice.row",
+          "range": "A221:G221",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Row states no practice date, so its cells could not be scheduled.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "practice.row",
+          "range": "A222:G222",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Row states no practice date, so its cells could not be scheduled.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "practice.row",
+          "range": "A223:G223",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Row states no practice date, so its cells could not be scheduled.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "practice.row",
+          "range": "A224:G224",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Row states no practice date, so its cells could not be scheduled.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "practice.row",
+          "range": "A225:G225",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Row states no practice date, so its cells could not be scheduled.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "practice.row",
+          "range": "A226:G226",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Row states no practice date, so its cells could not be scheduled.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "practice.row",
+          "range": "A227:G227",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Row states no practice date, so its cells could not be scheduled.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "practice.row",
+          "range": "A228:G228",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Row states no practice date, so its cells could not be scheduled.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "practice.row",
+          "range": "A229:G229",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Row states no practice date, so its cells could not be scheduled.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "practice.row",
+          "range": "A230:G230",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Row states no practice date, so its cells could not be scheduled.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "evidence": {
+          "extractionRule": "practice.row",
+          "range": "A231:G231",
+          "rawText": null,
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Row states no practice date, so its cells could not be scheduled.",
+        "severity": "warning"
+      }
+    ]
+  },
+  "subject": "parseResponse"
+}
