@@ -102,13 +102,22 @@ _PROFILES = (
     # is assigned to instead of seeing nothing. A date the anatomy source does
     # publish keeps deferring to it, so uploading the autumn list takes autumn out
     # of the fallback while spring stays in it until its own list arrives.
+    #
+    # 1.2.0 reads the term column the 2026-2027 English workbook leaves without a
+    # header. Its A1 is empty where every earlier capture of the same source wrote
+    # `Dönem`, while the column below it still states `Time Table 2` on every row,
+    # so the layout is unchanged and only the label is gone. Without this the
+    # header row is unrecognizable and the whole snapshot is rejected, which is
+    # what happened. The Turkish workbook of the same year still writes `Dönem`,
+    # and a labelled header is always preferred, so nothing changes there.
     ParserProfileDefinition(
         "grade2_yearly_v1",
-        "1.1.0",
+        "1.2.0",
         "annual",
         _UNDECLARED,
         group_rotation_subjects=("diseksiyon", "dissection"),
         group_rotation_fallback=True,
+        term_column_may_be_unlabelled=True,
     ),
     # The Grade 2 practice table is the transpose of the Grade 1 one: a column is
     # a dated slot and a row is a practice subject. Anatomy appears in it as a

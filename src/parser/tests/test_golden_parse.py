@@ -105,12 +105,14 @@ CASES = (
         _UNNARROWED,
         "parse/g2-tr-annual.json",
     ),
+    # Captured for 2026-2027, the year the English Grade 2 workbook rolled over
+    # to; its Turkish counterpart is still committed at 2025-2026.
     (
         "grade2_yearly_v1",
         "real/g2-en-annual.snapshot.json",
         2,
         "english",
-        _Y2025,
+        _Y2026,
         _ALONE,
         _UNNARROWED,
         "parse/g2-en-annual.json",

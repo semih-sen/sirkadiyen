@@ -65,14 +65,16 @@ DAY_FIRST_PROFILE = ParserProfileDefinition(
 
 #: The Grade 2 annual profile, which shares this implementation and differs only
 #: in declaring that its dissection rows are a group rotation (ADR-073) that it
-#: publishes itself for the dates no anatomy group list covers (ADR-126).
+#: publishes itself for the dates no anatomy group list covers (ADR-126), and
+#: that its English workbook may leave the term column unlabelled (ADR-128).
 GRADE_2_PROFILE = ParserProfileDefinition(
     "grade2_yearly_v1",
-    "1.1.0",
+    "1.2.0",
     "annual",
     NumericDateOrder.UNDECLARED,
     group_rotation_subjects=("diseksiyon", "dissection"),
     group_rotation_fallback=True,
+    term_column_may_be_unlabelled=True,
 )
 
 #: The Grade 3 annual profile, which shares this implementation and adds an
@@ -694,11 +696,59 @@ def test_evidence_cites_every_column_the_candidate_used() -> None:
 
 
 def test_the_registered_grade_2_profile_is_the_same_annual_implementation() -> None:
-    profile = get_profile("grade2_yearly_v1", "1.1.0")
+    profile = get_profile("grade2_yearly_v1", "1.2.0")
 
     assert profile is not None
     assert get_parser(profile.name, profile.version) is parse_annual_snapshot
-    assert ("grade2_yearly_v1", "1.1.0") in implemented_profiles()
+    assert ("grade2_yearly_v1", "1.2.0") in implemented_profiles()
+
+
+#: How the 2026-2027 English Grade 2 workbook writes its header row: the term
+#: column carries no label, while every row below it still states `Time Table 2`.
+UNLABELLED_ENGLISH_HEADERS = [
+    "",
+    "Start Date",
+    "Start Time",
+    "End Time",
+    "Subject",
+    "Description",
+    "Location",
+]
+
+
+def test_the_grade_2_english_workbook_is_read_without_a_term_header() -> None:
+    """Regression for the 2026-2027 English capture, which dropped its `Dönem`.
+
+    Only the label went: the column below it still says `Time Table 2` on every
+    row, so the layout the profile reads is unchanged. Before ADR-128 the header
+    row was unrecognizable and the whole snapshot was rejected.
+    """
+    rows = lesson_row(1, term="Time Table 2")
+
+    response = parse(
+        [worksheet(rows, headers=UNLABELLED_ENGLISH_HEADERS, title="CLASS 2")],
+        class_year=2,
+        profile=GRADE_2_PROFILE,
+    )
+
+    assert len(response.candidates) == 1
+    assert response.candidates[0].class_year == 2
+
+
+def test_a_labelled_grade_2_term_header_is_still_preferred() -> None:
+    """The Turkish workbook of the same year still writes `Dönem`.
+
+    The probe runs only when no column carries a term alias, so declaring it for
+    this profile changes nothing for the source that labels its column.
+    """
+    response = parse(
+        [worksheet(lesson_row(1, term="Dönem 2"), headers=TURKISH_HEADERS, title="DÖNEM 2")],
+        class_year=2,
+        profile=GRADE_2_PROFILE,
+    )
+
+    assert len(response.candidates) == 1
+    assert response.candidates[0].class_year == 2
 
 
 @pytest.mark.parametrize("term", ["Dönem 2", "Time Table 2"])

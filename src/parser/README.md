@@ -105,6 +105,29 @@ profiles share it too; the class year comes from the request context, so a row
 whose term cell names another year is excluded and counted rather than guessed
 at.
 
+### A term column a workbook forgot to label
+
+Selecting columns by alias needs the source to write the alias. The 2026-2027
+Grade 2 English workbook writes no header over its term column — `A1` is empty
+where the 2025-2026 capture wrote `Dönem` — while every row below it still
+states `Time Table 2`, so only the label went and the layout is unchanged. With
+no `term` alias anywhere in the header row the whole snapshot was rejected as
+`noParsableWorksheet`.
+
+A profile may therefore declare `term_column_may_be_unlabelled`, reported by
+`GET /v1/profiles`. `grade2_yearly_v1` and `grade3_yearly_v1` do. It is a
+fallback, never a preference: it is tried only when no column carries a term
+alias, so the Turkish workbook of the same year, which still writes `Dönem`,
+is read exactly as before and its candidates are unchanged. The probe reads
+only columns left of the date column, only the first value each states, and
+adopts a column only when exactly one of them reads as a class year — two
+would be a guess about which one addresses the students (ADR-128).
+
+Adopting a column is still a guess about layout, so what matters is how a wrong
+one fails: every row then states a class year the request context contradicts
+and is refused and counted, which surfaces as an empty result with a reason
+rather than as lessons addressed to the wrong cohort.
+
 ### A group rotation stated in the annual program is not a whole-class lesson
 
 An annual profile may declare `group_rotation_subjects`, reported by

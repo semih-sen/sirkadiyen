@@ -2982,3 +2982,41 @@ listesi gelene kadar üç saat olarak kalır — istenen davranış tam olarak b
 olağan semantik diff yapar; ayrı bir temizlik gerekmez. Dönem 2 anatomi kaynakları hâlâ
 2026-2027 belgelerini bekliyor; yedek onların yerine geçmez, yalnızca boşluğu doldurur.
 
+
+## G2-EN-ANNUAL başlıksız dönem sütunu (2026-08-29)
+
+Dönem 2 İngilizce yıllık program hiç parse edilemiyordu: `CLASS 2` sayfası için
+`worksheetWithoutHeaderRow`, snapshot için `noParsableWorksheet`. Sebep tek bir boş hücre —
+2026-2027 çalışma kitabı `A1`'i boş bırakmış; 2025-2026 çekiminde orada `Dönem` yazıyordu.
+Başka hiçbir şey değişmemiş: sütunun altındaki 1277 satırın hepsi hâlâ `Time Table 2` diyor,
+diğer altı başlık aynı, aynı yılın Türkçe kitabı hâlâ `Dönem` yazıyor. Etiket gitmiş, yerleşim
+durmuş.
+
+Düzeltme (ADR-128): `grade2_yearly_v1` artık `term_column_may_be_unlabelled` bildiriyor (1.2.0).
+
+- Alias listesini genişletmek yerine profil bildirimi seçildi: `time table 2` bir **veri**
+  değeri, başlık değil; onu alias yapmak veriyi başlık saymak olurdu.
+- Bildirim bir yedek, tercih değil. Sonda hiçbir sütun `term` alias'ı taşımıyorsa devreye
+  giriyor — bu yüzden `G2-TR-ANNUAL` aynen eskisi gibi okunuyor: yeniden üretilen altın
+  dosyası önceki sürümden yalnızca profil sürüm dizesinde ayrılıyor, aday/uyarı/sayaç birebir
+  aynı.
+- Sondanın mevcut sınırları değişmedi: yalnızca tarih sütununun solundaki sütunlar, yalnızca
+  her birinin başlık altında söylediği ilk değer, ve **tam olarak bir** sütun sınıf yılı
+  söylüyorsa benimseniyor. İki tanesi olsaydı hangisinin öğrenciyi adreslediği tahmin olurdu.
+- Yanlış benimsenen bir sütun sessizce değil gürültüyle patlıyor: her satır bağlamın
+  söylemediği bir sınıf yılı belirtir, satırlar reddedilip sayılır, sonuç gerekçeli boş bir
+  çıktı olur — yanlış kohorta gönderilmiş dersler değil.
+- Bildirim artık `GET /v1/profiles` üzerinde de görünüyor (grade3 zaten bildiriyordu ama
+  uçta yayımlanmıyordu).
+
+Fixture, hatayı doğuran belgenin kendisi olmak zorunda olduğu için `g2-en-annual` snapshot'ı
+2026-2027 kitabından yeniden üretildi; altın senaryosu `_Y2026`'ya geçti. Sonuç: 1277 satırdan
+1106 aday, `completedWithWarnings`. Bunların 159'u ADR-126 diseksiyon yedeği (53 gün) — altın
+koşusu `groupRotationCoveredDates` göndermiyor, yani kapsanmamış hâli sınıyor.
+
+### Açık risk
+
+`G2-TR-ANNUAL` katalogda 2026-2027 elektronik tablosuna ve akademik yılına bakıyor, ama
+depodaki çalışma kitabı ve snapshot fixture'ı hâlâ 2025-2026. Parse ediyor, yani bugün kırık
+bir şey yok; fakat fixture artık poller'ın okuduğu belgeyi tarif etmiyor. Ayrı bir iş: kendi
+altın gözden geçirmesini gerektiriyor.

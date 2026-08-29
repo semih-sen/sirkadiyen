@@ -71,6 +71,20 @@ def test_a_profile_advertises_whether_it_publishes_an_uncovered_rotation_itself(
     assert declared["grade3_yearly_v1"] is False
 
 
+def test_a_profile_advertises_whether_it_reads_an_unlabelled_term_column() -> None:
+    # A source that stopped labelling its term column is read only where the
+    # profile declares it, and rejected everywhere else (ADR-128), so which
+    # profiles declare it is part of how a source is read.
+    response = client.get("/v1/profiles")
+
+    declared = {
+        profile["name"]: profile["term_column_may_be_unlabelled"] for profile in response.json()
+    }
+    assert declared["grade2_yearly_v1"] is True
+    assert declared["grade3_yearly_v1"] is True
+    assert declared["grade1_yearly_v1"] is False
+
+
 def test_the_annual_profile_is_advertised_as_implemented() -> None:
     response = client.get("/v1/profiles")
 

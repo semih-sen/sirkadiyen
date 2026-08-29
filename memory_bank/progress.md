@@ -1160,3 +1160,25 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
   üzerindeki yolu için ayrı bir altın dosya eklenmedi; birim testleri sentetik satırlarla
   kapsıyor.
 
+
+## G2-EN-ANNUAL yeniden parse ediliyor (2026-08-29)
+
+- **Root cause:** 2026-2027 İngilizce Dönem 2 kitabı dönem sütununun başlığını (`A1`) boş
+  bırakmış. Yıllık okuyucu zorunlu rolleri başlık alias'ıyla eşlediği için başlık satırı
+  tanınamadı ve snapshot tümüyle reddedildi (`worksheetWithoutHeaderRow` →
+  `noParsableWorksheet`). Sütunun altı hâlâ `Time Table 2` diyor; yerleşim değişmemiş.
+  Ayrıntı: ADR-128.
+- **Changed:** `grade2_yearly_v1` 1.2.0 ve `term_column_may_be_unlabelled` bildirimi;
+  `GET /v1/profiles` bu bildirimi de yayımlıyor; `config/schedule-sources.json` içinde iki
+  Dönem 2 yıllık kaynağın sabitlenmiş `parserProfileVersion` değeri; `g2-en-annual` snapshot
+  fixture'ı ve altın dosyası 2026-2027 kitabından yeniden üretildi (altın senaryosu `_Y2026`);
+  `sheets/donem-2-ing/xlsx/2026-2027 ...xlsx` depoya eklendi; parser README, fixture README ve
+  `sheets/source-manifest.md` güncellendi.
+- **Tests executed:** parser 512 test geçti (yeni: başlıksız İngilizce başlık satırı regresyonu,
+  etiketli başlığın hâlâ tercih edildiği, `/v1/profiles` alanı) + ruff check + mypy temiz.
+  `dotnet build` 0 uyarı 0 hata; `dotnet test`: Api 8, Contracts 6, Infrastructure 736,
+  Persistence 40 geçti / 236 atlandı (Docker kapalı, PostgreSQL yok — CI'da koşacak).
+- **Not done / not verified:** `ruff format --check` `sirkadiyen_parser/parsers/bedside.py`
+  için tek bir biçim farkı bildiriyor; bu dosyaya dokunulmadı, fark bu değişiklikten önce de
+  vardı. `G2-TR-ANNUAL` katalogda 2026-2027'ye bakıyor ama fixture'ı hâlâ 2025-2026 —
+  yeniden üretilmedi, ayrı bir altın gözden geçirmesi gerekiyor.

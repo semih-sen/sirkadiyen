@@ -24,6 +24,7 @@ class ProfileResponse(BaseModel):
     annual_markers: tuple[str, ...]
     group_rotation_subjects: tuple[str, ...]
     group_rotation_fallback: bool
+    term_column_may_be_unlabelled: bool
     implemented: bool
 
 
@@ -47,6 +48,7 @@ def profiles() -> list[ProfileResponse]:
             annual_markers=profile.annual_markers,
             group_rotation_subjects=profile.group_rotation_subjects,
             group_rotation_fallback=profile.group_rotation_fallback,
+            term_column_may_be_unlabelled=profile.term_column_may_be_unlabelled,
             implemented=get_parser(profile.name, profile.version) is not None,
         )
         for profile in list_profiles()

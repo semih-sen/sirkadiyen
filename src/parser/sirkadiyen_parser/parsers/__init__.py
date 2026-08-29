@@ -29,7 +29,7 @@ _IMPLEMENTATIONS: dict[tuple[str, str], ParserImplementation] = {
     # The Grade 2 annual workbooks are the same row-oriented layout as Grade 1 in
     # both languages, so they share the implementation and differ only in what the
     # profile definition declares (ADR-073).
-    ("grade2_yearly_v1", "1.1.0"): parse_annual_snapshot,
+    ("grade2_yearly_v1", "1.2.0"): parse_annual_snapshot,
     # The Grade 2 practice table is a different rotation layout, not a variant of
     # the Grade 1 one, so it has its own implementation (ADR-074). Only the
     # Turkish source is registered: the committed English fixture is from the

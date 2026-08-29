@@ -1419,9 +1419,9 @@
     ],
     "parserProfile": {
       "name": "grade2_yearly_v1",
-      "version": "1.1.0"
+      "version": "1.2.0"
     },
-    "responseDigest": "sha256:937474fd08878ac05d8a113a3fc738a4e6635226108cd456ab915042c5c6f74d",
+    "responseDigest": "sha256:cc36116a4b53931422826020a486447fa3dcc87a1d130ed175f845ded3d47007",
     "snapshotId": "fixture:sha256:60a6473458e27fadc05255c0a62ed10ae8afee91928008a35f25c6017acafb73",
     "sourceId": "G2-TR-ANNUAL",
     "status": "completedWithWarnings",

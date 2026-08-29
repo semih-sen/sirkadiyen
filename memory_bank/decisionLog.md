@@ -7549,3 +7549,75 @@ Add four operator capabilities:
 - Discard is auditable (who/why) but does not itself touch calendars; only a later revision does.
 - One EF migration adds the discard columns, the `source_poll_requests` table, and the heartbeat
   `NextSourcePollAtUtc` column.
+
+## ADR-128: A term column a workbook forgot to label is adopted rather than rejecting the snapshot
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-29
+**Implements:** `term_column_may_be_unlabelled` on `grade2_yearly_v1`, bumped to 1.2.0; the
+regenerated `g2-en-annual` snapshot fixture and golden (2026-2027 capture); pinned
+`parserProfileVersion` for both Grade 2 annual sources in `config/schedule-sources.json`
+**Extends:** ADR-017 (the annual reader selects columns by header alias, and the class year comes
+from request context rather than from the workbook)
+**Relates to:** ADR-073, ADR-126 (the dissection rotation and its fallback), ADR-115 (the 2026-2027
+rollover)
+
+### Context
+
+`G2-EN-ANNUAL` stopped parsing entirely at the 2026-2027 rollover. The parse reported
+`worksheetWithoutHeaderRow` for `CLASS 2` and then `noParsableWorksheet` for the snapshot, so the
+source published nothing at all.
+
+The cause is one empty cell. `parsers/annual.py` finds its header row by matching every required role
+against a header alias, and the 2026-2027 English workbook writes nothing in `A1`, where the
+2025-2026 capture of the same source wrote `Dönem`. Nothing else moved: the column below `A1` still
+states `Time Table 2` on all 1277 rows, the other six headers are unchanged (`Start Date`,
+`Start Time`, `End Time`, `Subject`, `Description`, `Location`), and the Turkish workbook of the same
+year still writes `Dönem`. A label was dropped; a layout was not.
+
+Rejecting the snapshot was the correct behaviour for the rule as written — an unrecognizable header
+row must never be guessed at — but the rule had a declared exception already. `grade3_yearly_v1`
+carries `term_column_may_be_unlabelled` because the Grade 3 workbooks have never labelled that
+column, and the probe behind it is deliberately narrow.
+
+### Decision
+
+**Declare `term_column_may_be_unlabelled` on `grade2_yearly_v1` (1.2.0) rather than widening the
+alias list or relaxing header detection.**
+
+- The declaration stays per profile. Adding `time table 2` to the term aliases would be admitting a
+  *data* value as a header, and relaxing detection globally would let any source with a stray column
+  be read as a timetable.
+- It is a fallback, not a preference. The probe runs only when no column in the candidate header row
+  carries a term alias, so `G2-TR-ANNUAL` is read exactly as before: its regenerated golden differs
+  from the previous one in the profile version string and nothing else — same candidates, same
+  warnings, same metrics.
+- The probe's existing bounds are what make this safe and are unchanged: only columns left of the
+  date column are considered, only the first value each states below the header is read, and a column
+  is adopted only when **exactly one** qualifies. Two would mean the layout states the term twice, or
+  that something else reads as a class year, and choosing between them would be a guess about which
+  students a row addresses.
+- A wrongly adopted column fails loudly rather than quietly. Every row then states a class year the
+  request context contradicts, so the rows are refused and counted under `unresolvedTerm` /
+  `otherClassYear` and the result is empty with a reason, not a set of lessons sent to the wrong
+  cohort.
+
+The `g2-en-annual` fixture is regenerated from the 2026-2027 workbook, because a regression fixture
+for this bug has to be the document that caused it. Its golden case moves to `_Y2026`; the Turkish
+Grade 2 fixture is still the 2025-2026 capture and stays at `_Y2025`.
+
+### Consequences
+
+- `G2-EN-ANNUAL` parses again: 1106 candidates from 1277 scanned rows, `completedWithWarnings`.
+- 159 of those candidates are the ADR-126 dissection fallback over 53 days — the golden run passes no
+  `groupRotationCoveredDates`, so it exercises the uncovered state. In production the poller supplies
+  whatever the anatomy lists cover.
+- Both Grade 2 annual sources reparse on the next poll, since the pinned profile version changed.
+- The 2025-2026 English workbook's quirks are no longer covered by a fixture. The workbook is still
+  committed under `sheets/donem-2-ing/xlsx/`, and the behaviours it exercised — the bare `9` in an
+  `hh:mm` cell, empty term cells on `lunch break` rows — remain covered by the synthetic cases in
+  `tests/test_parsers_annual.py`.
+- **Open:** `G2-TR-ANNUAL` is catalogued at the 2026-2027 spreadsheet and academic year, but its
+  committed workbook and snapshot fixture are still the 2025-2026 ones. It parses, so nothing is
+  broken today, but the fixture no longer describes the document the poller reads. Regenerating it is
+  a separate change with its own golden review.
