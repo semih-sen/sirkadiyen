@@ -294,6 +294,83 @@ public sealed class ScheduleSourceCatalogEditingServiceTests
         Assert.Equal(original, file.Content.Text);
     }
 
+    [Fact]
+    public async Task ADeploymentInstallsTheDocumentItShippedAndRecordsWhichReleaseDidAsync()
+    {
+        // A catalog change that was committed, reviewed and merged used to reach a server only if
+        // someone re-typed it into the panel (ADR-138). It goes through the same validation, the
+        // same source upsert and the same history as an edit, but with no operator and no plan
+        // hash: there is nobody who was shown a plan.
+        FakeCatalogFile file = new(Catalog(Source()));
+        ScheduleSourceCatalogEditingService service = Service(
+            file,
+            out FakeRevisionStore revisions);
+        string shipped = Catalog(Source(displayName: "Yeni ad"));
+
+        ScheduleSourceCatalogDeploymentResult result = await service.ApplyFromDeploymentAsync(
+            shipped,
+            "abc123",
+            correlationId: null,
+            CancellationToken.None);
+
+        Assert.True(result.Applied);
+        Assert.Equal(ScheduleSourceCatalogPlanner.Normalize(shipped), file.Content.Text);
+
+        ScheduleSourceCatalogCommit commit = Assert.Single(revisions.Commits);
+        Assert.Equal(ScheduleSourceCatalogRevisionKind.Deployment, commit.Revision.Kind);
+
+        // No operator is named, because none acted; the release is, because that is the answer to
+        // "what changed this".
+        Assert.Null(commit.Revision.ActorUserId);
+        Assert.Null(commit.Revision.ActorEmail);
+        Assert.Equal("abc123", commit.Revision.Reason);
+
+        // And the document it replaced is retained, which is what makes an overwritten panel edit
+        // restorable rather than lost.
+        Assert.NotNull(commit.Baseline);
+        Assert.Equal(Catalog(Source()), commit.Baseline.Content);
+    }
+
+    [Fact]
+    public async Task ADeploymentThatShipsTheRunningDocumentWritesNothingAsync()
+    {
+        // The ordinary case, on every deployment. A history entry per deploy would bury the
+        // operator edits the history exists to show.
+        string identical = ScheduleSourceCatalogPlanner.Normalize(Catalog(Source()));
+        FakeCatalogFile file = new(identical);
+        ScheduleSourceCatalogEditingService service = Service(
+            file,
+            out FakeRevisionStore revisions);
+
+        ScheduleSourceCatalogDeploymentResult result = await service.ApplyFromDeploymentAsync(
+            identical,
+            "abc123",
+            correlationId: null,
+            CancellationToken.None);
+
+        Assert.False(result.Applied);
+        Assert.Empty(revisions.Commits);
+    }
+
+    [Fact]
+    public async Task ADeploymentRefusesADocumentTheWorkerCouldNotLoadAsync()
+    {
+        // The running catalog is left alone rather than replaced by one the worker would refuse to
+        // start on. A bad deployment must not take the pipeline down with it.
+        string original = Catalog(Source());
+        FakeCatalogFile file = new(original);
+        ScheduleSourceCatalogEditingService service = Service(file, out _);
+
+        await Assert.ThrowsAsync<ScheduleSourceCatalogValidationException>(
+            () => service.ApplyFromDeploymentAsync(
+                Catalog(Source(classYear: 9)),
+                "abc123",
+                correlationId: null,
+                CancellationToken.None));
+
+        Assert.Equal(original, file.Content.Text);
+    }
+
     private static ScheduleSourceCatalogApplyCommand Command(
         string content,
         ScheduleSourceCatalogPlan plan) => new()

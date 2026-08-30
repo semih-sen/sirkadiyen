@@ -149,6 +149,29 @@ public sealed record ScheduleSourceCatalogApplyResult
     public required ScheduleSourceCatalogPlan Plan { get; init; }
 }
 
+/// <summary>
+/// What a deployment did to the catalog (ADR-138).
+/// </summary>
+/// <remarks>
+/// <see cref="Applied"/> is false for the ordinary case: the shipped document is already the
+/// document on the server, so nothing was written and no revision was cut. A history entry per
+/// deployment would bury the operator edits the history exists to show.
+/// </remarks>
+public sealed record ScheduleSourceCatalogDeploymentResult
+{
+    public required bool Applied { get; init; }
+
+    public Guid? RevisionId { get; init; }
+
+    public required string ContentHash { get; init; }
+
+    public DateTimeOffset? AppliedAtUtc { get; init; }
+
+    public IReadOnlyList<string> PollingDisabledSourceIds { get; init; } = [];
+
+    public required ScheduleSourceCatalogPlan Plan { get; init; }
+}
+
 /// <summary>One stored catalog revision, without its content.</summary>
 public sealed record ScheduleSourceCatalogRevisionSummary
 {

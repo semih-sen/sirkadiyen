@@ -17,9 +17,9 @@ public sealed class ScheduleSourceCatalogTests
 
         Assert.Equal("1.0", catalog.CatalogVersion);
         Assert.Equal(23, catalog.Sources.Count);
-        Assert.Equal(5, catalog.Sources.Count(
+        Assert.Equal(8, catalog.Sources.Count(
             source => source.Transport == ScheduleSourceTransport.GoogleSheets));
-        Assert.Equal(14, catalog.Sources.Count(
+        Assert.Equal(11, catalog.Sources.Count(
             source => source.Transport == ScheduleSourceTransport.GoogleDriveFile));
 
         // No source uses the HTTP transport any more. `SHARED-AMPHI` was the only
@@ -45,6 +45,35 @@ public sealed class ScheduleSourceCatalogTests
         Assert.Null(annual.SheetGid);
         Assert.Equal("grade1_yearly_v1", annual.ParserProfile);
         Assert.Equal("2026-2027", annual.AcademicYear);
+
+        // The three Grade 3 annual workbooks moved the other way from Grade 1: the
+        // faculty trashed the XLSX files and republished each as a Google Sheets
+        // workbook, so the transport moved with the documents and a gid came back
+        // (ADR-137). The old files failed every poll for four days with
+        // `DriveDocumentFailure.Trashed`, which is what made the move visible.
+        foreach (string sourceId in new[] { "G3-TR-A-ANNUAL", "G3-TR-B-ANNUAL", "G3-EN-ANNUAL" })
+        {
+            ScheduleSourceDefinition grade3 = Assert.Single(
+                catalog.Sources,
+                source => source.SourceId == sourceId);
+            Assert.Equal(ScheduleSourceTransport.GoogleSheets, grade3.Transport);
+            Assert.Equal(ScheduleDocumentFormat.GoogleSheet, grade3.DocumentFormat);
+            Assert.NotNull(grade3.SheetGid);
+            Assert.Equal("grade3_yearly_v1", grade3.ParserProfile);
+        }
+
+        // Each of the three reads its own workbook. Handing one cohort's document to
+        // another source is the mistake this catalog can make that nothing downstream
+        // would report: the parse would succeed and half the class would receive the
+        // other half's schedule.
+        Assert.Equal(
+            3,
+            catalog.Sources
+                .Where(source => source.SourceId.StartsWith("G3-", StringComparison.Ordinal)
+                    && source.SourceId.EndsWith("-ANNUAL", StringComparison.Ordinal))
+                .Select(source => source.ExternalId)
+                .Distinct(StringComparer.Ordinal)
+                .Count());
 
         // The weekly amphitheatre program is a companion of every annual source and
         // publishes nothing itself, so its own class year and language are nominal
@@ -120,13 +149,11 @@ public sealed class ScheduleSourceCatalogTests
         Assert.Equal("g2-anatomy-autumn", anatomyEnglish.SharedDocumentGroup);
         Assert.Equal(anatomy.FixturePath, anatomyEnglish.FixturePath);
 
-        // The Grade 3 programs are workbooks on the Drive transport, and the class
-        // is split into two curriculum groups that do not share a document.
+        // The Grade 3 class is split into two curriculum groups that do not share a
+        // document. The transport is asserted where the move is explained, above.
         ScheduleSourceDefinition grade3TurkishAnnual = Assert.Single(
             catalog.Sources,
             source => source.SourceId == "G3-TR-A-ANNUAL");
-        Assert.Equal(ScheduleSourceTransport.GoogleDriveFile, grade3TurkishAnnual.Transport);
-        Assert.Equal(ScheduleDocumentFormat.Xlsx, grade3TurkishAnnual.DocumentFormat);
         Assert.Equal("grade3_yearly_v1", grade3TurkishAnnual.ParserProfile);
         Assert.Equal("2026-2027", grade3TurkishAnnual.AcademicYear);
         Assert.Equal(3, grade3TurkishAnnual.ClassYear);

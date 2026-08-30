@@ -301,6 +301,13 @@ public sealed class AdministrativeDocumentUploadServiceTests
             IReadOnlyCollection<ScheduleSource> incoming,
             CancellationToken cancellationToken) => Task.FromResult(0);
 
+        // An administrative upload never polls, so nothing here records a poll failure.
+        public Task RecordPollFailureAsync(
+            SourceId sourceId,
+            DateTimeOffset failedAtUtc,
+            string reason,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+
         private static ScheduleSource Upload(
             string sourceId,
             ProgramLanguage language,

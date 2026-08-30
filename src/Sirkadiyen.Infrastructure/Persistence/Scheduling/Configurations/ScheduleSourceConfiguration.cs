@@ -32,6 +32,10 @@ internal sealed class ScheduleSourceConfiguration : IEntityTypeConfiguration<Sch
 
         // A Drive folder ID, same shape and bound as a file ID (ADR-133).
         builder.Property(source => source.DiscoveryFolderId).HasMaxLength(200);
+        // The last acquisition failure, kept on the row so the panel can show it (ADR-137). Bounded
+        // rather than free text: it holds one acquirer's sentence, not a stack trace.
+        builder.Property(source => source.LastPollFailureReason)
+            .HasMaxLength(ScheduleSource.MaximumPollFailureReasonLength);
         builder.Property(source => source.ParserProfile).HasMaxLength(100).IsRequired();
         builder.Property(source => source.ParserProfileVersion).HasMaxLength(20).IsRequired();
         builder.Property(source => source.AcademicYear).HasMaxLength(20).IsRequired();

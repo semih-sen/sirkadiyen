@@ -8319,3 +8319,153 @@ its own case needs without the screen having to know it.
   workbook changes — about one row a week. It is now self-explanatory rather than mysterious, and
   arguably it is a record worth having, but suppressing it would need the catalog to state that a
   source publishes nothing, which is a larger change than this one.
+
+## ADR-136: A field the catalog owns must be proven to reach a running database
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-30
+**Relates to:** ADR-112 (the companion identifiers, the first occurrence), ADR-114 (the catalog is
+edited at runtime), ADR-133 (the discovery folder, the second occurrence)
+
+### Context
+
+Production was inspected after the amphitheatre rooms failed to appear. `SHARED-AMPHI`'s row held a
+null `DiscoveryFolderId` while the catalog document on the same server declared one.
+
+The cause is a field list. `ScheduleSourceUpsert.ConfigurationOf` names the fields the catalog owns
+and copies onto an existing row; everything absent from it belongs to the row. `DiscoveryFolderId`
+was never added, so a **new** row received it — the whole entity is inserted — and an **existing**
+row never did.
+
+This is the quietest failure this codebase produces. Nothing throws. The source keeps polling, the
+parse succeeds, the schedule publishes in full, and only the behaviour the new field was added for
+never happens. Here it meant every poll silently acquired the catalogued workbook instead of
+resolving the folder — and the fallback warning ADR-133 added for exactly this could not fire,
+because the source appeared to declare no folder at all. Today the folder holds that same workbook,
+so nothing was visibly wrong; the first week the faculty publishes a new file, the rooms would
+simply have stopped being current.
+
+It is the second occurrence. The comment directly above the omission describes the first, in almost
+these words, for the companion identifiers.
+
+### Decision
+
+The field list stays explicit — reflection would default "is this the catalog's or the row's?" to
+the wrong answer, and copying `LastPolledAtUtc` or `IsPollingEnabled` onto a row would reset what
+the worker observed or re-enable a source an operator had stopped.
+
+**What changes is that the list is now checked against the entity.** Every public property of
+`ScheduleSource` must appear either in the copied list or in a `RowOwned` table that states, per
+field, why the row owns it. Adding a property therefore forces the decision instead of defaulting
+it to "insert-only".
+
+The check runs without a database. The persistence tests that cover the upsert — including the
+ADR-112 regression test written after the first occurrence — are skipped unless a PostgreSQL
+connection string is configured, which CI does not set. That is why the first regression test did
+not prevent the second regression: it has never run in CI. `Sirkadiyen.Infrastructure` now exposes
+its internals to the unit test assembly, as the worker already did, so `ConfigurationOf` can be
+asserted directly.
+
+### Consequences
+
+- The omission is fixed, and the guard was verified by removing the line again and watching the
+  guard fail.
+- A deployment does not repair the existing row on its own the moment the code lands: the worker
+  upserts from the catalog at startup, so the value arrives at the next worker start (or the next
+  panel apply of the catalog).
+- **The wider lesson is about where the tests run.** Two classes of defect in this area — an
+  untranslatable query (ADR-135) and an unsynchronized field — were both covered by tests that
+  exist and never execute. Where a rule can be checked without a database, it now is.
+
+## ADR-137: A source that cannot be acquired says so on the screen an operator reads
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-30
+**Relates to:** ADR-083 (the Drive transport and its failure taxonomy), ADR-127 (the source status
+view and the manual poll), ADR-133 (the discovery fallback warning)
+
+### Context
+
+Three Grade 3 annual workbooks were moved to the Drive trash. The acquirer refused them — correctly,
+and with a message that names the file and says what to do about it — every cycle for four days. The
+pipeline behaved exactly as designed, and nobody knew: the first sign was a student's calendar
+missing its amphitheatre rooms, four days later.
+
+The reason the screen could not show it is structural. Acquisition happens *before* parsing, so a
+failed acquisition produces no snapshot, no parse run and no revision. Every column on the source
+status view is derived from one of those three, and each was showing the state the source reached
+before it started failing. The only thing that changed was `LastPolledAtUtc`, which stopped
+advancing — a value whose absence of change is invisible on a screen full of dates.
+
+### Decision
+
+**The failure is recorded on the source row**: when it happened, and the acquirer's own message.
+A successful poll clears both; the last successful poll time is deliberately kept, because "last
+read four days ago, failing since" needs both facts to be sayable.
+
+**It is written from the catch block that already logs it**, in the worker, and its own failure is
+swallowed and logged rather than allowed to stop the cycle. A report about a failure must not become
+a second failure.
+
+**The screen leads with it.** A banner names every failing source before the table is read at all,
+the row says *how long* it has been failing — "4 gündür alınamıyor", because a duration is
+actionable where a timestamp is not — and the detail drawer carries the acquirer's sentence together
+with the fact that everything below it describes the last successful read.
+
+### Consequences
+
+- Two nullable columns on `schedule_sources`. Additive.
+- The message is bounded at 1000 characters: it holds one acquirer's sentence, not a stack trace.
+- The failure is per source and per attempt, not a history. What happened repeatedly over four days
+  is one fact — "still failing, since then" — and the journal holds the rest.
+- This does not alert anyone. It makes the state visible to someone who looks. Alerting is a
+  separate decision that needs a channel and an on-call expectation.
+
+## ADR-138: A deployment installs the catalog it shipped, as a revision
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-30
+**Relates to:** ADR-114 (the catalog became editable from the panel, and a deployment was made
+*unable* to overwrite it), ADR-134 (the same six-step pattern for rosters), ADR-137
+
+### Context
+
+ADR-114 gave the schedule source catalog to the admin panel and, to protect an operator's edit from
+being silently reverted, made the deployed artifact's copy a *seed*: installed only when the server
+had no catalog at all.
+
+The cost of that showed up here. Three sources were corrected in the repository — reviewed, merged,
+green — and the running server kept polling the trashed documents, because nothing installs a
+catalog onto a server that already has one. The fix required someone to re-type the change into the
+panel. Meanwhile the deployed code and the running configuration disagreed and no screen said so.
+
+### Decision
+
+**A deployment is an ordinary writer of the catalog.** The worker installs the catalog its own
+release shipped at startup, through `ScheduleSourceCatalogEditingService` — the same loader
+validates it, the same atomic write replaces the file, the same transaction upserts the source rows,
+and the same history records it.
+
+**It is recorded as its own revision kind, `Deployment`, not as an `Edit`.** There is no operator to
+name, no reason they typed and no plan they were shown; recording it as an edit would put a person's
+name on a change a pipeline made, and the history is read precisely to answer "who did this". The
+release SHA is carried as the reason, so the row says which deployment installed it. The release
+travels in a file inside the artifact, because the unit file that would otherwise carry it is
+installed by hand on the server.
+
+**A deployment that ships the running document writes nothing** — the normal case, on every deploy.
+A history entry per deployment would bury the operator edits the history exists to show.
+
+**A shipped catalog that does not validate is refused and the running one is left alone.** A bad
+deployment must not take the pipeline down with it, and a failure to install is logged rather than
+allowed to stop startup: the worker's job is to poll the catalog it has.
+
+### Consequences
+
+- **This reverses ADR-114's protection, deliberately.** A panel edit that is never committed to the
+  repository is replaced at the next deployment. It is not lost — the `Deployment` revision carries
+  the document it replaced, in full, and the panel can load it back — but the model is now: the
+  repository is the source of truth, and the panel is how to change the catalog *quickly*, not
+  permanently. The catalog editor's history tab says this in as many words.
+- The worker gained the editing service and the catalog file port, which it did not have before.
+- No schema change: the revision kind is a string column.

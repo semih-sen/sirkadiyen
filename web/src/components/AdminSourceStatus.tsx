@@ -9,6 +9,7 @@ import {
   requestSourcePoll,
 } from '@/lib/api';
 import { DetailDrawer, LoadState, Tabs, formatDateTime, statusBadge } from '@/components/AdminData';
+import { Banner } from '@/components/ui';
 import { SourceDocumentUpload } from '@/components/SourceDocumentUpload';
 import { SourceCatalogEditor } from '@/components/SourceCatalogEditor';
 import type {
@@ -43,6 +44,9 @@ export function AdminSourceWorkspace() {
 
 function SourceStatus() {
   const [items, setItems] = useState<SourceStatusListItem[] | null>(null);
+  // Lifted to the top of the screen because a failing acquisition is invisible in every other
+  // column: those describe the last state the source reached before it started failing (ADR-137).
+  const failing = (items ?? []).filter((item) => item.lastPollFailureAtUtc);
   const [detail, setDetail] = useState<SourceStatusDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -76,6 +80,14 @@ function SourceStatus() {
         empty={items?.length === 0}
         onRetry={() => void load()}
       />
+      {failing.length > 0 && (
+        <Banner tone="danger">
+          <strong>{failing.length} kaynağın belgesi alınamıyor.</strong>{' '}
+          {failing.map((item) => item.sourceId).join(', ')} — bu kaynaklar yeni bir program
+          yayımlamıyor; öğrencilerin takviminde son başarılı okumadaki hâli duruyor. Satıra
+          tıklayıp sebebi okuyun.
+        </Banner>
+      )}
       {items && items.length > 0 && (
         <div className="table-wrap">
           <table className="data-table data-table--stack">
@@ -85,7 +97,17 @@ function SourceStatus() {
                 <tr key={item.sourceId} onClick={() => void open(item.sourceId)} style={{ cursor: 'pointer' }}>
                   <td><strong>{item.displayName}</strong><small className="mono muted" style={{ display: 'block' }}>{item.sourceId}</small></td>
                   <td>Dönem {item.classYear} · {item.programLanguage}</td>
-                  <td>{formatDateTime(item.lastPolledAtUtc)}{!item.isPollingEnabled && <small className="muted" style={{ display: 'block' }}>Polling kapalı</small>}</td>
+                  <td>
+                    {formatDateTime(item.lastPolledAtUtc)}
+                    {!item.isPollingEnabled && <small className="muted" style={{ display: 'block' }}>Polling kapalı</small>}
+                    {/* A failing source's other columns all describe the state before the
+                        failure, so the row has to say so where the poll time is read. */}
+                    {item.lastPollFailureAtUtc && (
+                      <small className="source-failing">
+                        {describeFailingSince(item.lastPollFailureAtUtc)} alınamıyor
+                      </small>
+                    )}
+                  </td>
                   <td><span className={`badge ${statusBadge(item.latestParseRunStatus ?? 'unknown')}`}>{item.latestParseRunStatus ?? 'Veri yok'}</span></td>
                   <td>{item.latestParseWarningCount ?? 0} / {item.latestParseErrorCount ?? 0}</td>
                   <td><span className={`badge ${statusBadge(item.latestRevisionState ?? 'unknown')}`}>{item.latestRevisionState ?? 'Veri yok'}</span></td>
@@ -119,6 +141,21 @@ function SourceDetail({
     <DetailDrawer title={detail.summary.displayName} subtitle={detail.summary.sourceId} onClose={onClose}>
       <div className="summary-row"><span className="muted">Taşıma</span><strong>{detail.summary.transport}</strong></div>
       <div className="summary-row"><span className="muted">Parser</span><strong>{detail.parserProfile} · {detail.parserProfileVersion}</strong></div>
+
+      {detail.summary.lastPollFailureAtUtc && (
+        <Banner tone="danger">
+          <strong>Belge alınamıyor.</strong>{' '}
+          {describeFailingSince(detail.summary.lastPollFailureAtUtc)} her döngüde başarısız oluyor.
+          {detail.summary.lastPolledAtUtc && (
+            <> Son başarılı okuma: {formatDateTime(detail.summary.lastPolledAtUtc)}.</>
+          )}
+          <p className="mono source-failure-reason">{detail.summary.lastPollFailureReason}</p>
+          <span className="muted">
+            Aşağıdaki parse, revizyon ve snapshot bilgileri bu son başarılı okumaya ait; bu kaynak
+            o tarihten beri yeni bir program yayımlamıyor.
+          </span>
+        </Banner>
+      )}
 
       <PollControls sourceId={detail.summary.sourceId} />
 
@@ -298,4 +335,21 @@ function ParserWarning({ warning }: { warning: ParserWarningView }) {
       )}
     </section>
   );
+}
+
+/**
+ * How long the source has been failing, in the unit the reader is deciding with.
+ *
+ * "4 gündür" is the sentence that makes this actionable; a timestamp alone reads as just another
+ * date on a screen already full of them, which is how four days of failure went unnoticed.
+ */
+function describeFailingSince(failedAtUtc: string): string {
+  const failedAt = new Date(failedAtUtc);
+  if (Number.isNaN(failedAt.getTime())) return 'Bir süredir';
+
+  const minutes = Math.max(0, Math.floor((Date.now() - failedAt.getTime()) / 60000));
+  if (minutes < 60) return `${minutes} dakikadır`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} saattir`;
+  return `${Math.floor(hours / 24)} gündür`;
 }

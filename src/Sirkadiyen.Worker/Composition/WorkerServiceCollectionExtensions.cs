@@ -10,6 +10,7 @@ using Sirkadiyen.Application.Scheduling.Diffing;
 using Sirkadiyen.Application.Scheduling.Ingestion;
 using Sirkadiyen.Application.Scheduling.Parsing;
 using Sirkadiyen.Application.Scheduling.Publication;
+using Sirkadiyen.Application.Scheduling.Sources;
 using Sirkadiyen.Domain.Scheduling.Diffing;
 using Sirkadiyen.Infrastructure.Google;
 using Sirkadiyen.Infrastructure.Persistence;
@@ -100,6 +101,16 @@ internal static class WorkerServiceCollectionExtensions
         services.AddSirkadiyenPersistence(options.ConnectionString);
         services.AddSirkadiyenParserClient(options.ParserBaseUrl, options.ParserTimeout);
 
+        // The catalog this release ships is installed through the administrative editing service,
+        // so a deployment writes the running document by exactly the rules a panel edit does and
+        // lands in the same history (ADR-138).
+        services.AddSingleton(new ScheduleSourceCatalogFileOptions
+        {
+            Path = options.CreateWorkerOptions().SourceCatalogPath,
+        });
+        services.AddSingleton<IScheduleSourceCatalogFile, ScheduleSourceCatalogFile>();
+        services.AddSingleton<IScheduleSourceCatalogSerializer, ScheduleSourceCatalogLoader>();
+        services.AddScoped<ScheduleSourceCatalogEditingService>();
         services.AddSingleton<SourceCatalogInitializer>();
         services.AddSingleton<SourcePollingTask>();
         services.AddSingleton<ManualSourcePollTask>();

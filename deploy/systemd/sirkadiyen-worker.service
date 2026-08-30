@@ -21,11 +21,17 @@ EnvironmentFile=/srv/sirkadiyen/shared/env/worker.env
 Environment=DOTNET_ENVIRONMENT=Production
 Environment=ASPNETCORE_ENVIRONMENT=Production
 
-# The source catalog is read from the shared directory, not from this release
-# (ADR-114): the admin panel edits that file, and a catalog inside the release
-# directory would be replaced - silently reverting the edit - by the next
-# deployment. The copy shipped inside the artifact only seeds a server that has
-# no catalog yet. The worker reads it; only the API writes it.
+# The running source catalog lives in the shared directory, not in this release:
+# the admin panel edits that file, and a catalog inside the release directory
+# would be replaced by the next deployment without leaving a trace.
+#
+# Since ADR-138 the worker also INSTALLS the catalog its own release shipped into
+# that file at startup, through the same service the panel uses - validated, with
+# the source rows moved in one transaction, and recorded in the catalog history as
+# a Deployment revision carrying the document it replaced. The repository is
+# therefore the source of truth and the panel is how to change the catalog
+# quickly; a panel edit that is never committed is replaced by the next
+# deployment and is restorable from that revision.
 Environment=SIRKADIYEN_SOURCES__CATALOG_PATH=/srv/sirkadiyen/shared/config/schedule-sources.json
 
 Restart=always

@@ -85,6 +85,40 @@ public sealed class ScheduleSourceCatalogRevision
             SourceCount = sourceCount,
         };
 
+    /// <summary>
+    /// The document a deployment installed, recorded as its own kind (ADR-138).
+    /// </summary>
+    /// <remarks>
+    /// Not an <see cref="ScheduleSourceCatalogRevisionKind.Edit"/>, because nobody edited anything:
+    /// there is no operator to name, no reason they typed, and no plan they were shown and
+    /// confirmed. Recording it as one would put a person's name on a change a pipeline made, and
+    /// the history is read precisely to answer "who did this".
+    /// <para>
+    /// The release is carried as the reason so the row says which deployment installed it.
+    /// </para>
+    /// </remarks>
+    public static ScheduleSourceCatalogRevision Deployment(
+        DateTimeOffset recordedAtUtc,
+        string content,
+        string contentHash,
+        string? previousContentHash,
+        int sourceCount,
+        string release,
+        string? correlationId,
+        string? changeSummary) => new()
+        {
+            Id = Guid.CreateVersion7(),
+            Kind = ScheduleSourceCatalogRevisionKind.Deployment,
+            RecordedAtUtc = recordedAtUtc,
+            Content = Required(content, nameof(content)),
+            ContentHash = Hash(contentHash),
+            PreviousContentHash = previousContentHash is null ? null : Hash(previousContentHash),
+            SourceCount = sourceCount,
+            Reason = Bounded(release, MaximumReasonLength, nameof(release)),
+            CorrelationId = Optional(correlationId, MaximumCorrelationIdLength, nameof(correlationId)),
+            ChangeSummary = string.IsNullOrWhiteSpace(changeSummary) ? null : changeSummary,
+        };
+
     public static ScheduleSourceCatalogRevision Edit(
         DateTimeOffset recordedAtUtc,
         string content,
@@ -150,4 +184,7 @@ public enum ScheduleSourceCatalogRevisionKind
 
     /// <summary>A content change an administrator confirmed.</summary>
     Edit,
+
+    /// <summary>The document a deployment installed from the repository (ADR-138).</summary>
+    Deployment,
 }

@@ -250,11 +250,19 @@ jobs:
             -p:DebugType=none \
             --output artifacts/worker
 
-          # Shipped as the seed the activation script installs into
-          # /srv/sirkadiyen/shared/config when that directory has no catalog yet
-          # (ADR-114). The running worker reads the shared copy, never this one.
+          # Shipped so the worker can install it into the running configuration at
+          # startup, through the same service the admin panel writes with, and have
+          # the change appear in the catalog history as a Deployment revision
+          # (ADR-138). The activation script still seeds a server that has no
+          # catalog at all; this copy is what makes a merged catalog change reach a
+          # server that already has one.
           mkdir -p artifacts/worker/config
           cp config/schedule-sources.json artifacts/worker/config/schedule-sources.json
+
+          # The release that shipped it, so the revision the worker records names
+          # the deployment it came from. The unit file is installed by hand and
+          # cannot carry this, so it travels inside the artifact.
+          echo "${GITHUB_SHA}" > artifacts/worker/RELEASE
 
       # An idempotent script wraps every migration in a check against
       # sirkadiyen.__ef_migrations_history, so applying it repeatedly is safe and

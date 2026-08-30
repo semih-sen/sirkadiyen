@@ -1,5 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
+    <!--
+      So the catalog-owned field list can be checked against the entity without a
+      database (ADR-136). The persistence tests that would otherwise cover it are
+      skipped unless a PostgreSQL connection string is configured, which it is not
+      in CI, so an omitted field reached production twice.
+    -->
+    <InternalsVisibleTo Include="Sirkadiyen.Infrastructure.UnitTests" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="DocumentFormat.OpenXml" Version="3.5.1" />
     <PackageReference Include="Google.Apis.Auth" Version="1.75.0" />
     <!-- Writes each user's dedicated calendar during synchronization (ADR-024, ADR-058). -->

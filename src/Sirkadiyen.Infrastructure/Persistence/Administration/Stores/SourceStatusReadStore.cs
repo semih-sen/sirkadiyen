@@ -138,6 +138,8 @@ public sealed class SourceStatusReadStore(SirkadiyenDbContext dbContext) : ISour
             IsPollingEnabled = source.IsPollingEnabled,
             LastPolledAtUtc = source.LastPolledAtUtc,
             LastChangedAtUtc = source.LastChangedAtUtc,
+            LastPollFailureAtUtc = source.LastPollFailureAtUtc,
+            LastPollFailureReason = source.LastPollFailureReason,
             LatestParseRunStatus = latestRun?.Status,
             LatestParseRunAtUtc = latestRun?.CompletedAtUtc ?? latestRun?.StartedAtUtc,
             LatestParseWarningCount = latestRun?.WarningCount,

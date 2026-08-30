@@ -32,4 +32,18 @@ public interface IScheduleSourceStore
     Task<int> UpsertAsync(
         IReadOnlyCollection<ScheduleSource> sources,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Records that a poll could not acquire the source's document (ADR-137).
+    /// </summary>
+    /// <remarks>
+    /// Separate from the poll itself because it is written on the path where the poll threw, and
+    /// it must not be swallowed by whatever went wrong: a failure nobody can see is the reason
+    /// this exists. The previous successful poll is left intact.
+    /// </remarks>
+    Task RecordPollFailureAsync(
+        SourceId sourceId,
+        DateTimeOffset failedAtUtc,
+        string reason,
+        CancellationToken cancellationToken);
 }

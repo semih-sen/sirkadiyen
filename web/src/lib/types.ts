@@ -432,6 +432,9 @@ export interface SourceStatusListItem {
   isPollingEnabled: boolean;
   lastPolledAtUtc?: string | null;
   lastChangedAtUtc?: string | null;
+  /** Set while the source's document cannot be acquired; cleared by the next success (ADR-137). */
+  lastPollFailureAtUtc?: string | null;
+  lastPollFailureReason?: string | null;
   latestParseRunStatus?: ParseRunStatus | null;
   latestParseRunAtUtc?: string | null;
   latestParseWarningCount?: number | null;
@@ -586,7 +589,8 @@ export interface ScheduleSourceCatalogApplyResult {
 
 export interface ScheduleSourceCatalogRevisionSummary {
   id: string;
-  kind: 'Baseline' | 'Edit' | string;
+  /** `Deployment` is written by the worker when a release ships a different catalog (ADR-138). */
+  kind: 'Baseline' | 'Edit' | 'Deployment' | string;
   recordedAtUtc: string;
   contentHash: string;
   previousContentHash?: string | null;

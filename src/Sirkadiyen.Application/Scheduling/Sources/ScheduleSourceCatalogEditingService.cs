@@ -194,6 +194,122 @@ public sealed class ScheduleSourceCatalogEditingService(
         };
     }
 
+    /// <summary>
+    /// Installs the document a deployment shipped, recording it in the same history a panel edit
+    /// lands in (ADR-138).
+    /// </summary>
+    /// <remarks>
+    /// The repository file used to reach a server only when there was no catalog at all, so a
+    /// change committed and merged did not take effect until someone re-typed it into the panel —
+    /// which is how three Grade 3 sources kept pointing at trashed documents while the corrected
+    /// entries sat in <c>main</c>. This makes a deployment an ordinary writer of the catalog.
+    /// <para>
+    /// It goes through the same validation, the same atomic write, the same source upsert and the
+    /// same revision history as an operator's edit, and it takes no plan hash: there is nobody to
+    /// have been shown a plan. What it does not share is the requirement that something changed —
+    /// a deployment that installs an identical document is the normal case and reports that it
+    /// wrote nothing.
+    /// </para>
+    /// <para>
+    /// The consequence is deliberate and is the reverse of what ADR-114 chose: a panel edit that
+    /// was never committed to the repository is replaced at the next deployment. It is not lost —
+    /// the revision this writes carries the document it replaced, in full — but the repository is
+    /// now the source of truth and the panel is the way to change it quickly, not permanently.
+    /// </para>
+    /// </remarks>
+    public async Task<ScheduleSourceCatalogDeploymentResult> ApplyFromDeploymentAsync(
+        string content,
+        string release,
+        string? correlationId,
+        CancellationToken cancellationToken)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(release);
+
+        string normalized = ScheduleSourceCatalogPlanner.Normalize(
+            content ?? throw new ArgumentNullException(nameof(content)));
+        ScheduleSourceCatalog proposed = Parse(normalized);
+
+        ScheduleSourceCatalogFileContent current = await file.ReadAsync(cancellationToken);
+        ScheduleSourceCatalog? currentCatalog = TryParse(current.Content, out _);
+        ScheduleSourceCatalogPlan plan = ScheduleSourceCatalogPlanner.Plan(
+            currentCatalog,
+            current.ContentHash,
+            proposed,
+            normalized);
+
+        if (!plan.HasChanges
+            && string.Equals(current.Content, normalized, StringComparison.Ordinal))
+        {
+            // Byte-identical as well as semantically identical: a deployment that reformatted the
+            // file without changing any source should still install it, so the document on the
+            // server is the document in the repository.
+            return new ScheduleSourceCatalogDeploymentResult
+            {
+                Applied = false,
+                ContentHash = current.ContentHash,
+                Plan = plan,
+            };
+        }
+
+        DateTimeOffset now = timeProvider.GetUtcNow();
+        ScheduleSourceCatalogRevision revision = ScheduleSourceCatalogRevision.Deployment(
+            now,
+            normalized,
+            plan.ProposedContentHash,
+            current.Exists ? current.ContentHash : null,
+            proposed.Sources.Count,
+            release,
+            correlationId,
+            Summarize(plan));
+
+        IReadOnlyList<SourceId> disabled =
+        [
+            .. plan.Removed.Select(removed => SourceId.Parse(removed.SourceId)),
+        ];
+
+        await file.WriteAsync(normalized, cancellationToken);
+
+        try
+        {
+            await revisions.CommitAsync(
+                new ScheduleSourceCatalogCommit
+                {
+                    Revision = revision,
+                    Baseline = current.Exists
+                        ? new ScheduleSourceCatalogBaselineDraft
+                        {
+                            Content = current.Content,
+                            ContentHash = current.ContentHash,
+                            SourceCount = currentCatalog?.Sources.Count ?? 0,
+                            RecordedAtUtc = current.LastModifiedUtc ?? now,
+                        }
+                        : null,
+                    Sources = [.. proposed.Sources.Select(source => source.ToScheduleSource())],
+                    PollingDisabled = disabled,
+                },
+                cancellationToken);
+        }
+        catch
+        {
+            if (current.Exists)
+            {
+                await file.WriteAsync(current.Content, CancellationToken.None);
+            }
+
+            throw;
+        }
+
+        return new ScheduleSourceCatalogDeploymentResult
+        {
+            Applied = true,
+            RevisionId = revision.Id,
+            ContentHash = plan.ProposedContentHash,
+            AppliedAtUtc = now,
+            PollingDisabledSourceIds = [.. disabled.Select(sourceId => sourceId.Value)],
+            Plan = plan,
+        };
+    }
+
     public async Task<IReadOnlyList<ScheduleSourceCatalogRevisionSummary>> ListRevisionsAsync(
         CancellationToken cancellationToken)
     {

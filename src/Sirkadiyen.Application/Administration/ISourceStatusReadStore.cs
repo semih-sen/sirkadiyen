@@ -35,6 +35,19 @@ public sealed record SourceStatusListItem
 
     public DateTimeOffset? LastChangedAtUtc { get; init; }
 
+    /// <summary>
+    /// When the source's document last failed to be acquired, if it has not been acquired since
+    /// (ADR-137).
+    /// </summary>
+    /// <remarks>
+    /// A failed acquisition produces no parse run and no revision, so every other field on this
+    /// record describes a state from before the failure. Without these two the screen shows a
+    /// source that looks merely quiet, and cannot show that it has been failing for four days.
+    /// </remarks>
+    public DateTimeOffset? LastPollFailureAtUtc { get; init; }
+
+    public string? LastPollFailureReason { get; init; }
+
     public ParseRunStatus? LatestParseRunStatus { get; init; }
 
     public DateTimeOffset? LatestParseRunAtUtc { get; init; }

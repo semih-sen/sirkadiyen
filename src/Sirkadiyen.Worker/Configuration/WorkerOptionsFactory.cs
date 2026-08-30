@@ -212,6 +212,13 @@ internal sealed class WorkerOptionsFactory(
             SourceCatalogPath = Path.GetFullPath(
                 configuredCatalogPath,
                 environment.ContentRootPath),
+
+            // Always the copy inside the artifact, never the configured path: the point is to
+            // compare what this release ships with what the server is running (ADR-138).
+            ShippedSourceCatalogPath = Path.GetFullPath(
+                "config/schedule-sources.json",
+                environment.ContentRootPath),
+            Release = ReadRelease(),
             CalendarCatchUpInterval = ConfigurationValueParser.Duration(
                 configuration["SIRKADIYEN_SYNC:CALENDAR_CATCH_UP_INTERVAL"],
                 TimeSpan.FromSeconds(5)),
@@ -225,5 +232,35 @@ internal sealed class WorkerOptionsFactory(
     {
         validation(options);
         return options;
+    }
+
+    /// <summary>
+    /// Which release this worker is, for the catalog revision it installs (ADR-138).
+    /// </summary>
+    /// <remarks>
+    /// Read from a file inside the artifact rather than from configuration, because the unit file
+    /// that would otherwise carry it is installed by hand on the server and would then have to be
+    /// edited on every deployment. The build writes the commit into it.
+    /// </remarks>
+    private string ReadRelease()
+    {
+        if (configuration["SIRKADIYEN_DEPLOY:RELEASE"] is { } configured
+            && !string.IsNullOrWhiteSpace(configured))
+        {
+            return configured.Trim();
+        }
+
+        string path = Path.Combine(environment.ContentRootPath, "RELEASE");
+        try
+        {
+            return File.Exists(path) && File.ReadAllText(path).Trim() is { Length: > 0 } release
+                ? release
+                : "unknown release";
+        }
+        catch (IOException)
+        {
+            // A release name is a label on a history row, never a reason to fail startup.
+            return "unknown release";
+        }
     }
 }

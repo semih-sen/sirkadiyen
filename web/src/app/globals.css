@@ -1764,6 +1764,11 @@ button.link:disabled {
   .catalog-textarea { min-height: 320px; }
 }
 
+/* --- Alınamayan kaynak belgesi (ADR-137) ---------------------------------- */
+
+.source-failing { display: block; color: var(--danger); font-weight: 600; font-size: 12px; }
+.source-failure-reason { font-size: 12px; margin: 8px 0; word-break: break-word; }
+
 /* --- Revizyon inceleme (ADR-135) ------------------------------------------ */
 
 .revision-queue-note { font-size: 13px; margin: 10px 0 14px; max-width: 78ch; }

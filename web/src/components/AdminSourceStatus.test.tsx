@@ -21,6 +21,41 @@ describe('AdminSourceWorkspace', () => {
     });
   });
 
+  it('says a source whose document cannot be acquired is failing, and for how long', async () => {
+    // Every other column on the row describes the state the source reached before it started
+    // failing, so without this the screen shows a source that merely looks quiet. Three Grade 3
+    // workbooks were in the Drive trash for four days and nothing on this screen said so
+    // (ADR-137).
+    const failedAt = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString();
+    const failing = {
+      ...summary,
+      sourceId: 'G3-TR-A-ANNUAL',
+      displayName: 'Dönem 3 Türkçe A yıllık program',
+      lastPolledAtUtc: '2026-08-26T06:15:00Z',
+      lastPollFailureAtUtc: failedAt,
+      lastPollFailureReason:
+        "Google Drive file '1DsC72z' is in the trash, so it is no longer a published source.",
+    };
+    api.listAdminSources.mockResolvedValue([failing]);
+    api.getAdminSource.mockResolvedValue({
+      summary: failing,
+      parserProfile: 'grade3_yearly_v1',
+      parserProfileVersion: '1.3.0',
+      latestParseWarnings: [],
+      recentSnapshots: [],
+    });
+
+    const user = userEvent.setup();
+    render(<AdminSourceWorkspace />);
+
+    expect(await screen.findByText(/1 kaynağın belgesi alınamıyor/)).toBeInTheDocument();
+    expect(screen.getByText('4 gündür alınamıyor')).toBeInTheDocument();
+
+    // And the reason itself, which is the part that says what to do about it.
+    await user.click(screen.getByText('Dönem 3 Türkçe A yıllık program'));
+    expect(await screen.findByText(/is in the trash/)).toBeInTheDocument();
+  });
+
   it('shows persisted parser warning details without exposing a parse action', async () => {
     const user = userEvent.setup();
     render(<AdminSourceWorkspace />);

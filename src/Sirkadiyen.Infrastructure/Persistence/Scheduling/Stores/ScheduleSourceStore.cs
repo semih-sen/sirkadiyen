@@ -55,6 +55,33 @@ public sealed class ScheduleSourceStore(SirkadiyenDbContext dbContext) : ISchedu
         await dbContext.SaveChangesAsync(cancellationToken);
         return changed;
     }
+
+    /// <summary>
+    /// Writes the failure onto the row, or does nothing if the source is gone (ADR-137).
+    /// </summary>
+    /// <remarks>
+    /// A missing row is not an error here: this is called from a catch block, and a source removed
+    /// from the catalog while the cycle was running is a normal race. Throwing would replace the
+    /// failure being reported with a different one.
+    /// </remarks>
+    public async Task RecordPollFailureAsync(
+        SourceId sourceId,
+        DateTimeOffset failedAtUtc,
+        string reason,
+        CancellationToken cancellationToken)
+    {
+        ScheduleSource? source = await dbContext.ScheduleSources.SingleOrDefaultAsync(
+            candidate => candidate.SourceId == sourceId,
+            cancellationToken);
+
+        if (source is null)
+        {
+            return;
+        }
+
+        source.RecordPollFailure(failedAtUtc, reason);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
 }
 
 /// <summary>
@@ -102,7 +129,16 @@ internal static class ScheduleSourceUpsert
         return changed;
     }
 
-    private static Dictionary<string, object?> ConfigurationOf(ScheduleSource source) => new()
+    /// <summary>
+    /// The fields the catalog owns, and therefore the fields a redeploy copies onto an existing
+    /// row. Everything absent from it belongs to the row itself.
+    /// </summary>
+    /// <remarks>
+    /// Internal rather than private so it can be checked against the entity's own properties
+    /// without a database (ADR-136): a field omitted here is invisible — the source keeps working
+    /// and quietly ignores the configuration change — and that has happened twice.
+    /// </remarks>
+    internal static Dictionary<string, object?> ConfigurationOf(ScheduleSource source) => new()
     {
         [nameof(ScheduleSource.DisplayName)] = source.DisplayName,
         [nameof(ScheduleSource.Transport)] = source.Transport,
@@ -138,5 +174,16 @@ internal static class ScheduleSourceUpsert
         // for the same reason: without it the annual source would keep publishing
         // every dissection hour after the group list had been uploaded (ADR-126).
         [nameof(ScheduleSource.GroupRotationSourceIds)] = source.GroupRotationSourceIds,
+
+        // And the discovery folder, which was omitted here when it was added and
+        // failed in exactly the way the companions did (ADR-133, ADR-136). A new
+        // row gets it, because the whole entity is inserted; an existing row never
+        // did, so a running database kept a null folder and every poll quietly
+        // acquired the catalogued document instead of the newest one. It is the
+        // worst shape of this bug: nothing fails, the fallback warning cannot fire
+        // because the source appears to declare no folder at all, and the rooms
+        // simply stop being current the first week the faculty publishes a new
+        // workbook.
+        [nameof(ScheduleSource.DiscoveryFolderId)] = source.DiscoveryFolderId,
     };
 }

@@ -11,6 +11,7 @@ namespace Sirkadiyen.Worker.Sources;
 
 internal sealed class SourcePollingTask(
     IServiceScopeFactory scopeFactory,
+    TimeProvider timeProvider,
     ILogger<SourcePollingTask> logger)
 {
     public async Task RunAsync(CancellationToken cancellationToken)
@@ -132,6 +133,42 @@ internal sealed class SourcePollingTask(
         catch (Exception exception)
         {
             logger.LogError(exception, "Polling source {SourceId} failed.", source.SourceId);
+
+            // And recorded where an operator can see it (ADR-137). A failed acquisition produces
+            // no snapshot, no parse run and no revision, so without this the only trace is this
+            // log line and a poll timestamp that stops advancing — which is how three trashed
+            // Grade 3 workbooks went unnoticed for four days.
+            await RecordFailureAsync(services, source, exception, cancellationToken);
+        }
+    }
+
+    private async Task RecordFailureAsync(
+        IServiceProvider services,
+        ScheduleSource source,
+        Exception failure,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            IScheduleSourceStore store = services.GetRequiredService<IScheduleSourceStore>();
+            await store.RecordPollFailureAsync(
+                source.SourceId,
+                timeProvider.GetUtcNow(),
+                failure.Message,
+                cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            // Reporting the failure must not become a second failure that stops the cycle: the
+            // poll itself has already been logged, and the remaining sources still have to run.
+            logger.LogError(
+                exception,
+                "The poll failure for source {SourceId} could not be recorded.",
+                source.SourceId);
         }
     }
 }

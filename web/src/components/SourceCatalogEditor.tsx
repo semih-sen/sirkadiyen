@@ -837,7 +837,10 @@ function RevisionHistory({ onRestore }: { onRestore: (content: string) => void }
     <div className="catalog-history">
       <p className="muted">
         Uygulanan her belge bütünüyle saklanır. Bir sürümü editöre yüklemek onu uygulamaz:
-        değişiklik yine ön izleme ve gerekçeli onaydan geçer.
+        değişiklik yine ön izleme ve gerekçeli onaydan geçer. Depodaki katalog her deployda
+        kurulur; burada yaptığınız bir düzenleme depoya işlenmezse bir sonraki deploy onun yerine
+        depodakini yazar — kaybolmaz, o deployun sürümü değiştirdiği belgeyi bütünüyle saklar.</p>
+      <p className="muted">
       </p>
       <LoadState
         loading={revisions === null && !error}
@@ -858,8 +861,15 @@ function RevisionHistory({ onRestore }: { onRestore: (content: string) => void }
                     {formatDateTime(revision.recordedAtUtc)}
                     {revision.isCurrent && <span className="badge badge-success">yürürlükte</span>}
                     {revision.kind === 'Baseline' && <small className="muted" style={{ display: 'block' }}>ilk düzenleme öncesi</small>}
+                    {/* A deployment writes the catalog too (ADR-138), and the row must not read as
+                        though a person did it: the reason column carries the release, not a
+                        typed justification. */}
+                    {revision.kind === 'Deployment' && <small className="muted" style={{ display: 'block' }}>deploy ile kuruldu</small>}
                   </td>
-                  <td data-label="Kim">{revision.actorEmail ?? <span className="muted">sistem</span>}</td>
+                  <td data-label="Kim">
+                    {revision.actorEmail
+                      ?? <span className="muted">{revision.kind === 'Deployment' ? 'deploy' : 'sistem'}</span>}
+                  </td>
                   <td data-label="Gerekçe">{revision.reason ?? <span className="muted">—</span>}</td>
                   <td data-label="Kaynak">{revision.sourceCount}</td>
                   <td>

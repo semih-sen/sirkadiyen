@@ -1362,3 +1362,57 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
   bastırmak için katalogun "bu kaynak yayın yapmaz" demesi gerekir, o ayrı bir iş. Persistence
   testleri CI'da da atlanıyor (bağlantı dizesi ayarlı değil), bu yüzden store projeksiyonlarının
   güvencesi çeviri testi kadar.
+
+## Amfi odalarının Dönem 3'te görünmemesinin sebebi: belgeler Drive çöp kutusunda (2026-08-30)
+
+- **Root cause (üretim, kod değil):** `G3-EN-ANNUAL`, `G3-TR-A-ANNUAL`, `G3-TR-B-ANNUAL` belgeleri
+  Drive'da çöpe taşınmış. Worker 26 Ağustos'tan beri her döngüde
+  `DriveDocumentException ... is in the trash` alıyor, `LastPolledAtUtc` yalnız başarılı
+  edinmede yazıldığı için üçü de 2026-08-26 06:15'te donmuş, yayımdaki revizyonları 25-26 Ağustos —
+  yani amfi companion'ı var olmadan öncesine ait. Oda bu yüzden yok. Boru hattı doğru davrandı:
+  çöpteki dosyayı okumayı reddetti.
+- **Doğrulandı:** Aynı 2 Eylül sorgusunda `G2-TR-ANNUAL` 7 dersin 5'ine amfi yazmış — parser,
+  companion, birleştirme ve yayın zinciri üretimde çalışıyor.
+- **Görünürlük boşluğu (açık):** Edinme parse'tan önce başarısız olduğu için ortada parse run da
+  revizyon da yok; panelin kaynak durumu ekranı yalnız bayatlayan bir `LastPolled` gösteriyor,
+  başarısızlığın kendisini ve sebebini gösteremiyor. Dört gün boyunca yalnız journald'a yazıldı.
+  Son poll hatasını kaynak satırına yazıp panelde göstermek ayrı bir iş olarak duruyor.
+- **Aynı imzayla düşen diğerleri:** `G2-VERTICAL-AUTUMN`, `G2-VERTICAL-SPRING`,
+  `G3-FACULTY-LOCATIONS` — hiç başarılı poll edilmemişler.
+
+## Dönem 3 belgeleri yenilendi; poll hatası panelde; deploy katalogu kuruyor (2026-08-30)
+
+- **Root cause (üretim):** Dönem 3'ün üç yıllık belgesi Drive çöp kutusundaydı; worker 26
+  Ağustos'tan beri her döngüde `DriveDocumentException ... is in the trash` alıyordu. Amfi
+  birleştirmesi çalışıyordu — aynı gün G2-TR'nin 2 Eylül derslerinin 5'inde oda yazılıydı — Dönem 3
+  kaynakları dört gündür hiç yeniden okunamadığı için onların yayımdaki revizyonu companion'dan
+  önceye aitti.
+- **Changed (katalog):** `G3-TR-A-ANNUAL`, `G3-TR-B-ANNUAL`, `G3-EN-ANNUAL` yeni Google E-Tablo
+  belgelerine çevrildi; taşıma `googleDriveFile`/`xlsx` → `googleSheets`/`googleSheet` ve gid'ler
+  eklendi. Hangi linkin hangi kohort olduğu tahmin edilmedi: üç belge tarayıcıdan açılıp
+  başlıklarından ("Dönem 3 A", "Class 3 English", "Dönem 3 B") doğrulandı — A ile B'yi karıştırmak
+  sınıfın yarısına diğer yarısının programını verirdi. Katalog testi üç kaynağın ayrı belge
+  kullandığını da pinliyor.
+- **Changed (ADR-137, görünürlük):** `schedule_sources`'a `LastPollFailureAtUtc` +
+  `LastPollFailureReason`; başarılı poll temizliyor, son başarılı poll zamanı korunuyor. Worker'ın
+  zaten loglayan catch bloğu artık kaydediyor (kendi hatası döngüyü durdurmuyor). Panelde tablonun
+  üstünde uyarı bandı, satırda "4 gündür alınamıyor", detayda edinicinin cümlesi ve "aşağıdakiler
+  son başarılı okumaya ait" notu.
+- **Changed (ADR-138, deploy):** Worker açılışta kendi sürümüyle gelen katalogu
+  `ScheduleSourceCatalogEditingService` üzerinden kuruyor — aynı doğrulama, aynı atomik yazma, aynı
+  kaynak upsert'ü, aynı sürüm geçmişi; yeni `Deployment` revizyon türü, gerekçe olarak release SHA.
+  Aynı belge geliyorsa hiçbir şey yazılmıyor. Depodaki katalog artık gerçeğin kaynağı; panelde
+  yapılıp depoya işlenmeyen düzenlemeyi bir sonraki deploy değiştirir (kaybolmaz, revizyon eski
+  belgeyi bütünüyle taşır) — bu, katalog editörünün geçmiş sekmesinde de yazıyor.
+- **Changed (ADR-136):** `DiscoveryFolderId` katalogdan çalışan veritabanına hiç kopyalanmıyordu
+  (`ConfigurationOf` listesinde yoktu); eklendi ve `ScheduleSource`'un her alanının ya kopyalananlar
+  ya da "satırın kendisine ait" listesinde olmasını şart koşan veritabanısız bir koruma yazıldı.
+  Koruma aynı turda yeni eklenen iki poll-hatası alanı için de karar vermeye zorladı.
+- **Tests executed:** `dotnet test Sirkadiyen.slnx` 0 başarısız (Infrastructure 808, Api 11,
+  Contracts 6, Persistence 40 / 236 atlandı). Web: `tsc --noEmit` temiz, `vitest run` 19 dosya /
+  95 test, `next build` başarılı. `dotnet ef migrations script --idempotent` üç bekleyen
+  migration'ı da üretiyor.
+- **Not done / not verified:** Tarayıcıda doğrulanmadı (oturum + API + PostgreSQL gerekiyor).
+  Migration'lar uygulanmadı; deploy hattının migration adımıyla gidecek. `G2-VERTICAL-AUTUMN`,
+  `G2-VERTICAL-SPRING`, `G3-FACULTY-LOCATIONS` belgeleri de çöpte — yeni linkleri verilmedi, o üç
+  kaynak hâlâ düşüyor (artık panelde görünecek).

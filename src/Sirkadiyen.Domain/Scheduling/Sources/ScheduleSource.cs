@@ -13,6 +13,9 @@ namespace Sirkadiyen.Domain.Scheduling.Sources;
 /// </remarks>
 public sealed class ScheduleSource
 {
+    /// <summary>How much of a failure message is kept. Enough for the acquirer's own sentence.</summary>
+    public const int MaximumPollFailureReasonLength = 1000;
+
     private ScheduleSource()
     {
         // Materialization constructor.
@@ -255,6 +258,22 @@ public sealed class ScheduleSource
     /// <summary>When the source last produced content that differed from the previous poll.</summary>
     public DateTimeOffset? LastChangedAtUtc { get; private set; }
 
+    /// <summary>
+    /// When the last attempt to acquire this source's document failed, if the attempt after it has
+    /// not yet succeeded (ADR-137).
+    /// </summary>
+    /// <remarks>
+    /// A source whose document cannot be acquired produces no snapshot, no parse run and no
+    /// revision, so before this existed the only trace of the failure was a line in the host's
+    /// journal and a <see cref="LastPolledAtUtc"/> that quietly stopped advancing. The three Grade
+    /// 3 annual workbooks failed that way for four days — their files had been moved to the Drive
+    /// trash — and the first anyone noticed was a student's calendar missing its rooms.
+    /// </remarks>
+    public DateTimeOffset? LastPollFailureAtUtc { get; private set; }
+
+    /// <summary>Why that attempt failed, in the words the acquirer used.</summary>
+    public string? LastPollFailureReason { get; private set; }
+
     /// <summary>Optimistic concurrency token, backed by the PostgreSQL system column.</summary>
     public uint RowVersion { get; private set; }
 
@@ -265,6 +284,27 @@ public sealed class ScheduleSource
         {
             LastChangedAtUtc = polledAtUtc;
         }
+
+        // A success clears the failure rather than leaving it beside a newer poll time. Two
+        // timestamps that both look current, one of them stale, is how a screen ends up saying
+        // both that the source is healthy and that it is broken.
+        LastPollFailureAtUtc = null;
+        LastPollFailureReason = null;
+    }
+
+    /// <summary>Records that the document could not be acquired, leaving the last success intact.</summary>
+    /// <remarks>
+    /// The previous successful poll is deliberately not cleared: "last read four days ago, failing
+    /// since" is the sentence an operator needs, and it takes both facts to say it.
+    /// </remarks>
+    public void RecordPollFailure(DateTimeOffset failedAtUtc, string reason)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+
+        LastPollFailureAtUtc = failedAtUtc;
+        LastPollFailureReason = reason.Length > MaximumPollFailureReasonLength
+            ? reason[..MaximumPollFailureReasonLength]
+            : reason;
     }
 
     public void SetPollingEnabled(bool enabled) => IsPollingEnabled = enabled;
