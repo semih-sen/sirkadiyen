@@ -82,9 +82,10 @@ sudo mkdir -p /srv/sirkadiyen/shared/dataprotection-keys
 sudo mkdir -p /srv/sirkadiyen/shared/config
 
 # The published student lists the profile lookup searches (ADR-132) live in the
-# same directory. Nothing writes this one - it holds locations and column
-# layouts, not people - but it sits here so a corrected layout can be installed
-# without a deployment. Copy config/student-rosters.json from the repository.
+# same directory, and since ADR-134 the administration panel edits this one too.
+# It holds locations and column layouts, never people. The pipeline does not seed
+# it: copy config/student-rosters.json from the repository once, and every later
+# correction is an audited edit on /admin/rosters.
 
 # The deploy account writes releases and migration scripts; nothing else.
 sudo chown -R deploy:sirkadiyen /srv/sirkadiyen/{api,worker,parser,web} /srv/sirkadiyen/migrations
@@ -243,12 +244,14 @@ for ten seconds after the restart. Migrations do not roll back — an idempotent
 forward script has no inverse, so a schema change that must be undone needs a
 new migration.
 
-## The admin panel says the source catalog is read-only
+## The admin panel says a catalog is read-only
 
 The symptom is the catalog editor on `/admin/sources` reporting that
-`/srv/sirkadiyen/shared/config/schedule-sources.json` is not writable. It is
-almost never a file mode or an owner: the API runs as `sirkadiyen`, and the
-file is installed owned by that account.
+`/srv/sirkadiyen/shared/config/schedule-sources.json` is not writable, or the one
+on `/admin/rosters` saying the same about `student-rosters.json`. Both files live
+in the same directory and both are written by the API, so the diagnosis below
+applies to either. It is almost never a file mode or an owner: the API runs as
+`sirkadiyen`, and the files are installed owned by that account.
 
 Under `ProtectSystem=strict` systemd mounts the entire file system read-only for
 the unit except the paths it lists in `ReadWritePaths`, and no ownership on the

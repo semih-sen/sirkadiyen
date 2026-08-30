@@ -12,6 +12,7 @@ export type AdminNavKey =
   | 'bulk-event'
   | 'user-warning'
   | 'sources'
+  | 'rosters'
   | 'revisions'
   | 'diffs'
   | 'colors'
@@ -46,6 +47,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     label: 'Akademik veri',
     items: [
       { key: 'sources', label: 'Kaynaklar', icon: '⇄', href: '/admin/sources' },
+      { key: 'rosters', label: 'Öğrenci listeleri', icon: '≡', href: '/admin/rosters' },
       { key: 'revisions', label: 'Revizyonlar', icon: '✓', href: '/admin/revisions' },
       { key: 'diffs', label: 'Diff kuyrukları', icon: '⇅', href: '/admin/diffs' },
       { key: 'colors', label: 'Anabilim dalı renkleri', icon: '◐', href: '/admin/colors' },

@@ -77,6 +77,11 @@ import type {
   ScheduleSourceCatalogPlan,
   ScheduleSourceCatalogRevisionDetail,
   ScheduleSourceCatalogRevisionSummary,
+  StudentRosterCatalogApplyResult,
+  StudentRosterCatalogDocument,
+  StudentRosterCatalogPlan,
+  StudentRosterCatalogRevisionDetail,
+  StudentRosterCatalogRevisionSummary,
   PruneSnapshotPayloadResponse,
   SourceStatusDetail,
   SourceStatusListItem,
@@ -831,6 +836,46 @@ export function getSourceCatalogRevision(
   revisionId: string,
 ): Promise<ScheduleSourceCatalogRevisionDetail> {
   return request(`/api/admin/source-catalog/revisions/${encodeURIComponent(revisionId)}`);
+}
+
+// The roster catalog is edited under exactly the rules the source catalog is (ADR-134):
+// `contentHash` is the concurrency token and `planHash` binds a confirmation to the plan the
+// operator was shown.
+
+export function getRosterCatalog(): Promise<StudentRosterCatalogDocument> {
+  return request('/api/admin/roster-catalog/');
+}
+
+export function previewRosterCatalog(
+  content: string,
+  baseContentHash: string,
+): Promise<StudentRosterCatalogPlan> {
+  return request<StudentRosterCatalogPlan>('/api/admin/roster-catalog/preview', {
+    method: 'POST',
+    body: { content, baseContentHash },
+  });
+}
+
+export function applyRosterCatalog(
+  content: string,
+  baseContentHash: string,
+  planHash: string,
+  reason: string,
+): Promise<StudentRosterCatalogApplyResult> {
+  return request<StudentRosterCatalogApplyResult>('/api/admin/roster-catalog/apply', {
+    method: 'POST',
+    body: { content, baseContentHash, planHash, reason },
+  });
+}
+
+export function listRosterCatalogRevisions(): Promise<StudentRosterCatalogRevisionSummary[]> {
+  return request('/api/admin/roster-catalog/revisions');
+}
+
+export function getRosterCatalogRevision(
+  revisionId: string,
+): Promise<StudentRosterCatalogRevisionDetail> {
+  return request(`/api/admin/roster-catalog/revisions/${encodeURIComponent(revisionId)}`);
 }
 
 interface AuditFilters {

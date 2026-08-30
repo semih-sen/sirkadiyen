@@ -512,6 +512,8 @@ export interface ScheduleSourceCatalogEntry {
   sourceUri: string;
   externalId?: string | null;
   sheetGid?: number | null;
+  /** The Drive folder a weekly-republished document is looked up in (ADR-133). */
+  discoveryFolderId?: string | null;
   parserProfile: string;
   parserProfileVersion: string;
   academicYear: string;
@@ -601,6 +603,126 @@ export interface ScheduleSourceCatalogRevisionDetail {
   content: string;
 }
 
+/** The student roster catalog document, as the editor reads and writes it (ADR-134). */
+export interface StudentRosterCatalogDocument {
+  path: string;
+  content: string;
+  contentHash: string;
+  lastModifiedUtc?: string | null;
+  isWritable: boolean;
+  isValid: boolean;
+  validationError?: string | null;
+  catalogVersion?: string | null;
+  rosterCount?: number | null;
+}
+
+/** One column of a roster that states a profile selector. */
+export interface StudentRosterCatalogDimensionColumn {
+  header: string;
+  dimension: string;
+  /** Every value the column may write, mapped onto the profile value it means. */
+  valueMap: Record<string, string>;
+  statedOncePerMergedRun?: boolean;
+}
+
+export interface StudentRosterCatalogLayout {
+  worksheetTitle: string;
+  headerRow: number;
+  studentNumberHeader: string;
+  givenNameHeader: string;
+  familyNameHeader: string;
+  dimensionColumns: StudentRosterCatalogDimensionColumn[];
+}
+
+/** One roster entry as the catalog document states it. Mirrors the backend definition. */
+export interface StudentRosterCatalogEntry {
+  rosterId: string;
+  displayName: string;
+  transport: string;
+  documentFormat: string;
+  sourceUri: string;
+  externalId?: string | null;
+  sheetGid?: number | null;
+  academicYear: string;
+  classYear: number;
+  programLanguage: string;
+  layout: StudentRosterCatalogLayout;
+  notes?: string | null;
+}
+
+export interface StudentRosterCatalogFile {
+  catalogVersion: string;
+  rosters: StudentRosterCatalogEntry[];
+}
+
+export type StudentRosterCatalogChangeRisk = 'Low' | 'High';
+
+export type StudentRosterCatalogChangeKind = 'Added' | 'Removed' | 'Modified';
+
+export interface StudentRosterCatalogFieldChange {
+  field: string;
+  before?: string | null;
+  after?: string | null;
+  risk: StudentRosterCatalogChangeRisk;
+}
+
+export interface StudentRosterCatalogRosterChange {
+  rosterId: string;
+  displayName: string;
+  cohort: string;
+  kind: StudentRosterCatalogChangeKind;
+  fields: StudentRosterCatalogFieldChange[];
+  isHighRisk: boolean;
+}
+
+export interface StudentRosterCatalogWarning {
+  code: string;
+  message: string;
+  risk: StudentRosterCatalogChangeRisk;
+}
+
+export interface StudentRosterCatalogPlan {
+  planHash: string;
+  baseContentHash: string;
+  proposedContentHash: string;
+  normalizedContent: string;
+  rosterCount: number;
+  added: StudentRosterCatalogRosterChange[];
+  removed: StudentRosterCatalogRosterChange[];
+  modified: StudentRosterCatalogRosterChange[];
+  unchangedCount: number;
+  warnings: StudentRosterCatalogWarning[];
+  hasHighRiskChange: boolean;
+  hasChanges: boolean;
+}
+
+export interface StudentRosterCatalogApplyResult {
+  revisionId: string;
+  contentHash: string;
+  appliedAtUtc: string;
+  readingInvalidated: boolean;
+  plan: StudentRosterCatalogPlan;
+}
+
+export interface StudentRosterCatalogRevisionSummary {
+  id: string;
+  kind: 'Baseline' | 'Edit' | string;
+  recordedAtUtc: string;
+  contentHash: string;
+  previousContentHash?: string | null;
+  rosterCount: number;
+  actorUserId?: string | null;
+  actorEmail?: string | null;
+  reason?: string | null;
+  changeSummary?: string | null;
+  isCurrent: boolean;
+}
+
+export interface StudentRosterCatalogRevisionDetail {
+  summary: StudentRosterCatalogRevisionSummary;
+  content: string;
+}
+
 export type AuditEventCategory =
   | 'SignIn'
   | 'ReconcileRequested'
@@ -609,6 +731,7 @@ export type AuditEventCategory =
   | 'FinanceTransactionDeleted'
   | 'FinanceDistributionExecuted'
   | 'ScheduleSourceCatalogUpdated'
+  | 'StudentRosterCatalogUpdated'
   | string;
 
 export interface AuditEventView {

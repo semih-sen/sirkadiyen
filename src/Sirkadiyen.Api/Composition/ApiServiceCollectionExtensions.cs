@@ -214,14 +214,19 @@ internal static class ApiServiceCollectionExtensions
         services.AddSingleton<LocalXlsxSnapshotConverter>();
         services.AddScoped<IDriveDocumentAcquirer, DriveDocumentAcquirer>();
         services.AddSingleton<IStudentRosterCatalogSerializer, StudentRosterCatalogLoader>();
-        services.AddSingleton(new StudentRosterIndexOptions
-        {
-            CatalogPath = Path.GetFullPath(
-                configuration["SIRKADIYEN_ROSTERS:CATALOG_PATH"] ?? "config/student-rosters.json",
-                builder.Environment.ContentRootPath),
-        });
+
+        // One configured path, read by the lookup and written by the editor (ADR-134). They are
+        // deliberately the same setting: an editor writing anywhere but the file the lookup reads
+        // would report applied edits that change nothing.
+        string rosterCatalogPath = Path.GetFullPath(
+            configuration["SIRKADIYEN_ROSTERS:CATALOG_PATH"] ?? "config/student-rosters.json",
+            builder.Environment.ContentRootPath);
+        services.AddSingleton(new StudentRosterIndexOptions { CatalogPath = rosterCatalogPath });
+        services.AddSingleton(new StudentRosterCatalogFileOptions { Path = rosterCatalogPath });
+        services.AddSingleton<IStudentRosterCatalogFile, StudentRosterCatalogFile>();
         services.AddSingleton<IStudentRosterIndex, StudentRosterIndex>();
         services.AddScoped<StudentRosterLookupService>();
+        services.AddScoped<StudentRosterCatalogEditingService>();
         services.AddScoped<ScheduleSourceCatalogEditingService>();
         services.AddSirkadiyenPersistence(connectionString);
 

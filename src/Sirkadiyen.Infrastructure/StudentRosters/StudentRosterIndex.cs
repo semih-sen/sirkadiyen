@@ -49,6 +49,18 @@ public sealed class StudentRosterIndex(
     private readonly StudentRosterReader reader = new();
     private StudentRosterIndexSnapshot? current;
 
+    /// <summary>
+    /// Drops the held reading. The next <see cref="GetAsync"/> reads the catalog and the lists
+    /// again, which is what makes an administrative catalog edit take effect at the next lookup
+    /// rather than at the next refresh (ADR-134).
+    /// </summary>
+    /// <remarks>
+    /// A plain field write, deliberately taking no lock: a refresh already in flight finishes and
+    /// stores its result, and the worst case is one more reading than strictly necessary. Blocking
+    /// an editor on an in-flight Google call to avoid that would be the worse trade.
+    /// </remarks>
+    public void Invalidate() => current = null;
+
     public async Task<StudentRosterIndexSnapshot> GetAsync(CancellationToken cancellationToken)
     {
         DateTimeOffset now = timeProvider.GetUtcNow();

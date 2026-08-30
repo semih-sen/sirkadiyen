@@ -13,6 +13,7 @@ using Sirkadiyen.Domain.Scheduling.Parsing;
 using Sirkadiyen.Domain.Scheduling.Publication;
 using Sirkadiyen.Domain.Scheduling.Sources;
 using Sirkadiyen.Domain.StudentProfiles;
+using Sirkadiyen.Domain.StudentRosters;
 
 namespace Sirkadiyen.Infrastructure.Persistence;
 
@@ -118,6 +119,9 @@ public sealed class SirkadiyenDbContext(DbContextOptions<SirkadiyenDbContext> op
 
     public DbSet<WorkerInstanceHeartbeat> WorkerInstanceHeartbeats =>
         Set<WorkerInstanceHeartbeat>();
+
+    public DbSet<StudentRosterCatalogRevision> StudentRosterCatalogRevisions =>
+        Set<StudentRosterCatalogRevision>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

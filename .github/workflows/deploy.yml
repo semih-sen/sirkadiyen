@@ -34,10 +34,13 @@ concurrency:
   group: deploy-production
   cancel-in-progress: false
 
-# The workflow only reads the repository. It needs no write scope at all, which
-# is what makes the runner's GITHUB_TOKEN uninteresting to an attacker here.
+# The workflow only reads: the repository, and its own run history (which is how
+# the diff base below finds the last deployment that actually landed). It needs
+# no write scope at all, which is what makes the runner's GITHUB_TOKEN
+# uninteresting to an attacker here.
 permissions:
   contents: read
+  actions: read
 
 env:
   DOTNET_NOLOGO: "true"
@@ -67,33 +70,87 @@ jobs:
           # branch is pushed with several commits at once, or after a force push.
           fetch-depth: 0
 
-      - id: filter
-        name: Compare the pushed range
+      # The base of the diff is the last run of this workflow that SUCCEEDED, not
+      # the previous push.
+      #
+      # `github.event.before` describes what the developer pushed, which is only
+      # the same thing as what the server is running while every run goes green.
+      # It stranded a deployment once already: a push carrying the API, the
+      # worker and a migration failed in the parser tests, so the deploy job
+      # never ran; the next push touched only the parser, and the API and the
+      # migration were then considered "unchanged" forever. Production kept
+      # running code from before a merged, green-on-main commit, and nothing said
+      # so.
+      #
+      # Asking for the last successful run instead makes a failed deployment
+      # self-healing: everything that has changed since the last one that
+      # actually landed is deployed again, and re-deploying an unchanged
+      # component is harmless (rsync of identical files, then one activation).
+      - id: base
+        name: Find the last successful deployment
         shell: bash
         env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+
+          # `|| true`: a missing run history, a throttled API or a token without
+          # the scope must not fail the deployment. Every one of those falls
+          # through to the push range and then to a full deploy, which is the
+          # safe direction to be wrong in.
+          last_success="$(gh api             "repos/${REPOSITORY}/actions/workflows/deploy.yml/runs?branch=main&status=success&per_page=1&exclude_pull_requests=true"             --jq '.workflow_runs[0].head_sha' 2> /dev/null || true)"
+
+          if [ -z "${last_success}" ] || [ "${last_success}" = "null" ]; then
+            echo "No successful earlier run was found."
+            last_success=""
+          elif ! git rev-parse --verify --quiet "${last_success}^{commit}" > /dev/null; then
+            # The commit was rewritten or garbage-collected away; it cannot be
+            # diffed against.
+            echo "The last successful run's commit ${last_success} is not in this history."
+            last_success=""
+          else
+            echo "Last successful deployment: ${last_success}"
+          fi
+
+          echo "sha=${last_success}" >> "$GITHUB_OUTPUT"
+
+      - id: filter
+        name: Compare against the last deployment
+        shell: bash
+        env:
+          LAST_SUCCESS: ${{ steps.base.outputs.sha }}
           BEFORE: ${{ github.event.before }}
           AFTER: ${{ github.sha }}
           FORCE_ALL: ${{ inputs.deploy_everything }}
         run: |
           set -euo pipefail
 
-          # Fall back to "everything" when there is no usable base commit:
-          # a manual dispatch, the first push to a branch (all-zero SHA), or a
-          # base that a force push garbage-collected away.
+          # Fall back to "everything" when there is no usable base commit: a
+          # manual dispatch, the first push to a branch (all-zero SHA), or a base
+          # that a force push garbage-collected away.
           force_all=false
+          base=""
           if [ "${FORCE_ALL:-}" = "true" ]; then
             force_all=true
+          elif [ -n "${LAST_SUCCESS:-}" ]; then
+            base="${LAST_SUCCESS}"
           elif [ -z "${BEFORE:-}" ] || [ "${BEFORE}" = "0000000000000000000000000000000000000000" ]; then
             force_all=true
           elif ! git rev-parse --verify --quiet "${BEFORE}^{commit}" > /dev/null; then
             force_all=true
+          else
+            # No run history to go by, but the push range is intact.
+            base="${BEFORE}"
           fi
 
           if [ "${force_all}" = "true" ]; then
             changed_files=""
             echo "No usable diff base (or forced): deploying every component."
           else
-            changed_files="$(git diff --name-only "${BEFORE}" "${AFTER}")"
+            changed_files="$(git diff --name-only "${base}" "${AFTER}")"
+            echo "Comparing ${base}...${AFTER}"
             echo "Changed files:"
             echo "${changed_files}" | sed 's/^/  /'
           fi

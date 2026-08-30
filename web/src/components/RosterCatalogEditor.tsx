@@ -3,43 +3,45 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ApiError,
-  applySourceCatalog,
-  getSourceCatalog,
-  getSourceCatalogRevision,
-  listSourceCatalogRevisions,
-  previewSourceCatalog,
+  applyRosterCatalog,
+  getRosterCatalog,
+  getRosterCatalogRevision,
+  listRosterCatalogRevisions,
+  previewRosterCatalog,
 } from '@/lib/api';
 import { LoadState, Tabs, formatDateTime } from '@/components/AdminData';
 import { Banner } from '@/components/ui';
 import type {
-  ScheduleSourceCatalogDocument,
-  ScheduleSourceCatalogEntry,
-  ScheduleSourceCatalogFile,
-  ScheduleSourceCatalogPlan,
-  ScheduleSourceCatalogRevisionSummary,
-  ScheduleSourceCatalogSourceChange,
+  StudentRosterCatalogDimensionColumn,
+  StudentRosterCatalogDocument,
+  StudentRosterCatalogEntry,
+  StudentRosterCatalogFile,
+  StudentRosterCatalogPlan,
+  StudentRosterCatalogRevisionSummary,
+  StudentRosterCatalogRosterChange,
 } from '@/lib/types';
 
 /**
- * The administrative editor for the schedule source catalog document (ADR-114).
+ * The administrative editor for the student roster catalog document (ADR-134).
  *
- * The catalog states which document belongs to which program and which parser reads it, so an
- * edit here can hand a whole cohort's published lessons to different students without any parse
- * or publication being wrong. The screen is therefore built around the backend's plan rather than
- * around the text box: nothing is written until the operator has previewed a server-computed
- * change plan and confirmed it with a reason, and the `planHash` travelling back with that
- * confirmation is what stops an approved preview from applying a document that has since changed.
+ * The catalog states which published student list belongs to which cohort and what each of its
+ * columns means, so an edit here decides what a student's profile is filled in with during
+ * onboarding. Two kinds of mistake are possible and they are not alike: a wrong header makes the
+ * whole list unreadable and says so at the next lookup, while a wrong value map keeps working and
+ * quietly enrols a cohort in another group's practicals. The screen is therefore built around the
+ * backend's plan rather than around the text box — nothing is written until a server-computed
+ * change plan has been previewed and confirmed with a reason — and the value maps are rendered in
+ * full in that plan rather than summarized.
  *
- * Two editors, one document. The form is the safe path for ordinary corrections; the raw JSON
- * editor exists because the catalog has fields no form should pretend to model (selector maps,
- * companion evidence) and because a broken catalog has to be repairable from here rather than
- * from a server shell. Both edit the same string, so neither can drop what the other wrote.
+ * Two editors, one document, exactly as the source catalog has: the form is the safe path for
+ * ordinary corrections, and the raw JSON editor exists because a broken catalog has to be
+ * repairable from here rather than from a server shell.
  */
-export function SourceCatalogEditor() {
-  const [document, setDocument] = useState<ScheduleSourceCatalogDocument | null>(null);
+export function RosterCatalogEditor() {
+  const [document, setDocument] = useState<StudentRosterCatalogDocument | null>(null);
   const [draft, setDraft] = useState('');
   const [mode, setMode] = useState('form');
-  const [plan, setPlan] = useState<ScheduleSourceCatalogPlan | null>(null);
+  const [plan, setPlan] = useState<StudentRosterCatalogPlan | null>(null);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +52,7 @@ export function SourceCatalogEditor() {
     setNotice(null);
     setPlan(null);
     try {
-      const loaded = await getSourceCatalog();
+      const loaded = await getRosterCatalog();
       setDocument(loaded);
       setDraft(loaded.content);
     } catch (caught) {
@@ -77,7 +79,7 @@ export function SourceCatalogEditor() {
     setError(null);
     setNotice(null);
     try {
-      setPlan(await previewSourceCatalog(draft, document.contentHash));
+      setPlan(await previewRosterCatalog(draft, document.contentHash));
     } catch (caught) {
       setPlan(null);
       setError(caught instanceof ApiError ? caught.message : 'Ön izleme alınamadı.');
@@ -94,7 +96,7 @@ export function SourceCatalogEditor() {
     setBusy(true);
     setError(null);
     try {
-      const result = await applySourceCatalog(
+      const result = await applyRosterCatalog(
         draft,
         document.contentHash,
         plan.planHash,
@@ -104,11 +106,13 @@ export function SourceCatalogEditor() {
       setPlan(null);
       await load();
       setNotice(
-        `Katalog güncellendi. ${result.sourceRowsChanged} kaynak satırı yazıldı`
-        + (result.pollingDisabledSourceIds.length > 0
-          ? `, ${result.pollingDisabledSourceIds.join(', ')} için polling kapatıldı`
+        `Katalog güncellendi. ${result.plan.rosterCount} liste yapılandırıldı`
+        + (result.readingInvalidated
+          ? '; listelerin bellekteki okuması düşürüldü, bir sonraki öğrenci araması belgeleri '
+            + 'yeniden okuyacak'
           : '')
-        + '. Değişiklik kalıcı sürüm geçmişine ve denetim kaydına işlendi.',
+        + '. Değişiklik kalıcı sürüm geçmişine ve denetim kaydına işlendi. Daha önce '
+        + 'kaydedilmiş öğrenci profilleri değişmez.',
       );
     } catch (caught) {
       // A 409 here is the concurrency guard: the file moved between preview and confirmation, so
@@ -136,7 +140,8 @@ export function SourceCatalogEditor() {
 
           {!document.isValid && (
             <Banner tone="danger">
-              <strong>Diskteki katalog geçerli değil.</strong> Worker bu dosyayla başlamaz.
+              <strong>Diskteki katalog geçerli değil.</strong> Öğrenci numarasıyla arama bu
+              dosyayla çalışmaz.
               {document.validationError ? ` Sebep: ${document.validationError}` : ''}
             </Banner>
           )}
@@ -145,7 +150,7 @@ export function SourceCatalogEditor() {
             value={mode}
             onChange={setMode}
             items={[
-              { value: 'form', label: 'Kaynak düzenleyici' },
+              { value: 'form', label: 'Liste düzenleyici' },
               { value: 'json', label: 'JSON' },
               { value: 'history', label: 'Sürüm geçmişi' },
             ]}
@@ -153,7 +158,7 @@ export function SourceCatalogEditor() {
 
           {mode === 'form' && (
             parsed.catalog
-              ? <SourceFormEditor catalog={parsed.catalog} onChange={(next) => edit(serialize(next))} />
+              ? <RosterFormEditor catalog={parsed.catalog} onChange={(next) => edit(serialize(next))} />
               : (
                 <Banner tone="warning">
                   Belge JSON olarak ayrıştırılamadığı için form düzenleyici kapalı. JSON sekmesinden
@@ -202,7 +207,7 @@ function CatalogHeader({
   busy,
   onReload,
 }: {
-  document: ScheduleSourceCatalogDocument;
+  document: StudentRosterCatalogDocument;
   dirty: boolean;
   busy: boolean;
   onReload: () => void;
@@ -213,7 +218,7 @@ function CatalogHeader({
         <span className="eyebrow">Sunucudaki dosya</span>
         <p className="mono catalog-path">{document.path}</p>
         <p className="muted catalog-meta">
-          {document.sourceCount ?? '—'} kaynak · sürüm {document.catalogVersion ?? '—'} ·
+          {document.rosterCount ?? '—'} liste · sürüm {document.catalogVersion ?? '—'} ·
           {' '}son değişiklik {formatDateTime(document.lastModifiedUtc)} ·
           {' '}<span className="mono">{document.contentHash.slice(0, 12)}…</span>
         </p>
@@ -231,54 +236,47 @@ function CatalogHeader({
 
 // --- Form editor ------------------------------------------------------------
 
-/** The fields an edit to which can move published lessons between students. */
-const HIGH_RISK_FIELDS = new Set<keyof ScheduleSourceCatalogEntry>([
-  'sourceId',
+/** The fields an edit to which changes what a student's profile is filled in with. */
+const HIGH_RISK_FIELDS = new Set<keyof StudentRosterCatalogEntry>([
+  'rosterId',
   'transport',
   'documentFormat',
   'sourceUri',
   'externalId',
   'sheetGid',
-  'discoveryFolderId',
-  'parserProfile',
-  'parserProfileVersion',
   'academicYear',
   'classYear',
   'programLanguage',
-  'timeZoneId',
-  'sharedDocumentGroup',
-  'companionSourceIds',
-  'groupRotationSourceIds',
 ]);
 
-function SourceFormEditor({
+function RosterFormEditor({
   catalog,
   onChange,
 }: {
-  catalog: ScheduleSourceCatalogFile;
-  onChange: (next: ScheduleSourceCatalogFile) => void;
+  catalog: StudentRosterCatalogFile;
+  onChange: (next: StudentRosterCatalogFile) => void;
 }) {
   const [query, setQuery] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
 
-  const sources = catalog.sources ?? [];
-  const filtered = sources.filter((source) => matches(source, query));
+  const rosters = catalog.rosters ?? [];
+  const filtered = rosters.filter((roster) => matches(roster, query));
 
-  function replace(index: number, next: ScheduleSourceCatalogEntry) {
-    const copy = [...sources];
+  function replace(index: number, next: StudentRosterCatalogEntry) {
+    const copy = [...rosters];
     copy[index] = next;
-    onChange({ ...catalog, sources: copy });
+    onChange({ ...catalog, rosters: copy });
   }
 
   function removeAt(index: number) {
-    onChange({ ...catalog, sources: sources.filter((_, position) => position !== index) });
+    onChange({ ...catalog, rosters: rosters.filter((_, position) => position !== index) });
   }
 
   function add() {
-    const created = blankSource(sources.length + 1);
-    onChange({ ...catalog, sources: [...sources, created] });
+    const created = blankRoster(rosters.length + 1);
+    onChange({ ...catalog, rosters: [...rosters, created] });
     setQuery('');
-    setOpenId(created.sourceId);
+    setOpenId(created.rosterId);
   }
 
   return (
@@ -287,38 +285,36 @@ function SourceFormEditor({
         <input
           className="text-input"
           value={query}
-          placeholder="Kaynak ara (kimlik, ad, parser profili)"
-          aria-label="Kaynak ara"
+          placeholder="Liste ara (kimlik, ad, akademik yıl)"
+          aria-label="Liste ara"
           onChange={(event) => setQuery(event.target.value)}
         />
         <button className="btn btn-secondary btn-sm" type="button" onClick={add}>
-          + Yeni kaynak
+          + Yeni liste
         </button>
       </div>
 
-      {filtered.length === 0 && (
-        <p className="muted">Aramayla eşleşen kaynak yok.</p>
-      )}
+      {filtered.length === 0 && <p className="muted">Aramayla eşleşen liste yok.</p>}
 
       <div className="catalog-source-list">
-        {filtered.map((source) => {
-          const index = sources.indexOf(source);
-          const open = openId === source.sourceId;
+        {filtered.map((roster) => {
+          const index = rosters.indexOf(roster);
+          const open = openId === roster.rosterId;
           return (
-            <article className={`catalog-source${open ? ' catalog-source--open' : ''}`} key={`${source.sourceId}-${index}`}>
+            <article className={`catalog-source${open ? ' catalog-source--open' : ''}`} key={`${roster.rosterId}-${index}`}>
               <button
                 className="catalog-source-head"
                 type="button"
                 aria-expanded={open}
-                onClick={() => setOpenId(open ? null : source.sourceId)}
+                onClick={() => setOpenId(open ? null : roster.rosterId)}
               >
                 <span>
-                  <strong>{source.displayName || '(adsız kaynak)'}</strong>
-                  <small className="mono muted">{source.sourceId}</small>
+                  <strong>{roster.displayName || '(adsız liste)'}</strong>
+                  <small className="mono muted">{roster.rosterId}</small>
                 </span>
                 <span className="cluster">
-                  <span className="badge badge-neutral">Dönem {source.classYear} · {source.programLanguage}</span>
-                  <span className="badge">{source.transport}</span>
+                  <span className="badge badge-neutral">Dönem {roster.classYear} · {roster.programLanguage}</span>
+                  <span className="badge">{roster.academicYear}</span>
                   <span aria-hidden="true">{open ? '▲' : '▼'}</span>
                 </span>
               </button>
@@ -326,81 +322,53 @@ function SourceFormEditor({
               {open && (
                 <div className="catalog-source-body">
                   <div className="grid grid-2">
-                    <Field label="Kaynak kimliği" name="sourceId" source={source} onChange={(next) => replace(index, next)} />
-                    <Field label="Görünen ad" name="displayName" source={source} onChange={(next) => replace(index, next)} />
+                    <Field label="Liste kimliği" name="rosterId" roster={roster} onChange={(next) => replace(index, next)} />
+                    <Field label="Görünen ad" name="displayName" roster={roster} onChange={(next) => replace(index, next)} />
                     <Select
                       label="Taşıma"
                       name="transport"
-                      options={['googleSheets', 'googleDriveFile', 'httpFile', 'administrativeUpload']}
-                      source={source}
+                      options={['googleSheets', 'googleDriveFile', 'httpFile']}
+                      roster={roster}
                       onChange={(next) => replace(index, next)}
                     />
                     <Select
                       label="Belge biçimi"
                       name="documentFormat"
                       options={['googleSheet', 'xlsx', 'docx']}
-                      source={source}
+                      roster={roster}
                       onChange={(next) => replace(index, next)}
                     />
-                    <Field label="Kaynak URI" name="sourceUri" source={source} onChange={(next) => replace(index, next)} wide />
-                    <Field label="Dış kimlik" name="externalId" source={source} onChange={(next) => replace(index, next)} />
-                    <Field label="Sayfa gid" name="sheetGid" source={source} onChange={(next) => replace(index, next)} numeric />
-                    <Field label="Keşif klasörü kimliği" name="discoveryFolderId" source={source} onChange={(next) => replace(index, next)} />
-                    <Field label="Parser profili" name="parserProfile" source={source} onChange={(next) => replace(index, next)} />
-                    <Field label="Parser sürümü" name="parserProfileVersion" source={source} onChange={(next) => replace(index, next)} />
-                    <Field label="Akademik yıl" name="academicYear" source={source} onChange={(next) => replace(index, next)} />
+                    <Field label="Kaynak URI" name="sourceUri" roster={roster} onChange={(next) => replace(index, next)} wide />
+                    <Field label="Dış kimlik" name="externalId" roster={roster} onChange={(next) => replace(index, next)} />
+                    <Field label="Sayfa gid" name="sheetGid" roster={roster} onChange={(next) => replace(index, next)} numeric />
+                    <Field label="Akademik yıl" name="academicYear" roster={roster} onChange={(next) => replace(index, next)} />
                     <Select
                       label="Dönem"
                       name="classYear"
                       options={['1', '2', '3', '4', '5', '6']}
                       numeric
-                      source={source}
+                      roster={roster}
                       onChange={(next) => replace(index, next)}
                     />
                     <Select
                       label="Program dili"
                       name="programLanguage"
                       options={['turkish', 'english']}
-                      source={source}
+                      roster={roster}
                       onChange={(next) => replace(index, next)}
                     />
-                    <Field label="Saat dilimi" name="timeZoneId" source={source} onChange={(next) => replace(index, next)} />
-                    <Field label="Ortak belge grubu" name="sharedDocumentGroup" source={source} onChange={(next) => replace(index, next)} />
-                    <Field label="Fixture yolu" name="fixturePath" source={source} onChange={(next) => replace(index, next)} wide />
                   </div>
 
-                  <ListField
-                    label="Yardımcı kaynaklar (virgülle)"
-                    name="companionSourceIds"
-                    source={source}
-                    onChange={(next) => replace(index, next)}
-                  />
-                  <ListField
-                    label="Grup rotasyonu sahibi kaynaklar (virgülle)"
-                    name="groupRotationSourceIds"
-                    source={source}
-                    onChange={(next) => replace(index, next)}
-                  />
-                  <JsonField
-                    label="Desteklenen hedef kitle seçicileri"
-                    name="supportedAudienceSelectors"
-                    source={source}
-                    onChange={(next) => replace(index, next)}
-                  />
-                  <JsonField
-                    label="Yetkili olduğu hedef kitle seçicileri"
-                    name="authoritativeAudienceSelectors"
-                    source={source}
-                    onChange={(next) => replace(index, next)}
-                  />
+                  <LayoutEditor roster={roster} onChange={(next) => replace(index, next)} />
+
                   <div className="field">
-                    <label htmlFor={`notes-${index}`}>Notlar</label>
+                    <label htmlFor={`roster-notes-${index}`}>Notlar</label>
                     <textarea
-                      id={`notes-${index}`}
+                      id={`roster-notes-${index}`}
                       className="text-input"
-                      value={source.notes ?? ''}
+                      value={roster.notes ?? ''}
                       onChange={(event) => replace(index, {
-                        ...source,
+                        ...roster,
                         notes: event.target.value === '' ? null : event.target.value,
                       })}
                     />
@@ -408,11 +376,11 @@ function SourceFormEditor({
 
                   <div className="cluster catalog-source-actions">
                     <button className="btn btn-danger btn-sm" type="button" onClick={() => removeAt(index)}>
-                      Kaynağı katalogdan çıkar
+                      Listeyi katalogdan çıkar
                     </button>
                     <span className="muted catalog-hint">
-                      Çıkarılan kaynağın pollingi kapatılır; yayınlanmış dersleri ve takvim
-                      kayıtları silinmez.
+                      Çıkarılan listenin kohortundaki öğrenciler kayıt sırasında numaralarıyla
+                      bulunamaz; kaydedilmiş profiller değişmez.
                     </span>
                   </div>
                 </div>
@@ -425,94 +393,150 @@ function SourceFormEditor({
   );
 }
 
-function Field({
-  label,
-  name,
-  source,
+/**
+ * Where the columns are and what each one states.
+ *
+ * Rendered as its own block because it is the half of a roster that decides meaning rather than
+ * location: the headers say which columns are read, and the dimension columns say what the values
+ * in them are taken to mean.
+ */
+function LayoutEditor({
+  roster,
   onChange,
-  numeric,
-  wide,
 }: {
-  label: string;
-  name: keyof ScheduleSourceCatalogEntry;
-  source: ScheduleSourceCatalogEntry;
-  onChange: (next: ScheduleSourceCatalogEntry) => void;
-  numeric?: boolean;
-  wide?: boolean;
+  roster: StudentRosterCatalogEntry;
+  onChange: (next: StudentRosterCatalogEntry) => void;
 }) {
-  const id = `${name}-${source.sourceId}`;
-  const value = source[name];
-  return (
-    <div className={`field${wide ? ' field--wide' : ''}`}>
-      <label htmlFor={id}>
-        {label} {HIGH_RISK_FIELDS.has(name) && <span className="badge badge-warning badge-xs">riskli</span>}
-      </label>
-      <input
-        id={id}
-        className="text-input"
-        value={value === null || value === undefined ? '' : String(value)}
-        inputMode={numeric ? 'numeric' : undefined}
-        autoComplete="off"
-        onChange={(event) => {
-          const text = event.target.value;
-          onChange({
-            ...source,
-            [name]: numeric ? (text === '' ? null : Number(text)) : (text === '' ? null : text),
-          });
-        }}
-      />
-    </div>
-  );
-}
+  const layout = roster.layout;
+  const columns = layout?.dimensionColumns ?? [];
 
-function Select({
-  label,
-  name,
-  options,
-  source,
-  onChange,
-  numeric,
-}: {
-  label: string;
-  name: keyof ScheduleSourceCatalogEntry;
-  options: string[];
-  source: ScheduleSourceCatalogEntry;
-  onChange: (next: ScheduleSourceCatalogEntry) => void;
-  numeric?: boolean;
-}) {
-  const id = `${name}-${source.sourceId}`;
+  function setLayout(next: Partial<StudentRosterCatalogEntry['layout']>) {
+    onChange({ ...roster, layout: { ...layout, ...next } });
+  }
+
+  function replaceColumn(index: number, next: StudentRosterCatalogDimensionColumn) {
+    const copy = [...columns];
+    copy[index] = next;
+    setLayout({ dimensionColumns: copy });
+  }
+
+  if (!layout) {
+    return (
+      <Banner tone="warning">
+        Bu listenin yerleşimi (<span className="mono">layout</span>) tanımlı değil. JSON sekmesinden
+        ekleyin.
+      </Banner>
+    );
+  }
+
   return (
-    <div className="field">
-      <label htmlFor={id}>
-        {label} {HIGH_RISK_FIELDS.has(name) && <span className="badge badge-warning badge-xs">riskli</span>}
-      </label>
-      <select
-        id={id}
-        className="text-input"
-        value={String(source[name] ?? '')}
-        onChange={(event) => onChange({
-          ...source,
-          [name]: numeric ? Number(event.target.value) : event.target.value,
+    <div className="catalog-source-body">
+      <h4>Yerleşim</h4>
+      <div className="grid grid-2">
+        <LayoutField label="Çalışma sayfası" name="worksheetTitle" layout={layout} onChange={setLayout} />
+        <LayoutField label="Başlık satırı" name="headerRow" layout={layout} onChange={setLayout} numeric />
+        <LayoutField label="Öğrenci no sütun başlığı" name="studentNumberHeader" layout={layout} onChange={setLayout} />
+        <LayoutField label="Ad sütun başlığı" name="givenNameHeader" layout={layout} onChange={setLayout} />
+        <LayoutField label="Soyad sütun başlığı" name="familyNameHeader" layout={layout} onChange={setLayout} />
+      </div>
+
+      <p className="muted catalog-hint">
+        Başlıklar sütun sırasına göre değil, metnine göre eşleşir: yayınlanan listeler sütunları
+        farklı sıralarda yazıyor. Yanlış bir başlık listeyi okunamaz yapar ve bu hemen görülür.
+      </p>
+
+      {columns.map((column, index) => (
+        <div className="catalog-change" key={`${column.dimension}-${index}`}>
+          <div className="grid grid-2">
+            <div className="field">
+              <label htmlFor={`column-header-${roster.rosterId}-${index}`}>
+                Sütun başlığı <span className="badge badge-warning badge-xs">riskli</span>
+              </label>
+              <input
+                id={`column-header-${roster.rosterId}-${index}`}
+                className="text-input"
+                value={column.header}
+                autoComplete="off"
+                onChange={(event) => replaceColumn(index, { ...column, header: event.target.value })}
+              />
+            </div>
+            <div className="field">
+              <label htmlFor={`column-dimension-${roster.rosterId}-${index}`}>
+                Profil boyutu <span className="badge badge-warning badge-xs">riskli</span>
+              </label>
+              <input
+                id={`column-dimension-${roster.rosterId}-${index}`}
+                className="text-input"
+                value={column.dimension}
+                autoComplete="off"
+                onChange={(event) => replaceColumn(index, { ...column, dimension: event.target.value })}
+              />
+            </div>
+          </div>
+
+          <label className="cluster" htmlFor={`column-merged-${roster.rosterId}-${index}`}>
+            <input
+              id={`column-merged-${roster.rosterId}-${index}`}
+              type="checkbox"
+              checked={column.statedOncePerMergedRun ?? false}
+              onChange={(event) => replaceColumn(index, {
+                ...column,
+                statedOncePerMergedRun: event.target.checked,
+              })}
+            />
+            <span>Değer, birleştirilmiş hücrede öğrenci grubunun tamamı için bir kez yazılıyor</span>
+          </label>
+
+          <ValueMapField
+            column={column}
+            rosterId={roster.rosterId}
+            index={index}
+            onChange={(next) => replaceColumn(index, next)}
+          />
+
+          <button
+            className="btn btn-tertiary btn-sm"
+            type="button"
+            onClick={() => setLayout({
+              dimensionColumns: columns.filter((_, position) => position !== index),
+            })}
+          >
+            Bu sütunu kaldır
+          </button>
+        </div>
+      ))}
+
+      <button
+        className="btn btn-secondary btn-sm"
+        type="button"
+        onClick={() => setLayout({
+          dimensionColumns: [
+            ...columns,
+            { header: '', dimension: '', valueMap: {}, statedOncePerMergedRun: false },
+          ],
         })}
       >
-        {options.map((option) => <option key={option} value={option}>{option}</option>)}
-      </select>
+        + Seçici sütunu ekle
+      </button>
     </div>
   );
 }
 
-function ListField({
+function LayoutField({
   label,
   name,
-  source,
+  layout,
   onChange,
+  numeric,
 }: {
   label: string;
-  name: 'companionSourceIds' | 'groupRotationSourceIds';
-  source: ScheduleSourceCatalogEntry;
-  onChange: (next: ScheduleSourceCatalogEntry) => void;
+  name: keyof StudentRosterCatalogEntry['layout'];
+  layout: StudentRosterCatalogEntry['layout'];
+  onChange: (next: Partial<StudentRosterCatalogEntry['layout']>) => void;
+  numeric?: boolean;
 }) {
-  const id = `${name}-${source.sourceId}`;
+  const id = `layout-${name}-${layout.worksheetTitle}`;
+  const value = layout[name];
   return (
     <div className="field">
       <label htmlFor={id}>
@@ -521,48 +545,44 @@ function ListField({
       <input
         id={id}
         className="text-input"
-        value={(source[name] ?? []).join(', ')}
+        value={typeof value === 'string' || typeof value === 'number' ? String(value) : ''}
+        inputMode={numeric ? 'numeric' : undefined}
         autoComplete="off"
-        onChange={(event) => {
-          const values = event.target.value
-            .split(',')
-            .map((value) => value.trim())
-            .filter((value) => value.length > 0);
-          onChange({ ...source, [name]: values.length === 0 ? null : values });
-        }}
+        onChange={(event) => onChange({
+          [name]: numeric ? Number(event.target.value) : event.target.value,
+        })}
       />
     </div>
   );
 }
 
 /**
- * A selector map, edited as JSON.
+ * The value map, edited as JSON.
  *
- * Deliberately not modelled as a widget: the map's meaning is precise — an absent dimension is
- * "not declared" and an empty list is "may not appear" — and a form that blurred those two would
- * change what a source is allowed to publish while looking like a formatting choice.
+ * Deliberately not a table of dropdowns: the map is exhaustive and a value outside it is refused
+ * rather than transformed, so what matters is seeing every stated value beside the profile value
+ * it means. This is the one field that can be wrong without anything failing.
  */
-function JsonField({
-  label,
-  name,
-  source,
+function ValueMapField({
+  column,
+  rosterId,
+  index,
   onChange,
 }: {
-  label: string;
-  name: 'supportedAudienceSelectors' | 'authoritativeAudienceSelectors';
-  source: ScheduleSourceCatalogEntry;
-  onChange: (next: ScheduleSourceCatalogEntry) => void;
+  column: StudentRosterCatalogDimensionColumn;
+  rosterId: string;
+  index: number;
+  onChange: (next: StudentRosterCatalogDimensionColumn) => void;
 }) {
-  const id = `${name}-${source.sourceId}`;
-  const stored = source[name];
-  const external = stored ? JSON.stringify(stored, null, 2) : '';
+  const id = `column-values-${rosterId}-${index}`;
+  const external = JSON.stringify(column.valueMap ?? {}, null, 2);
   const [text, setText] = useState(external);
   const [invalid, setInvalid] = useState(false);
 
   // The box holds the operator's keystrokes, which are not always parseable, so it cannot simply
-  // render the prop. It does have to follow the document when the document changes underneath it
-  // - loading a stored revision into the editor, for instance - and `emitted` is how the two are
-  // told apart: an incoming value this box did not produce replaces what is in it.
+  // render the prop. It does have to follow the document when the document changes underneath it —
+  // loading a stored revision into the editor, for instance — and `emitted` is how the two are
+  // told apart.
   const emitted = useRef(external);
   useEffect(() => {
     if (external !== emitted.current) {
@@ -575,28 +595,23 @@ function JsonField({
   return (
     <div className="field">
       <label htmlFor={id}>
-        {label} <span className="badge badge-warning badge-xs">riskli</span>
+        Değer eşlemesi (belgedeki değer → profil değeri){' '}
+        <span className="badge badge-warning badge-xs">riskli</span>
       </label>
       <textarea
         id={id}
         className={`text-input mono${invalid ? ' text-input--invalid' : ''}`}
-        rows={4}
+        rows={6}
         value={text}
-        placeholder={'{\n  "practiceGroup": ["A", "B"]\n}'}
+        placeholder={'{\n  "a1": "A1",\n  "a2": "A2"\n}'}
         onChange={(event) => {
           const next = event.target.value;
           setText(next);
-          if (next.trim() === '') {
-            setInvalid(false);
-            emitted.current = '';
-            onChange({ ...source, [name]: null });
-            return;
-          }
           try {
-            const value = JSON.parse(next) as Record<string, string[]>;
+            const value = JSON.parse(next) as Record<string, string>;
             setInvalid(false);
             emitted.current = JSON.stringify(value, null, 2);
-            onChange({ ...source, [name]: value });
+            onChange({ ...column, valueMap: value });
           } catch {
             // Left in the box for the operator to fix; the document keeps its last valid value,
             // and the backend would refuse the edit anyway.
@@ -604,7 +619,91 @@ function JsonField({
           }
         }}
       />
-      {invalid && <small className="error-text">Bu alan geçerli JSON değil; son geçerli değer korunuyor.</small>}
+      {invalid
+        ? <small className="error-text">Bu alan geçerli JSON değil; son geçerli değer korunuyor.</small>
+        : (
+          <small className="muted">
+            Büyük-küçük harf birebir eşleşir. Türkçe harf dönüşümü uygulanmaz: <span className="mono">i</span>
+            {' '}ve <span className="mono">İ</span> farklı değerlerdir, ikisi de yazılmalıdır.
+          </small>
+        )}
+    </div>
+  );
+}
+
+function Field({
+  label,
+  name,
+  roster,
+  onChange,
+  numeric,
+  wide,
+}: {
+  label: string;
+  name: keyof StudentRosterCatalogEntry;
+  roster: StudentRosterCatalogEntry;
+  onChange: (next: StudentRosterCatalogEntry) => void;
+  numeric?: boolean;
+  wide?: boolean;
+}) {
+  const id = `${name}-${roster.rosterId}`;
+  const value = roster[name];
+  return (
+    <div className={`field${wide ? ' field--wide' : ''}`}>
+      <label htmlFor={id}>
+        {label} {HIGH_RISK_FIELDS.has(name) && <span className="badge badge-warning badge-xs">riskli</span>}
+      </label>
+      <input
+        id={id}
+        className="text-input"
+        value={value === null || value === undefined || typeof value === 'object' ? '' : String(value)}
+        inputMode={numeric ? 'numeric' : undefined}
+        autoComplete="off"
+        onChange={(event) => {
+          const text = event.target.value;
+          onChange({
+            ...roster,
+            [name]: numeric ? (text === '' ? null : Number(text)) : (text === '' ? null : text),
+          });
+        }}
+      />
+    </div>
+  );
+}
+
+function Select({
+  label,
+  name,
+  options,
+  roster,
+  onChange,
+  numeric,
+}: {
+  label: string;
+  name: keyof StudentRosterCatalogEntry;
+  options: string[];
+  roster: StudentRosterCatalogEntry;
+  onChange: (next: StudentRosterCatalogEntry) => void;
+  numeric?: boolean;
+}) {
+  const id = `${name}-${roster.rosterId}`;
+  const value = roster[name];
+  return (
+    <div className="field">
+      <label htmlFor={id}>
+        {label} {HIGH_RISK_FIELDS.has(name) && <span className="badge badge-warning badge-xs">riskli</span>}
+      </label>
+      <select
+        id={id}
+        className="text-input"
+        value={typeof value === 'string' || typeof value === 'number' ? String(value) : ''}
+        onChange={(event) => onChange({
+          ...roster,
+          [name]: numeric ? Number(event.target.value) : event.target.value,
+        })}
+      >
+        {options.map((option) => <option key={option} value={option}>{option}</option>)}
+      </select>
     </div>
   );
 }
@@ -628,8 +727,8 @@ function RawJsonEditor({
     <div className="catalog-json">
       <div className="catalog-toolbar">
         <span className="muted">
-          Belge olduğu gibi yazılır; yalnızca satır sonları normalize edilir. Sunucu, worker’ın
-          açılışta uyguladığı kuralların aynısını uygular.
+          Belge olduğu gibi yazılır; yalnızca satır sonları normalize edilir. Sunucu, aramanın
+          kullandığı kuralların aynısını uygular.
         </span>
         <div className="cluster">
           <button className="btn btn-tertiary btn-sm" type="button" onClick={onFormat} disabled={parseError !== null}>
@@ -644,7 +743,7 @@ function RawJsonEditor({
         className={`text-input mono catalog-textarea${parseError ? ' text-input--invalid' : ''}`}
         value={value}
         spellCheck={false}
-        aria-label="Katalog JSON belgesi"
+        aria-label="Öğrenci listesi kataloğu JSON belgesi"
         onChange={(event) => onChange(event.target.value)}
       />
       {parseError
@@ -669,7 +768,7 @@ function ChangeReview({
 }: {
   dirty: boolean;
   busy: boolean;
-  plan: ScheduleSourceCatalogPlan | null;
+  plan: StudentRosterCatalogPlan | null;
   reason: string;
   canWrite: boolean;
   onReason: (value: string) => void;
@@ -702,16 +801,17 @@ function ChangeReview({
         <div className="catalog-confirm">
           {plan.hasHighRiskChange && (
             <Banner tone="danger">
-              <strong>Bu değişiklik veri hattının davranışını değiştiriyor.</strong> Aşağıdaki
-              uyarıları okuyup onaylıyorsanız devam edin. Değişiklik anında veritabanına uygulanır;
-              bir sonraki poll ve parse yeni yapılandırmayı kullanır.
+              <strong>Bu değişiklik öğrencilere önerilen profil bilgisini değiştiriyor.</strong>{' '}
+              Aşağıdaki uyarıları okuyup onaylıyorsanız devam edin. Değişiklik anında geçerli olur;
+              bir sonraki öğrenci araması yeni katalogla cevap verir. Daha önce kaydedilmiş
+              profiller geri alınmaz.
             </Banner>
           )}
 
           <div className="field">
-            <label htmlFor="catalog-reason">Değişiklik gerekçesi</label>
+            <label htmlFor="roster-catalog-reason">Değişiklik gerekçesi</label>
             <textarea
-              id="catalog-reason"
+              id="roster-catalog-reason"
               className="text-input"
               value={reason}
               placeholder="Bu değişiklik neden gerekli? (denetim kaydına ve sürüm geçmişine yazılır)"
@@ -739,7 +839,7 @@ function ChangeReview({
   );
 }
 
-function PlanSummary({ plan }: { plan: ScheduleSourceCatalogPlan }) {
+function PlanSummary({ plan }: { plan: StudentRosterCatalogPlan }) {
   if (!plan.hasChanges) {
     return <Banner tone="info">Gönderilen belge diskteki katalogla aynı; uygulanacak değişiklik yok.</Banner>;
   }
@@ -747,10 +847,10 @@ function PlanSummary({ plan }: { plan: ScheduleSourceCatalogPlan }) {
   return (
     <div className="catalog-plan">
       <div className="grid grid-2">
-        <Figure value={plan.added.length} label="kaynak ekleniyor" />
-        <Figure value={plan.removed.length} label="kaynak çıkarılıyor" tone={plan.removed.length > 0 ? 'danger' : undefined} />
-        <Figure value={plan.modified.length} label="kaynak değişiyor" />
-        <Figure value={plan.unchangedCount} label="kaynak aynı kalıyor" />
+        <Figure value={plan.added.length} label="liste ekleniyor" />
+        <Figure value={plan.removed.length} label="liste çıkarılıyor" tone={plan.removed.length > 0 ? 'danger' : undefined} />
+        <Figure value={plan.modified.length} label="liste değişiyor" />
+        <Figure value={plan.unchangedCount} label="liste aynı kalıyor" />
       </div>
 
       {plan.warnings.map((warning) => (
@@ -760,13 +860,13 @@ function PlanSummary({ plan }: { plan: ScheduleSourceCatalogPlan }) {
       ))}
 
       {[...plan.added, ...plan.removed, ...plan.modified].map((change) => (
-        <ChangeCard key={`${change.kind}-${change.sourceId}`} change={change} />
+        <ChangeCard key={`${change.kind}-${change.rosterId}`} change={change} />
       ))}
     </div>
   );
 }
 
-function ChangeCard({ change }: { change: ScheduleSourceCatalogSourceChange }) {
+function ChangeCard({ change }: { change: StudentRosterCatalogRosterChange }) {
   const label = change.kind === 'Added' ? 'Eklenen' : change.kind === 'Removed' ? 'Çıkarılan' : 'Değişen';
   return (
     <section className="catalog-change">
@@ -775,8 +875,8 @@ function ChangeCard({ change }: { change: ScheduleSourceCatalogSourceChange }) {
           {label}
         </span>
         <strong>{change.displayName}</strong>
-        <small className="mono muted">{change.sourceId}</small>
-        <small className="muted">{change.program}</small>
+        <small className="mono muted">{change.rosterId}</small>
+        <small className="muted">{change.cohort}</small>
         {change.isHighRisk && <span className="badge badge-warning">yüksek risk</span>}
       </div>
       {change.fields.length > 0 && (
@@ -805,14 +905,14 @@ function ChangeCard({ change }: { change: ScheduleSourceCatalogSourceChange }) {
 // --- Revision history -------------------------------------------------------
 
 function RevisionHistory({ onRestore }: { onRestore: (content: string) => void }) {
-  const [revisions, setRevisions] = useState<ScheduleSourceCatalogRevisionSummary[] | null>(null);
+  const [revisions, setRevisions] = useState<StudentRosterCatalogRevisionSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
     try {
-      setRevisions(await listSourceCatalogRevisions());
+      setRevisions(await listRosterCatalogRevisions());
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Sürüm geçmişi alınamadı.');
     }
@@ -824,7 +924,7 @@ function RevisionHistory({ onRestore }: { onRestore: (content: string) => void }
     setBusyId(id);
     setError(null);
     try {
-      const detail = await getSourceCatalogRevision(id);
+      const detail = await getRosterCatalogRevision(id);
       onRestore(detail.content);
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : 'Sürüm içeriği alınamadı.');
@@ -849,7 +949,7 @@ function RevisionHistory({ onRestore }: { onRestore: (content: string) => void }
         <div className="table-wrap">
           <table className="data-table data-table--stack">
             <thead>
-              <tr><th>Tarih</th><th>Kim</th><th>Gerekçe</th><th>Kaynak</th><th /></tr>
+              <tr><th>Tarih</th><th>Kim</th><th>Gerekçe</th><th>Liste</th><th /></tr>
             </thead>
             <tbody>
               {revisions.map((revision) => (
@@ -861,7 +961,7 @@ function RevisionHistory({ onRestore }: { onRestore: (content: string) => void }
                   </td>
                   <td data-label="Kim">{revision.actorEmail ?? <span className="muted">sistem</span>}</td>
                   <td data-label="Gerekçe">{revision.reason ?? <span className="muted">—</span>}</td>
-                  <td data-label="Kaynak">{revision.sourceCount}</td>
+                  <td data-label="Liste">{revision.rosterCount}</td>
                   <td>
                     <button
                       className="btn btn-tertiary btn-sm"
@@ -884,14 +984,14 @@ function RevisionHistory({ onRestore }: { onRestore: (content: string) => void }
 
 // --- Document helpers -------------------------------------------------------
 
-function parseCatalog(content: string): { catalog: ScheduleSourceCatalogFile | null; error: string | null } {
+function parseCatalog(content: string): { catalog: StudentRosterCatalogFile | null; error: string | null } {
   if (content.trim() === '') {
     return { catalog: null, error: 'Belge boş.' };
   }
   try {
-    const value = JSON.parse(content) as ScheduleSourceCatalogFile;
-    if (typeof value !== 'object' || value === null || !Array.isArray(value.sources)) {
-      return { catalog: null, error: 'Belge bir katalog nesnesi değil (sources dizisi yok).' };
+    const value = JSON.parse(content) as StudentRosterCatalogFile;
+    if (typeof value !== 'object' || value === null || !Array.isArray(value.rosters)) {
+      return { catalog: null, error: 'Belge bir katalog nesnesi değil (rosters dizisi yok).' };
     }
     return { catalog: value, error: null };
   } catch (caught) {
@@ -900,32 +1000,37 @@ function parseCatalog(content: string): { catalog: ScheduleSourceCatalogFile | n
 }
 
 /** Two-space JSON with a trailing newline: the shape the committed catalog has always had. */
-function serialize(catalog: ScheduleSourceCatalogFile): string {
+function serialize(catalog: StudentRosterCatalogFile): string {
   return `${JSON.stringify(catalog, null, 2)}\n`;
 }
 
-function matches(source: ScheduleSourceCatalogEntry, query: string): boolean {
+function matches(roster: StudentRosterCatalogEntry, query: string): boolean {
   const needle = query.trim().toLocaleLowerCase('tr');
   if (needle === '') return true;
-  return [source.sourceId, source.displayName, source.parserProfile, source.academicYear]
+  return [roster.rosterId, roster.displayName, roster.academicYear]
     .some((value) => (value ?? '').toLocaleLowerCase('tr').includes(needle));
 }
 
-function blankSource(ordinal: number): ScheduleSourceCatalogEntry {
+function blankRoster(ordinal: number): StudentRosterCatalogEntry {
   return {
-    sourceId: `YENI-KAYNAK-${ordinal}`,
-    displayName: 'Yeni kaynak',
+    rosterId: `YENI-LISTE-${ordinal}`,
+    displayName: 'Yeni öğrenci listesi',
     transport: 'googleSheets',
     documentFormat: 'googleSheet',
     sourceUri: 'https://docs.google.com/spreadsheets/d/.../edit?gid=0',
     externalId: '',
     sheetGid: 0,
-    parserProfile: '',
-    parserProfileVersion: '1.0.0',
     academicYear: '',
     classYear: 1,
     programLanguage: 'turkish',
-    timeZoneId: 'Europe/Istanbul',
+    layout: {
+      worksheetTitle: 'Sayfa1',
+      headerRow: 1,
+      studentNumberHeader: 'Öğrenci No',
+      givenNameHeader: 'Ad',
+      familyNameHeader: 'Soyad',
+      dimensionColumns: [],
+    },
   };
 }
 

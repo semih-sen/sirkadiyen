@@ -180,6 +180,17 @@ public enum AuditEventCategory
     ScheduleSourceCatalogUpdated,
 
     /// <summary>
+    /// A SuperAdmin changed the student roster catalog from the administration panel (ADR-134).
+    /// The catalog states which published student list belongs to which cohort and what its
+    /// columns mean, so an edit decides what a student's profile is filled in with at onboarding —
+    /// and a wrong column mapping does that without any lookup failing. The full before/after
+    /// documents live in <see cref="StudentRosters.StudentRosterCatalogRevision"/>; this entry is
+    /// what makes the change visible in the one activity log an operator actually reads
+    /// (AI_GUIDELINE §19).
+    /// </summary>
+    StudentRosterCatalogUpdated,
+
+    /// <summary>
     /// A SuperAdmin moved a program's stored student profiles onto the academic year its sources
     /// now state (ADR-115). It rewrites data students entered about themselves and queues the
     /// convergence that fills a year's worth of lessons back onto their calendars, neither of

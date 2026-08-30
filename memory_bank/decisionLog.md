@@ -7979,8 +7979,9 @@ deciding.**
   lacks them reports every list as unreadable rather than failing onboarding, and a miss is
   distinguished from an unreadable list in the response, because "you are not on any list" and "we
   could not read one" ask the student for different things.
-- **Open:** if a list is edited, a lookup may serve the previous reading for up to an hour. There is
-  no way to force a refresh short of restarting the API.
+- **Open:** if a list is edited *in Google*, a lookup may serve the previous reading for up to an
+  hour; there is still no way to force that refresh. An edit to the **catalog** through the panel
+  does drop the reading (ADR-134), but that says nothing about the contents of the lists themselves.
 
 ## ADR-133: The amphitheatre program is a companion that fills a room, and its folder is the address
 
@@ -8151,3 +8152,86 @@ department. It is recorded under its own reason so the weaker basis stays visibl
   side by side, the two snapshots yield the same 203 assignments over the same 10 dates and the same
   116 Grade 1-3 assignments, with an empty set difference. The extra cells are all empty or
   formatting-only, and the block rule — a `SAAT` header with a title above it — does not notice them.
+
+## ADR-134: The student roster catalog is edited from the panel, under ADR-114's rules
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-30
+**Relates to:** ADR-114 (the schedule source catalog is an audited, previewed, revisioned edit),
+ADR-085 and ADR-132 (the roster is a catalogued, in-memory read and a match is only a suggestion),
+ADR-093 (the full history commits with the change, the index entry follows), ADR-130 (Turkish case
+folding is not a normalization shortcut)
+
+### Context
+
+`config/student-rosters.json` was a repository file only a deployment could change — the state
+`config/schedule-sources.json` was in before ADR-114, and it is wrong for the same reason. Student
+Affairs republishes a list or moves a column, and the correction is a code change, a review and a
+redeploy. The drift is invisible: it shows up as students not finding themselves during onboarding,
+which is the point at which nobody is watching a log.
+
+The trigger was more direct. Uploading the repository's `schedule-sources.json` through the panel
+failed with *"The JSON property 'discoveryFolderId' could not be mapped"* — the deployed API predated
+ADR-133 (see below) — and the roster catalog beside it had no panel at all.
+
+### Decision
+
+**The roster catalog is edited under exactly the rules the source catalog is.** Read the document on
+disk, preview a server-computed plan, confirm that plan by its hash with a reason, keep the full
+document in an append-only history. The same loader validates it, so an edit the panel accepts is one
+the lookup can read. The same two-editor shape: a form for ordinary corrections, and raw JSON,
+because a broken catalog has to be repairable from here rather than from a server shell.
+
+**What is deliberately not copied is the part that has no meaning here.** A roster configures no
+persisted rows — the file is the whole configuration — so the commit is the revision alone, with no
+upsert and no polling to disable. `StudentRosterCatalogCommit` is correspondingly narrower than the
+source catalog's, rather than being the same record with unused fields.
+
+**The value map is diffed in full, in both directions.** Two mistakes are possible in a roster and
+they are not alike. A wrong header makes the whole list unreadable and says so at the next lookup. A
+wrong value map keeps working and enrols a cohort in another group's practicals. So the plan renders
+every `stated → profile` pair on both sides rather than reporting that the map changed, and the
+layout is compared field by field rather than as one blob — "the layout changed" is not a statement
+anyone can review.
+
+**An applied edit drops the held reading.** The lists are read once an hour and cached in the API
+process (ADR-132). Without invalidation the panel would report an applied edit while every lookup
+kept answering from the documents the previous catalog named. `IStudentRosterIndex.Invalidate()` is a
+plain field write taking no lock: a refresh in flight finishes and stores its result, and one
+unnecessary reading is a better trade than blocking an editor on an in-flight Google call.
+
+**The file-system rules are shared; nothing above them is.** `EditableDocumentFile` now holds the
+read-whole, probe-for-writability and atomic-replace behaviour both catalogs need, because a
+partially written catalog is a service that will not start and that guarantee is worth having in one
+place. Each catalog keeps its own port, hash and validation, so neither can be handed the other's
+document.
+
+### Consequences
+
+- A new `student_roster_catalog_revisions` table, mirroring the source catalog's. Additive.
+- A new audit category, `StudentRosterCatalogUpdated`. The revision holds the documents; the audit
+  entry is what makes the change visible in the log an operator actually reads.
+- `/admin/rosters` is a SuperAdmin page. The API already pointed
+  `SIRKADIYEN_ROSTERS__CATALOG_PATH` at `/srv/sirkadiyen/shared/config` and already had it in
+  `ReadWritePaths`, so the editor is writable in production without a unit change — but the pipeline
+  does not seed that file, so a fresh server still needs the repository copy installed once.
+- **Nothing a student already saved is revisited.** A roster suggests profile values at onboarding
+  and does not own them afterwards, so an edit changes what the next lookup answers and nothing else.
+  Every warning in the plan says so explicitly, because "I fixed the group mapping" and "the students
+  who already onboarded are now correct" are not the same sentence.
+
+### The deployment defect this exposed, and its fix
+
+The `discoveryFolderId` rejection was not a code defect. The deploy workflow computed its diff base
+from `github.event.before`, which describes what a developer pushed rather than what the server is
+running. The push carrying ADR-133's API, worker and migration failed in the parser tests, so the
+deploy job never ran; the next push touched only `src/parser/tests`, so the API and the migration
+were "unchanged" and were never deployed again. Production kept running code from before a merged,
+green commit, and nothing said so.
+
+The base is now the head SHA of the last **successful** run of this workflow on `main`, read through
+the Actions API and falling back to the push range and then to a full deploy when it cannot be
+determined. A failed deployment is therefore self-healing: everything changed since the last one that
+actually landed is deployed again, and re-deploying an unchanged component costs an rsync of
+identical files and one activation. It needs `actions: read`, which is the only permission the
+workflow has gained.

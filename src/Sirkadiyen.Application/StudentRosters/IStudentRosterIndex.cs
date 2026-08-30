@@ -13,6 +13,16 @@ namespace Sirkadiyen.Application.StudentRosters;
 public interface IStudentRosterIndex
 {
     Task<StudentRosterIndexSnapshot> GetAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Drops the held reading, so the next lookup reads the catalog and the lists again.
+    /// </summary>
+    /// <remarks>
+    /// Called when the catalog is edited from the administration panel (ADR-134). Without it an
+    /// applied edit would be reported as applied while every lookup kept answering from the
+    /// documents the previous catalog named, for as long as the refresh interval.
+    /// </remarks>
+    void Invalidate();
 }
 
 /// <summary>Every list as it was last read, and when.</summary>

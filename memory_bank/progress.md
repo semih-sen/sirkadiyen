@@ -1292,3 +1292,40 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
   Dönem 2 İNG ve Dönem 3 İNG listeleri kataloglandı ama hiçbir şey önermiyor (ADR-084, ADR-098).
   API artık `SIRKADIYEN_GOOGLE` kaynak kimlik bilgisine ihtiyaç duyuyor; yoksa her liste
   "okunamadı" olarak bildiriliyor, onboarding çökmüyor.
+
+## Öğrenci listesi kataloğu artık panelden düzenleniyor + duran deploy düzeltildi (ADR-134) (2026-08-30)
+
+- **Root cause (bildirilen hata):** Kod değil, deploy. Panelde `schedule-sources.json` yüklenirken
+  gelen *"The JSON property 'discoveryFolderId' could not be mapped"* hatası, sunucudaki API'nin
+  ADR-133 öncesi sürüm olmasından. Deploy iş akışı fark tabanını `github.event.before`'dan
+  hesaplıyordu: ADR-133'ün API + worker + migration'ını taşıyan push parser testlerinde patlayınca
+  `deploy` job'ı hiç çalışmadı, sonraki push yalnız `src/parser/tests`'e dokunduğu için API ve
+  migration "değişmemiş" sayıldı ve bir daha hiç gönderilmedi.
+- **Changed (deploy):** `.github/workflows/deploy.yml` fark tabanını artık bu iş akışının `main`
+  üzerindeki **son başarılı** koşusunun SHA'sından alıyor (Actions API, `actions: read`); bulunamazsa
+  push aralığına, o da yoksa tam deploya düşüyor. Başarısız bir deploy artık kendini onarıyor.
+- **Changed (öğrenci listeleri):** ADR-114'ün altı adımı öğrenci listesi kataloğuna uygulandı.
+  Domain'de `StudentRosterCatalogRevision`; Application'da katalog dosyası ve revizyon portları,
+  `StudentRosterCatalogPlanner` (alan bazlı fark, değer eşlemesi iki yönde tam yazılıyor) ve
+  `StudentRosterCatalogEditingService`; Infrastructure'da `StudentRosterCatalogFile`, EF
+  yapılandırması, revizyon store'u ve `student_roster_catalog_revisions` migration'ı; API'de
+  `/api/admin/roster-catalog` (GET, preview, apply, revisions) ve yeni
+  `StudentRosterCatalogUpdated` denetim kategorisi; frontend'de `/admin/rosters` sayfası ve
+  `RosterCatalogEditor` (form / JSON / sürüm geçmişi sekmeleri). `IStudentRosterIndex.Invalidate()`
+  eklendi: uygulanan düzenleme bellekteki okumayı düşürüyor, yoksa panel "uygulandı" derken aramalar
+  bir saat boyunca eski belgeden cevap verirdi. Dosya sistemi kuralları iki katalog için
+  `EditableDocumentFile`'da ortaklandı.
+- **Changed (küçük):** `discoveryFolderId` artık kaynak form düzenleyicisinde de bir alan (JSON
+  sekmesinden zaten geçiyordu, formda görünmüyordu) ve riskli olarak işaretli.
+- **Tests executed:** `dotnet build` temiz; `dotnet test Sirkadiyen.slnx` 0 başarısız (Infrastructure
+  797, Api 11, Contracts 6, Persistence 40 geçti / 236 atlandı — Docker kapalı). Yeni
+  `StudentRosterCatalogEditingServiceTests` 13 test. Web: `tsc --noEmit` temiz, `vitest run` 19 dosya
+  / 92 test geçti (yeni `RosterCatalogEditor.test.tsx` 7 test), `next build` başarılı,
+  `/admin/rosters` üretiliyor.
+- **Not done / not verified:** Tarayıcıda doğrulanmadı — sayfa oturum, API ve PostgreSQL gerektiriyor,
+  bu makinede veritabanı yok. İki migration (`AddSourceDiscoveryFolder`, 
+  `AddStudentRosterCatalogRevisions`) yazıldı ama uygulanmadı; ikisi de deploy hattının migration
+  adımıyla gidecek. Pipeline `student-rosters.json`'ı sunucuya seed etmiyor (yalnız
+  `schedule-sources.json`'ı ediyor); temiz sunucuda depo kopyası bir kez elle kurulmalı, bu
+  `deploy/README.md`'ye yazıldı. Panel düzenlemesi listelerin **içeriğini** tazelemez, yalnız
+  katalogu; Google'da düzenlenen bir liste için hâlâ bir saatlik yenileme geçerli.

@@ -16,6 +16,7 @@ using Sirkadiyen.Application.Scheduling.Parsing;
 using Sirkadiyen.Application.Scheduling.Publication;
 using Sirkadiyen.Application.Scheduling.Sources;
 using Sirkadiyen.Application.StudentProfiles;
+using Sirkadiyen.Application.StudentRosters;
 using Sirkadiyen.Infrastructure.Persistence.Administration.Stores;
 using Sirkadiyen.Infrastructure.Persistence.Observability.Stores;
 using Sirkadiyen.Infrastructure.Persistence.Announcements.Stores;
@@ -27,6 +28,7 @@ using Sirkadiyen.Infrastructure.Persistence.Licensing.Stores;
 using Sirkadiyen.Infrastructure.Persistence.Operations.Stores;
 using Sirkadiyen.Infrastructure.Persistence.Scheduling.Stores;
 using Sirkadiyen.Infrastructure.Persistence.StudentProfiles.Stores;
+using Sirkadiyen.Infrastructure.Persistence.StudentRosters.Stores;
 
 namespace Sirkadiyen.Infrastructure.Persistence;
 
@@ -61,6 +63,9 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<
             IScheduleSourceCatalogRevisionStore,
             ScheduleSourceCatalogRevisionStore>();
+        services.AddScoped<
+            IStudentRosterCatalogRevisionStore,
+            StudentRosterCatalogRevisionStore>();
         services.AddScoped<ISourceSnapshotStore, SourceSnapshotStore>();
         services.AddScoped<ISourcePollRequestStore, SourcePollRequestStore>();
         services.AddScoped<ISnapshotRetentionStore, SnapshotRetentionStore>();

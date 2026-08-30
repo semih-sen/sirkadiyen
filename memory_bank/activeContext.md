@@ -3356,3 +3356,39 @@ Listelenemeyen klasör döngüyü düşürmüyor — alternatifi hiçbir öğren
   determinizm kuralı gereği motor sürümü ile sistemdeki her snapshot'ın yeniden parse'ını zorlardı —
   yalnız bu belge ailesinin yazdığı bir ayraç için. **Bilinen asimetri**; ikinci bir kaynak da
   yazarsa doğru yer primitiftir.
+
+## Öğrenci listesi kataloğu panelde; duran deploy hattı düzeltildi (ADR-134) (2026-08-30)
+
+Bildirilen belirti panelin `discoveryFolderId`'yi reddetmesiydi. Kodda böyle bir hata yok:
+`ScheduleSourceDefinition` alanı tanıyor, katalog testleri gerçek `config/schedule-sources.json`
+üzerinde geçiyor. **Sunucudaki API eskiydi.** Deploy fark tabanı `github.event.before`'du — yani
+geliştiricinin ne ittiği, sunucunun ne çalıştırdığı değil. ADR-133'ün API + worker + migration'ını
+taşıyan push parser testinde patlayıp `deploy` job'ını hiç çalıştırmayınca, bir sonraki push yalnız
+`src/parser/tests`'e dokundu ve API ile migration kalıcı olarak "değişmemiş" oldu. Üretim, main'de
+yeşil bir commit'in gerisinde kaldı ve bunu hiçbir yer söylemedi.
+
+Taban artık **son başarılı koşunun** SHA'sı. Bunu seçmenin nedeni, tek bir başarısız deployun
+bileşenleri kalıcı olarak dışarıda bırakabilmesi; yeni kural yanlışsa bile yanlış yönü zararsız:
+değişmemiş bir bileşeni yeniden göndermek özdeş dosyaların rsync'i ve bir aktivasyon demek.
+Kimlik doğrulama tarafında tek kazanç `actions: read`. deploy.yml'in kendisi değiştiği için bir
+sonraki push zaten tam deploy tetikliyor — yani düzeltme kendi tedavisini taşıyor.
+
+Bunun üstüne öğrenci listesi kataloğu ADR-114'ün kurallarıyla panele açıldı. **Aynı kurallar,
+çünkü aynı boşluk:** dosya yalnız deploy ile değişiyordu, Öğrenci İşleri bir sütunu kaydırdığında
+düzeltme kod değişikliği oluyordu ve sapma yalnız "öğrenci kayıt sırasında kendini bulamıyor" olarak
+görünüyordu — kimsenin log okumadığı an.
+
+Kopyalanmayan kısımlar bilinçli: bir liste hiçbir kalıcı satır yapılandırmıyor, dosya tek başına
+yapılandırmanın kendisi, o yüzden commit yalnız revizyondan ibaret — upsert yok, kapatılacak polling
+yok. Buna karşılık **değer eşlemesi iki yönde tam yazılıyor.** Bir listede iki tür hata var ve
+benzemiyorlar: yanlış başlık listeyi tümüyle okunamaz yapar ve hemen görülür; yanlış bir değer
+eşlemesi hiç hata vermeden bir kohortu başka grubun pratiğine yazar. "Eşleme değişti" incelenebilir
+bir cümle değil.
+
+Uygulanan düzenleme bellekteki okumayı düşürüyor. Bu olmadan panel "uygulandı" derken aramalar bir
+saate kadar eski katalogun işaret ettiği belgelerden cevap verirdi — yani rapor doğru, davranış
+yanlış olurdu. `Invalidate()` kilit almıyor: uçuştaki bir yenileme sonucunu yazar, en kötüsü bir
+fazla okuma; editörü Google çağrısı boyunca bekletmek daha kötü takas olurdu.
+
+Not: bu, listelerin **içeriğini** tazelemez. Google'da düzeltilen bir isim için bir saatlik yenileme
+hâlâ geçerli ve zorla tazeleme yok (ADR-132'nin açık maddesi, daraltıldı ama kapanmadı).

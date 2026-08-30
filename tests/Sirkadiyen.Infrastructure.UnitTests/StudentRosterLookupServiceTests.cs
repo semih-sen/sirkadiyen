@@ -271,5 +271,10 @@ public sealed class StudentRosterLookupServiceTests
     {
         public Task<StudentRosterIndexSnapshot> GetAsync(CancellationToken cancellationToken) =>
             Task.FromResult(snapshot);
+
+        // The lookup never invalidates; only an administrative catalog edit does (ADR-134).
+        public void Invalidate()
+        {
+        }
     }
 }
