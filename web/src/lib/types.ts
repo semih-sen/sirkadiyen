@@ -895,9 +895,17 @@ export type ValidationSeverity = 'Error' | 'Warning' | 'Information' | string;
 export interface ScheduleRevisionSummary {
   revisionId: string;
   sourceId: string;
+  displayName: string;
+  classYear: number;
+  programLanguage: ProgramLanguage;
+  academicYear: string;
   state: RevisionState;
   createdAtUtc: string;
   recordCount: number;
+  /** Records in the source's currently published revision; null when it has never published. */
+  publishedRecordCount?: number | null;
+  errorFindingCount: number;
+  warningFindingCount: number;
   stateReason?: string | null;
 }
 

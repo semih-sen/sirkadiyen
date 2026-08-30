@@ -8235,3 +8235,87 @@ determined. A failed deployment is therefore self-healing: everything changed si
 actually landed is deployed again, and re-deploying an unchanged component costs an rsync of
 identical files and one activation. It needs `actions: read`, which is the only permission the
 workflow has gained.
+
+## ADR-135: A stranded revision is swept, and the review screen explains itself
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-30
+**Relates to:** ADR-025 and ADR-029 (validation is the boundary between a successful parse and a
+student's calendar), ADR-033 (the correction is a newer revision, never a rollback), ADR-097 (a
+rejection is recorded as a rejection), ADR-102 and ADR-133 (a companion enriches and never
+publishes), ADR-127 (the history view)
+
+### Context
+
+Two symptoms, reported together: the weekly amphitheatre program sat in `Parsed` and never
+published, and the revision review screen "says almost nothing".
+
+**The first is two different things wearing one label.**
+
+`ScheduleRevisionValidationService.ValidatePendingAsync` was written as the safety net for exactly
+this — its own summary says it "picks up anything a crashed cycle left behind" — and **nothing ever
+called it**. The poller validates the revision it has just created, in the same call, and the parse
+persists in its own transaction; so a cancelled cycle, a crash, or an exception raised between
+persistence and validation leaves a revision in `Parsed` permanently. It is never retried, never
+published, never rejected. The sources page shows it as a revision that simply stopped.
+
+And separately: `SHARED-AMPHI` is a companion. It publishes no candidates by design, so its revision
+is always empty, and an empty revision is terminally rejected — correctly, because publishing one
+would delete every event the source owns. Nothing on any screen said that this particular emptiness
+is the expected, permanent outcome rather than a fault, so "the amphitheatre program never
+publishes" read as a bug. It is not: the amphitheatre program's effect is the room written onto the
+annual sources' events (ADR-133).
+
+**The second symptom was the screen.** A queue row read `G3-TR-A-ANNUAL · 1119 kayıt`. A finding
+read `LowConfidenceRecord` over an English sentence. And every rule that names records stores its
+evidence as an array of objects, which the renderer passed through `String(entry)` — so the
+evidence, the whole reason the review queue exists, rendered as a column of `[object Object]`.
+
+### Decision
+
+**The pending-validation sweep runs every cycle**, before publication, so a revision recovered by it
+publishes in the same pass rather than the next one. It logs at warning level: a revision reaching
+it is one the poller should already have validated, so its existence is evidence a cycle did not
+finish, even though the revision itself is now recovered.
+
+**The empty-revision finding states which of the two situations produced it.** A source that has
+published before and now publishes nothing is an alarm; one that has never published may be a
+companion, permanently and correctly empty. The rejection reads identically either way and the
+operator's next step does not, so the distinction belongs in the finding rather than in someone's
+memory.
+
+**The review screen answers the question it is asking the operator.** Approving a revision means
+letting it replace what students currently have, so each row now carries the source's name, its
+cohort, its academic year, the finding counts, and — the number that actually decides it — how its
+record count compares with the published revision's. `164 kayıt` against a published `180` is
+sixteen lessons about to leave students' calendars, and reading that previously required a second
+screen.
+
+**Each rule is explained in the reviewer's language, in three parts:** what the check looked at,
+what a failure usually means, and what approving anyway would do. The third is the one that matters,
+because approval is the only way a held revision reaches a calendar. The stored English message
+stays and is shown beneath: it is the evidence, it carries this occurrence's numbers, and evidence
+should read the same on every host.
+
+**Evidence is rendered as a table of the object's own keys**, so a rule can record whatever shape
+its own case needs without the screen having to know it.
+
+### Consequences
+
+- One new worker task and one shared frontend module; no schema change, no migration.
+- `ScheduleRevisionSummary` grew the source's identity and the published comparison. It is projected
+  in one query — a join and three correlated subqueries — rather than in three round trips per row.
+- **A latent defect surfaced while testing that projection.** Filtering the revision history by
+  source compared `revision.SourceId.Value`, reaching inside a value-converted column, which Entity
+  Framework cannot translate: that query has never worked and would throw at runtime. It now
+  compares the value object. An unparseable identifier returns no revisions rather than throwing —
+  it arrives as a query string, and a bad one is a question whose answer is "none".
+- **The store projections are now translation-tested without a database.** The persistence tests
+  need a configured PostgreSQL and are skipped in CI as well as locally, so an untranslatable
+  expression would first be found by an operator getting a 500. Entity Framework translates before
+  it connects, so pointing a context at an unreachable port turns "did this translate" into an
+  assertion about which exception comes back. That is how the defect above was caught.
+- **Still open:** a companion's weekly empty revision lands in the rejected queue every time its
+  workbook changes — about one row a week. It is now self-explanatory rather than mysterious, and
+  arguably it is a record worth having, but suppressing it would need the catalog to state that a
+  source publishes nothing, which is a larger change than this one.

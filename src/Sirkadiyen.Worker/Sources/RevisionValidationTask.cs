@@ -1,0 +1,62 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Sirkadiyen.Application.Scheduling.Publication;
+
+namespace Sirkadiyen.Worker.Sources;
+
+/// <summary>
+/// Validates revisions a previous cycle left in <c>Parsed</c> (ADR-135).
+/// </summary>
+/// <remarks>
+/// The poller validates the revision it has just created, inside the same call. Everything about
+/// that is fine until it does not happen: the parse persists in its own transaction, so a crash,
+/// a cancelled cycle, or an exception raised between persistence and validation leaves a revision
+/// in <c>Parsed</c>. <see cref="ScheduleRevisionValidationService.ValidatePendingAsync"/> was
+/// written for exactly that case and documented as the safety net, and nothing ever called it —
+/// so a stranded revision stayed stranded for good. It is never retried, never published, never
+/// rejected, and appears on the sources page as a source whose newest revision simply sits in
+/// <c>Parsed</c> with nothing explaining why.
+/// <para>
+/// This runs before publication in the cycle, so a revision recovered here reaches the publication
+/// step in the same pass rather than one later.
+/// </para>
+/// </remarks>
+internal sealed class RevisionValidationTask(
+    IServiceScopeFactory scopeFactory,
+    ILogger<RevisionValidationTask> logger)
+{
+    private const int BatchSize = 50;
+
+    public async Task RunAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
+            ScheduleRevisionValidationService validation = scope.ServiceProvider
+                .GetRequiredService<ScheduleRevisionValidationService>();
+            IReadOnlyList<RevisionValidationOutcome> outcomes =
+                await validation.ValidatePendingAsync(BatchSize, cancellationToken);
+
+            foreach (RevisionValidationOutcome outcome in outcomes)
+            {
+                // Logged at warning: a revision reaching this task is one the poller was supposed
+                // to have validated, so it is evidence that a cycle did not finish, even though
+                // the revision itself is now recovered.
+                logger.LogWarning(
+                    "Revision {RevisionId} was left unvalidated by an earlier cycle and has now "
+                    + "been validated as {Outcome} with {FindingCount} finding(s).",
+                    outcome.RevisionId,
+                    outcome.Result.Outcome,
+                    outcome.Result.Findings.Count);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Validating revisions left behind by an earlier cycle failed.");
+        }
+    }
+}

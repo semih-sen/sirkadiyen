@@ -3392,3 +3392,41 @@ fazla okuma; editörü Google çağrısı boyunca bekletmek daha kötü takas ol
 
 Not: bu, listelerin **içeriğini** tazelemez. Google'da düzeltilen bir isim için bir saatlik yenileme
 hâlâ geçerli ve zorla tazeleme yok (ADR-132'nin açık maddesi, daraltıldı ama kapanmadı).
+
+## "Parsed'da kalmış" iki ayrı şeydi; inceleme ekranı kanıtı gizliyordu (ADR-135) (2026-08-30)
+
+Bildirilen iki belirtinin ilki tek bir şey değil.
+
+**Süpürücü hiç çağrılmıyordu.** `ValidatePendingAsync`'in kendi özeti "çöken bir döngünün geride
+bıraktığını alır" diyor; kodda hiçbir çağıranı yok. Parse kendi transaction'ında kalıcılaşıyor,
+doğrulama poller'ın aynı çağrısında yapılıyor — arada kesilen her döngü revizyonu kalıcı olarak
+`Parsed`'da bırakıyor. Yeniden denenmiyor, yayımlanmıyor, reddedilmiyor. Yazılmış ama bağlanmamış
+bir güvenlik ağı, olmayandan daha kötü: kod onun varlığına güvenerek okunuyor.
+
+**Amfi programının hiç yayımlanmaması ise hata değil.** `SHARED-AMPHI` bir companion; hiç candidate
+üretmez, boş revizyon da her zaman terminal olarak reddedilir — doğrusu da bu, yayımlansaydı
+kaynağın bütün etkinlikleri silinirdi. Eksik olan davranış değil, cümleydi: hiçbir ekran bu
+boşluğun beklenen ve kalıcı olduğunu söylemiyordu. Amfi programının işi zaten yıllık kaynakların
+etkinliklerine yazılan oda.
+
+İkinci belirtinin sebebi daha somut. İnceleme kuyruğu satırı `G3-TR-A-ANNUAL · 1119 kayıt`
+yazıyordu — operatörden hangi kohort olduğunu ve neyle karşılaştıracağını zaten bilmesini istiyor.
+Kural adı İngilizce enum, mesaj İngilizce düz metin. Ve kayıt adı veren her kural kanıtını **nesne
+dizisi** olarak saklıyor; render eden kod `String(entry)` çağırıyordu, yani ekranda bir sütun dolusu
+`[object Object]`. Kuyruğun var olma sebebi olan kanıt, pratikte hiç yoktu.
+
+Ekran artık operatöre sorduğu soruyu soruyor: "bunlar öğrencilerin elindekinin yerine geçsin mi?"
+Bu yüzden satırda kaynağın adı, kohortu ve **yayımdaki revizyonla kayıt farkı** var — 164'e karşı
+180, on altı dersin takvimlerden çıkması demek ve bunu okumak eskiden ikinci bir ekran gerektiriyordu.
+Her kural üç parça hâlinde anlatılıyor: neye bakıldı, genellikle ne anlama gelir, **onaylarsan ne
+olur**. Üçüncüsü asıl olan, çünkü onay bekletilen bir revizyonun takvime ulaşmasının tek yolu.
+
+Saklanan İngilizce mesaj kaldı ve altta gösteriliyor: o kanıt, bu olayın sayılarını taşıyor ve her
+makinede aynı okunmalı. Açıklama ekrana, kanıt kayda ait.
+
+**Bu iş sırasında ikinci bir hata çıktı.** Yeni projeksiyonu veritabanısız çeviri testine sokunca,
+revizyon geçmişini kaynağa göre filtrelemenin `revision.SourceId.Value` üzerinden yazıldığı ve
+value converter'ın içine uzandığı için **hiç çevrilemediği** ortaya çıktı — o sorgu bugüne kadar
+çalışmadı, çalıştırılsa runtime'da patlardı. Persistence testleri bağlantı dizesi olmadan atlandığı
+için CI'da da koşmuyor; EF'in bağlanmadan önce çeviri yaptığı gerçeğinden yararlanan bu test, o
+boşluğu veritabanı gerektirmeden kapatıyor.

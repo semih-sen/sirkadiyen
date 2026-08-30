@@ -37,6 +37,36 @@ public sealed class ScheduleRevisionValidatorTests
     }
 
     [Fact]
+    public void AnEmptyRevisionSaysWhichOfTheTwoSituationsProducedIt()
+    {
+        // The rejection reads identically either way, and the operator's next step does not. A
+        // source that has published before and now publishes nothing is an alarm; one that never
+        // published may be a companion, whose whole job is to enrich another source's sessions and
+        // which is therefore permanently and correctly empty (ADR-102, ADR-133, ADR-135).
+        RevisionValidationResult neverPublished = Validate([]);
+        RevisionValidationResult publishedBefore = Validate([], hasPreviousPublishedRevision: true);
+
+        Assert.Contains(
+            "never published",
+            neverPublished.Findings.Single().Message,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "companion",
+            neverPublished.Findings.Single().Message,
+            StringComparison.Ordinal);
+        Assert.Contains(
+            "published records before",
+            publishedBefore.Findings.Single().Message,
+            StringComparison.Ordinal);
+
+        // And the state reason, which is what the queue row shows before anything is opened,
+        // distinguishes them too.
+        Assert.NotEqual(neverPublished.StateReason, publishedBefore.StateReason);
+        Assert.Equal(RevisionState.Rejected, neverPublished.Outcome);
+        Assert.Equal(RevisionState.Rejected, publishedBefore.Outcome);
+    }
+
+    [Fact]
     public void AStraightforwardRevisionIsValidated()
     {
         RevisionValidationResult result = Validate([Record("r1"), Record("r2", hour: 13)]);

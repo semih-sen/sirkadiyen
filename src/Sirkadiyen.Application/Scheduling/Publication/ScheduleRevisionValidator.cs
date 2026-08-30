@@ -38,18 +38,33 @@ public sealed class ScheduleRevisionValidator(RevisionValidationOptions options)
             // Nothing an administrator could approve would make an empty revision
             // publishable, and publishing it would delete every event the source
             // owns. This is the one terminal outcome.
+            //
+            // Which of two very different situations produced it is worth stating, because the
+            // rejection reads identically in both and the operator's next step does not: a source
+            // that has published before and now publishes nothing is an alarm, while a source that
+            // has never published anything may simply be one that never will (a companion, whose
+            // whole job is to enrich another source's sessions - ADR-102, ADR-133).
             findings.Add(Finding(
                 input,
                 RevisionValidationRule.EmptyRevision,
                 ValidationSeverity.Error,
-                "The revision contains no schedule records, so it cannot be published.",
+                "The revision contains no schedule records, so it cannot be published. "
+                + (input.HasPreviousPublishedRevision
+                    ? "This source has published records before, so something changed: the "
+                        + "document, or the parser profile reading it."
+                    : "This source has never published a revision. For a companion source, which "
+                        + "only enriches sessions another source states, that is the expected and "
+                        + "permanent outcome and no publication is missing. For any other source "
+                        + "it means the document or the parser profile is wrong."),
                 atUtc));
 
             return new RevisionValidationResult
             {
                 Outcome = RevisionState.Rejected,
                 Findings = findings,
-                StateReason = "Empty revision.",
+                StateReason = input.HasPreviousPublishedRevision
+                    ? "Empty revision; this source has published records before."
+                    : "Empty revision; this source has never published records.",
             };
         }
 

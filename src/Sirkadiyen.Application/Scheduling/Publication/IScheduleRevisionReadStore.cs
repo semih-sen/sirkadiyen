@@ -1,4 +1,5 @@
 using Sirkadiyen.Domain.Scheduling.Publication;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
 namespace Sirkadiyen.Application.Scheduling.Publication;
 
@@ -37,17 +38,51 @@ public interface IScheduleRevisionReadStore
         CancellationToken cancellationToken);
 }
 
+/// <summary>
+/// One revision as the review queue lists it.
+/// </summary>
+/// <remarks>
+/// It carries the source's identity as well as its ID (ADR-135). A queue row reading only
+/// <c>G3-TR-A-ANNUAL · 1119 kayıt</c> asks the operator to already know which cohort that is and
+/// which document it came from, and the decision they are being asked to make — whether a
+/// difference is a real schedule change or a misread — cannot be made without it. The finding
+/// counts are here for the same reason: the row should say what is wrong before it is opened.
+/// </remarks>
 public sealed record ScheduleRevisionSummary
 {
     public required Guid RevisionId { get; init; }
 
     public required string SourceId { get; init; }
 
+    /// <summary>The source's display name, as the catalog states it.</summary>
+    public required string DisplayName { get; init; }
+
+    public required int ClassYear { get; init; }
+
+    public required ProgramLanguage ProgramLanguage { get; init; }
+
+    public required string AcademicYear { get; init; }
+
     public required RevisionState State { get; init; }
 
     public required DateTimeOffset CreatedAtUtc { get; init; }
 
     public required int RecordCount { get; init; }
+
+    /// <summary>
+    /// How many records the last published revision of this source carries, or
+    /// <see langword="null"/> when the source has never published one.
+    /// </summary>
+    /// <remarks>
+    /// The single most useful number on the screen: 1119 records against a published 1183 is a
+    /// revision that drops 64 lessons, and that is the question the operator is actually deciding.
+    /// Reading it required opening a second screen before.
+    /// </remarks>
+    public int? PublishedRecordCount { get; init; }
+
+    public required int ErrorFindingCount { get; init; }
+
+    public required int WarningFindingCount { get; init; }
 
     public string? StateReason { get; init; }
 }

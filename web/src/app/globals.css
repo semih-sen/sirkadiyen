@@ -1764,6 +1764,36 @@ button.link:disabled {
   .catalog-textarea { min-height: 320px; }
 }
 
+/* --- Revizyon inceleme (ADR-135) ------------------------------------------ */
+
+.revision-queue-note { font-size: 13px; margin: 10px 0 14px; max-width: 78ch; }
+
+.revision-row { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 12px; }
+.revision-row-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; width: 100%; color: var(--text); text-align: left; }
+.revision-row-identity { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.revision-row-identity small { font-size: 11.5px; }
+.revision-row-facts { flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.revision-row-meta { font-size: 12.5px; margin: 8px 0 0; }
+.revision-row-delta { font-size: 13px; margin: 6px 0 0; }
+.revision-row-delta--drop { color: var(--danger); }
+.revision-row-state { font-size: 12.5px; margin: 6px 0 0; max-width: 78ch; }
+.revision-row-reason { font-size: 11.5px; margin: 6px 0 0; word-break: break-word; }
+.revision-row-body { margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px; display: flex; flex-direction: column; gap: 14px; }
+
+.revision-finding { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.revision-finding-head { flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.revision-finding-head small { font-size: 11px; }
+.revision-finding-explains { font-size: 13px; margin: 0; max-width: 78ch; }
+.revision-finding-message { font-size: 12.5px; margin: 0; max-width: 78ch; }
+.revision-evidence { font-size: 12px; }
+.revision-evidence-raw { font-size: 11.5px; white-space: pre-wrap; word-break: break-word; margin: 0; }
+.revision-evidence-list { margin: 0; padding-left: 18px; font-size: 12px; }
+
+@media (max-width: 700px) {
+  .revision-row-head { flex-direction: column; align-items: flex-start; }
+  .revision-row-facts { justify-content: flex-start; }
+}
+
 /* --- Lisans kodu isteme (onboarding) -------------------------------------- */
 
 .license-request { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--border); }

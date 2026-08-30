@@ -1329,3 +1329,36 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
   `schedule-sources.json`'ı ediyor); temiz sunucuda depo kopyası bir kez elle kurulmalı, bu
   `deploy/README.md`'ye yazıldı. Panel düzenlemesi listelerin **içeriğini** tazelemez, yalnız
   katalogu; Google'da düzenlenen bir liste için hâlâ bir saatlik yenileme geçerli.
+
+## Takılı kalan revizyon süpürülüyor, inceleme ekranı açıklıyor (ADR-135) (2026-08-30)
+
+- **Root cause (iki ayrı şey):** (1) `ValidatePendingAsync` güvenlik ağı olarak yazılmış ama
+  **hiçbir yerden çağrılmıyordu**; poller doğrulamaya varamadan kesilen bir döngü revizyonu
+  kalıcı olarak `Parsed`'da bırakıyordu. (2) `SHARED-AMPHI` bir companion; tasarımı gereği hiç
+  candidate yayımlamaz, boş revizyon da her zaman reddedilir — ama hiçbir ekran bu boşluğun
+  beklenen ve kalıcı olduğunu söylemiyordu, dolayısıyla "amfi programı hiç yayımlanmıyor" hata gibi
+  okunuyordu. Amfi programının etkisi zaten yıllık kaynakların etkinliklerine yazılan oda bilgisi.
+- **Changed:** Yeni `RevisionValidationTask` her döngüde, yayımlamadan **önce** koşuyor (kurtarılan
+  revizyon aynı turda yayımlansın diye) ve bulduğunu warning olarak logluyor. Boş revizyon bulgusu
+  artık iki durumu ayırıyor ("daha önce yayımlamış" / "hiç yayımlamamış — companion olabilir").
+  `ScheduleRevisionSummary` kaynağın adı, kohortu, akademik yılı, hata/uyarı sayıları ve
+  **yayımdaki revizyonun kayıt sayısı** ile genişletildi; hepsi tek sorguda (join + üç ilişkili
+  alt sorgu) projeksiyonlanıyor. Frontend'de yeni `RevisionFindings` modülü: her kural Türkçe
+  etiket + "ne bakıldı / genellikle ne demek / onaylarsan ne olur" açıklaması, durum açıklamaları,
+  ve kanıtın tablo olarak render'ı. Satır başlığı artık kaynak adı, kohort, tarih, rozetler ve
+  "yürürlükteki revizyon 180 kayıt taşıyor: bu revizyon 16 dersi kaldırıyor" cümlesini gösteriyor.
+- **Bulunan ikinci hata:** Revizyon geçmişini kaynağa göre filtreleme (`ListRecentAsync(sourceId)`)
+  `revision.SourceId.Value` ile karşılaştırıyordu — value converter'ın içine uzanan bu ifade EF
+  tarafından çevrilemiyor, yani o sorgu hiç çalışmamış, çalıştırılsa runtime'da patlardı. Value
+  object üzerinden karşılaştırmaya çevrildi; ayrıştırılamayan kimlik hata değil "boş sonuç".
+- **Tests executed:** `dotnet test Sirkadiyen.slnx` 0 başarısız (Infrastructure 802, Api 11,
+  Contracts 6, Persistence 40 geçti / 236 atlandı — Docker kapalı). Yeni
+  `ScheduleRevisionReadStoreTranslationTests` (4 test) projeksiyonları veritabanısız çeviri
+  testinden geçiriyor — yukarıdaki hatayı bu yakaladı. Web: `tsc --noEmit` temiz,
+  `vitest run` 19 dosya / 94 test (RevisionReview'a iki yeni test: bağlam satırı ve
+  `[object Object]` regresyonu), `next build` başarılı.
+- **Not done / not verified:** Tarayıcıda doğrulanmadı — ekran oturum, API ve PostgreSQL istiyor.
+  Companion'ın haftalık boş revizyonu hâlâ reddedilenler kuyruğuna düşüyor (haftada ~1 satır);
+  bastırmak için katalogun "bu kaynak yayın yapmaz" demesi gerekir, o ayrı bir iş. Persistence
+  testleri CI'da da atlanıyor (bağlantı dizesi ayarlı değil), bu yüzden store projeksiyonlarının
+  güvencesi çeviri testi kadar.

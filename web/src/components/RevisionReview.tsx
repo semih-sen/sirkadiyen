@@ -10,50 +10,12 @@ import {
   ApiError,
 } from '@/lib/api';
 import { Tabs, formatDateTime } from '@/components/AdminData';
+import { Finding, STATE_EXPLAINS, stateLabel } from '@/components/RevisionFindings';
 import type {
-  RevisionFindingView,
   RevisionState,
   ScheduleRevisionDetail,
   ScheduleRevisionSummary,
 } from '@/lib/types';
-
-function severityColor(severity: string): string {
-  if (severity === 'Error') return 'var(--danger)';
-  if (severity === 'Warning') return 'var(--accent)';
-  return 'var(--muted)';
-}
-
-function Finding({ finding }: { finding: RevisionFindingView }) {
-  // Detail is a JSON string (e.g. the overlap list); render it readably when present.
-  let detailLines: string[] = [];
-  try {
-    const parsed: unknown = finding.detail ? JSON.parse(finding.detail) : null;
-    if (Array.isArray(parsed)) {
-      detailLines = parsed.map((entry) => String(entry));
-    }
-  } catch {
-    detailLines = finding.detail ? [finding.detail] : [];
-  }
-
-  return (
-    <div style={{ borderTop: '1px solid var(--border)', padding: '10px 0' }}>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'baseline' }}>
-        <span style={{ color: severityColor(finding.severity), fontWeight: 600, fontSize: 13 }}>
-          {finding.severity}
-        </span>
-        <span style={{ fontSize: 13 }}>{finding.rule}</span>
-      </div>
-      <p className="muted" style={{ margin: '4px 0', fontSize: 13 }}>{finding.message}</p>
-      {detailLines.length > 0 && (
-        <ul className="muted" style={{ margin: '4px 0', paddingLeft: 18, fontSize: 12 }}>
-          {detailLines.slice(0, 40).map((line, index) => (
-            <li key={index}>{line}</li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
 
 /**
  * The queue an operator is working.
@@ -232,28 +194,73 @@ function RevisionRow({
     }
   }
 
+  const delta = summary.publishedRecordCount == null
+    ? null
+    : summary.recordCount - summary.publishedRecordCount;
+
   return (
-    <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 12, marginBottom: 10 }}>
+    <div className="revision-row">
       <button
         type="button"
         onClick={() => void toggle()}
-        className="link"
-        style={{ display: 'flex', justifyContent: 'space-between', width: '100%', color: 'var(--text)' }}
+        className="link revision-row-head"
+        aria-expanded={open}
       >
-        <span style={{ fontWeight: 600 }}>{summary.sourceId}</span>
-        <span className="value" style={{ fontSize: 13 }}>
-          {showState && <span className="badge badge-neutral" style={{ marginRight: 8 }}>{summary.state}</span>}
-          {summary.recordCount} kayıt · {open ? '▲' : '▼'}
+        <span className="revision-row-identity">
+          <strong>{summary.displayName || summary.sourceId}</strong>
+          <small className="mono muted">{summary.sourceId}</small>
+        </span>
+        <span className="cluster revision-row-facts">
+          {showState && <span className="badge badge-neutral">{stateLabel(summary.state)}</span>}
+          {summary.errorFindingCount > 0 && (
+            <span className="badge badge-danger">{summary.errorFindingCount} hata</span>
+          )}
+          {summary.warningFindingCount > 0 && (
+            <span className="badge badge-warning">{summary.warningFindingCount} uyarı</span>
+          )}
+          <span className="value">{summary.recordCount} kayıt</span>
+          <span aria-hidden="true">{open ? '▲' : '▼'}</span>
         </span>
       </button>
+
+      <p className="muted revision-row-meta">
+        Dönem {summary.classYear} · {summary.programLanguage} · {summary.academicYear} ·
+        {' '}ayrıştırma {formatDateTime(summary.createdAtUtc)}
+      </p>
+
+      {/* The comparison the operator is actually deciding on. A revision carrying fewer records
+          than the one in force removes lessons from calendars when it is published, and that
+          number was previously only obtainable by opening another screen. */}
+      <p className="revision-row-delta">
+        {summary.publishedRecordCount == null
+          ? <span className="muted">Bu kaynağın yayımlanmış revizyonu yok; bu ilk yayın olur.</span>
+          : delta === 0
+            ? <span className="muted">Yürürlükteki revizyonla aynı sayıda kayıt ({summary.publishedRecordCount}).</span>
+            : (
+              <span className={delta! < 0 ? 'revision-row-delta--drop' : undefined}>
+                Yürürlükteki revizyon {summary.publishedRecordCount} kayıt taşıyor:
+                {' '}bu revizyon <strong>{delta! > 0 ? `${delta} ders ekliyor` : `${Math.abs(delta!)} dersi kaldırıyor`}</strong>.
+              </span>
+            )}
+      </p>
+
+      {STATE_EXPLAINS[summary.state] && (
+        <p className="muted revision-row-state">{STATE_EXPLAINS[summary.state].explains}</p>
+      )}
+
       {summary.stateReason && (
-        <p className="muted" style={{ margin: '6px 0 0', fontSize: 13 }}>{summary.stateReason}</p>
+        <p className="mono muted revision-row-reason">{summary.stateReason}</p>
       )}
 
       {open && (
-        <div style={{ marginTop: 10 }}>
+        <div className="revision-row-body">
           {detail ? (
             <>
+              {detail.findings.length === 0 && (
+                <p className="muted">
+                  Doğrulama bu revizyonda hiçbir bulgu kaydetmedi.
+                </p>
+              )}
               {detail.findings.map((finding, index) => <Finding key={index} finding={finding} />)}
               {actionable
                 ? <ReviewActions summary={summary} onSettled={onSettled} />
@@ -300,6 +307,21 @@ export function RevisionReview() {
         onChange={(value) => setQueue(value as RevisionTab)}
         items={QUEUES.map((item) => ({ value: String(item.value), label: item.label }))}
       />
+      {queue === 'ReviewRequired' && (
+        <p className="muted revision-queue-note">
+          Buradaki revizyonlar hiçbir öğrencinin takvimine yazılmadı. Onaylamak, kaynağın
+          yayımlanmış revizyonunun yerini almasını ve farkın takvimlere uygulanmasını sağlar —
+          eksilen dersler silinir. Her bulgunun altındaki kayıt listesi, kararı belgeyle
+          karşılaştırarak verebilmeniz içindir.
+        </p>
+      )}
+      {queue === 'Rejected' && (
+        <p className="muted revision-queue-note">
+          Reddedilen revizyonlar kalıcı olarak yayımlanmaz ve geri alınamaz. Kayıt burada tutulur,
+          çünkü &quot;bu program neden hiç takvime düşmedi&quot; sorusunun cevabı başka hiçbir
+          ekranda yok.
+        </p>
+      )}
       {queue === 'history' && (
         <p className="muted" style={{ margin: '10px 0 4px', fontSize: 13 }}>
           Her durumdaki en yeni revizyonlar (yayımlanan, geçersiz kılınan, reddedilen dahil), en yeni
