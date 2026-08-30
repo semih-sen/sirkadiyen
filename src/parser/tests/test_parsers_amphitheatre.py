@@ -7,7 +7,7 @@ lookup refuses to name a room. A wrong room is written onto a student's calendar
 event, so the refusals matter more here than the matches.
 """
 
-from datetime import date, time
+from datetime import date, time, timedelta
 
 import pytest
 
@@ -17,7 +17,11 @@ from sirkadiyen_parser.contracts.parsing import (
     ParseSnapshotResponse,
     ProgramLanguage,
 )
-from sirkadiyen_parser.contracts.snapshot import NormalizedSpreadsheetSnapshot
+from sirkadiyen_parser.contracts.snapshot import (
+    NormalizedCell,
+    NormalizedSpreadsheetSnapshot,
+    NormalizedWorksheet,
+)
 from sirkadiyen_parser.normalization.dates import NumericDateOrder
 from sirkadiyen_parser.parsers import get_parser
 from sirkadiyen_parser.parsers.amphitheatre import (
@@ -25,6 +29,7 @@ from sirkadiyen_parser.parsers.amphitheatre import (
     REASON_NO_ASSIGNMENT,
     REASON_UNANIMOUS_WITHOUT_DEPARTMENT,
     RULE_ASSIGNMENT,
+    AmphitheatreAssignment,
     AmphitheatreDocument,
     AmphitheatreIndex,
     read_amphitheatre_document,
@@ -44,7 +49,7 @@ MONDAY = date(2026, 8, 31)
 TUESDAY = date(2026, 9, 1)
 
 
-def snapshot(*worksheets) -> NormalizedSpreadsheetSnapshot:
+def snapshot(*worksheets: NormalizedWorksheet) -> NormalizedSpreadsheetSnapshot:
     """Wrap worksheets in the snapshot envelope the parser is handed."""
     return NormalizedSpreadsheetSnapshot.model_validate(
         {
@@ -65,7 +70,7 @@ def day_block(
     title: str,
     rooms: dict[int, str],
     slots: list[tuple[str, dict[int, str]]],
-) -> list:
+) -> list[NormalizedCell]:
     """Build one day's title row, room header row and slot rows."""
     cells = [text_cell(first_row, 0, title), text_cell(first_row + 1, 0, "SAAT")]
     cells += [text_cell(first_row + 1, column, name) for column, name in rooms.items()]
@@ -290,7 +295,10 @@ def test_a_cell_naming_no_class_year_is_accounted_for_rather_than_published() ->
         }
     )
 
-    response = get_parser(PROFILE.name, PROFILE.version)(request, PROFILE)
+    parser = get_parser(PROFILE.name, PROFILE.version)
+    assert parser is not None, "The amphitheatre profile has no registered implementation."
+
+    response = parser(request, PROFILE)
 
     assert response.candidates == []
     metrics = {metric.name: metric.value for metric in response.metrics}
@@ -317,7 +325,10 @@ def test_the_profile_publishes_nothing_from_the_real_document() -> None:
         }
     )
 
-    response: ParseSnapshotResponse = get_parser(profile.name, profile.version)(request, profile)
+    parser = get_parser(profile.name, profile.version)
+    assert parser is not None, "The amphitheatre profile has no registered implementation."
+
+    response: ParseSnapshotResponse = parser(request, profile)
 
     assert response.candidates == []
     assert response.status is not ParserResultStatus.REJECTED
@@ -338,15 +349,15 @@ def test_the_real_document_covers_the_week_its_day_titles_state() -> None:
         )
     )
 
-    week = {date(2026, 8, 31) + __import__("datetime").timedelta(days=day) for day in range(5)}
+    week = {date(2026, 8, 31) + timedelta(days=day) for day in range(5)}
     assert week <= set(document.dates())
 
 
-def index_of(*assignments) -> AmphitheatreIndex:
+def index_of(*assignments: AmphitheatreAssignment) -> AmphitheatreIndex:
     return AmphitheatreIndex(AmphitheatreDocument(assignments=tuple(assignments)))
 
 
-def assignment_from(text: str, room: str):
+def assignment_from(text: str, room: str) -> AmphitheatreAssignment:
     document = read_amphitheatre_document(
         snapshot(
             worksheet(
