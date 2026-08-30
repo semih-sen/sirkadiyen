@@ -236,6 +236,33 @@ CASES = (
         _OWNS_3A,
         "parse/g3-tr-a-annual-without-companion.json",
     ),
+    # The same annual with the weekly amphitheatre program attached, which is what
+    # the pipeline does once that companion has been acquired (ADR-133). Its
+    # golden must differ from the plain Grade 3 A case in the locations alone:
+    # the room the weekly grid states may fill a location the workbook deferred,
+    # and may move nothing else about the lesson.
+    (
+        "grade3_yearly_v1",
+        "real/g3-tr-a-annual.snapshot.json",
+        3,
+        "turkish",
+        _Y2026,
+        ("real/g3-tr-a-bedside.snapshot.json", "real/shared-amphi.snapshot.json"),
+        _OWNS_3A,
+        "parse/g3-tr-a-annual-with-amphitheatre.json",
+    ),
+    # Grade 2 English takes rooms from the same weekly document, which proves the
+    # companion is shared rather than a Grade 3 arrangement.
+    (
+        "grade2_yearly_v1",
+        "real/g2-en-annual.snapshot.json",
+        2,
+        "english",
+        _Y2026,
+        ("real/shared-amphi.snapshot.json",),
+        None,
+        "parse/g2-en-annual-with-amphitheatre.json",
+    ),
     # The English program states no A/B division, so its term cell is read only
     # for the class year and every row stays program-wide (ADR-098).
     (

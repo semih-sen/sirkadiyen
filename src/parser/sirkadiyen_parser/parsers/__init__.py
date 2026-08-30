@@ -9,6 +9,7 @@ service reports that explicitly instead of returning an empty result.
 from collections.abc import Callable
 
 from sirkadiyen_parser.contracts.parsing import ParseSnapshotRequest, ParseSnapshotResponse
+from sirkadiyen_parser.parsers.amphitheatre import parse_amphitheatre_snapshot
 from sirkadiyen_parser.parsers.anatomy import parse_anatomy_snapshot
 from sirkadiyen_parser.parsers.annual import parse_annual_snapshot
 from sirkadiyen_parser.parsers.bedside import parse_bedside_snapshot
@@ -24,12 +25,12 @@ ParserImplementation = Callable[
 ]
 
 _IMPLEMENTATIONS: dict[tuple[str, str], ParserImplementation] = {
-    ("grade1_yearly_v1", "1.6.0"): parse_annual_snapshot,
+    ("grade1_yearly_v1", "1.7.0"): parse_annual_snapshot,
     ("grade1_practice_v1", "1.1.0"): parse_practice_snapshot,
     # The Grade 2 annual workbooks are the same row-oriented layout as Grade 1 in
     # both languages, so they share the implementation and differ only in what the
     # profile definition declares (ADR-073).
-    ("grade2_yearly_v1", "1.2.0"): parse_annual_snapshot,
+    ("grade2_yearly_v1", "1.3.0"): parse_annual_snapshot,
     # The Grade 2 practice table is a different rotation layout, not a variant of
     # the Grade 1 one, so it has its own implementation (ADR-074). Only the
     # Turkish source is registered: the committed English fixture is from the
@@ -49,7 +50,7 @@ _IMPLEMENTATIONS: dict[tuple[str, str], ParserImplementation] = {
     # languages and for both curriculum groups. What they add is an audience: the
     # class is split in two, so the profile declares `curriculumGroup` and the
     # shared implementation reads it from the term cell (ADR-098).
-    ("grade3_yearly_v1", "1.2.0"): parse_annual_snapshot,
+    ("grade3_yearly_v1", "1.3.0"): parse_annual_snapshot,
     # The rotation those workbooks defer their `Öğretim üyesi Uygulama` rows to.
     # One implementation serves both curriculum groups: the workbooks differ only
     # in their cohort letter and in the order they write their blocks (ADR-099).
@@ -59,6 +60,12 @@ _IMPLEMENTATIONS: dict[tuple[str, str], ParserImplementation] = {
     # supplies their topics (ADR-100); reading it here is what proves the reader
     # the annual profile calls, and what accounts for the document in the metrics.
     ("grade3_bedside_v1", "1.0.0"): parse_bedside_snapshot,
+    # Registered for the same reason as the bedside profile, and publishing
+    # nothing for a stronger one: a cell of this document says which room an
+    # already-scheduled session uses, never that the session exists. The annual
+    # profiles read it as a companion and put the room on the event a student
+    # already has (ADR-133).
+    ("weekly_amphitheatre_v1", "1.0.0"): parse_amphitheatre_snapshot,
 }
 
 

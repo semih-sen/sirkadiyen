@@ -156,6 +156,7 @@ public static class ScheduleSourceCatalogPlanner
         Compare("sourceUri", before.SourceUri.ToString(), after.SourceUri.ToString());
         Compare("externalId", before.ExternalId, after.ExternalId);
         Compare("sheetGid", Text(before.SheetGid), Text(after.SheetGid));
+        Compare("discoveryFolderId", before.DiscoveryFolderId, after.DiscoveryFolderId);
         Compare("parserProfile", before.ParserProfile, after.ParserProfile);
         Compare("parserProfileVersion", before.ParserProfileVersion, after.ParserProfileVersion);
         Compare("academicYear", before.AcademicYear, after.AcademicYear);

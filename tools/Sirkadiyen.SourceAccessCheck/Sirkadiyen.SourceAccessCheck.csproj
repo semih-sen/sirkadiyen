@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Sirkadiyen.Application/Sirkadiyen.Application.csproj" />
+    <ProjectReference Include="../../src/Sirkadiyen.Infrastructure/Sirkadiyen.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

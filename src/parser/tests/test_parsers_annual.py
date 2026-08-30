@@ -264,11 +264,11 @@ def metrics(response: ParseSnapshotResponse) -> dict[str, float]:
 
 
 def test_the_registered_profile_is_the_annual_implementation() -> None:
-    profile = get_profile("grade1_yearly_v1", "1.6.0")
+    profile = get_profile("grade1_yearly_v1", "1.7.0")
 
     assert profile is not None
     assert get_parser(profile.name, profile.version) is parse_annual_snapshot
-    assert ("grade1_yearly_v1", "1.6.0") in implemented_profiles()
+    assert ("grade1_yearly_v1", "1.7.0") in implemented_profiles()
 
 
 def test_a_lesson_row_becomes_a_candidate() -> None:
@@ -710,11 +710,11 @@ def test_evidence_cites_every_column_the_candidate_used() -> None:
 
 
 def test_the_registered_grade_2_profile_is_the_same_annual_implementation() -> None:
-    profile = get_profile("grade2_yearly_v1", "1.2.0")
+    profile = get_profile("grade2_yearly_v1", "1.3.0")
 
     assert profile is not None
     assert get_parser(profile.name, profile.version) is parse_annual_snapshot
-    assert ("grade2_yearly_v1", "1.2.0") in implemented_profiles()
+    assert ("grade2_yearly_v1", "1.3.0") in implemented_profiles()
 
 
 #: How the 2026-2027 English Grade 2 workbook writes its header row: the term
@@ -1020,7 +1020,7 @@ def one_candidate(response: ParseSnapshotResponse) -> CanonicalScheduleCandidate
 
 
 def test_the_grade3_profile_is_the_annual_implementation() -> None:
-    profile = get_profile("grade3_yearly_v1", "1.2.0")
+    profile = get_profile("grade3_yearly_v1", "1.3.0")
 
     assert profile is not None
     assert get_parser(profile.name, profile.version) is parse_annual_snapshot

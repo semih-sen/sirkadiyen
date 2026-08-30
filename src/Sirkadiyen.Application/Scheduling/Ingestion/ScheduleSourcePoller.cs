@@ -26,6 +26,7 @@ public sealed class ScheduleSourcePoller(
     IGroupRotationCoverageStore rotationCoverageStore,
     ScheduleRevisionValidationService revisionValidation,
     IOperationalFreezeStore operationalFreeze,
+    IWeeklyDocumentDiscovery weeklyDocumentDiscovery,
     ParseRunOptions parseRunOptions,
     TimeProvider timeProvider)
 {
@@ -85,12 +86,26 @@ public sealed class ScheduleSourcePoller(
             return Frozen(source.SourceId, snapshotChanged: false);
         }
 
+        // Which document this source publishes can change between cycles: the
+        // weekly amphitheatre program is republished into a Drive folder rather
+        // than edited in place, so the folder is the stable address and the file
+        // is not (ADR-133). A source that declares no folder resolves to exactly
+        // the catalogued document, which is every other source.
+        WeeklyDocumentResolution document = await weeklyDocumentDiscovery.ResolveAsync(
+            source,
+            cancellationToken);
+        if (string.IsNullOrWhiteSpace(document.ExternalId))
+        {
+            throw new InvalidOperationException(
+                $"Discovery for source '{source.SourceId}' resolved no document to acquire.");
+        }
+
         DateTimeOffset acquiredAtUtc = timeProvider.GetUtcNow();
         AcquireSpreadsheetSnapshotRequest acquisition = new()
         {
             SourceId = source.SourceId.Value,
             SnapshotId = Guid.CreateVersion7().ToString("N"),
-            SpreadsheetId = source.ExternalId,
+            SpreadsheetId = document.ExternalId,
             AcquiredAtUtc = acquiredAtUtc,
         };
         NormalizedSpreadsheetSnapshot snapshot = source.Transport switch
@@ -120,19 +135,21 @@ public sealed class ScheduleSourcePoller(
         // start or resume after that point.
         if (await operationalFreeze.IsFrozenAsync(Scope(source), cancellationToken))
         {
-            return Frozen(source.SourceId, stored.Changed);
+            return Describe(Frozen(source.SourceId, stored.Changed), source, document);
         }
 
         // The freshly acquired document is reused only when it is the one that was
         // just stored. When the content was unchanged, the parse must read the
         // stored snapshot, because that is the evidence the parse run is keyed to.
-        return await ParseStoredSnapshotAsync(
+        ScheduleSourcePollResult result = await ParseStoredSnapshotAsync(
             source,
             stored.Snapshot,
             stored.Changed,
             acquired: stored.Changed ? snapshot : null,
             forceReparse,
             cancellationToken);
+
+        return Describe(result, source, document);
     }
 
     /// <summary>
@@ -457,6 +474,28 @@ public sealed class ScheduleSourcePoller(
         return failure.Length <= maximumLength ? failure : failure[..maximumLength];
     }
 
+    /// <summary>
+    /// Records on the result how this cycle chose its document, for a source that
+    /// declares a discovery folder (ADR-133).
+    /// </summary>
+    /// <remarks>
+    /// Reported even when the poll succeeded, because a discovery fallback is a
+    /// success that quietly stops tracking the source. Nothing is attached for a
+    /// source that declares no folder, which is every source but one.
+    /// </remarks>
+    private static ScheduleSourcePollResult Describe(
+        ScheduleSourcePollResult result,
+        ScheduleSource source,
+        WeeklyDocumentResolution document) =>
+        string.IsNullOrWhiteSpace(source.DiscoveryFolderId)
+            ? result
+            : result with
+            {
+                DiscoveryOutcome = document.Outcome,
+                DiscoveryFailure = document.Failure,
+                DiscoveredDocumentName = document.DocumentName,
+            };
+
     private static ScheduleSourcePollResult Frozen(SourceId sourceId, bool snapshotChanged) =>
         new()
         {
@@ -493,6 +532,26 @@ public sealed record ScheduleSourcePollResult
     public RevisionState? RevisionState { get; init; }
 
     public int? ValidationFindingCount { get; init; }
+
+    /// <summary>
+    /// How this cycle decided which document to acquire, for a source whose
+    /// document is republished into a folder rather than edited in place
+    /// (ADR-133). Null for every source that declares no discovery folder.
+    /// </summary>
+    /// <remarks>
+    /// This is the only place a silent degradation becomes visible. Discovery
+    /// deliberately never fails a cycle: a folder it cannot list falls back to the
+    /// catalogued document, which keeps acquiring successfully while quietly
+    /// freezing on last week's file. An operator has to be able to see that
+    /// happening, so the outcome is reported even though the poll succeeded.
+    /// </remarks>
+    public WeeklyDocumentDiscoveryOutcome? DiscoveryOutcome { get; init; }
+
+    /// <summary>Why the discovery folder could not be listed, when that is why it fell back.</summary>
+    public DriveDocumentFailure? DiscoveryFailure { get; init; }
+
+    /// <summary>The document discovery resolved, when it resolved one.</summary>
+    public string? DiscoveredDocumentName { get; init; }
 }
 
 public enum ScheduleSourcePollOutcome

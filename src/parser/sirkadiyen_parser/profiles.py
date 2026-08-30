@@ -52,6 +52,19 @@ class ParserProfileDefinition:
     #: document rather than of this one and so is declared separately (ADR-051).
     companion_numeric_date_order: NumericDateOrder = NumericDateOrder.UNDECLARED
 
+    #: Whether this profile takes event locations from the weekly amphitheatre
+    #: program supplied alongside it (ADR-133). Declared per profile, and as its
+    #: own flag rather than as a second `companion_source_family`, because the
+    #: two companions answer different questions and a profile may read one, the
+    #: other, or both: the Grade 3 annual profile reads bedside topics *and*
+    #: rooms, while Grade 1 and Grade 2 read only rooms.
+    #:
+    #: A profile that declares it and is given no amphitheatre snapshot publishes
+    #: exactly what it published before, for the reason ADR-102 gives: the annual
+    #: program is the only source of these sessions and must never wait on a
+    #: document it merely enriches from.
+    amphitheatre_companion: bool = False
+
 
 _PROFILE_VERSION = "1.0.0"
 
@@ -81,12 +94,17 @@ _PROFILES = (
     # and the snapshot is rejected whole. The English workbook of the same year
     # still labels the column, and a labelled header is always preferred, so its
     # output does not move.
+    # 1.7.0 takes the room from the weekly amphitheatre program when that
+    # companion is supplied (ADR-133). The workbook writes `AMFİ PROGRAMINA
+    # BAKINIZ` where a room would go, and until now that instruction was counted
+    # and dropped, so the event reached a student with no place on it.
     ParserProfileDefinition(
         "grade1_yearly_v1",
-        "1.6.0",
+        "1.7.0",
         "annual",
         _UNDECLARED,
         term_column_may_be_unlabelled=True,
+        amphitheatre_companion=True,
     ),
     # 1.1.0 bounds the cohort alphabet by programme and reads the English
     # cohorts the workbook writes two ways (ADR-130). The Turkish table states
@@ -130,12 +148,14 @@ _PROFILES = (
     # and a labelled header is always preferred, so nothing changes there.
     ParserProfileDefinition(
         "grade2_yearly_v1",
-        "1.2.0",
+        # 1.3.0 takes the room from the weekly amphitheatre program (ADR-133).
+        "1.3.0",
         "annual",
         _UNDECLARED,
         group_rotation_subjects=("diseksiyon", "dissection"),
         group_rotation_fallback=True,
         term_column_may_be_unlabelled=True,
+        amphitheatre_companion=True,
     ),
     # The Grade 2 practice table is the transpose of the Grade 1 one: a column is
     # a dated slot and a row is a practice subject. Anatomy appears in it as a
@@ -216,7 +236,9 @@ _PROFILES = (
     # the half of the class the row is addressed to (ADR-113).
     ParserProfileDefinition(
         "grade3_yearly_v1",
-        "1.2.0",
+        # 1.3.0 takes the room from the weekly amphitheatre program (ADR-133),
+        # which it reads alongside the bedside companion it already had.
+        "1.3.0",
         "annual",
         _UNDECLARED,
         ("curriculumGroup",),
@@ -228,6 +250,7 @@ _PROFILES = (
         # the order itself with the days above twelve it also writes.
         companion_source_family="bedsidePractice",
         companion_numeric_date_order=NumericDateOrder.DAY_FIRST,
+        amphitheatre_companion=True,
     ),
     # The bedside document writes its dates as `01.10.2026`, and proves the order
     # itself: several of them state a day above twelve (`22.10.2026`). It is the

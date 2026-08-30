@@ -49,7 +49,9 @@ HTTP error for the next poll to retry.
 Only DOCX is converted. The Grade 3 workbooks share the transport and are
 reported as `UnsupportedDocumentFormat`: their download works, and what they lack
 is a converter and a parser profile. That is a different gap from
-`UnsupportedTransport`, which is what `SHARED-AMPHI` still reports.
+`UnsupportedTransport`, which no catalogued source reports any more —
+`SHARED-AMPHI` was the last one, and it now reads its Google Sheets workbook over
+the transport that was already implemented (ADR-133).
 
 The snapshot records only that it was downloaded from Drive. The file name, its
 modification time and its digest are deliberately absent, because acquisition
@@ -377,15 +379,65 @@ changes intentionally change the hash.
 This hash drives the implemented unchanged-source short circuit. The raw normalized
 snapshot must still be persisted immutably whenever the hash is new.
 
+## Weekly document discovery
+
+One source's document is republished rather than edited in place. The faculty
+drops a new amphitheatre workbook into a Drive folder every week, so the folder is
+the address and the file is not (ADR-133).
+
+A source declares `discoveryFolderId`. Before acquisition, the poller resolves it
+to the most recently changed document of the expected MIME type in that folder and
+acquires that. Nothing is written back onto the source: which file is current is a
+fact about this week rather than configuration, so `externalId` stays what the
+catalog was written against and is what a cycle falls back to.
+
+Discovery never fails a cycle. A folder that cannot be listed — a revoked
+permission, a moved folder — degrades the source to its catalogued document, and
+the outcome and failure reason travel on the resolution rather than as an
+exception. Listing is a separate port from reading a file, because it needs a
+permission that fetching one file by ID does not.
+
+Choosing by modification time cannot misplace a lesson: every room assignment is
+dated from a day title row inside the document, so acquiring the wrong workbook
+yields assignments for dates no current lesson falls on. The failure mode is a
+missing room, never a wrong one.
+
+### Verifying folder access
+
+Whether the configured credential may list a discovery folder is a fact about the
+deployment, not about the code, and discovery is built never to fail a cycle over
+it — a folder it cannot read falls back to the catalogued document. That makes a
+misconfiguration look like rooms quietly freezing rather than like an error, so it
+has to be checked deliberately:
+
+```bash
+dotnet run --project tools/Sirkadiyen.SourceAccessCheck -- --repository-root . --source-id SHARED-AMPHI
+```
+
+It loads the repository `.env`, builds the credential with the production factory
+and lists the folder through the same adapter the worker uses, then reports which
+document the next poll would acquire. In service-account mode it prints the
+service account address first, because that is what the folder has to be shared
+with and it is printed even when the credential file itself turns out to be
+unusable. Exit code 0 means resolved, 2 means it fell back, 1 means the folder
+could not be listed at all; the failure names whether the folder is invisible to
+the credential or the grant lacks `drive.readonly`.
+
+It also acquires the resolved document, because listing a folder and opening a
+document in it are separate permissions. `--write-snapshot <path>` saves that
+acquisition, which is how a parser profile gets tested against the shape
+production actually sends: the Sheets API reports far more cells than the local
+XLSX converter emits, so a profile verified only against a converted fixture has
+not been verified against a live one.
+
 ## Remaining integration work
 
 Production ingestion still needs:
 
-1. an HTTP acquisition adapter for `SHARED-AMPHI`, whose dated URL must also be
-   advanced by source discovery, and a workbook converter for the Drive-published
-   Grade 3 sources, whose transport is implemented;
-2. current-year fixtures and parser profiles for the unsupported Grade 1, Grade 2
-   English, Grade 3 and weekly-amphitheatre source families;
+1. a workbook converter for the Drive-published Grade 3 sources, whose transport is
+   implemented;
+2. current-year fixtures and parser profiles for the unsupported Grade 1 and Grade 2
+   English source families;
 3. operator views for source status, snapshot evidence, parser warnings and held
    diff release;
 4. production health checks, metrics, structured logging and alerts for acquisition

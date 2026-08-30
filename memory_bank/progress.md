@@ -74,7 +74,7 @@
 - [ ] Add first-year source fixtures
 - [x] Add second-year annual and Turkish practice source fixtures (`g2-{tr,en}-annual`, `g2-tr-practice`)
 - [x] Add third-year source fixtures (all eight 2026-2027 documents, `g3-*.snapshot.json`)
-- [ ] Add weekly amphitheatre fixtures
+- [x] Add weekly amphitheatre fixtures (`shared-amphi.snapshot.json`, the 31 Aug - 4 Sep 2026 workbook)
 - [ ] Document every source
 - [x] Add confirmed mixed-transport source catalog
 - [x] Implement Google Sheets client
@@ -138,7 +138,10 @@
 - [x] Third-year Turkish B faculty practice (same profile)
 - [x] Third-year English annual (same profile; its program states no A/B division, ADR-098)
 - [ ] Third-year faculty-practice room lookup (`grade3_faculty_locations_v1` declared, unimplemented)
-- [ ] Weekly amphitheatre enrichment
+- [x] Weekly amphitheatre enrichment (`weekly_amphitheatre_v1` reads it, the three annual
+  profiles take rooms from it as an ADR-102 companion, ADR-133)
+- [x] Weekly document discovery: the Drive folder is the source address and the file is
+  resolved per poll (ADR-133)
 
 ## Phase 7: Revision and validation pipeline
 

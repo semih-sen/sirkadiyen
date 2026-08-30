@@ -42,7 +42,8 @@ public sealed class ScheduleSource
         string? sharedDocumentGroup = null,
         IReadOnlyList<SourceId>? companionSourceIds = null,
         IReadOnlyDictionary<string, IReadOnlyList<string>>? authoritativeAudienceSelectors = null,
-        IReadOnlyList<SourceId>? groupRotationSourceIds = null)
+        IReadOnlyList<SourceId>? groupRotationSourceIds = null,
+        string? discoveryFolderId = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceUri);
@@ -95,6 +96,7 @@ public sealed class ScheduleSource
         TimeZoneId = timeZoneId;
         ExternalId = externalId;
         SheetGid = sheetGid;
+        DiscoveryFolderId = discoveryFolderId;
         SupportedAudienceSelectors = supportedAudienceSelectors;
         AuthoritativeAudienceSelectors = authoritativeAudienceSelectors;
         SharedDocumentGroup = sharedDocumentGroup;
@@ -121,6 +123,27 @@ public sealed class ScheduleSource
     public string? ExternalId { get; private set; }
 
     public long? SheetGid { get; private set; }
+
+    /// <summary>
+    /// The Drive folder this source's document is republished into, when the
+    /// faculty replaces the document itself rather than editing one in place
+    /// (ADR-133).
+    /// </summary>
+    /// <remarks>
+    /// Only the weekly amphitheatre program works this way: a new workbook appears
+    /// in one folder every week, and the folder is the address the faculty
+    /// publishes, not the file. <see cref="ExternalId"/> stays the document the
+    /// catalog was written against and is what a cycle falls back to when the
+    /// folder cannot be read, so a source configured this way is never left with
+    /// no document at all.
+    /// <para>
+    /// The resolved document is deliberately not stored back here. Which file is
+    /// current is a fact about this week rather than configuration, and writing it
+    /// into the catalogued source would put the poller and the catalog planner in
+    /// permanent disagreement about what the source is.
+    /// </para>
+    /// </remarks>
+    public string? DiscoveryFolderId { get; private set; }
 
     public string ParserProfile { get; private set; }
 

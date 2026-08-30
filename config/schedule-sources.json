@@ -9,11 +9,14 @@
       "sourceUri": "https://drive.google.com/file/d/1FcXgJIn7L9oFJKFCGLrSeefXHocrToAe/view",
       "externalId": "1FcXgJIn7L9oFJKFCGLrSeefXHocrToAe",
       "parserProfile": "grade1_yearly_v1",
-      "parserProfileVersion": "1.6.0",
+      "parserProfileVersion": "1.7.0",
       "academicYear": "2026-2027",
       "classYear": 1,
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
+      "companionSourceIds": [
+        "SHARED-AMPHI"
+      ],
       "fixturePath": "sheets/donem-1-tr/xlsx/2026-2027 D1 Türkçe Tıp Ders Programı.xlsx",
       "notes": "Re-pointed at the 2026-2027 workbook, which the faculty publishes as an XLSX in Drive rather than as a Google Sheet, so the transport moved with it (ADR-131). Its term column carries no header and states `Dönem 1` on every row, which is why grade1_yearly_v1 declares term_column_may_be_unlabelled (ADR-128). Five rows write a weekly pattern (`HER HAFTA PAZARTESİ`) instead of a date and are refused: the online courses they schedule reach no calendar until the source states real dates."
     },
@@ -71,11 +74,14 @@
       "sourceUri": "https://drive.google.com/file/d/1RM4ejON-FnsDMZHBNGYwoNrtig9PTFBL/view",
       "externalId": "1RM4ejON-FnsDMZHBNGYwoNrtig9PTFBL",
       "parserProfile": "grade1_yearly_v1",
-      "parserProfileVersion": "1.6.0",
+      "parserProfileVersion": "1.7.0",
       "academicYear": "2026-2027",
       "classYear": 1,
       "programLanguage": "english",
       "timeZoneId": "Europe/Istanbul",
+      "companionSourceIds": [
+        "SHARED-AMPHI"
+      ],
       "fixturePath": "sheets/donem-1-ing/xlsx/2026-2027 Term 1 Medicine Program in English Course Program .xlsx",
       "notes": "Re-pointed at the 2026-2027 workbook, published as an XLSX in Drive (ADR-131). Unlike the Turkish workbook of the same year it still labels its term column `Dönem`. Carries a second lookup worksheet (`UYGULAMA YERLERİ`) that holds no schedule, and five rows writing a weekly pattern instead of a date, which are refused."
     },
@@ -114,11 +120,14 @@
       "externalId": "1JMxqm8dnckDKS_EVS6GFut2BDjS63khIjQEzVhAOrj8",
       "sheetGid": 1884416610,
       "parserProfile": "grade2_yearly_v1",
-      "parserProfileVersion": "1.2.0",
+      "parserProfileVersion": "1.3.0",
       "academicYear": "2026-2027",
       "classYear": 2,
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
+      "companionSourceIds": [
+        "SHARED-AMPHI"
+      ],
       "fixturePath": "sheets/donem-2-tr/xlsx/2026-2027 Dönem 2 Türkçe Tıp Programı Ders Programı.xlsx",
       "groupRotationSourceIds": [
         "G2-ANATOMY-AUTUMN",
@@ -347,11 +356,14 @@
       "externalId": "124piafnwwDABuaDRt_tiOHCQR72HwiYqw_lPxfn3GVU",
       "sheetGid": 582248845,
       "parserProfile": "grade2_yearly_v1",
-      "parserProfileVersion": "1.2.0",
+      "parserProfileVersion": "1.3.0",
       "academicYear": "2026-2027",
       "classYear": 2,
       "programLanguage": "english",
       "timeZoneId": "Europe/Istanbul",
+      "companionSourceIds": [
+        "SHARED-AMPHI"
+      ],
       "fixturePath": "sheets/donem-2-ing/xlsx/2026-2027 Term 2 Medicine Program in English Course Program.....xlsx"
     },
     {
@@ -384,7 +396,7 @@
       "sourceUri": "https://drive.google.com/file/d/1DsC72zBLz8WI_Fpurm3djUfMaAB-SQL1/view",
       "externalId": "1DsC72zBLz8WI_Fpurm3djUfMaAB-SQL1",
       "parserProfile": "grade3_yearly_v1",
-      "parserProfileVersion": "1.2.0",
+      "parserProfileVersion": "1.3.0",
       "academicYear": "2026-2027",
       "classYear": 3,
       "programLanguage": "turkish",
@@ -401,7 +413,8 @@
         ]
       },
       "companionSourceIds": [
-        "G3-TR-A-BEDSIDE"
+        "G3-TR-A-BEDSIDE",
+        "SHARED-AMPHI"
       ],
       "fixturePath": "sheets/donem-3-tr-A/2026-2027 Dönem 3 A Türkçe Tıp Ders Programı.xlsx",
       "notes": "The annual states the date and time of every bedside session; the bedside companion states what each session is about, and only that topic is taken from it (ADR-100, ADR-102)."
@@ -414,7 +427,7 @@
       "sourceUri": "https://drive.google.com/file/d/1rVP8LfSD6T-AKUOlpVfzNSZp7oMJ0NwS/view",
       "externalId": "1rVP8LfSD6T-AKUOlpVfzNSZp7oMJ0NwS",
       "parserProfile": "grade3_yearly_v1",
-      "parserProfileVersion": "1.2.0",
+      "parserProfileVersion": "1.3.0",
       "academicYear": "2026-2027",
       "classYear": 3,
       "programLanguage": "turkish",
@@ -431,7 +444,8 @@
         ]
       },
       "companionSourceIds": [
-        "G3-TR-B-BEDSIDE"
+        "G3-TR-B-BEDSIDE",
+        "SHARED-AMPHI"
       ],
       "fixturePath": "sheets/donem-3-tr-B/2026-2027 Dönem 3 B Türkçe Tıp Ders Programı.xlsx",
       "notes": "The annual states the date and time of every bedside session; the bedside companion states what each session is about, and only that topic is taken from it (ADR-100, ADR-102)."
@@ -550,27 +564,32 @@
       "sourceUri": "https://drive.google.com/file/d/1DW8k9xpe5MXhyOsIqFrTgyWodmM1mdY5/view",
       "externalId": "1DW8k9xpe5MXhyOsIqFrTgyWodmM1mdY5",
       "parserProfile": "grade3_yearly_v1",
-      "parserProfileVersion": "1.2.0",
+      "parserProfileVersion": "1.3.0",
       "academicYear": "2026-2027",
       "classYear": 3,
       "programLanguage": "english",
       "timeZoneId": "Europe/Istanbul",
+      "companionSourceIds": [
+        "SHARED-AMPHI"
+      ],
       "fixturePath": "sheets/donem-3-en-A/2026-2027 Dönem 3 A İngilizce Tıp Ders Programı.xlsx"
     },
     {
       "sourceId": "SHARED-AMPHI",
       "displayName": "Haftalık amfi programı",
-      "transport": "httpFile",
-      "documentFormat": "xlsx",
-      "sourceUri": "https://cdn.istanbul.edu.tr/FileHandler2.ashx?f=20-24-temmuz-2026--amfi.xlsx",
+      "transport": "googleSheets",
+      "documentFormat": "googleSheet",
+      "sourceUri": "https://docs.google.com/spreadsheets/d/1uCfBw8_mRI47Am2SrijTiOYP71jl1ZWatu26sXrJLJw",
+      "externalId": "1uCfBw8_mRI47Am2SrijTiOYP71jl1ZWatu26sXrJLJw",
       "parserProfile": "weekly_amphitheatre_v1",
       "parserProfileVersion": "1.0.0",
-      "academicYear": "2025-2026",
+      "academicYear": "2026-2027",
       "classYear": 1,
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
-      "fixturePath": "sheets/amfi/20-24-temmuz-2026--amfi.xlsx",
-      "notes": "The dated URL must be advanced by source discovery. A browser-like GET returned HTTP 200 with the XLSX payload on 2026-07-23; do not use a generic HEAD probe as the availability test."
+      "discoveryFolderId": "1ZkB8GD_niGknZLVD_aGN0oxWm5F_F8G1",
+      "fixturePath": "sheets/amfi/31 AĞUSTOS -4 EYLÜL 2026 Amfi programı.xlsx",
+      "notes": "Weekly companion, and the only source whose document is republished rather than edited in place (ADR-133). The faculty drops one Google Sheets workbook per week into the Drive folder named by discoveryFolderId, which is linked from ogrenci-istanbultip.istanbul.edu.tr; the folder is the stable address and the file is not. Each poll resolves the folder to the most recently changed workbook in it and acquires that; externalId is the workbook this catalog entry was written against and is what a cycle falls back to when the folder cannot be listed, so it is configuration and is never rewritten by discovery. No worksheet gid is pinned: a gid belongs to one workbook and next week's is a different file. Acquisition reads the whole workbook and every date the parser reports comes from a day title row, because the workbook keeps the previous week as an extra worksheet and its tab titles are unreliable. classYear and programLanguage are nominal - the document covers every class year and both programs, and as a companion it publishes nothing, so its own source context is never used to publish."
     }
   ]
 }

@@ -105,8 +105,9 @@ def test_registered_but_unimplemented_profile_is_not_silent_success() -> None:
     # Named here rather than taken from the shared contract fixture, which the
     # .NET contract tests read too: the profile it names became implemented, and
     # this test needs one that is still only described. `grade3_bedside_v1` was
-    # named here until it was implemented in turn.
-    request["parserProfile"] = {"name": "weekly_amphitheatre_v1", "version": "1.0.0"}
+    # named here until it was implemented in turn, and `weekly_amphitheatre_v1`
+    # after it (ADR-133).
+    request["parserProfile"] = {"name": "grade3_faculty_locations_v1", "version": "1.0.0"}
 
     response = client.post("/v1/parse", json=request)
 
@@ -135,7 +136,7 @@ def test_a_request_without_source_context_is_refused() -> None:
 
 def test_the_annual_profile_parses_a_snapshot_over_http() -> None:
     request = json.loads(CONTRACT_FIXTURE.read_text(encoding="utf-8"))
-    request["parserProfile"] = {"name": "grade1_yearly_v1", "version": "1.6.0"}
+    request["parserProfile"] = {"name": "grade1_yearly_v1", "version": "1.7.0"}
 
     response = client.post("/v1/parse", json=request)
 

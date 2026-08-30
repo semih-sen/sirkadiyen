@@ -56,6 +56,13 @@ from sirkadiyen_parser.normalization.times import (
     duration_minutes,
     resolve_cell_time,
 )
+from sirkadiyen_parser.parsers.amphitheatre import (
+    AmphitheatreAssignment,
+    AmphitheatreDocument,
+    AmphitheatreIndex,
+    RoomResolution,
+    read_amphitheatre_document,
+)
 from sirkadiyen_parser.parsers.bedside import read_bedside_document
 from sirkadiyen_parser.profiles import ParserProfileDefinition
 
@@ -173,6 +180,13 @@ METRIC_CANDIDATE_EVENT_TYPE_PREFIX = "candidates.eventType."
 #: it row by row.
 METRIC_DATE_RULE_PREFIX = "dates.rule."
 METRIC_LOCATION_DEFERRED = "location.deferredToOtherProgram"
+
+#: How many lessons took their room from the weekly amphitheatre companion,
+#: and how many could not. Every deferred location is accounted for by exactly
+#: one of these, so "the room is still missing" is a number rather than a guess.
+METRIC_AMPHITHEATRE_ASSIGNMENTS = "companion.amphitheatreAssignments"
+METRIC_LOCATION_FROM_AMPHITHEATRE = "location.fromAmphitheatreProgram"
+METRIC_LOCATION_UNRESOLVED_PREFIX = "location.amphitheatreUnresolved."
 METRIC_CURRICULUM_BLOCK_STATED = "curriculumBlock.stated"
 METRIC_DEPARTMENTS_STATED = "departments.stated"
 
@@ -366,6 +380,10 @@ class _CandidateDraft:
     block_departments: BlockDepartmentResolution
     title_departments: tuple[str, ...]
 
+    #: How the amphitheatre companion answered for this lesson, or ``None`` when
+    #: it was not consulted (the row states its own room, or has no time at all).
+    room_resolution: "RoomResolution | None" = None
+
     #: Everything needed to build this draft again, held only by a group-rotation
     #: slot published as a fallback (ADR-126). Which of the day's hours a slot is
     #: cannot be known while the row is read — it follows from the other rows of
@@ -386,6 +404,7 @@ class _RotationRebuild:
     schedule: _Schedule
     audience: ScheduleAudienceCandidate
     bedside_topics: Mapping[tuple[str, date], str]
+    amphitheatre: AmphitheatreIndex
 
 
 @dataclass(slots=True)
@@ -428,6 +447,7 @@ def parse_annual_snapshot(
     )
 
     bedside_topics = _read_companion_topics(request, profile, diagnostics)
+    amphitheatre = _read_amphitheatre_companion(request, profile, diagnostics)
 
     for worksheet in request.snapshot.worksheets:
         grid = WorksheetGrid(worksheet)
@@ -461,6 +481,7 @@ def parse_annual_snapshot(
             ),
             curriculum_group_audience=curriculum_group_audience,
             bedside_topics=bedside_topics,
+            amphitheatre=amphitheatre,
             diagnostics=diagnostics,
             accumulator=accumulator,
         )
@@ -582,6 +603,7 @@ def _parse_worksheet(
     group_rotation_covered_dates: frozenset[date],
     curriculum_group_audience: bool,
     bedside_topics: Mapping[tuple[str, date], str],
+    amphitheatre: AmphitheatreIndex,
     diagnostics: ParseDiagnostics,
     accumulator: _Accumulator,
 ) -> None:
@@ -615,6 +637,7 @@ def _parse_worksheet(
             group_rotation_covered_dates=group_rotation_covered_dates,
             curriculum_group_audience=curriculum_group_audience,
             bedside_topics=bedside_topics,
+            amphitheatre=amphitheatre,
             diagnostics=diagnostics,
         )
         if draft is None:
@@ -642,6 +665,7 @@ def _parse_row(
     group_rotation_covered_dates: frozenset[date],
     curriculum_group_audience: bool,
     bedside_topics: Mapping[tuple[str, date], str],
+    amphitheatre: AmphitheatreIndex,
     diagnostics: ParseDiagnostics,
 ) -> _CandidateDraft | None:
     if not any(row.text(role) for role in (*REQUIRED_ROLES, *OPTIONAL_ROLES)):
@@ -729,6 +753,7 @@ def _parse_row(
             schedule=schedule,
             audience=audience,
             bedside_topics=bedside_topics,
+            amphitheatre=amphitheatre,
             rotation_rebuild=_RotationRebuild(
                 row=row,
                 context=context,
@@ -737,6 +762,7 @@ def _parse_row(
                 schedule=schedule,
                 audience=audience,
                 bedside_topics=bedside_topics,
+                amphitheatre=amphitheatre,
             ),
         )
 
@@ -748,6 +774,7 @@ def _parse_row(
         schedule=schedule,
         audience=audience,
         bedside_topics=bedside_topics,
+        amphitheatre=amphitheatre,
     )
 
 
@@ -809,6 +836,44 @@ def _read_companion_topics(
 
     diagnostics.set_metric(METRIC_COMPANION_TOPICS, len(topics))
     return topics
+
+
+def _curriculum_groups(audience: ScheduleAudienceCandidate) -> tuple[str, ...]:
+    """The curriculum groups a candidate's audience names, in selector order."""
+    return tuple(
+        selector.value
+        for selector in audience.selectors
+        if selector.dimension == DIMENSION_CURRICULUM_GROUP
+    )
+
+
+def _read_amphitheatre_companion(
+    request: ParseSnapshotRequest,
+    profile: ParserProfileDefinition,
+    diagnostics: ParseDiagnostics,
+) -> AmphitheatreIndex:
+    """The rooms the weekly amphitheatre companion states, indexed for lookup.
+
+    Empty whenever the profile declares no amphitheatre companion or none was
+    supplied, and then this profile publishes exactly what it published before
+    companions existed (ADR-102). The annual program is the only source of these
+    sessions and must not wait on a document that merely says where they are.
+
+    Every auxiliary snapshot is offered to the reader. A snapshot of some other
+    companion family states no dated room grid, so it yields nothing rather than
+    being misread, and the metric below reports how much was actually found.
+    """
+    if not profile.amphitheatre_companion or not request.auxiliary_snapshots:
+        return AmphitheatreIndex(AmphitheatreDocument())
+
+    assignments: list[AmphitheatreAssignment] = []
+    for snapshot in request.auxiliary_snapshots:
+        document = read_amphitheatre_document(snapshot)
+        assignments.extend(document.assignments)
+
+    index = AmphitheatreIndex(AmphitheatreDocument(assignments=tuple(assignments)))
+    diagnostics.set_metric(METRIC_AMPHITHEATRE_ASSIGNMENTS, len(index))
+    return index
 
 
 def _bedside_topic(
@@ -1194,6 +1259,7 @@ def _build_draft(
     schedule: _Schedule,
     audience: ScheduleAudienceCandidate,
     bedside_topics: Mapping[tuple[str, date], str],
+    amphitheatre: AmphitheatreIndex,
     rotation_rebuild: "_RotationRebuild | None" = None,
     rotation_slot: int | None = None,
 ) -> _CandidateDraft:
@@ -1234,6 +1300,27 @@ def _build_draft(
         title_text=title_text,
         audience=audience,
     )
+
+    # The workbook writes `AMFİ PROGRAMINA BAKINIZ` where a room would go, and
+    # that instruction names the document this companion is (ADR-133). Resolving
+    # it here rather than where the cell was read is what makes the department
+    # available to match on: it is the fact that tells one of a cohort's two
+    # lessons in an hour from the other.
+    #
+    # Only a deferred or absent location is filled. A room the workbook states
+    # itself is what the source asserts, and a weekly grid does not overrule it.
+    room = None
+    if location_text is None and not schedule.all_day and resolved_date.value is not None:
+        room = amphitheatre.resolve(
+            local_date=resolved_date.value,
+            class_year=context.class_year,
+            program_language=context.program_language,
+            curriculum_groups=_curriculum_groups(audience),
+            departments=departments,
+            start_local_time=schedule.start,
+            end_local_time=schedule.end,
+        )
+        location_text = room.room
 
     # The bedside document states what each of these sessions is about, and this
     # workbook states when it is. Joining them on the date and the group is what
@@ -1322,6 +1409,7 @@ def _build_draft(
         resolved_date=resolved_date,
         title_confidence=course_title.confidence,
         deferred_location=deferred_location,
+        room_resolution=room,
         block_departments=block_departments,
         title_departments=departments[len(block_departments.departments) :],
         rotation_rebuild=rotation_rebuild,
@@ -1421,6 +1509,15 @@ def _record_candidate_diagnostics(
     diagnostics.increment(f"{METRIC_DATE_RULE_PREFIX}{resolved_date.rule}")
     if draft.deferred_location:
         diagnostics.increment(METRIC_LOCATION_DEFERRED)
+
+    # Every consulted lesson lands in exactly one counter, so a missing room is
+    # always explainable: it was matched, it was ambiguous, the document said
+    # nothing about it, or the lesson named no department to match on.
+    if draft.room_resolution is not None:
+        if draft.room_resolution.room is not None:
+            diagnostics.increment(METRIC_LOCATION_FROM_AMPHITHEATRE)
+        else:
+            diagnostics.increment(METRIC_LOCATION_UNRESOLVED_PREFIX + draft.room_resolution.reason)
 
     if draft.rotation_rebuild is not None:
         # Counted here rather than where the fallback was decided, so a slot
@@ -1638,6 +1735,7 @@ def _label_rotation_slots(drafts: Sequence[_CandidateDraft]) -> list[_CandidateD
                 schedule=rebuild.schedule,
                 audience=rebuild.audience,
                 bedside_topics=rebuild.bedside_topics,
+                amphitheatre=rebuild.amphitheatre,
                 rotation_rebuild=rebuild,
                 rotation_slot=ordinal,
             )

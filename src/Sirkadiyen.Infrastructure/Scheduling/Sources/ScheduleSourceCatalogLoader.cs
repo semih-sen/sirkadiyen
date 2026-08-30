@@ -111,6 +111,8 @@ public sealed class ScheduleSourceCatalogLoader : IScheduleSourceCatalogSerializ
 
             ValidateSourceUri(source);
 
+            ValidateDiscoveryFolder(source);
+
             if (source.Transport is ScheduleSourceTransport.GoogleSheets)
             {
                 ValidateGoogleSheet(source);
@@ -597,14 +599,49 @@ public sealed class ScheduleSourceCatalogLoader : IScheduleSourceCatalogSerializ
         }
     }
 
-    private static void ValidateGoogleSheet(ScheduleSourceDefinition source)
+    /// <summary>
+    /// Refuses a discovery folder on a source whose document is not fetched by ID
+    /// (ADR-133).
+    /// </summary>
+    /// <remarks>
+    /// Discovery replaces the file a cycle acquires. An administratively uploaded
+    /// source has no file to replace, so declaring a folder on one would be a
+    /// setting that silently does nothing.
+    /// </remarks>
+    private static void ValidateDiscoveryFolder(ScheduleSourceDefinition source)
     {
-        if (source.DocumentFormat is not ScheduleDocumentFormat.GoogleSheet
-            || string.IsNullOrWhiteSpace(source.ExternalId)
-            || source.SheetGid is null or < 0)
+        if (string.IsNullOrWhiteSpace(source.DiscoveryFolderId))
+        {
+            return;
+        }
+
+        if (source.Transport is not (ScheduleSourceTransport.GoogleSheets
+            or ScheduleSourceTransport.GoogleDriveFile))
         {
             throw new InvalidDataException(
-                $"Google Sheets source '{source.SourceId}' requires a spreadsheet ID, gid, "
+                $"Source '{source.SourceId}' declares a discovery folder but is not fetched "
+                + "from Google Drive, so nothing would use it.");
+        }
+    }
+
+    /// <remarks>
+    /// A source whose document is republished into a folder is exempt from pinning a
+    /// gid (ADR-133). A worksheet identifier belongs to one workbook, and next week's
+    /// workbook is a different file; requiring one would record a number that stops
+    /// meaning anything the first time the document is replaced. Such a source must
+    /// still declare a spreadsheet ID, because that is what a cycle falls back to when
+    /// the folder cannot be listed.
+    /// </remarks>
+    private static void ValidateGoogleSheet(ScheduleSourceDefinition source)
+    {
+        bool gidRequired = string.IsNullOrWhiteSpace(source.DiscoveryFolderId);
+        if (source.DocumentFormat is not ScheduleDocumentFormat.GoogleSheet
+            || string.IsNullOrWhiteSpace(source.ExternalId)
+            || (gidRequired ? source.SheetGid is null or < 0 : source.SheetGid is < 0))
+        {
+            throw new InvalidDataException(
+                $"Google Sheets source '{source.SourceId}' requires a spreadsheet ID, "
+                + (gidRequired ? "gid, " : string.Empty)
                 + "and googleSheet document format.");
         }
     }

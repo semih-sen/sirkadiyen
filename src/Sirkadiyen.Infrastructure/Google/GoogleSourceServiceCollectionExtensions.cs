@@ -42,6 +42,18 @@ public static class GoogleSourceServiceCollectionExtensions
             })
             .AddHttpMessageHandler<GoogleSourceAccessTokenHandler>();
 
+        // Listing a folder is a separate port from reading a file, so it gets its
+        // own client and its own timeout budget (ADR-133).
+        services
+            .AddHttpClient<IGoogleDriveFolderClient, GoogleDriveFolderHttpClient>(client =>
+            {
+                client.BaseAddress = new Uri(GoogleDriveFolderHttpClient.BaseAddress);
+                client.Timeout = timeout ?? DefaultDriveTimeout;
+            })
+            .AddHttpMessageHandler<GoogleSourceAccessTokenHandler>();
+
+        services.AddSingleton<IWeeklyDocumentDiscovery, WeeklyDocumentDiscovery>();
+
         return services;
     }
 }

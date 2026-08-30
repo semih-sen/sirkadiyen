@@ -29,6 +29,9 @@ internal sealed class ScheduleSourceConfiguration : IEntityTypeConfiguration<Sch
             .IsRequired();
         builder.Property(source => source.SourceUri).HasMaxLength(2048).IsRequired();
         builder.Property(source => source.ExternalId).HasMaxLength(200);
+
+        // A Drive folder ID, same shape and bound as a file ID (ADR-133).
+        builder.Property(source => source.DiscoveryFolderId).HasMaxLength(200);
         builder.Property(source => source.ParserProfile).HasMaxLength(100).IsRequired();
         builder.Property(source => source.ParserProfileVersion).HasMaxLength(20).IsRequired();
         builder.Property(source => source.AcademicYear).HasMaxLength(20).IsRequired();

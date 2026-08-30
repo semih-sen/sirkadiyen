@@ -50,8 +50,45 @@ enrichment rather than filename-based implicit joining.
 Weekly amphitheatre sources are room-oriented matrices with time slots on rows
 and rooms on columns. The inspected files contain three or four worksheets and
 some secondary worksheets have large used ranges with historical or repeated
-content. The parser profile must restrict itself to configured worksheet scopes
-and the requested week before producing enrichment candidates.
+content.
+
+Confirmed reading rules (2026-08-30, ADR-133), from the committed
+`31 AĞUSTOS -4 EYLÜL 2026` workbook:
+
+- A day block is a title row immediately followed by a `SAAT` header row naming a
+  room per column. The header row is what makes a title a day: the workbook
+  strands a lone `16 Eylül 2025 / Salı` in column AC with no header and no data
+  beneath it, left over from a previous academic year.
+- **The week is never taken from the file name or the worksheet title.** The
+  Drive file is named `31 AĞUSTOS -4 EYLÜL 2026` while its first worksheet is
+  titled `31 AĞUSTOS-1 EYLÜL   2026-`, three days short of the week it holds.
+  Every date comes from a day title row.
+- Worksheet scopes are therefore *not* configured. Every worksheet is read,
+  including the previous week the workbook keeps as an extra sheet
+  (`24-28 AĞUSTOS 2026`) and a fourth sheet still holding December 2025 content.
+  A stale week describes dates no current lesson falls on, so it decides nothing.
+- Room columns are read per day block, not once per worksheet: Friday writes
+  `FİZİK TEDAVİ YÜKSEK OKULU A/B AMFİSİ` where the other days write
+  `ESKİ FİZİK TEDAVİ ANABİLİM DALI A/B DERSLİĞİ`.
+- A day title is not always text in column A. Saturday's sits in column I and
+  Sunday's is written as a date serial.
+- Titles hang the weekday off the date with a slash (`31 AĞUSTOS 2026 /
+  Pazartesi`) as well as a dash (`04 EYLÜL 2026- CUMA`).
+- A cell names its audience in a dashed list in no stable order —
+  `DÖNEM 3-TÜRKÇE-A GRUBU` and `DÖNEM 3- B GRUBU- TÜRKÇE` are the same shape —
+  and one column writes `DÖNEM  - 3`. The last segment that states no audience
+  fact is the academic department.
+- A cell often states its own time (`-13.00-15.20`, or a bare trailing `-10.30`)
+  which contradicts the slot row it sits in. The cell is the authority.
+- Vertical merges span slots: `D3:D10` is one session from the 08.30 row to the
+  14.20 one.
+- The grid is mostly not ours: of 203 assignments read, 116 are Grade 1-3 and the
+  rest are Grade 4/5 clinical bookings, departmental seminars, specialty
+  examinations and an occupational-safety course. A cell naming no class year is
+  not a lesson.
+
+This source produces **no candidates**. It is a companion (ADR-102) that supplies
+the room the annual programs defer with `AMFİ PROGRAMINA BAKINIZ`.
 
 ## Known gaps
 

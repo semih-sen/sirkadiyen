@@ -44,7 +44,7 @@ Validated
 | G3-EN-ANNUAL | 3 | EN | Annual | All | Annual | `donem-3-en-A/2026-2027 Dönem 3 A İngilizce Tıp Ders Programı.xlsx` | grade3_yearly_v1 | Documented | 2026-2027. Worksheet `İNG`, used range `A1:G1247`; English headers including the misspelled `DEPARTMEND`. The English program states no A/B division, so its rows reach every one of its students even though 49 joint-lecture rows write `Dönem 3A Grubu` in the term cell; one term cell reads `cc` and is refused |
 | G3-EN-BEDSIDE | 3 | EN | Bedside practice | TBD | Annual |  | grade3_bedside_v1 | Missing | No English bedside document has been published; the English program may not run one |
 | G3-EN-FACULTY | 3 | EN | Faculty practice | TBD | Annual |  | grade3_faculty_practice_v1 | Missing | No English faculty-practice document has been published |
-| SHARED-AMPHI | Shared | Dynamic | Amphitheatre assignment | Dynamic | Weekly | `amfi/` | weekly_amphitheatre_v1 | Collected | Three weekly versions; room-oriented multi-worksheet layout; dated CDN URL returned HTTP 200 to a browser-like GET on 2026-07-23 |
+| SHARED-AMPHI | Shared | Dynamic | Amphitheatre assignment | Dynamic | Weekly | `amfi/` | weekly_amphitheatre_v1 | Parsed | Google Sheets workbook republished weekly into a Drive folder; the folder is the address and is resolved per poll (ADR-133). Companion of every annual source: publishes nothing, supplies the room the annual programs defer with `AMFİ PROGRAMINA BAKINIZ`. Four committed versions; the current fixture covers 31 Aug - 4 Sep 2026 |
 
 ## Questions to answer per fixture
 

@@ -101,6 +101,12 @@ public sealed record ScheduleSourceDefinition
     /// </summary>
     public IReadOnlyList<string>? GroupRotationSourceIds { get; init; }
 
+    /// <summary>
+    /// The Drive folder this source's document is republished into every week
+    /// (ADR-133). Only the weekly amphitheatre program declares one.
+    /// </summary>
+    public string? DiscoveryFolderId { get; init; }
+
     public string? FixturePath { get; init; }
 
     public string? Notes { get; init; }
@@ -128,5 +134,6 @@ public sealed record ScheduleSourceDefinition
         AuthoritativeAudienceSelectors,
         GroupRotationSourceIds
             ?.Select(Domain.Scheduling.Sources.SourceId.Parse)
-            .ToArray());
+            .ToArray(),
+        DiscoveryFolderId);
 }

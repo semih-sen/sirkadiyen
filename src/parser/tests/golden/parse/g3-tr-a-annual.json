@@ -1388,6 +1388,11 @@
         "value": 6.0
       },
       {
+        "name": "companion.amphitheatreAssignments",
+        "unit": null,
+        "value": 0.0
+      },
+      {
         "name": "companion.bedsideTopics",
         "unit": null,
         "value": 88.0
@@ -1426,6 +1431,11 @@
         "name": "departments.unmarkedListMember",
         "unit": null,
         "value": 1.0
+      },
+      {
+        "name": "location.amphitheatreUnresolved.noAmphitheatreAssignmentForLesson",
+        "unit": null,
+        "value": 1104.0
       },
       {
         "name": "location.deferredToOtherProgram",
@@ -1480,9 +1490,9 @@
     ],
     "parserProfile": {
       "name": "grade3_yearly_v1",
-      "version": "1.2.0"
+      "version": "1.3.0"
     },
-    "responseDigest": "sha256:9067e4318c17cbe9767ae7e5068df74045ac200da019ec1473af1515f28268b5",
+    "responseDigest": "sha256:219648f79cb7b29793742884f3d23c71ac1579fea8f7a2e0ad61b74b774dfd3d",
     "snapshotId": "fixture:sha256:ce603d51a2286e53b6d82500dd7c7ca1bbfdbacda5a7e0e60c7a48de95585ecc",
     "sourceId": "G3-TR-A-ANNUAL",
     "status": "completedWithWarnings",

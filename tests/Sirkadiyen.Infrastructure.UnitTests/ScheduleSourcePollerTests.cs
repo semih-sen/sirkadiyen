@@ -35,6 +35,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
+            new FakeWeeklyDocumentDiscovery(),
             new ParseRunOptions(),
             new FixedTimeProvider(new DateTimeOffset(2026, 7, 22, 9, 0, 0, TimeSpan.Zero)));
 
@@ -65,6 +66,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
+            new FakeWeeklyDocumentDiscovery(),
             new ParseRunOptions(),
             new FixedTimeProvider(new DateTimeOffset(2026, 7, 22, 9, 0, 0, TimeSpan.Zero)));
 
@@ -93,6 +95,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
+            new FakeWeeklyDocumentDiscovery(),
             new ParseRunOptions(),
             TimeProvider.System);
 
@@ -120,6 +123,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
+            new FakeWeeklyDocumentDiscovery(),
             new ParseRunOptions(),
             TimeProvider.System);
 
@@ -150,6 +154,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore { IsFrozen = true },
+            new FakeWeeklyDocumentDiscovery(),
             new ParseRunOptions(),
             TimeProvider.System);
 
@@ -178,6 +183,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
+            new FakeWeeklyDocumentDiscovery(),
             new ParseRunOptions(),
             TimeProvider.System);
 
@@ -209,6 +215,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
+            new FakeWeeklyDocumentDiscovery(),
             new ParseRunOptions(),
             TimeProvider.System);
 
@@ -242,6 +249,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
+            new FakeWeeklyDocumentDiscovery(),
             new ParseRunOptions(),
             TimeProvider.System);
 
@@ -280,6 +288,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(isFrozen: true),
+            new FakeWeeklyDocumentDiscovery(),
             new ParseRunOptions(),
             TimeProvider.System);
 
@@ -316,6 +325,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
+            new FakeWeeklyDocumentDiscovery(),
             new ParseRunOptions(),
             TimeProvider.System);
 
@@ -342,6 +352,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(isFrozen: true),
+            new FakeWeeklyDocumentDiscovery(),
             new ParseRunOptions(),
             TimeProvider.System);
 
@@ -369,6 +380,7 @@ public sealed class ScheduleSourcePollerTests
             {
                 Exception = new InvalidOperationException("database unavailable"),
             },
+            new FakeWeeklyDocumentDiscovery(),
             new ParseRunOptions(),
             TimeProvider.System);
 
@@ -397,6 +409,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeGroupRotationCoverageStore(),
             ValidationService(),
             freeze,
+            new FakeWeeklyDocumentDiscovery(),
             new ParseRunOptions(),
             TimeProvider.System);
 
@@ -435,6 +448,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
+            new FakeWeeklyDocumentDiscovery(),
             new ParseRunOptions(),
             new FixedTimeProvider(new DateTimeOffset(2026, 8, 15, 9, 0, 0, TimeSpan.Zero)));
 
@@ -476,6 +490,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
+            new FakeWeeklyDocumentDiscovery(),
             new ParseRunOptions(),
             new FixedTimeProvider(new DateTimeOffset(2026, 8, 15, 9, 0, 0, TimeSpan.Zero)));
 
@@ -561,6 +576,7 @@ public sealed class ScheduleSourcePollerTests
             coverage,
             ValidationService(),
             new FakeOperationalFreezeStore(),
+            new FakeWeeklyDocumentDiscovery(),
             new ParseRunOptions(),
             new FixedTimeProvider(new DateTimeOffset(2026, 8, 21, 9, 0, 0, TimeSpan.Zero)));
 
@@ -604,6 +620,7 @@ public sealed class ScheduleSourcePollerTests
             coverage,
             ValidationService(),
             new FakeOperationalFreezeStore(),
+            new FakeWeeklyDocumentDiscovery(),
             new ParseRunOptions(),
             new FixedTimeProvider(new DateTimeOffset(2026, 8, 21, 9, 0, 0, TimeSpan.Zero)));
 
@@ -633,6 +650,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeGroupRotationCoverageStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
+            new FakeWeeklyDocumentDiscovery(),
             new ParseRunOptions(),
             new FixedTimeProvider(new DateTimeOffset(2026, 8, 21, 9, 0, 0, TimeSpan.Zero)));
 
@@ -774,6 +792,36 @@ public sealed class ScheduleSourcePollerTests
             Task.FromResult<IReadOnlyList<Guid>>([]);
     }
 
+    [Fact]
+    public async Task TheDocumentDiscoveryResolvesIsWhatGetsAcquired()
+    {
+        // The weekly amphitheatre program is republished into a folder rather than
+        // edited in place, so the file the catalog names is not necessarily the one
+        // this cycle must read (ADR-133).
+        ScheduleSource source = Source();
+        NormalizedSpreadsheetSnapshot snapshot = Snapshot(source);
+        FakeSnapshotAcquirer acquirer = new(snapshot);
+
+        ScheduleSourcePoller poller = new(
+            acquirer,
+            new FakeDriveDocumentAcquirer(),
+            new FakeSnapshotStore(StoredSnapshot(source, snapshot), changed: false),
+            new FakeParserClient(),
+            new FakeParseResultStore(shouldInvokeParser: false),
+            new FakeGroupRotationCoverageStore(),
+            ValidationService(),
+            new FakeOperationalFreezeStore(),
+            new FakeWeeklyDocumentDiscovery("this-weeks-workbook"),
+            new ParseRunOptions(),
+            new FixedTimeProvider(new DateTimeOffset(2026, 8, 30, 9, 0, 0, TimeSpan.Zero)));
+
+        await poller.PollAsync(source, CancellationToken.None);
+
+        Assert.NotNull(acquirer.LastRequest);
+        Assert.Equal("this-weeks-workbook", acquirer.LastRequest!.SpreadsheetId);
+        Assert.NotEqual(source.ExternalId, acquirer.LastRequest.SpreadsheetId);
+    }
+
     private sealed class FakeSnapshotAcquirer(NormalizedSpreadsheetSnapshot snapshot)
         : ISpreadsheetSnapshotAcquirer
     {
@@ -781,11 +829,14 @@ public sealed class ScheduleSourcePollerTests
 
         public Action? OnAcquire { get; init; }
 
+        public AcquireSpreadsheetSnapshotRequest? LastRequest { get; private set; }
+
         public Task<NormalizedSpreadsheetSnapshot> AcquireAsync(
             AcquireSpreadsheetSnapshotRequest request,
             CancellationToken cancellationToken)
         {
             CallCount++;
+            LastRequest = request;
             OnAcquire?.Invoke();
             return Task.FromResult(snapshot with
             {
@@ -969,6 +1020,30 @@ public sealed class ScheduleSourcePollerTests
             Failed = true;
             FailureReason = failureReason;
             return Task.CompletedTask;
+        }
+    }
+
+    /// <summary>
+    /// Resolves to whatever the source already names, which is what real discovery
+    /// does for every source that declares no folder (ADR-133).
+    /// </summary>
+    private sealed class FakeWeeklyDocumentDiscovery(string? resolvedExternalId = null)
+        : IWeeklyDocumentDiscovery
+    {
+        public ScheduleSource? LastSource { get; private set; }
+
+        public Task<WeeklyDocumentResolution> ResolveAsync(
+            ScheduleSource source,
+            CancellationToken cancellationToken)
+        {
+            LastSource = source;
+            return Task.FromResult(new WeeklyDocumentResolution
+            {
+                ExternalId = resolvedExternalId ?? source.ExternalId ?? string.Empty,
+                Outcome = resolvedExternalId is null
+                    ? WeeklyDocumentDiscoveryOutcome.NotConfigured
+                    : WeeklyDocumentDiscoveryOutcome.ResolvedSingle,
+            });
         }
     }
 

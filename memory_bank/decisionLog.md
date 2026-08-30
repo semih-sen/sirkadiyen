@@ -7981,3 +7981,173 @@ deciding.**
   could not read one" ask the student for different things.
 - **Open:** if a list is edited, a lookup may serve the previous reading for up to an hour. There is
   no way to force a refresh short of restarting the API.
+
+## ADR-133: The amphitheatre program is a companion that fills a room, and its folder is the address
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-30
+**Implements:** the shared amphitheatre source named in `projectbrief.md`
+**Relates to:** ADR-102 (a companion enriches and never publishes), ADR-035 (an ambiguous match is
+not resolved by picking), ADR-046 (an all-day item has no times), ADR-051 (a numeric date order must
+be declared), ADR-083 (a Drive document joins as the same normalized snapshot), ADR-100 (the annual
+program owns the session, the companion owns the detail)
+
+### Context
+
+The faculty publishes a weekly workbook saying which room each already-scheduled session is held in.
+It is the document every annual program defers to: they write `AMFİ PROGRAMINA BAKINIZ` where a room
+would go, and `grade1_yearly_v1` 1.4.0 has been counting that instruction and dropping it since it
+was added, so those events reach a student with no place on them.
+
+The source was catalogued as `SHARED-AMPHI` against a dated CDN file name over an `httpFile`
+transport that was never implemented, and reported `UnsupportedTransport` every cycle. That address
+is gone. The document is now a Google Sheets workbook in a Drive folder linked from the student site,
+and the folder — not the file — is what the faculty publishes.
+
+Reading the real documents first was again what determined the design:
+
+- **A day is a title row plus a `SAAT` header row naming a room per column.** The committed fixture
+  also strands a lone `16 Eylül 2025 / Salı` title in column AC from a previous academic year, with
+  no header row and no data beneath it. A reader that recognized day titles on their own would read
+  it as a real day of a 2026-2027 week.
+- **Neither the file name nor the worksheet title states the week.** The Drive file is
+  `31 AĞUSTOS -4 EYLÜL 2026 Amfi programı`; the worksheet inside it is titled
+  `31 AĞUSTOS-1 EYLÜL   2026-`, three days short of the week it actually holds.
+- **The workbook keeps the previous week as an extra worksheet** (`24-28 AĞUSTOS 2026`), and a
+  fourth worksheet still holds December 2025 debris.
+- **Room columns differ between days of the same week.** Friday writes `FİZİK TEDAVİ YÜKSEK OKULU
+  A/B AMFİSİ` where every other day writes `ESKİ FİZİK TEDAVİ ANABİLİM DALI A/B DERSLİĞİ`.
+- **A cell writes its audience in a dashed list in no stable order.** `DÖNEM 3-TÜRKÇE-A GRUBU` and
+  `DÖNEM 3- B GRUBU- TÜRKÇE` are the same shape written two ways, and one whole column writes
+  `DÖNEM  - 3`.
+- **A cell frequently states its own time**, as in `-13.00-15.20` or a bare trailing `-10.30`, and
+  that time contradicts the slot row it sits in.
+- **Vertical merges span slots**: `D3:D10` is one session running from the 08.30 row to the 14.20
+  one.
+- **Two day titles are not text in column A**: Saturday's sits in column I, Sunday's is a date
+  serial.
+- **Most of the grid is not ours.** Of 203 assignments read, 116 are Grade 1-3; the rest are Grade 4
+  and 5 clinical bookings, departmental seminars, specialty examinations and an occupational-safety
+  course.
+
+### Decision
+
+**The amphitheatre program is a companion under ADR-102, not a schedule. It publishes nothing, and
+the annual profiles take a room from it.**
+
+- `weekly_amphitheatre_v1` reads the document and emits **no candidates**. A cell says which room a
+  session uses, never that the session exists; publishing from it would create a second event beside
+  the one the annual program already publishes.
+- `SHARED-AMPHI` is declared as a companion of all seven annual sources, so the existing companion
+  machinery delivers it — including `ParseRunCompanionFingerprint`, which is what makes a new weekly
+  workbook re-parse the annual sources that depend on it.
+- The annual profiles declare `amphitheatre_companion` and are bumped: `grade1_yearly_v1` 1.7.0,
+  `grade2_yearly_v1` 1.3.0, `grade3_yearly_v1` 1.3.0. It is a separate flag from
+  `companion_source_family` because the two companions answer different questions and Grade 3 reads
+  both.
+- **A block is recognized by its `SAAT` header row and dated from the row directly above it.** That
+  pairing is the entire structure rule, and it is what excludes the stranded title. Every date comes
+  from a day title row; no date is ever taken from a file name or a tab title.
+- **Every worksheet is read, including the stale ones.** Dropping one would be a guess about which
+  worksheet is current. A stale week simply describes dates no lesson of the current revision falls
+  on, so it costs nothing and decides nothing.
+- **A cell that states a time overrules the row it sits in.** A stated range replaces both ends; a
+  bare trailing time replaces only the start, because that is all the source asserted.
+- **A cell naming no class year is recorded as ignored, not published.** Seminars and examinations
+  share the grid with lessons and are accounted for by reason in the metrics.
+
+**A room is given only when the document leaves no choice.**
+
+The lookup filters by date, class year, program language, curriculum group and hour, then narrows by
+department. A fact the document leaves unstated narrows nothing — a cell that names no language
+cannot be claimed by a Turkish lesson over an English one. A room is returned only when every
+surviving assignment names the same room; two that disagree leave the lesson unplaced, which is
+ADR-035's treatment of an ambiguous match applied to a room.
+
+Falling back to the whole hour when the department selects nothing is what makes this useful rather
+than decorative: under half the published lessons state a department, and requiring one placed
+almost none of them. The fallback is not a weaker guess, because the answer must still be unanimous
+— an hour in which a cohort has one booking has one room whatever the two documents call the
+department. It is recorded under its own reason so the weaker basis stays visible in the metrics.
+
+**The folder is the source address; the file is resolved per cycle and never written back.**
+
+- `discoveryFolderId` is new configuration on a source. Only `SHARED-AMPHI` declares one.
+- Each poll lists the folder and acquires the **most recently changed** candidate. This is
+  deliberately not a reading of the file name: the names state a week, but the workbook behind
+  `31 AĞUSTOS -4 EYLÜL 2026` titles its own worksheet three days short of it, and parsing Turkish
+  month names out of file names would put a second, weaker date parser in front of the real one.
+- Picking by modification time cannot be wrong in a way that misplaces a lesson. Every assignment is
+  dated from a day title row inside the document, so acquiring the wrong workbook yields assignments
+  for dates no current lesson falls on. **The failure mode is a missing room, never a wrong one.**
+- **The resolved file is not stored back onto the source.** Which file is current is a fact about
+  this week, not configuration; writing it into the catalogued source would put the poller and the
+  catalog planner in permanent disagreement. `externalId` stays what the catalog was written against
+  and is what a cycle falls back to.
+- **A folder that cannot be listed does not fail the cycle.** A revoked permission degrades the
+  source to its catalogued document rather than taking it offline, because the alternative is a week
+  in which no student receives a room at all.
+- Listing is a separate port from reading a file (`IGoogleDriveFolderClient`), because it needs a
+  permission that reading one file by ID does not.
+
+### Consequences
+
+- **Verified against the live week.** The workbook covering 31 August - 4 September 2026 yields 203
+  assignments over 6 days; joined to the committed annual snapshots it places rooms on 16 Grade 3
+  Turkish A lessons, 21 Grade 2 English and 2 Grade 3 English.
+- **No lesson moved.** Across all eight existing annual golden files the candidate digests are
+  byte-identical; only new accounting metrics appear. The ADR-102 invariant holds: a profile given no
+  companion publishes exactly what it published before.
+- **Identity is untouched where a room was added.** In the new
+  `g3-tr-a-annual-with-amphitheatre` golden, 1119 candidates in and 1119 out, none added or removed,
+  16 content hashes changed and **every stable identity unchanged** — so the diff engine sees
+  `Updated` and patches the existing Google event's location in place, which is exactly what §10 and
+  §13 require of a room change.
+- **The `httpFile` transport is now unused by every source.** It was only ever `SHARED-AMPHI`.
+- **A migration adds a nullable `DiscoveryFolderId`** to `schedule_sources`. Additive and reversible.
+- `resolve_date_text` still refuses `31 AĞUSTOS 2026 / Pazartesi`: it trims a comma or a dash left
+  behind by removing the weekday, but not a slash. The slash is replaced in the amphitheatre reader
+  rather than in the shared primitive, because changing the primitive would alter date reading for
+  every profile and, under the determinism rule, force an engine bump and a re-parse of every stored
+  snapshot in the system for a separator only this document family writes. **This is a known
+  asymmetry, not a finished job** — if a second source writes it, the primitive is the right place.
+- **Open: only the current week can ever be enriched.** The document is weekly and the annual
+  programs run all year, so at any moment roughly five days of lessons carry a room from this source.
+  Nothing accumulates: last week's rooms are not retained once the workbook is replaced, because the
+  next parse of an annual source rebuilds its candidates from whatever the companion then states.
+- **A companion is now polled before the sources that read it.** Sources were polled in identifier
+  order, which got this exactly backwards: every annual source sorts under `G` and the amphitheatre
+  program sorts under `S`, so the annual sources were parsed against last cycle's rooms and a newly
+  published workbook did not reach a calendar until the cycle after. `SourcePollOrder` is a stable
+  topological sort over `companionSourceIds`; a companion cycle still emits every source rather than
+  dropping one out of polling. The Grade 3 bedside documents had the same latent defect for the same
+  reason and are fixed with it.
+- **The discovery outcome is reported on the poll result and warned about by the worker.** A
+  fallback is a poll that *succeeds* while quietly ceasing to track the source, so it is the one
+  success worth a warning.
+- **A source that declares a discovery folder no longer has to pin a `sheetGid`.** A worksheet
+  identifier belongs to one workbook and next week's is a different file, so requiring one records a
+  number that stops meaning anything the first time the document is replaced. `SHARED-AMPHI` pins
+  none; it is still required to declare `externalId`, because that is the fallback.
+- **Neither companion reader claims the other's document.** Grade 3 is handed two companions, and
+  the parse request says which documents came along but not which family each belongs to, so both
+  readers are offered both. Verified against the real fixtures in both directions — the amphitheatre
+  reader finds no day block in the bedside document and the bedside reader finds no schedule table
+  in the amphitheatre workbook — and pinned by a regression test, because a wrong topic written onto
+  a session a student attends is exactly what this would cost.
+- **The credential's folder access is verified against the real deployment.** Running
+  `tools/Sirkadiyen.SourceAccessCheck` with the production service account
+  (`sirkadiyen-worker@winter-cocoa-348405`) listed the folder, resolved it to
+  `31 AĞUSTOS -4 EYLÜL 2026 Amfi programı`, and acquired that workbook over the Sheets API: four
+  worksheets, 64,908 cells. Listing a folder and opening a document in it are separate permissions,
+  so the tool checks both rather than inferring the second from the first.
+- **The folder holds one workbook, and its ID is the catalogued one.** So the faculty is currently
+  re-editing a single file and renaming it each week rather than publishing a new one. Discovery is
+  indifferent to which of the two they do, which is why it was built to resolve rather than to
+  assume — but it means the "file ID changes weekly" case is still unobserved in production.
+- **The parser produces identical output from a live acquisition and from the committed fixture.**
+  This mattered more than it looks: the Sheets API reports 64,908 cells where the XLSX converter
+  emits 11,841, so every test until then had been run against a shape production does not send. Read
+  side by side, the two snapshots yield the same 203 assignments over the same 10 dates and the same
+  116 Grade 1-3 assignments, with an empty set difference. The extra cells are all empty or
+  formatting-only, and the block rule — a `SAAT` header with a title above it — does not notice them.

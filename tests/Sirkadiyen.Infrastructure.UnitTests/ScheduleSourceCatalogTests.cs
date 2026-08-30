@@ -17,11 +17,19 @@ public sealed class ScheduleSourceCatalogTests
 
         Assert.Equal("1.0", catalog.CatalogVersion);
         Assert.Equal(23, catalog.Sources.Count);
-        Assert.Equal(4, catalog.Sources.Count(
+        Assert.Equal(5, catalog.Sources.Count(
             source => source.Transport == ScheduleSourceTransport.GoogleSheets));
         Assert.Equal(14, catalog.Sources.Count(
             source => source.Transport == ScheduleSourceTransport.GoogleDriveFile));
-        Assert.Single(catalog.Sources, source => source.Transport == ScheduleSourceTransport.HttpFile);
+
+        // No source uses the HTTP transport any more. `SHARED-AMPHI` was the only
+        // one, and it was configured against a dated CDN file name that had to be
+        // guessed forward every week; the faculty publishes the same document as a
+        // Google Sheets workbook in a Drive folder, which the existing transport
+        // already reads (ADR-133).
+        Assert.DoesNotContain(
+            catalog.Sources,
+            source => source.Transport == ScheduleSourceTransport.HttpFile);
         Assert.Equal(4, catalog.Sources.Count(
             source => source.Transport == ScheduleSourceTransport.AdministrativeUpload));
 
@@ -37,6 +45,30 @@ public sealed class ScheduleSourceCatalogTests
         Assert.Null(annual.SheetGid);
         Assert.Equal("grade1_yearly_v1", annual.ParserProfile);
         Assert.Equal("2026-2027", annual.AcademicYear);
+
+        // The weekly amphitheatre program is a companion of every annual source and
+        // publishes nothing itself, so its own class year and language are nominal
+        // (ADR-133). What matters is that it is readable at all.
+        ScheduleSourceDefinition amphitheatre = Assert.Single(
+            catalog.Sources,
+            source => source.SourceId == "SHARED-AMPHI");
+        Assert.Equal(ScheduleSourceTransport.GoogleSheets, amphitheatre.Transport);
+        Assert.Equal(ScheduleDocumentFormat.GoogleSheet, amphitheatre.DocumentFormat);
+        Assert.Equal("weekly_amphitheatre_v1", amphitheatre.ParserProfile);
+        Assert.Equal("2026-2027", amphitheatre.AcademicYear);
+
+        // The folder is the address, so the workbook is resolved per poll and no
+        // worksheet gid is pinned: a gid belongs to one workbook and next week's is
+        // a different file. It is the only source configured this way.
+        Assert.Equal("1ZkB8GD_niGknZLVD_aGN0oxWm5F_F8G1", amphitheatre.DiscoveryFolderId);
+        Assert.Null(amphitheatre.SheetGid);
+        Assert.False(string.IsNullOrWhiteSpace(amphitheatre.ExternalId));
+        Assert.Single(catalog.Sources, source => source.DiscoveryFolderId is not null);
+
+        // Every annual source reads it, which is what makes the room reach a lesson.
+        Assert.Equal(7, catalog.Sources.Count(
+            source => source.CompanionSourceIds is not null
+                && source.CompanionSourceIds.Contains("SHARED-AMPHI")));
 
         ScheduleSourceDefinition grade1EnglishPractice = Assert.Single(
             catalog.Sources,

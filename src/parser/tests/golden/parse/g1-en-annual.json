@@ -1307,6 +1307,11 @@
         "value": 2.0
       },
       {
+        "name": "location.amphitheatreUnresolved.noAmphitheatreAssignmentForLesson",
+        "unit": null,
+        "value": 959.0
+      },
+      {
         "name": "location.deferredToOtherProgram",
         "unit": null,
         "value": 494.0
@@ -1359,9 +1364,9 @@
     ],
     "parserProfile": {
       "name": "grade1_yearly_v1",
-      "version": "1.6.0"
+      "version": "1.7.0"
     },
-    "responseDigest": "sha256:95ad40dfe2f00779f717a70dc3cc5be75355d270f818df0b62e66cf408b5ebb1",
+    "responseDigest": "sha256:688930bf04839550742cb0d65960d234b1458e59b8a82c24c292bfebf4006697",
     "snapshotId": "fixture:sha256:c628804d8f33792907886e8e57fb09bd3a696cf80e39e0873c6481c21488f9dc",
     "sourceId": "G1-EN-ANNUAL",
     "status": "completedWithWarnings",

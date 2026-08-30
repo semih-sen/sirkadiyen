@@ -3233,3 +3233,126 @@ Belgenin var olması programı açmıyor.
 `97` önekli dört öğrenci hâlâ profil kaydedemiyor; fakülte kodu kuralını gevşetmek ürün kararı ve
 alınmadı. Liste düzenlenirse arama bir saate kadar önceki okumayı sunabilir; API yeniden
 başlatılmadan yenilemeye zorlamanın yolu yok.
+
+## Amfi programı: odayı dolduran companion, adresi ise klasör (ADR-133) (2026-08-30)
+
+Yıllık programların yıl boyu `AMFİ PROGRAMINA BAKINIZ` yazdığı yer nihayet dolduruluyor.
+`grade1_yearly_v1` 1.4.0'tan beri bu talimatı sayıp atıyordu; event öğrenciye yersiz gidiyordu.
+
+### Belge ne söylüyor
+
+Önce gerçek belgeler okundu, tasarım oradan çıktı:
+
+- **Bir gün = başlık satırı + altındaki `SAAT` başlığı.** Tek başına gün başlığını tanıyan bir
+  okuyucu, fixture'da AC sütununda öksüz duran `16 Eylül 2025 / Salı`'yı — altında ne başlık ne veri
+  var — 2026-2027 haftasının gerçek bir günü sanardı. Eşleşme kuralı budur.
+- **Ne dosya adı ne sekme adı haftayı söylüyor.** Drive dosyası `31 AĞUSTOS -4 EYLÜL 2026`, içindeki
+  sayfanın adı `31 AĞUSTOS-1 EYLÜL   2026-` — tuttuğu haftadan üç gün eksik. **Her tarih gün başlığı
+  satırından okunuyor.**
+- Çalışma kitabı önceki haftayı fazladan sayfa olarak tutuyor (`24-28 AĞUSTOS 2026`), dördüncü sayfa
+  hâlâ Aralık 2025 döküntüsü taşıyor. Hepsi okunuyor: hangisinin güncel olduğuna karar vermek tahmin
+  olurdu, bayat hafta ise hiçbir dersin düşmediği tarihleri anlatır, yani hiçbir şeye karar vermez.
+- **Oda sütunları aynı hafta içinde günden güne değişiyor.** Cuma `FİZİK TEDAVİ YÜKSEK OKULU A/B
+  AMFİSİ` yazarken diğer günler `ESKİ FİZİK TEDAVİ ANABİLİM DALI A/B DERSLİĞİ` yazıyor — bu yüzden
+  başlık her blok için ayrı okunuyor.
+- Hücre kitlesini tireli listeyle, **sabit olmayan sırayla** yazıyor: `DÖNEM 3-TÜRKÇE-A GRUBU` ile
+  `DÖNEM 3- B GRUBU- TÜRKÇE` aynı şey; bir sütun boyunca `DÖNEM  - 3` yazılmış. Her olgu bulunduğu
+  segmentten değil, biçiminden tanınıyor.
+- Hücre sık sık **kendi saatini** söylüyor (`-13.00-15.20`, ya da yalnız `-10.30`) ve bu, oturduğu
+  slot satırıyla çelişiyor. Söylenen saat satırı ezer; yalnız bir saat varsa yalnız başlangıcı ezer,
+  çünkü kaynak yalnız onu iddia etmiştir.
+- Dikey birleştirmeler slot'ları kapsıyor (`D3:D10` = 08.30 satırından 14.20'ye tek oturum).
+- Cumartesi başlığı I sütununda, Pazar başlığı **tarih serisi** olarak yazılmış.
+- **Izgaranın çoğu bizim değil.** 203 atamanın 116'sı Dönem 1-3; kalanı Dönem 4-5 klinik rezervasyon,
+  bölüm semineri, uzmanlık sınavı ve bir iş güvenliği eğitimi. Dönem söylemeyen hücre yayımlanmıyor,
+  gerekçesiyle sayılıyor.
+
+### Karar
+
+**Bu bir program değil, ADR-102 anlamında companion.** `weekly_amphitheatre_v1` hiçbir candidate
+üretmiyor: hücre oturumun *nerede* olduğunu söyler, *var olduğunu* değil. Yayımlasaydı yıllık
+programın zaten ürettiği event'in yanına ikincisini koyardı. `SHARED-AMPHI` yedi yıllık kaynağın
+hepsine companion olarak bildirildi; mevcut companion makinesi taşıyor — `ParseRunCompanionFingerprint`
+dahil, ki yeni haftalık kitabın yıllık kaynakları yeniden parse ettirmesini sağlayan şey odur.
+
+**Oda yalnız belge seçenek bırakmadığında veriliyor.** Tarih, sınıf, dil, müfredat grubu ve saate
+göre süzülüyor, sonra anabilim dalıyla daraltılıyor. Belgenin **söylemediği** olgu hiçbir şeyi
+daraltmıyor — dil söylemeyen hücreyi Türkçe ders İngilizce dersten önce sahiplenemez. Ayakta kalan
+her atama aynı odayı söylüyorsa oda veriliyor; ikisi çelişiyorsa ders yersiz kalıyor. Bu, ADR-035'in
+belirsiz eşleşme kuralının odaya uygulanmış hâli: burada hiçbir şey kazanan seçmiyor.
+
+Anabilim dalı hiçbir şey seçmediğinde saatin tamamına düşmek, bunu süsten ibaret olmaktan çıkaran
+şey: yayımlanan derslerin yarısından azı anabilim dalı söylüyor, dalı şart koşmak neredeyse hiçbirini
+yerleştirmiyordu. Zayıf bir tahmin değil, çünkü cevabın yine oybirliği olması gerekiyor — bir
+kohortun tek rezervasyonu olan saatin tek odası vardır, iki belge o dala ne derse desin. Kendi
+gerekçesiyle sayılıyor ki zayıf temel metriklerde görünür kalsın.
+
+**Klasör adres, dosya değil.** `discoveryFolderId` yeni kaynak konfigürasyonu; yalnız `SHARED-AMPHI`
+bildiriyor. Her poll klasörü listeleyip **en son değişen** adayı alıyor. Bu bilerek dosya adı okumak
+değil: adlar hafta söylüyor ama `31 AĞUSTOS -4 EYLÜL 2026` adlı kitabın kendi sayfası üç gün eksik
+yazıyor; dosya adından Türkçe ay adı ayrıştırmak, gerçek tarih ayrıştırıcısının önüne ikinci ve daha
+zayıf bir tanesini koymak olurdu. Değişiklik zamanına göre seçmek dersi **yanlış yere koyamaz**: her
+atama belgenin içindeki gün başlığından tarihlenir, yanlış kitap alınırsa hiçbir güncel dersin
+düşmediği tarihler çıkar. **Hata biçimi eksik oda, asla yanlış oda.**
+
+Çözülen dosya kaynağa **geri yazılmıyor**: hangi dosyanın güncel olduğu bu haftaya ait bir olgu,
+konfigürasyon değil; kataloğa yazmak poller ile katalog planlayıcısını kalıcı anlaşmazlığa sokardı.
+`externalId` kataloğun yazıldığı kitap olarak kalıyor ve klasör listelenemediğinde dönülen yer o.
+Listelenemeyen klasör döngüyü düşürmüyor — alternatifi hiçbir öğrencinin oda almadığı bir hafta.
+
+### Doğrulama
+
+- Canlı hafta (31 Ağustos - 4 Eylül 2026): 6 günde 203 atama; commit'li yıllık snapshot'larla
+  birleştirildiğinde 16 Dönem 3 TR-A, 21 Dönem 2 İNG, 2 Dönem 3 İNG dersine oda yazıldı.
+- **Hiçbir ders kımıldamadı.** Mevcut sekiz yıllık golden dosyasında candidate digest'leri
+  bayt bayt aynı; yalnız yeni muhasebe metrikleri eklendi. ADR-102 değişmezi tutuyor.
+- **Oda eklenen yerde kimlik korunuyor.** Yeni `g3-tr-a-annual-with-amphitheatre` golden'ında 1119
+  candidate girip 1119 çıkıyor, hiçbiri eklenmiyor/silinmiyor, 16 content hash değişiyor ve **her
+  stable identity aynı kalıyor** — diff motoru `Updated` görür ve mevcut Google event'in yerini
+  yerinde günceller. §10 ve §13'ün oda değişikliğinden istediği tam olarak budur.
+- 558 parser testi, 841 .NET testi geçiyor.
+
+### Sonradan kapatılanlar (aynı gün)
+
+- **Companion artık onu okuyan kaynaklardan önce pollanıyor.** Kaynaklar `SourceId` sırasıyla
+  pollanıyordu ve bu tam tersini yapıyordu: yıllık kaynaklar `G`, amfi programı `S` ile sıralanıyor.
+  Yıllık kaynaklar geçen döngünün odalarına karşı parse ediliyor, yeni kitap bir sonraki döngüye
+  kadar takvime ulaşmıyordu. `SourcePollOrder` artık `companionSourceIds` üzerinde kararlı topolojik
+  sıralama yapıyor; companion döngüsü olsa bile hiçbir kaynak pollanmadan düşmüyor. Dönem 3 bedside
+  belgelerinde de aynı gizli kusur vardı, onunla birlikte düzeldi.
+- **Keşif sonucu poll sonucuna yazılıyor ve worker uyarı basıyor.** Kataloğa düşmek, *başarılı* olup
+  kaynağı sessizce izlemeyi bırakan bir poll — uyarıyı hak eden tek başarı bu.
+- **Keşif klasörü bildiren kaynak artık `sheetGid` sabitlemek zorunda değil.** Sayfa kimliği tek bir
+  kitaba aittir, gelecek haftanınki başka bir dosya. `SHARED-AMPHI` gid bildirmiyor; `externalId`
+  bildirmeye devam ediyor, çünkü düşülen yer o.
+- **İki companion okuyucusu birbirinin belgesini sahiplenmiyor.** Dönem 3'e iki companion veriliyor,
+  parse isteği hangi belgenin hangi aileye ait olduğunu söylemiyor ve ikisi de her ikisine sunuluyor.
+  Gerçek fixture'larla iki yönde de doğrulandı, regresyon testiyle sabitlendi — bedeli, öğrencinin
+  katıldığı bir oturuma yanlış konu yazmak olurdu.
+
+### Yapılmayanlar / riskler
+
+- **Klasör erişimi gerçek kimlikle doğrulandı (kapandı).** `tools/Sirkadiyen.SourceAccessCheck`
+  üretim servis hesabıyla (`sirkadiyen-worker@winter-cocoa-348405`) çalıştırıldı: klasör listelendi,
+  `31 AĞUSTOS -4 EYLÜL 2026 Amfi programı` çözüldü ve o kitap Sheets API üzerinden çekildi — 4 sayfa,
+  64.908 hücre. Klasörü listelemek ile içindeki belgeyi açmak ayrı izinler, bu yüzden araç ikincisini
+  birincisinden çıkarsamıyor, ayrıca kontrol ediyor.
+- **Klasörde tek kitap var ve ID'si katalogdakiyle aynı.** Yani fakülte şu an tek dosyayı düzenleyip
+  her hafta adını değiştiriyor, yeni dosya yayımlamıyor. Keşif ikisine de kayıtsız — zaten bu yüzden
+  varsaymak yerine çözecek şekilde kuruldu — ama "dosya ID'si haftalık değişiyor" hâli üretimde
+  henüz gözlenmedi.
+- **Parser canlı çekimde ve commit'li fixture'da aynı çıktıyı veriyor.** Bu göründüğünden önemliydi:
+  Sheets API 64.908 hücre bildiriyor, XLSX dönüştürücü 11.841 — yani o ana kadarki bütün testler
+  üretimin göndermediği bir şekle karşı koşmuştu. Yan yana okunduğunda ikisi de aynı 10 tarihte aynı
+  203 atamayı ve aynı 116 Dönem 1-3 atamasını veriyor, küme farkı boş. Fazladan hücrelerin hepsi boş
+  ya da yalnız biçim; `SAAT` başlığı + üstünde başlık kuralı onları fark etmiyor.
+- **Migration (`AddSourceDiscoveryFolder`) yazıldı ama uygulanmadı** — bu makinede çalışan veritabanı
+  yok. Model ile migration'ın tutarlılığı `has-pending-model-changes` ile doğrulandı.
+- **Her an yalnız içinde bulunulan hafta zenginleştirilebilir.** Belge haftalık, yıllık programlar
+  yıl boyu. Birikme yok: kitap değişince geçen haftanın odaları saklanmaz, çünkü yıllık kaynağın bir
+  sonraki parse'ı candidate'larını companion'ın o an söylediğinden yeniden kurar.
+- `resolve_date_text` hâlâ `31 AĞUSTOS 2026 / Pazartesi`'yi reddediyor; slash amfi okuyucusunda
+  değiştiriliyor. Paylaşılan primitifi değiştirmek her profilin tarih okumasını değiştirir ve
+  determinizm kuralı gereği motor sürümü ile sistemdeki her snapshot'ın yeniden parse'ını zorlardı —
+  yalnız bu belge ailesinin yazdığı bir ayraç için. **Bilinen asimetri**; ikinci bir kaynak da
+  yazarsa doğru yer primitiftir.
