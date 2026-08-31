@@ -8469,3 +8469,126 @@ allowed to stop startup: the worker's job is to poll the catalog it has.
   permanently. The catalog editor's history tab says this in as many words.
 - The worker gained the editing service and the catalog file port, which it did not have before.
 - No schema change: the revision kind is a string column.
+
+## ADR-139: A date that contradicts its own column is read as a mistyped year, and the readings that fit are offered
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-31
+**Relates to:** ADR-017 (facts the document cannot state travel as source context), ADR-025 and
+ADR-029 (validation is the boundary between a successful parse and a student's calendar), ADR-033
+(the correction is a newer revision, never a rollback), ADR-051 (a date is never read under a rule
+the profile has not declared), ADR-102 and ADR-126 (an input a parse read belongs in the run's key),
+ADR-127 (the operator re-poll), ADR-135 (the review screen explains itself)
+
+### Context
+
+`G1-TR-PRACTICE` publishes four lessons on dates that are not in its academic year. Three of them
+sit on 2020-11-20, in a row whose date serial reads `44155` between a `46345` (2026-11-19) and a
+`46346` (2026-11-20) — the same day and month, six years out. The fourth is a row headed
+`21 Mayıs 2026 Perşembe` in a block whose other rows run from 2027-05-24 to 2027-06-04.
+
+Every one of them quarantines the whole revision under `RecordDateOutsideAcademicYear`, and
+**nothing on any screen could resolve it**. Approving publishes a lesson six years in the past.
+Rejecting holds the entire Grade 1 practice schedule for a workbook that is not ours to edit. The
+document is the faculty's, and re-polling it produces the same wrong date every time. The reported
+symptom was exactly that: there is nothing we can do about a date outside the academic year from
+the admin panel.
+
+It is not one document's problem. Surveying the committed fixtures found the same mistake in six of
+them: `G1-TR-ANNUAL` dates a lunch break 2027-11-30 among 2026-11-30 rows — previously undetected —
+and `G2-TR-PRACTICE`, `G2-VERTICAL-AUTUMN`, `G2-VERTICAL-SPRING` and `G2-ANATOMY-SPRING` each carry
+a slot whose year is a year out. Four of those were being **refused outright** under the ADR-051
+rule that a cell contradicting its own weekday is not published, with the refusal's own comment
+saying "correcting the year would be inference". That comment was right about the mechanism
+available at the time and wrong about the evidence available: the order of the column is evidence,
+and nothing was reading it.
+
+### Decision
+
+**The date column is read as a chronological run before any of its rows becomes a lesson.** Within
+one run — a rotation block, a slot-header row, a worksheet's dated rows — the dates the source
+writes are non-decreasing. The longest non-decreasing subsequence is the set of anchors; a date
+outside it, or outside the academic year's graced window, is a suspect. A run shorter than four
+dates, or one where fewer than 80% of the dates are already in order, states no order at all and is
+left entirely alone: that guard is what makes the analysis safe to enable on every profile,
+including any document nobody has surveyed.
+
+**Only the year is substituted.** The day and the month are what the typist meant; the year is what
+they forgot to update. A repair that moved a day would be a guess about which day, and there is no
+evidence for that.
+
+**A repair is applied only when exactly one substitution survives every rule**: it must land inside
+the academic year proper, and between the nearest sound date before and after it — both real, and
+no more than sixty days apart, because uniqueness inside a wide bracket says almost nothing.
+
+**A stated weekday decides in both directions.** It vetoes: `21 Mayıs 2026 Perşembe` substitutes to
+2027-05-21, which is a Friday, so the cell disagrees with its own repair and nothing is applied. And
+it corroborates: a substituted year the cell's own weekday agrees with landed on one day in seven,
+which is the evidence the anchors are otherwise being asked for, so a corroborated substitution does
+not also have to sit between two real anchors. That is what recovers the four slots that were being
+refused whole.
+
+**A repair publishes at reduced confidence and always carries a warning** with the original date,
+the anchors, every candidate, and the cell's address. A repaired lesson is visible as a repaired
+lesson everywhere downstream and can never be mistaken for a date the source stated plainly.
+
+**A suspect the rules refuse to correct is published as written and reported with its candidates.**
+The parser publishes what the source says; the suggestion is what it would say if asked.
+
+**The operator's answer is stored as source configuration, not as an edit to a parsed record.** A
+`ScheduleSourceDateCorrection` says "this source writes 2026-05-21 and means 2027-05-20", travels
+into the parse request as source context in exactly the sense ADR-017 means, and is part of the
+parse run's key. Editing records instead would have broken the invariant that a parse is a pure
+function of its snapshot, its profile and its context: the next poll would re-parse the same
+document and undo the correction. It is keyed by the wrong value rather than by a cell address,
+because the document is re-acquired on every poll and its rows move while the mistyped value does
+not.
+
+**Revision validation gained one rule with two severities.** A repair is a warning — a reviewer must
+see that a lesson moved to a day the document does not state, but holding the revision for it would
+leave the schedule exactly where the typo left it. A refused suspect is an error, because approving
+it would put a lesson on a day nobody believes, and because the candidates exist precisely so that
+someone picks one. The review screen renders the candidates as buttons; accepting one corrects the
+source and the next poll produces a revision that no longer trips the rule.
+
+### Consequences
+
+- **Seven mistyped dates across six documents are now read correctly**, and four sessions that were
+  refused outright are published. `G2-ANATOMY-SPRING` gains three dissection hours; `G2-TR-PRACTICE`
+  gains three lessons; `G2-VERTICAL-AUTUMN` gains one; `G1-TR-PRACTICE`'s three 2020-11-20 lessons
+  move to 2026-11-20.
+- **`G1-TR-PRACTICE` still holds**, on its one genuinely ambiguous date, and now holds with two
+  ranked readings and a button for each. That is the intended end state: the parser refuses to
+  choose, and the operator can.
+- **Four new warnings are legitimate findings nobody had seen**: three `G2-EN-ANNUAL` lunch breaks
+  dated a day before the rows around them, and a `G3-TR-B-ANNUAL` row with a stray date and no
+  title. None is repairable by a year substitution, and all four are real.
+- **The parser engine went to 0.4.0 and every profile that reads a date was bumped with it.**
+  `grade3_faculty_locations_v1` is pinned instead: its document states no date at all, so bumping it
+  would re-parse every stored snapshot to produce the same rooms.
+- **The run must be read in the order the source states, not the order the layout happens to have.**
+  `G2-TR-PRACTICE` proved it twice: a slot table may end with extra columns repeating earlier days
+  at a second hour, and one writes the slot number `1/7` twice. Reading column order as date order
+  reported three sound dates as anomalies. The slot number is what the source says about the order,
+  so it is what the order is taken from, and headers sharing a number are ordered by their own date
+  because one number states no order between its parts.
+- **A suspect is reported for the date column whether or not its row publishes anything.** The run
+  is read before rows are classified, so `G1-TR-ANNUAL`'s repaired lunch break and
+  `G3-TR-B-ANNUAL`'s titleless row are both reported although neither becomes a lesson. That is the
+  honest behaviour: a stray date is worth seeing either way.
+- **`ParserWarning` gained a structured `detail`.** It is the first warning whose meaning an
+  operator has to act on rather than only read, and a sentence cannot carry a list of dates a button
+  can be attached to. Every other warning states nothing there, deliberately: a field every producer
+  filled in with something would stop being readable by any consumer.
+- **One new table and one migration** (`schedule_source_date_corrections`), unique on
+  `(SourceId, Original)`. Accepting replaces rather than refuses, so an operator who picks the other
+  candidate after a second look does not have to delete first.
+- **Two new audit categories.** Accepting a correction is the one way a lesson can reach a student's
+  calendar on a day no document states, so who decided it and why is recorded.
+- **The amphitheatre and bedside companion readers now take a source context**, which they did not
+  before. A caller that supplies none — the reader is also called directly from tests — builds no
+  window and analyses nothing, so those paths behave exactly as they did.
+- **Still open:** a correction whose document the faculty later fixes stays in the catalog matching
+  nothing. It is reported on every parse as an accepted correction, which is how an operator learns
+  it can be retired, but nothing retires it automatically. Detecting that would need the parse to
+  report which corrections it actually applied, which is a larger change than this one.

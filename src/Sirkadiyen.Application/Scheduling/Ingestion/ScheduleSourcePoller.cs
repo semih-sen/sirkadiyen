@@ -24,6 +24,7 @@ public sealed class ScheduleSourcePoller(
     IScheduleParserClient parserClient,
     IScheduleParseResultStore parseResultStore,
     IGroupRotationCoverageStore rotationCoverageStore,
+    IScheduleSourceDateCorrectionStore dateCorrectionStore,
     ScheduleRevisionValidationService revisionValidation,
     IOperationalFreezeStore operationalFreeze,
     IWeeklyDocumentDiscovery weeklyDocumentDiscovery,
@@ -252,10 +253,20 @@ public sealed class ScheduleSourcePoller(
         IReadOnlyList<DateOnly> rotationCoverage = await ResolveRotationCoverageAsync(
             source,
             cancellationToken);
+
+        // Read before the run is opened for the same reason again: accepting a
+        // correction changes what this parse reads out of a document that has not
+        // moved, so it has to be in the run's key or the correction would never
+        // be applied to anything (ADR-139).
+        IReadOnlyList<ScheduleSourceDateCorrection> dateCorrections =
+            await dateCorrectionStore.ListForSourceAsync(source.SourceId, cancellationToken);
+
         string companionFingerprint = ParseRunCompanionFingerprint.Compute(
             [.. companions.Select(static companion =>
                 new CompanionEvidence(companion.SourceId, companion.ContentHash))],
-            rotationCoverage);
+            rotationCoverage,
+            [.. dateCorrections.Select(static correction =>
+                new DateCorrectionEvidence(correction.Original, correction.Corrected))]);
 
         // A forced re-poll replaces the fingerprint with a unique token so the run's identity
         // differs from the already-parsed one, which is what makes BeginOrResumeAsync open a fresh
@@ -303,7 +314,8 @@ public sealed class ScheduleSourcePoller(
             snapshotForParsing,
             correlationId,
             [.. companions.Select(Deserialize)],
-            rotationCoverage);
+            rotationCoverage,
+            dateCorrections);
 
         try
         {
@@ -428,7 +440,8 @@ public sealed class ScheduleSourcePoller(
         NormalizedSpreadsheetSnapshot snapshot,
         string correlationId,
         IReadOnlyList<NormalizedSpreadsheetSnapshot> auxiliarySnapshots,
-        IReadOnlyList<DateOnly> rotationCoverage) => new()
+        IReadOnlyList<DateOnly> rotationCoverage,
+        IReadOnlyList<ScheduleSourceDateCorrection> dateCorrections) => new()
         {
             ContractVersion = ParserContractVersions.V1,
             CorrelationId = correlationId,
@@ -462,6 +475,20 @@ public sealed class ScheduleSourcePoller(
                 // orchestration knowledge the workbook cannot hold, so it travels
                 // with the rest of the source context too (ADR-017, ADR-126).
                 GroupRotationCoveredDates = rotationCoverage,
+
+                // A typo in the document is a fact about the document that the
+                // document cannot state, so an operator's decision about one
+                // travels as source context rather than as an edit to a parsed
+                // record (ADR-017, ADR-139). That is what keeps re-parsing the
+                // same snapshot produce the same records.
+                DateCorrections = [.. dateCorrections.Select(static correction =>
+                    new SourceDateCorrection
+                    {
+                        Original = correction.Original,
+                        Corrected = correction.Corrected,
+                        DecidedBy = correction.DecidedBy,
+                        DecidedAt = correction.DecidedAtUtc.ToString("O"),
+                    })],
             },
             Snapshot = snapshot,
             AuxiliarySnapshots = auxiliarySnapshots,

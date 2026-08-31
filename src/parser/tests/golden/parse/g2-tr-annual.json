@@ -1,6 +1,6 @@
 {
   "fixture": "real/g2-tr-annual.snapshot.json",
-  "parserEngineVersion": "0.3.0",
+  "parserEngineVersion": "0.4.0",
   "payload": {
     "candidateCount": 949,
     "candidateDigests": [
@@ -1424,9 +1424,9 @@
     ],
     "parserProfile": {
       "name": "grade2_yearly_v1",
-      "version": "1.3.0"
+      "version": "1.4.0"
     },
-    "responseDigest": "sha256:e9e778aba0eef350ef4d6d0f8a1b14e5963eb3abd0ae954bc074c572532a89d5",
+    "responseDigest": "sha256:ee539e1a6bf81b3d9003ee50059b53e0a0d1b8ef74a0772ca59e1f09c8e51f15",
     "snapshotId": "fixture:sha256:60a6473458e27fadc05255c0a62ed10ae8afee91928008a35f25c6017acafb73",
     "sourceId": "G2-TR-ANNUAL",
     "status": "completedWithWarnings",
@@ -1434,6 +1434,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A34:G34",
@@ -1447,6 +1448,7 @@
       {
         "candidateId": "1!R112",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F112",
@@ -1460,6 +1462,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.endTimeCell",
           "range": "D244",
@@ -1473,6 +1476,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A245:G245",
@@ -1486,6 +1490,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A447:G447",
@@ -1499,6 +1504,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A525:G525",
@@ -1512,6 +1518,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A571:G571",
@@ -1525,6 +1532,7 @@
       {
         "candidateId": "1!R1085",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F1085",
@@ -1538,6 +1546,7 @@
       {
         "candidateId": "1!R1129",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F1129",
@@ -1551,6 +1560,7 @@
       {
         "candidateId": "1!R1129",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F1129",
@@ -1564,6 +1574,7 @@
       {
         "candidateId": "1!R1133",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F1133",
@@ -1577,6 +1588,7 @@
       {
         "candidateId": "1!R1141",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F1141",
@@ -1590,6 +1602,7 @@
       {
         "candidateId": "1!R1141",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F1141",
@@ -1603,6 +1616,7 @@
       {
         "candidateId": "1!R1141",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F1141",
@@ -1616,6 +1630,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A1151:G1151",
@@ -1629,6 +1644,7 @@
       {
         "candidateId": null,
         "code": "groupRotationPublishedWithoutCompanion",
+        "detail": null,
         "evidence": null,
         "message": "No companion group source has published 53 rotation day(s) between 2025-09-02 and 2026-04-28, so every slot of those sessions was published to the whole turkish class year 2 with its hour named. Uploading the group list returns those days to it.",
         "severity": "warning"

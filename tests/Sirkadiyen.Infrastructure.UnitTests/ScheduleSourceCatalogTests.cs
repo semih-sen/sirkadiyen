@@ -112,7 +112,7 @@ public sealed class ScheduleSourceCatalogTests
         Assert.Equal(
             ["A", "B", "C", "D", "E", "F", "G", "H"],
             grade2TurkishPractice.SupportedAudienceSelectors!["practiceGroup"]);
-        Assert.Equal("1.3.0", grade2TurkishPractice.ParserProfileVersion);
+        Assert.Equal("1.4.0", grade2TurkishPractice.ParserProfileVersion);
 
         ScheduleSourceDefinition grade2EnglishPractice = Assert.Single(
             catalog.Sources,
@@ -120,7 +120,7 @@ public sealed class ScheduleSourceCatalogTests
         Assert.Equal(
             ["İ1", "İ2"],
             grade2EnglishPractice.SupportedAudienceSelectors!["practiceGroup"]);
-        Assert.Equal("1.3.0", grade2EnglishPractice.ParserProfileVersion);
+        Assert.Equal("1.4.0", grade2EnglishPractice.ParserProfileVersion);
 
         ScheduleSourceDefinition vertical = Assert.Single(
             catalog.Sources,

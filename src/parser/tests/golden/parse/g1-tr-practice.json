@@ -1,6 +1,6 @@
 {
   "fixture": "real/g1-tr-practice.snapshot.json",
-  "parserEngineVersion": "0.3.0",
+  "parserEngineVersion": "0.4.0",
   "payload": {
     "candidateCount": 302,
     "candidateDigests": [
@@ -100,9 +100,9 @@
       "1!R67C6|2026-11-19|08:30-10:20|practice|id:265bd7952006f315|content:3f5d304e6ea58608|Fizyoloji",
       "1!R68C3|2026-11-19|13:30-15:20|practice|id:61a518abefd3cabb|content:fd5f9519c3561154|Tıbbi Biyoloji",
       "1!R68C5|2026-11-19|13:30-15:20|practice|id:c41e315ef17c5b44|content:937bf9060e2b0e3e|Tıbbi Biyokimya",
-      "1!R69C3|2020-11-20|08:30-10:20|practice|id:f516a80bf6ed544b|content:fcf4883ee638087b|Tıbbi Biyoloji",
-      "1!R69C5|2020-11-20|08:30-10:20|practice|id:09346bd46d3c4bfd|content:7cfab3518d75388f|Tıbbi Biyokimya",
-      "1!R69C6|2020-11-20|08:30-10:20|practice|id:a72915df59f4bf73|content:cb55dd628cdf5759|Fizyoloji",
+      "1!R69C3|2026-11-20|08:30-10:20|practice|id:ebeb63f0203874ec|content:203ebf036c5cdbd9|Tıbbi Biyoloji",
+      "1!R69C5|2026-11-20|08:30-10:20|practice|id:dbf656720b9cc58a|content:eb28d789f23e95ad|Tıbbi Biyokimya",
+      "1!R69C6|2026-11-20|08:30-10:20|practice|id:2d20518941012c67|content:05061e7d54a9194b|Fizyoloji",
       "1!R70C3|2026-11-20|10:30-12:20|practice|id:f2e1bc71bb3fd732|content:7f81e2476ceda85a|Tıbbi Biyoloji",
       "1!R70C5|2026-11-20|10:30-12:20|practice|id:0c92fef010628b12|content:c33dcbf8cdd43a85|Tıbbi Biyokimya",
       "1!R71C3|2026-11-23|08:30-10:20|practice|id:c87b8adbf7826240|content:219c123d91712b2c|Tıbbi Biyoloji",
@@ -403,6 +403,24 @@
         "field": "localDate",
         "reason": "monthNameDate",
         "score": 0.9
+      },
+      {
+        "candidateId": "1!R69C3",
+        "field": "localDate",
+        "reason": "repairedFrom:serialDate",
+        "score": 0.7
+      },
+      {
+        "candidateId": "1!R69C5",
+        "field": "localDate",
+        "reason": "repairedFrom:serialDate",
+        "score": 0.7
+      },
+      {
+        "candidateId": "1!R69C6",
+        "field": "localDate",
+        "reason": "repairedFrom:serialDate",
+        "score": 0.7
       },
       {
         "candidateId": "1!R99C3",
@@ -806,14 +824,34 @@
         "value": 1041.0
       },
       {
+        "name": "dates.outOfSequence.repaired",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "dates.outOfSequence.suggested",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "dates.outOfSequence.suggested.candidateContradictsTheStatedWeekday",
+        "unit": null,
+        "value": 1.0
+      },
+      {
         "name": "dates.rule.monthNameDate",
         "unit": null,
         "value": 10.0
       },
       {
+        "name": "dates.rule.sequenceRepairedDate",
+        "unit": null,
+        "value": 1.0
+      },
+      {
         "name": "dates.rule.serialDate",
         "unit": null,
-        "value": 121.0
+        "value": 120.0
       },
       {
         "name": "rows.ignored",
@@ -853,9 +891,9 @@
     ],
     "parserProfile": {
       "name": "grade1_practice_v1",
-      "version": "1.1.0"
+      "version": "1.2.0"
     },
-    "responseDigest": "sha256:3aae34a4585f991039fc926d3ec019724c9264c7ce0cf97efd04c7dafbde40fe",
+    "responseDigest": "sha256:8d747f0d901b1ff65fb160df94606a4a3cbe490c730f602a6fbb5cde327b52eb",
     "snapshotId": "fixture:sha256:deb81b35c552c1975a4dc90d2b658b78b491717446c41d645e858a836415ff60",
     "sourceId": "G1-TR-PRACTICE",
     "status": "completedWithWarnings",
@@ -863,6 +901,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "C36",
@@ -876,6 +915,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "D36",
@@ -889,6 +929,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "E36",
@@ -902,6 +943,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "F36",
@@ -915,6 +957,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A37:F37",
@@ -927,7 +970,35 @@
       },
       {
         "candidateId": null,
+        "code": "outOfSequenceDateRepaired",
+        "detail": {
+          "applied": "2026-11-20",
+          "candidates": [
+            {
+              "rule": "sequenceYearSubstitution",
+              "value": "2026-11-20",
+              "weekdayMatches": null
+            }
+          ],
+          "lowerAnchor": "2026-11-19",
+          "original": "2020-11-20",
+          "reason": "repaired",
+          "upperAnchor": "2026-11-20"
+        },
+        "evidence": {
+          "extractionRule": "dateSequence",
+          "range": "A69",
+          "rawText": "44155",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "The source dates this row 2020-11-20, which falls outside the run it sits in (2026-11-19 to 2026-11-20). Substituting the year is the only reading that fits, so the row was read as 2026-11-20 rather than as written; whatever it publishes carries that date. Reject the revision if the source means what it says.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
         "code": "outOfScopeSubjectColumn",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.subjectHeader",
           "range": "G40",
@@ -941,6 +1012,7 @@
       {
         "candidateId": null,
         "code": "outOfScopeSubjectColumn",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.subjectHeader",
           "range": "G169",
@@ -953,7 +1025,40 @@
       },
       {
         "candidateId": null,
+        "code": "outOfSequenceDateNotRepaired",
+        "detail": {
+          "applied": null,
+          "candidates": [
+            {
+              "rule": "sequenceYearSubstitution",
+              "value": "2027-05-21",
+              "weekdayMatches": false
+            },
+            {
+              "rule": "sequenceWeekdayAlternative",
+              "value": "2027-05-20",
+              "weekdayMatches": true
+            }
+          ],
+          "lowerAnchor": null,
+          "original": "2026-05-21",
+          "reason": "candidateContradictsTheStatedWeekday",
+          "upperAnchor": "2027-05-24"
+        },
+        "evidence": {
+          "extractionRule": "dateSequence",
+          "range": "A248",
+          "rawText": "21 Mayıs 2026 Perşembe",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "The source dates this row 2026-05-21, which falls outside the run it sits in (the start of the academic year to 2027-05-24), and it was read as written. The cell contradicts itself: the year that would fit its neighbours falls on a different weekday than the one the cell names, so correcting either half would be a guess. The readings are listed for an operator to choose from.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "E247:F248",
@@ -967,6 +1072,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "E247:F248",
@@ -980,6 +1086,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "G247:G248",
@@ -993,6 +1100,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "E249:F249",
@@ -1006,6 +1114,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "E249:F249",
@@ -1019,6 +1128,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "G249",
@@ -1032,6 +1142,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "E250:F250",
@@ -1045,6 +1156,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "E250:F250",
@@ -1058,6 +1170,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "G250",
@@ -1071,6 +1184,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "E251:F251",
@@ -1084,6 +1198,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "E251:F251",
@@ -1097,6 +1212,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "G251",
@@ -1110,6 +1226,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "E252:F252",
@@ -1123,6 +1240,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "E252:F252",
@@ -1136,6 +1254,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "G252",
@@ -1149,6 +1268,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "E253",
@@ -1162,6 +1282,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "G253",
@@ -1175,6 +1296,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "E254",
@@ -1188,6 +1310,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "G254",
@@ -1201,6 +1324,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "E255",
@@ -1214,6 +1338,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "G255",
@@ -1227,6 +1352,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "E256",
@@ -1240,6 +1366,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "G256",
@@ -1253,6 +1380,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A257:G257",
@@ -1266,6 +1394,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A258:G258",
@@ -1279,6 +1408,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A259:G259",
@@ -1292,6 +1422,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A260:G260",
@@ -1305,6 +1436,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A261:G261",
@@ -1318,6 +1450,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A262:G262",
@@ -1331,6 +1464,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A263:G263",
@@ -1344,6 +1478,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A264:G264",
@@ -1357,6 +1492,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A265:G265",
@@ -1370,6 +1506,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A266:G266",
@@ -1383,6 +1520,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A267:G267",
@@ -1396,6 +1534,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A268:G268",
@@ -1409,6 +1548,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A269:G269",

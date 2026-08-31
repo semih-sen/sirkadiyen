@@ -1,6 +1,12 @@
 'use client';
 
-import type { RevisionFindingView, RevisionState } from '@/lib/types';
+import { useState } from 'react';
+import { acceptSourceDateCorrection, ApiError } from '@/lib/api';
+import type {
+  RevisionDateAnomalyView,
+  RevisionFindingView,
+  RevisionState,
+} from '@/lib/types';
 
 /**
  * What a validation rule means, and what the operator is being asked to decide (ADR-135).
@@ -34,6 +40,19 @@ const RULES: Record<string, { label: string; explains: string }> = {
       + 'listede tarihler belgedekiyle aynıysa sorun kaynağın akademik yıl ayarındadır; '
       + 'değilse parser tarihi yanlış çözmüştür. Onaylarsanız bu dersler o tarihlerle takvime '
       + 'yazılır.',
+  },
+  RecordDateOutOfSequence: {
+    label: 'Sıra dışı tarih',
+    explains:
+      'Bir satırın tarihi, içinde bulunduğu sütunun kronolojik sırasını bozuyor. Bu neredeyse her '
+      + 'zaman yılın yanlış yazılmasıdır: belge geçen yılın dosyasından kopyalanmış ve o satırın '
+      + 'yılı güncellenmemiştir. Parser, komşu tarihler tek bir okuma bırakıyorsa yılı kendisi '
+      + 'düzeltir ve dersi düzeltilmiş tarihte yayımlar — bu bir uyarıdır, revizyonu bekletmez. '
+      + 'Birden fazla okuma uyuyorsa ya da hücre kendi yazdığı gün adıyla çelişiyorsa düzeltmez: '
+      + 'tarihi belgedeki hâliyle yayımlar, revizyonu bekletir ve olası tarihleri aşağıda listeler. '
+      + 'Bir tarihi kabul etmek kaynağı kalıcı olarak düzeltir: bu kaynak o tarihi nerede yazarsa '
+      + 'yazsın, bundan sonraki her ayrıştırmada seçtiğiniz tarih okunur. Onaylarsanız değil, '
+      + 'kabul edip kaynağı yeniden çektiğinizde düzelir.',
   },
   ImpossibleLessonDuration: {
     label: 'Olanaksız ders süresi',
@@ -215,6 +234,13 @@ const EVIDENCE_HEADINGS: Record<string, string> = {
   dimension: 'Boyut',
   value: 'Değer',
   count: 'Adet',
+  original: 'Belgedeki tarih',
+  applied: 'Yayımlanan tarih',
+  lowerAnchor: 'Önceki tarih',
+  upperAnchor: 'Sonraki tarih',
+  reason: 'Sonuç',
+  cell: 'Hücre',
+  candidates: 'Olası okumalar',
 };
 
 function format(value: unknown): string {
@@ -223,9 +249,155 @@ function format(value: unknown): string {
   return String(value);
 }
 
-export function Finding({ finding }: { finding: RevisionFindingView }) {
+/** The parser's own vocabulary for why it withheld a correction, in the reviewer's language. */
+const ANOMALY_REASONS: Record<string, string> = {
+  repaired: 'Yılı düzeltilip yayımlandı',
+  noCandidateFitsTheAnchors: 'Hiçbir yıl komşu tarihlerin arasına oturmuyor',
+  severalCandidatesFitTheAnchors: 'Birden fazla yıl uyuyor',
+  suspectIsNotBoundedOnBothSides: 'İki yandan sınırlanmıyor',
+  anchorBracketTooWideToRead: 'Komşu tarihler arası okumak için fazla geniş',
+  candidateContradictsTheStatedWeekday: 'Hücre kendi yazdığı gün adıyla çelişiyor',
+};
+
+const CANDIDATE_RULES: Record<string, string> = {
+  sequenceYearSubstitution: 'yıl değiştirilerek',
+  sequenceWeekdayAlternative: 'gün adına göre',
+};
+
+/**
+ * Accepting one of the readings the parser listed for an out-of-sequence date (ADR-139).
+ *
+ * This is the lever the review screen was missing. Approving the revision publishes the date the
+ * document states, which is the date nobody believes; rejecting it holds the schedule until the
+ * faculty edits a workbook that is not ours. Accepting a candidate corrects the source instead, so
+ * the next poll re-parses the same document and reads the date the operator chose.
+ *
+ * It is deliberately not part of the approve/reject row: it does not settle this revision. The
+ * revision stays held, and a re-poll produces a new one that no longer trips the rule.
+ */
+function DateCorrectionAction({
+  sourceId,
+  anomaly,
+}: {
+  sourceId: string;
+  anomaly: RevisionDateAnomalyView;
+}) {
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState<string | null>(null);
+  const [accepted, setAccepted] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function accept(corrected: string) {
+    const trimmed = reason.trim();
+    if (trimmed.length === 0) {
+      setError('Kabul için bir gerekçe girin; bu karar denetim kaydına yazılır.');
+      return;
+    }
+    setBusy(corrected);
+    setError(null);
+    try {
+      await acceptSourceDateCorrection(sourceId, anomaly.original, corrected, trimmed);
+      setAccepted(corrected);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Tarih düzeltmesi kaydedilemedi.');
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const field = `date-correction-${sourceId}-${anomaly.original}`;
+
+  return (
+    <div className="revision-date-correction">
+      <p className="revision-date-correction-head">
+        <strong className="mono">{anomaly.original}</strong>
+        {anomaly.cell && <small className="mono muted"> · {anomaly.cell}</small>}
+        <span className="muted">
+          {' '}— {ANOMALY_REASONS[anomaly.reason] ?? anomaly.reason}
+          {anomaly.lowerAnchor && anomaly.upperAnchor && (
+            <> (komşular: {anomaly.lowerAnchor} … {anomaly.upperAnchor})</>
+          )}
+        </span>
+      </p>
+
+      {accepted ? (
+        <p className="muted">
+          Kabul edildi: bu kaynak {anomaly.original} yazdığı her yerde {accepted} okunacak.
+          Değişikliğin derslere yansıması için kaynağı yeniden çekin.
+        </p>
+      ) : (
+        <>
+          <label htmlFor={field}>Kabul gerekçesi (denetim kaydına yazılır)</label>
+          <input
+            id={field}
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="Belgeyi kontrol ettim; satır bir önceki yılın dosyasından kalmış."
+          />
+          <div className="cluster" style={{ gap: 8 }}>
+            {anomaly.candidates.map((candidate) => (
+              <button
+                key={candidate.value}
+                className="btn btn-secondary btn-sm"
+                type="button"
+                onClick={() => void accept(candidate.value)}
+                disabled={busy !== null}
+              >
+                {busy === candidate.value ? 'Kaydediliyor…' : candidate.value}
+                <small className="muted">
+                  {' '}({CANDIDATE_RULES[candidate.rule] ?? candidate.rule}
+                  {candidate.weekdayMatches === true && ', gün adı uyuyor'}
+                  {candidate.weekdayMatches === false && ', gün adı uymuyor'})
+                </small>
+              </button>
+            ))}
+          </div>
+          {anomaly.candidates.length === 0 && (
+            <p className="muted">
+              Parser bu tarih için makul bir okuma üretemedi. Doğru tarihi belgeden okuyup kaynak
+              sayfasından elle bir düzeltme girmeniz gerekir.
+            </p>
+          )}
+        </>
+      )}
+
+      {error && <div className="error" role="alert">{error}</div>}
+    </div>
+  );
+}
+
+/** The anomalies a date-sequence finding carries, or an empty list when its detail is not one. */
+function readAnomalies(detail: string): RevisionDateAnomalyView[] {
+  try {
+    const parsed: unknown = detail ? JSON.parse(detail) : null;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (entry): entry is RevisionDateAnomalyView =>
+        typeof entry === 'object'
+        && entry !== null
+        && typeof (entry as RevisionDateAnomalyView).original === 'string',
+    );
+  } catch {
+    return [];
+  }
+}
+
+export function Finding({
+  finding,
+  sourceId,
+}: {
+  finding: RevisionFindingView;
+  /** The source the revision belongs to. Only the date-sequence action needs it. */
+  sourceId?: string;
+}) {
   const rule = RULES[finding.rule];
   const severity = SEVERITY[finding.severity] ?? { label: finding.severity, tone: 'var(--muted)' };
+
+  // Only the unresolved half of the rule offers a decision. A repair the parser already applied is
+  // reported for visibility; there is nothing left to accept.
+  const anomalies = finding.rule === 'RecordDateOutOfSequence' && sourceId
+    ? readAnomalies(finding.detail).filter((anomaly) => !anomaly.applied)
+    : [];
 
   return (
     <section className="revision-finding">
@@ -247,6 +419,19 @@ export function Finding({ finding }: { finding: RevisionFindingView }) {
       <p className="muted revision-finding-message">{finding.message}</p>
 
       <Evidence detail={finding.detail} />
+
+      {anomalies.length > 0 && sourceId && (
+        <div className="revision-date-corrections">
+          <p className="muted">
+            Aşağıdaki tarihlerden birini kabul etmek kaynağı kalıcı olarak düzeltir. Bu revizyonu
+            değiştirmez: kabul ettikten sonra kaynağı yeniden çekin, yeni revizyon doğru tarihle
+            gelir.
+          </p>
+          {anomalies.map((anomaly) => (
+            <DateCorrectionAction key={anomaly.original} sourceId={sourceId} anomaly={anomaly} />
+          ))}
+        </div>
+      )}
     </section>
   );
 }

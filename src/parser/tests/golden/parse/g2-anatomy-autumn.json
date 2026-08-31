@@ -1,6 +1,6 @@
 {
   "fixture": "real/g2-anatomy-autumn.snapshot.json",
-  "parserEngineVersion": "0.3.0",
+  "parserEngineVersion": "0.4.0",
   "payload": {
     "candidateCount": 90,
     "candidateDigests": [
@@ -871,9 +871,9 @@
     ],
     "parserProfile": {
       "name": "grade2_anatomy_autumn_v1",
-      "version": "1.1.0"
+      "version": "1.2.0"
     },
-    "responseDigest": "sha256:7418d6b76ca5053dfd9df648775f089cc8633e5d98bad468ed2368d3b9c18329",
+    "responseDigest": "sha256:8a86a3510014da40857d8416dff7e04e18f6f3c5ef005cb9465e856307a63b95",
     "snapshotId": "fixture:sha256:732583bb338ce5dd6f7af6210bfb9fed79e521f8d6b8f070bed3cb6f53a7f0b1",
     "sourceId": "G2-ANATOMY-AUTUMN",
     "status": "completed",
@@ -881,6 +881,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "anatomy.row",
           "range": "A1:C1",

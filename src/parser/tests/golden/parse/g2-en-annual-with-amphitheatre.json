@@ -1,6 +1,6 @@
 {
   "fixture": "real/g2-en-annual.snapshot.json",
-  "parserEngineVersion": "0.3.0",
+  "parserEngineVersion": "0.4.0",
   "payload": {
     "candidateCount": 1106,
     "candidateDigests": [
@@ -1459,6 +1459,16 @@
         "value": 718.0
       },
       {
+        "name": "dates.outOfSequence.suggested",
+        "unit": null,
+        "value": 3.0
+      },
+      {
+        "name": "dates.outOfSequence.suggested.noCandidateFitsTheAnchors",
+        "unit": null,
+        "value": 3.0
+      },
+      {
         "name": "dates.rule.serialDate",
         "unit": null,
         "value": 1106.0
@@ -1566,16 +1576,80 @@
     ],
     "parserProfile": {
       "name": "grade2_yearly_v1",
-      "version": "1.3.0"
+      "version": "1.4.0"
     },
-    "responseDigest": "sha256:35e76de2f399ab1007c69e85c1cc8dfece55ed0e999d5bcc05f866a7a3a5baee",
+    "responseDigest": "sha256:5be24464ec5235b9287c89e3034a7fd493ebcdd50524b673b207a7d951cfca88",
     "snapshotId": "fixture:sha256:97726ccdedb794785a153540b18a755fcf8199773cc0edf9aadc776332664171",
     "sourceId": "G2-EN-ANNUAL",
     "status": "completedWithWarnings",
     "warnings": [
       {
         "candidateId": null,
+        "code": "outOfSequenceDateNotRepaired",
+        "detail": {
+          "applied": null,
+          "candidates": [],
+          "lowerAnchor": "2026-11-11",
+          "original": "2026-11-10",
+          "reason": "noCandidateFitsTheAnchors",
+          "upperAnchor": "2026-11-11"
+        },
+        "evidence": {
+          "extractionRule": "dateSequence",
+          "range": "B392",
+          "rawText": "46336",
+          "sheetId": "1",
+          "sheetTitle": "CLASS 2"
+        },
+        "message": "The source dates this row 2026-11-10, which falls outside the run it sits in (2026-11-11 to 2026-11-11), and it was read as written. No year puts this day and month between its neighbours, so the row states something this analysis cannot explain as a mistyped year.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "outOfSequenceDateNotRepaired",
+        "detail": {
+          "applied": null,
+          "candidates": [],
+          "lowerAnchor": "2027-04-01",
+          "original": "2027-03-31",
+          "reason": "noCandidateFitsTheAnchors",
+          "upperAnchor": "2027-04-01"
+        },
+        "evidence": {
+          "extractionRule": "dateSequence",
+          "range": "B982",
+          "rawText": "46477",
+          "sheetId": "1",
+          "sheetTitle": "CLASS 2"
+        },
+        "message": "The source dates this row 2027-03-31, which falls outside the run it sits in (2027-04-01 to 2027-04-01), and it was read as written. No year puts this day and month between its neighbours, so the row states something this analysis cannot explain as a mistyped year.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "outOfSequenceDateNotRepaired",
+        "detail": {
+          "applied": null,
+          "candidates": [],
+          "lowerAnchor": "2027-04-13",
+          "original": "2027-04-12",
+          "reason": "noCandidateFitsTheAnchors",
+          "upperAnchor": "2027-04-13"
+        },
+        "evidence": {
+          "extractionRule": "dateSequence",
+          "range": "B1037",
+          "rawText": "46489",
+          "sheetId": "1",
+          "sheetTitle": "CLASS 2"
+        },
+        "message": "The source dates this row 2027-04-12, which falls outside the run it sits in (2027-04-13 to 2027-04-13), and it was read as written. No year puts this day and month between its neighbours, so the row states something this analysis cannot explain as a mistyped year.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A7:G7",
@@ -1589,6 +1663,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A8:G8",
@@ -1602,6 +1677,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A30:G30",
@@ -1615,6 +1691,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A62:G62",
@@ -1628,6 +1705,7 @@
       {
         "candidateId": "1!R61",
         "code": "conflictingDuplicateLesson",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A62:G62",
@@ -1641,6 +1719,7 @@
       {
         "candidateId": "1!R84",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F84",
@@ -1654,6 +1733,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A119:G119",
@@ -1667,6 +1747,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A624:G624",
@@ -1680,6 +1761,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A656:G656",
@@ -1693,6 +1775,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A1067:G1067",
@@ -1706,6 +1789,7 @@
       {
         "candidateId": "1!R1234",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F1234",
@@ -1719,6 +1803,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.termCell",
           "range": "A1256",
@@ -1732,6 +1817,7 @@
       {
         "candidateId": "1!R1259",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F1259",
@@ -1745,6 +1831,7 @@
       {
         "candidateId": "1!R1259",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F1259",
@@ -1758,6 +1845,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.termCell",
           "range": "A1268",
@@ -1771,6 +1859,7 @@
       {
         "candidateId": null,
         "code": "groupRotationPublishedWithoutCompanion",
+        "detail": null,
         "evidence": null,
         "message": "No companion group source has published 53 rotation day(s) between 2026-09-03 and 2027-05-04, so every slot of those sessions was published to the whole english class year 2 with its hour named. Uploading the group list returns those days to it.",
         "severity": "warning"

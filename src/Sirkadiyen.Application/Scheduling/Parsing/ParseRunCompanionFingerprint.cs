@@ -40,14 +40,23 @@ public static class ParseRunCompanionFingerprint
     /// would be short-circuited as "already parsed" after a group list arrived,
     /// leaving the fallback events on every student's calendar for good.
     /// </param>
+    /// <param name="dateCorrections">
+    /// The dates an operator has decided this source states wrongly (ADR-139).
+    /// It belongs in the key for the same reason the two above do: accepting a
+    /// correction changes what the parse reads out of an unchanged document, and
+    /// a run keyed without it would be short-circuited as "already parsed" — so
+    /// the correction would sit in the catalog and never reach a calendar.
+    /// </param>
     public static string Compute(
         IReadOnlyList<CompanionEvidence> companions,
-        IReadOnlyList<DateOnly>? rotationCoverage = null)
+        IReadOnlyList<DateOnly>? rotationCoverage = null,
+        IReadOnlyList<DateCorrectionEvidence>? dateCorrections = null)
     {
         ArgumentNullException.ThrowIfNull(companions);
 
         IReadOnlyList<DateOnly> coverage = rotationCoverage ?? [];
-        if (companions.Count == 0 && coverage.Count == 0)
+        IReadOnlyList<DateCorrectionEvidence> corrections = dateCorrections ?? [];
+        if (companions.Count == 0 && coverage.Count == 0 && corrections.Count == 0)
         {
             return None;
         }
@@ -77,6 +86,21 @@ public static class ParseRunCompanionFingerprint
             }
         }
 
+        // Written only when there is one, for the same reason: a source with no
+        // correction keeps exactly the fingerprint it had before corrections
+        // existed and is not reparsed for a change that did not happen.
+        if (corrections.Count > 0)
+        {
+            builder.Append("dateCorrections").Append('\n');
+            foreach (DateCorrectionEvidence correction in corrections)
+            {
+                builder.Append(correction.Original.ToString("O"))
+                    .Append('\n')
+                    .Append(correction.Corrected.ToString("O"))
+                    .Append('\n');
+            }
+        }
+
         byte[] digest = SHA256.HashData(Encoding.UTF8.GetBytes(builder.ToString()));
         return $"sha256:{Convert.ToHexStringLower(digest)}";
     }
@@ -84,3 +108,14 @@ public static class ParseRunCompanionFingerprint
 
 /// <summary>One companion document as the parse run recorded reading it.</summary>
 public readonly record struct CompanionEvidence(SourceId SourceId, string ContentHash);
+
+/// <summary>
+/// One accepted date correction as the parse run recorded reading it (ADR-139).
+/// </summary>
+/// <remarks>
+/// Only the two dates are part of the key. Who accepted the correction and when
+/// travel with it into the parse for the audit trail, but they do not change what
+/// the parser reads, and putting them in the key would reparse every source
+/// whenever a correction was merely re-accepted by someone else.
+/// </remarks>
+public readonly record struct DateCorrectionEvidence(DateOnly Original, DateOnly Corrected);

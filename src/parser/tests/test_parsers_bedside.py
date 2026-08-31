@@ -15,6 +15,7 @@ from sirkadiyen_parser.contracts.parsing import (
     ParserResultStatus,
     ParseSnapshotRequest,
     ParseSnapshotResponse,
+    ParseSourceContext,
 )
 from sirkadiyen_parser.contracts.snapshot import NormalizedSpreadsheetSnapshot
 from sirkadiyen_parser.normalization.dates import NumericDateOrder
@@ -122,7 +123,14 @@ def read(worksheets: list[dict[str, Any]]) -> BedsideDocument:
     validated = NormalizedSpreadsheetSnapshot.model_validate(snapshot(worksheets))
     return read_bedside_document(
         validated,
-        class_year=3,
+        context=ParseSourceContext.model_validate(
+            {
+                "academicYear": "2026-2027",
+                "classYear": 3,
+                "programLanguage": "turkish",
+                "timeZoneId": "Europe/Istanbul",
+            }
+        ),
         numeric_date_order=PROFILE.numeric_date_order,
     )
 
@@ -150,7 +158,7 @@ def metrics(response: ParseSnapshotResponse) -> dict[str, float]:
 
 
 def test_the_registered_profile_is_the_bedside_implementation() -> None:
-    profile = get_profile("grade3_bedside_v1", "1.0.0")
+    profile = get_profile("grade3_bedside_v1", "1.1.0")
 
     assert profile is not None
     assert get_parser(profile.name, profile.version) is parse_bedside_snapshot

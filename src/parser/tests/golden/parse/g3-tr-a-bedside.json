@@ -1,6 +1,6 @@
 {
   "fixture": "real/g3-tr-a-bedside.snapshot.json",
-  "parserEngineVersion": "0.3.0",
+  "parserEngineVersion": "0.4.0",
   "payload": {
     "candidateCount": 0,
     "candidateDigests": [],
@@ -51,9 +51,9 @@
     ],
     "parserProfile": {
       "name": "grade3_bedside_v1",
-      "version": "1.0.0"
+      "version": "1.1.0"
     },
-    "responseDigest": "sha256:aed5db798b4df43060065d2750269d4d4908ad4a9f2fe0a654778acd5f4fde7f",
+    "responseDigest": "sha256:4d687a2487d249048c954404fa2ad100fc44e24577dfa3ddf3806aed7a59116a",
     "snapshotId": "fixture:sha256:453521d505df277547af5e5929583c1f219808632cb70e1d957cd596a4426f73",
     "sourceId": "G3-TR-A-BEDSIDE",
     "status": "completed",
@@ -61,6 +61,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "bedside.topicCode",
           "range": "B46",
@@ -74,6 +75,7 @@
       {
         "candidateId": null,
         "code": "bedsideDocumentPublishesNoSessions",
+        "detail": null,
         "evidence": null,
         "message": "Read 91 dated bedside sessions and 89 catalogue topics, of which 88 sessions could be given a topic. No session is published from this document: it states no per-session time, and the annual program publishes these events with the time each of them actually has.",
         "severity": "information"

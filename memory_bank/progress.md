@@ -1416,3 +1416,51 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
   Migration'lar uygulanmadı; deploy hattının migration adımıyla gidecek. `G2-VERTICAL-AUTUMN`,
   `G2-VERTICAL-SPRING`, `G3-FACULTY-LOCATIONS` belgeleri de çöpte — yeni linkleri verilmedi, o üç
   kaynak hâlâ düşüyor (artık panelde görünecek).
+
+## 2026-08-31 — Sıra dışı tarihler okunuyor, kalanlar operatöre soruluyor (ADR-139)
+
+- **Problem:** `G1-TR-PRACTICE` dört dersi akademik yıl dışına yazıyordu ve panelde yapılabilecek
+  hiçbir şey yoktu. Onaylamak dersi altı yıl geriye koyuyor, reddetmek bütün Dönem 1 pratik
+  programını bizim düzeltemeyeceğimiz bir belge için bekletiyordu.
+- **Added (parser):** `normalization/date_sequence.py` — bir tarih sütununu kronolojik dizi olarak
+  okur, en uzun azalmayan alt diziyi çıpa alır, dışında kalanı şüpheli sayar ve **yalnızca yılı
+  değiştirerek** onarır. Onarım, tek bir aday akademik yılın içine ve gerçek iki çıpanın arasına
+  (en fazla 60 gün açıklık) düşerse uygulanır. Hücrenin yazdığı gün adı iki yönlü karar verir: yılla
+  çelişiyorsa onarım yapılmaz, uyuyorsa çıpaların yerini tutar. Dört tarihten kısa ya da %80'i sıralı
+  olmayan dizi hiç okunmaz — bu güvenlik supabı, analizin her profilde açık olmasını güvenli kılıyor.
+- **Added (parser):** `parsers/date_repair.py` — profillerin çağırdığı ortak yüzey: operatör
+  düzeltmelerini uygular, analizi çalıştırır, onarımları ve geri çevirdiği önerileri tek bir şekilde
+  raporlar. Sekiz profilin hepsi bağlandı (`annual`, `practice`, `practice_slots`, `anatomy`,
+  `vertical_corridor`, `faculty_practice`, `bedside`, `amphitheatre`).
+- **Changed (parser):** `ParserWarning` yapılandırılmış `detail` taşıyor — operatörün üzerine
+  basacağı aday tarihler bir cümleye sığmıyor. `practice_slots` slot başlıklarını çözmeden önce
+  parçalarına ayırıyor (`_read_slot_header`) ve diziyi **sütun sırasına göre değil slot numarasına
+  göre** kuruyor; aynı numarayı taşıyan başlıklar kendi tarihlerine göre sıralanıyor. Sütun sırasını
+  tarih sırası saymak `G2-TR-PRACTICE`'te üç sağlam tarihi anomali diye raporluyordu.
+- **Sonuç (gerçek belgeler):** Altı fixture'da yedi hatalı tarih doğru okunuyor. `G1-TR-PRACTICE`'in
+  üç 2020-11-20 dersi 2026-11-20'ye taşındı; `G2-ANATOMY-SPRING` üç diseksiyon saati,
+  `G2-TR-PRACTICE` üç ders, `G2-VERTICAL-AUTUMN` bir ders kazandı (bunlar önce bütünüyle
+  reddediliyordu); `G1-TR-ANNUAL`'da daha önce hiç görülmemiş bir 2027-11-30 yazım hatası bulundu.
+  Dört yeni uyarı da gerçek: `G2-EN-ANNUAL`'da bir gün geriye yazılmış üç öğle arası,
+  `G3-TR-B-ANNUAL`'da başlıksız bir satırın kayıp tarihi.
+- **Added (.NET):** `ScheduleSourceDateCorrection` varlığı + `schedule_source_date_corrections`
+  tablosu ve migration'ı, `IScheduleSourceDateCorrectionStore`, poller entegrasyonu (düzeltmeler
+  `ParseSourceContext`'e giriyor **ve** parse-run parmak izinin parçası, yoksa değişmemiş belge
+  "zaten ayrıştırıldı" diye kısa devre yapardı), `ParserDateAnomalyReader`, yeni doğrulama kuralı
+  `RecordDateOutOfSequence` (onarım = uyarı, geri çevrilen = hata), iki yeni denetim kategorisi ve
+  `/api/admin/sources/{id}/date-corrections` uçları (GET/POST/DELETE, gerekçe zorunlu, denetlenir).
+- **Added (web):** İnceleme ekranında kural Türkçe açıklanıyor ve geri çevrilen her tarih için
+  parser'ın ürettiği okumalar birer düğme olarak sunuluyor. Kabul etmek revizyonu kapatmıyor —
+  kaynağı kalıcı düzeltiyor — ve ekran bunu açıkça söylüyor.
+- **Versions:** Parser engine 0.4.0. Tarih okuyan her profil bump'landı
+  (`grade1_yearly_v1` 1.8.0, `grade1_practice_v1` 1.2.0, `grade2_yearly_v1` 1.4.0,
+  `grade2_practice_v1` 1.4.0, `grade2_anatomy_*` 1.2.0, `grade2_vertical_corridor_v1` 1.2.0,
+  `grade3_yearly_v1` 1.4.0, paylaşılan `_PROFILE_VERSION` 1.1.0). `grade3_faculty_locations_v1`
+  1.0.0'da pinlendi: belgesinde hiç tarih yok.
+- **Tests executed:** Parser `pytest` 583 test geçti (golden dosyalar bilinçli olarak yenilendi,
+  diff gözden geçirildi); `ruff check` ve `ruff format --check` temiz. `dotnet test Sirkadiyen.slnx`
+  0 başarısız (Infrastructure 820, Api 11, Contracts 6, Persistence 40 / 236 atlandı). Web:
+  `tsc --noEmit` temiz, `vitest run` 19 dosya / 97 test.
+- **Not done / not verified:** Tarayıcıda doğrulanmadı (oturum + API + PostgreSQL gerekiyor).
+  Migration uygulanmadı. Belgesi düzeltilen bir düzeltme katalogda hiçbir şeye uymadan kalıyor;
+  her ayrıştırmada bildiriliyor ama otomatik emekliye ayrılmıyor.

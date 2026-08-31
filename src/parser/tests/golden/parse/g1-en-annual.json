@@ -1,6 +1,6 @@
 {
   "fixture": "real/g1-en-annual.snapshot.json",
-  "parserEngineVersion": "0.3.0",
+  "parserEngineVersion": "0.4.0",
   "payload": {
     "candidateCount": 982,
     "candidateDigests": [
@@ -1364,9 +1364,9 @@
     ],
     "parserProfile": {
       "name": "grade1_yearly_v1",
-      "version": "1.7.0"
+      "version": "1.8.0"
     },
-    "responseDigest": "sha256:688930bf04839550742cb0d65960d234b1458e59b8a82c24c292bfebf4006697",
+    "responseDigest": "sha256:ff3990673853153e2f721d8342bf79eb60ffa54ac846daf2600858a7ef19cc84",
     "snapshotId": "fixture:sha256:c628804d8f33792907886e8e57fb09bd3a696cf80e39e0873c6481c21488f9dc",
     "sourceId": "G1-EN-ANNUAL",
     "status": "completedWithWarnings",
@@ -1374,6 +1374,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.dateCell",
           "range": "B2",
@@ -1387,6 +1388,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.dateCell",
           "range": "B3",
@@ -1400,6 +1402,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.dateCell",
           "range": "B4",
@@ -1413,6 +1416,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.dateCell",
           "range": "B5",
@@ -1426,6 +1430,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.dateCell",
           "range": "B6",
@@ -1439,6 +1444,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A14:G14",
@@ -1452,6 +1458,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A201:G201",
@@ -1465,6 +1472,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A223:G223",
@@ -1478,6 +1486,7 @@
       {
         "candidateId": "1!R362",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F362",
@@ -1491,6 +1500,7 @@
       {
         "candidateId": "1!R828",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F828",
@@ -1504,6 +1514,7 @@
       {
         "candidateId": "1!R906",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F906",
@@ -1517,6 +1528,7 @@
       {
         "candidateId": null,
         "code": "worksheetWithoutHeaderRow",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.headerAlias",
           "range": "A1:B15",

@@ -162,11 +162,11 @@ def metrics(response: ParseSnapshotResponse) -> dict[str, float]:
 
 
 def test_the_registered_profile_is_the_practice_implementation() -> None:
-    profile = get_profile("grade1_practice_v1", "1.1.0")
+    profile = get_profile("grade1_practice_v1", "1.2.0")
 
     assert profile is not None
     assert get_parser(profile.name, profile.version) is parse_practice_snapshot
-    assert ("grade1_practice_v1", "1.1.0") in implemented_profiles()
+    assert ("grade1_practice_v1", "1.2.0") in implemented_profiles()
 
 
 def test_a_cell_becomes_a_candidate_for_the_group_it_names() -> None:

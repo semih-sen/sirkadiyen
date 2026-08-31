@@ -435,12 +435,91 @@ public sealed class ScheduleRevisionValidatorTests
         }
     }
 
+    [Fact]
+    public void ADateTheParserRepairedIsReportedButDoesNotHoldTheRevision()
+    {
+        // The parser moved a lesson to a day the document does not state (ADR-139), so a reviewer
+        // must see it. Holding the revision for it would leave the schedule exactly where the typo
+        // left it, which is the outcome this whole mechanism exists to avoid.
+        RevisionValidationResult result = Validate(
+            [Record("c-1")],
+            dateAnomalies: [new ParserDateAnomaly
+            {
+                Original = new DateOnly(2020, 11, 20),
+                Applied = new DateOnly(2026, 11, 20),
+                LowerAnchor = new DateOnly(2026, 11, 19),
+                UpperAnchor = new DateOnly(2026, 11, 20),
+                Reason = "repaired",
+                Cell = "A69",
+            }]);
+
+        RevisionValidationFinding finding = Assert.Single(
+            result.Findings,
+            candidate => candidate.Rule == RevisionValidationRule.RecordDateOutOfSequence);
+        Assert.Equal(ValidationSeverity.Warning, finding.Severity);
+        Assert.Equal(RevisionState.Validated, result.Outcome);
+    }
+
+    [Fact]
+    public void ADateTheParserRefusedToRepairHoldsTheRevisionAndCarriesItsReadings()
+    {
+        // Published as written because the cell disagrees with its own weekday. Approving would put
+        // the lesson on a day nobody believes, and the candidates are the whole point of reporting
+        // it: an operator accepts one and the source is corrected for every future parse.
+        RevisionValidationResult result = Validate(
+            [Record("c-1")],
+            dateAnomalies: [new ParserDateAnomaly
+            {
+                Original = new DateOnly(2026, 5, 21),
+                Applied = null,
+                UpperAnchor = new DateOnly(2027, 5, 24),
+                Reason = "candidateContradictsTheStatedWeekday",
+                Cell = "A248",
+                Candidates =
+                [
+                    new ParserDateCandidate
+                    {
+                        Value = new DateOnly(2027, 5, 21),
+                        Rule = "sequenceYearSubstitution",
+                        WeekdayMatches = false,
+                    },
+                    new ParserDateCandidate
+                    {
+                        Value = new DateOnly(2027, 5, 20),
+                        Rule = "sequenceWeekdayAlternative",
+                        WeekdayMatches = true,
+                    },
+                ],
+            }]);
+
+        RevisionValidationFinding finding = Assert.Single(
+            result.Findings,
+            candidate => candidate.Rule == RevisionValidationRule.RecordDateOutOfSequence);
+        Assert.Equal(ValidationSeverity.Error, finding.Severity);
+        Assert.Equal(RevisionState.ReviewRequired, result.Outcome);
+
+        // The readings reach the screen, because accepting one is the only way out of this state.
+        Assert.Contains("2027-05-20", finding.Detail, StringComparison.Ordinal);
+        Assert.Contains("A248", finding.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ARevisionWithNoReportedDateAnomalyIsUnaffected()
+    {
+        RevisionValidationResult result = Validate([Record("c-1")]);
+
+        Assert.DoesNotContain(
+            result.Findings,
+            finding => finding.Rule == RevisionValidationRule.RecordDateOutOfSequence);
+    }
+
     private static RevisionValidationResult Validate(
         IReadOnlyList<CanonicalScheduleRecord> records,
         bool hasPreviousPublishedRevision = false,
         IReadOnlyCollection<string>? previouslyPublishedIdentities = null,
         IReadOnlyDictionary<string, IReadOnlyList<string>>? supported = null,
-        ScheduleSource? source = null)
+        ScheduleSource? source = null,
+        IReadOnlyList<ParserDateAnomaly>? dateAnomalies = null)
     {
         ScheduleSource effectiveSource = source ?? Source(supported: supported);
         ScheduleRevision revision = new(
@@ -458,6 +537,7 @@ public sealed class ScheduleRevisionValidatorTests
                 Records = records,
                 HasPreviousPublishedRevision = hasPreviousPublishedRevision,
                 PreviouslyPublishedIdentities = previouslyPublishedIdentities ?? [],
+                DateAnomalies = dateAnomalies ?? [],
             },
             Now);
     }

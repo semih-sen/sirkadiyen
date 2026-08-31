@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Sirkadiyen.Contracts.Spreadsheets;
 
 namespace Sirkadiyen.Contracts.Parsing;
@@ -82,6 +83,40 @@ public sealed record ParseSourceContext
     /// </para>
     /// </remarks>
     public IReadOnlyList<DateOnly> GroupRotationCoveredDates { get; init; } = [];
+
+    /// <summary>
+    /// Dates an operator has decided this source states wrongly (ADR-139).
+    /// </summary>
+    /// <remarks>
+    /// A source typo is a fact about the source that the source itself cannot
+    /// state, which is exactly what ADR-017 means by source context. Holding the
+    /// decision here rather than editing a parsed record is what keeps a parse a
+    /// pure function of its snapshot, its profile and its context: the correction
+    /// is an input, so re-parsing the same snapshot with the same corrections
+    /// gives the same records.
+    /// </remarks>
+    public IReadOnlyList<SourceDateCorrection> DateCorrections { get; init; } = [];
+}
+
+/// <summary>
+/// One date an operator has decided a source writes wrongly (ADR-139).
+/// </summary>
+/// <remarks>
+/// Keyed by the wrong value rather than by a cell address, because the document
+/// is re-acquired and its rows move while the mistyped value does not. It applies
+/// wherever the source writes that date, which is the intended reading of "this
+/// document says 2020-11-20 and means 2026-11-20".
+/// </remarks>
+public sealed record SourceDateCorrection
+{
+    public required DateOnly Original { get; init; }
+
+    public required DateOnly Corrected { get; init; }
+
+    /// <summary>Who accepted the correction, so a published date that no document states is traceable.</summary>
+    public required string DecidedBy { get; init; }
+
+    public required string DecidedAt { get; init; }
 }
 
 public sealed record ParseSnapshotResponse
@@ -273,6 +308,20 @@ public sealed record ParserWarning
     public string? CandidateId { get; init; }
 
     public SourceEvidence? Evidence { get; init; }
+
+    /// <summary>
+    /// Machine-readable evidence for warnings whose meaning cannot be recovered
+    /// from prose (ADR-139).
+    /// </summary>
+    /// <remarks>
+    /// A date-repair suggestion states the date the source wrote, the anchors
+    /// that bound it and every date it may have meant, and an operator has to be
+    /// able to act on one of them rather than retype it. Every other warning
+    /// states nothing here: the message is the evidence, and a field every
+    /// producer filled in with something would stop being readable by any
+    /// consumer.
+    /// </remarks>
+    public JsonElement? Detail { get; init; }
 }
 
 public enum ParserWarningSeverity

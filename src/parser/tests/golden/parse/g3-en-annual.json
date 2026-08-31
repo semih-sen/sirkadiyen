@@ -1,6 +1,6 @@
 {
   "fixture": "real/g3-en-annual.snapshot.json",
-  "parserEngineVersion": "0.3.0",
+  "parserEngineVersion": "0.4.0",
   "payload": {
     "candidateCount": 1179,
     "candidateDigests": [
@@ -1512,9 +1512,9 @@
     ],
     "parserProfile": {
       "name": "grade3_yearly_v1",
-      "version": "1.3.0"
+      "version": "1.4.0"
     },
-    "responseDigest": "sha256:8f30dd1478a0b191c5b63881fdecb8947d8ece351dcc958de5db82c0de7fb0a5",
+    "responseDigest": "sha256:612479bd6ef000e831930b331439bf4003b40e5b42918d5ce9ec5be6f184f1d1",
     "snapshotId": "fixture:sha256:3e538b88b6c7080b473578f6fddcd30745faf52c2d0c2c519ac79ba51aceec83",
     "sourceId": "G3-EN-ANNUAL",
     "status": "completedWithWarnings",
@@ -1522,6 +1522,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A156:G156",
@@ -1535,6 +1536,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A179:G179",
@@ -1548,6 +1550,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.termCell",
           "range": "A219",
@@ -1561,6 +1564,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.termCell",
           "range": "A441",
@@ -1574,6 +1578,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A625:G625",
@@ -1587,6 +1592,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A1183:G1183",
@@ -1600,6 +1606,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.endTimeCell",
           "range": "D1205",
@@ -1613,6 +1620,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A1233:G1233",

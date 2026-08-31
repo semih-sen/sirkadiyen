@@ -51,6 +51,7 @@ internal static class ApiEndpointRouteBuilderExtensions
         app.MapAdminUserEndpoints();
         app.MapAnnouncementEndpoints();
         app.MapSourceStatusEndpoints();
+        app.MapSourceDateCorrectionEndpoints();
         app.MapSourceCatalogEndpoints()
             .MapRosterCatalogEndpoints();
         app.MapAuditEndpoints();

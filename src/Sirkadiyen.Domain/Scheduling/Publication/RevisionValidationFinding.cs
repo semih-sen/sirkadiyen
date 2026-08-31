@@ -73,6 +73,12 @@ public enum RevisionValidationRule
     /// <summary>A record dated outside the source's academic year.</summary>
     RecordDateOutsideAcademicYear,
 
+    /// <summary>
+    /// A date contradicting the order of the column it sits in — repaired as a
+    /// mistyped year, or reported with the readings that fit (ADR-139).
+    /// </summary>
+    RecordDateOutOfSequence,
+
     /// <summary>A lesson too short or too long to be real.</summary>
     ImpossibleLessonDuration,
 

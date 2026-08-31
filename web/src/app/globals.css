@@ -1794,6 +1794,15 @@ button.link:disabled {
 .revision-evidence-raw { font-size: 11.5px; white-space: pre-wrap; word-break: break-word; margin: 0; }
 .revision-evidence-list { margin: 0; padding-left: 18px; font-size: 12px; }
 
+/* The one finding an operator can act on rather than only read (ADR-139): each out-of-sequence
+   date offers the readings that fit it, and accepting one corrects the source for good. */
+.revision-date-corrections { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border); padding-top: 12px; }
+.revision-date-corrections > p { font-size: 12.5px; margin: 0; max-width: 78ch; }
+.revision-date-correction { border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.revision-date-correction-head { margin: 0; font-size: 13px; }
+.revision-date-correction label { font-size: 12px; }
+.revision-date-correction .cluster { flex-wrap: wrap; }
+
 @media (max-width: 700px) {
   .revision-row-head { flex-direction: column; align-items: flex-start; }
   .revision-row-facts { justify-content: flex-start; }

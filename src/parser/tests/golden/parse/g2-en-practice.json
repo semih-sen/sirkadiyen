@@ -1,6 +1,6 @@
 {
   "fixture": "real/g2-en-practice.snapshot.json",
-  "parserEngineVersion": "0.3.0",
+  "parserEngineVersion": "0.4.0",
   "payload": {
     "candidateCount": 49,
     "candidateDigests": [
@@ -663,9 +663,9 @@
     ],
     "parserProfile": {
       "name": "grade2_practice_v1",
-      "version": "1.3.0"
+      "version": "1.4.0"
     },
-    "responseDigest": "sha256:a392fc072299cf0a9a4e694ff9a5ef8d8b0804cba35fe0196501a9735410f94c",
+    "responseDigest": "sha256:0576f2710ab374479cacf995d3b6d90c02d4cdeeef551ba31a5332a417fadd12",
     "snapshotId": "fixture:sha256:26cd36e5dff608a021dfd17745b1bf5a3d07ab3e983b2e563a269749b08fa865",
     "sourceId": "G2-EN-PRACTICE",
     "status": "completedWithWarnings",
@@ -673,6 +673,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.groupCell",
           "range": "C5",
@@ -686,6 +687,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.row",
           "range": "A6:S6",
@@ -699,6 +701,7 @@
       {
         "candidateId": null,
         "code": "groupRotationSubjectRow",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.subjectCell",
           "range": "A34",
@@ -712,6 +715,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.groupCell",
           "range": "C34",
@@ -725,6 +729,7 @@
       {
         "candidateId": null,
         "code": "groupRotationSubjectRow",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.subjectCell",
           "range": "A63",
@@ -738,6 +743,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.groupCell",
           "range": "C87",
@@ -751,6 +757,7 @@
       {
         "candidateId": null,
         "code": "groupRotationSubjectRow",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.subjectCell",
           "range": "A89",
@@ -764,6 +771,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.groupCell",
           "range": "G111",
@@ -777,6 +785,7 @@
       {
         "candidateId": null,
         "code": "outOfScopeSubjectRow",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.subjectCell",
           "range": "A114",
@@ -790,6 +799,7 @@
       {
         "candidateId": null,
         "code": "groupRotationSubjectRow",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.subjectCell",
           "range": "A129",
@@ -803,6 +813,7 @@
       {
         "candidateId": null,
         "code": "outOfScopeSubjectRow",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.subjectCell",
           "range": "A151",
@@ -816,6 +827,7 @@
       {
         "candidateId": null,
         "code": "groupRotationSubjectRow",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.subjectCell",
           "range": "A169",

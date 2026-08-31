@@ -248,6 +248,18 @@ def _declares_date_format(cell: NormalizedCell) -> bool:
     return number_format is not None and comparison_key(number_format) in {"date", "datetime"}
 
 
+def weekday_index_of(weekday_text: str | None) -> int | None:
+    """Return the weekday a cell's weekday text names, Monday being zero.
+
+    Exposed so that a caller holding a :class:`DateResolution` can reason about
+    the weekday the source stated without re-reading the cell. Returns ``None``
+    for text naming no weekday, which is the same answer as stating none.
+    """
+    if weekday_text is None:
+        return None
+    return _WEEKDAYS_BY_KEY.get(comparison_key(weekday_text))
+
+
 def _extract_weekday(text: str) -> tuple[str | None, int | None]:
     for token in _TOKEN_PATTERN.findall(text):
         index = _WEEKDAYS_BY_KEY.get(comparison_key(token))

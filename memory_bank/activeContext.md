@@ -3430,3 +3430,53 @@ value converter'ın içine uzandığı için **hiç çevrilemediği** ortaya ç�
 çalışmadı, çalıştırılsa runtime'da patlardı. Persistence testleri bağlantı dizesi olmadan atlandığı
 için CI'da da koşmuyor; EF'in bağlanmadan önce çeviri yaptığı gerçeğinden yararlanan bu test, o
 boşluğu veritabanı gerektirmeden kapatıyor.
+
+## Sıra dışı tarihler: parser okuyor, kalanı operatör seçiyor (ADR-139)
+
+`G1-TR-PRACTICE` dört dersi akademik yıl dışına yazıyordu ve **panelde yapılabilecek hiçbir şey
+yoktu**. Onaylamak dersi altı yıl geriye koyar, reddetmek bütün Dönem 1 pratik programını bizim
+düzeltemeyeceğimiz bir belge için bekletir; belge fakültenin, yeniden çekmek her seferinde aynı
+yanlış tarihi üretir.
+
+Üçü tek bir satırda: tarih hücresi `44155` (2020-11-20) yazıyor, hemen üstü `46345` (2026-11-19),
+hemen altı `46346` (2026-11-20). Gün ve ay aynı, yıl altı sene şaşmış. Dördüncüsü
+`21 Mayıs 2026 Perşembe` başlıklı satır; bulunduğu bloğun diğer satırları 2027-05-24 ile 2027-06-04
+arasında.
+
+**Eksik olan mekanizma değil, kanıtı okuyan taraftı.** Sütunun kendi sırası kanıttır: bu belgelerin
+hepsi tarihlerini artan yazar. Parser artık her tarih sütununu, satırlar derse dönüşmeden önce
+kronolojik bir dizi olarak okuyor. En uzun azalmayan alt dizi çıpa; dışında kalan şüpheli. Şüpheli
+için **yalnızca yıl** denenir — gün ve ay yazanın kastettiğidir, yıl güncellemeyi unuttuğudur — ve
+onarım yalnızca tek bir aday akademik yılın içine, gerçek iki çıpanın arasına düşerse uygulanır.
+
+Hücrenin yazdığı gün adı iki yönlü karar veriyor. Çeliyor: `21 Mayıs 2026 Perşembe` yıl
+değiştirilince 2027-05-21 oluyor, o da Cuma; hücre kendi onarımıyla çelişiyor, hiçbir şey
+uygulanmıyor. Ve doğruluyor: yedi günden birine denk gelen bir yıl ikamesi, çıpalardan istenen
+kanıtın ta kendisi, o yüzden ayrıca iki çıpa arasına oturmak zorunda değil. **Dört slot bu yüzden
+kurtarıldı** — daha önce "yılı düzeltmek çıkarım olur" gerekçesiyle bütünüyle reddediliyorlardı. O
+gerekçe o günkü mekanizma için doğruydu, eldeki kanıt için değil.
+
+Dört dörtten kısa ya da %80'i sıralı olmayan dizi hiç okunmaz. Bu supap, analizin **her profilde**
+açık olmasını güvenli kılan şey: kimsenin incelemediği bir belgede sıra kanıt değildir, kanıtsız
+onarım da uydurmadır.
+
+**Parser'ın seçemediğini operatör seçiyor.** Geri çevrilen her şüpheli, belgedeki hâliyle yayımlanıp
+adaylarıyla birlikte raporlanıyor; inceleme ekranı bunları birer düğme olarak gösteriyor. Kabul
+edilen cevap **kaynak yapılandırması olarak saklanıyor**, ayrıştırılmış kayda yapılan bir düzenleme
+olarak değil — kaydı düzenlemek, ayrıştırmanın (snapshot, profil, bağlam) saf fonksiyonu olma
+invaryantını kırardı: bir sonraki poll aynı belgeyi yeniden okur ve düzeltmeyi geri alırdı.
+Düzeltme parse-run parmak izinin de parçası, yoksa değişmemiş belge "zaten ayrıştırıldı" diye kısa
+devre yapar ve karar hiçbir zaman uygulanmazdı.
+
+Kabul etmek revizyonu kapatmıyor: kaynağı kalıcı düzeltiyor, bir sonraki çekimde kurala hiç
+takılmayan yeni bir revizyon geliyor. Ekran bunu olduğu gibi söylüyor.
+
+**Bu iş bir de görülmemiş hataları çıkardı.** `G1-TR-ANNUAL` bir öğle arasını 2026-11-30 satırlarının
+arasında 2027-11-30 yazıyordu — kimse fark etmemişti, artık düzeltiliyor. `G2-EN-ANNUAL`'da üç öğle
+arası bulundukları günün bir gün öncesine yazılmış, `G3-TR-B-ANNUAL`'da başlıksız bir satır kayıp
+bir tarih taşıyor; dördü de yıl ikamesiyle onarılamıyor ve dördü de gerçek.
+
+Bir şey daha öğrenildi: **sütun sırası tarih sırası değil.** `G2-TR-PRACTICE` bunu iki kez
+kanıtlıyor — bir slot tablosu, önceki günleri ikinci bir saatte tekrarlayan ek sütunlarla bitebiliyor
+ve bir tablo `1/7` slot numarasını iki kez yazıyor. Sırayı sütundan okumak üç sağlam tarihi anomali
+diye raporluyordu. Sıra artık kaynağın kendi söylediği yerden, slot numarasından alınıyor.

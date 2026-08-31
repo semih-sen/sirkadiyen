@@ -241,4 +241,19 @@ public enum AuditEventCategory
     /// it, why, and which source and acquisition it belonged to in the metadata (AI_GUIDELINE §19).
     /// </summary>
     SnapshotPayloadPruned,
+
+    /// <summary>
+    /// A SuperAdmin decided that a source states one date wrongly, and which date it means
+    /// (ADR-139). This is the one place a lesson can reach a student's calendar on a day no
+    /// document states, so who decided it and why is exactly what the trail exists for
+    /// (AI_GUIDELINE §19). The two dates are in the metadata.
+    /// </summary>
+    SourceDateCorrectionAccepted,
+
+    /// <summary>
+    /// A SuperAdmin retired a source date correction (ADR-139), normally because the faculty
+    /// fixed the document and it no longer matches anything. Retiring one changes what the next
+    /// parse reads, so it is recorded for the same reason accepting one is.
+    /// </summary>
+    SourceDateCorrectionRetired,
 }

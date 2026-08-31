@@ -34,7 +34,7 @@ not, so the columns are paired by header rather than by position.
 """
 
 import re
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 from datetime import date
 
@@ -42,12 +42,20 @@ from sirkadiyen_parser.contracts.parsing import (
     ParserProfileDescriptor,
     ParseSnapshotRequest,
     ParseSnapshotResponse,
+    ParseSourceContext,
 )
 from sirkadiyen_parser.contracts.snapshot import NormalizedSpreadsheetSnapshot
 from sirkadiyen_parser.diagnostics import ParseDiagnostics
+from sirkadiyen_parser.normalization.date_sequence import DateSequenceEntry
 from sirkadiyen_parser.normalization.dates import NumericDateOrder, resolve_date_text
 from sirkadiyen_parser.normalization.grid import WorksheetGrid
 from sirkadiyen_parser.normalization.text import comparison_key, normalize_text
+from sirkadiyen_parser.parsers.date_repair import (
+    RULE_DATE_SEQUENCE,
+    read_date_run,
+    report_date_corrections,
+    report_date_run,
+)
 from sirkadiyen_parser.profiles import ParserProfileDefinition
 
 #: The department sections the catalogue is written in. A section is identified
@@ -153,7 +161,7 @@ class BedsideDocument:
 def read_bedside_document(
     snapshot: NormalizedSpreadsheetSnapshot,
     *,
-    class_year: int,
+    context: ParseSourceContext,
     numeric_date_order: NumericDateOrder,
     diagnostics: ParseDiagnostics | None = None,
 ) -> BedsideDocument:
@@ -186,7 +194,7 @@ def read_bedside_document(
             grid=grid,
             header_row=header_row,
             pairs=pairs,
-            class_year=class_year,
+            context=context,
             numeric_date_order=numeric_date_order,
             diagnostics=diagnostics,
         )
@@ -203,9 +211,10 @@ def parse_bedside_snapshot(
     diagnostics = ParseDiagnostics()
     diagnostics.set_metric(METRIC_WORKSHEETS_SCANNED, len(request.snapshot.worksheets))
 
+    report_date_corrections(diagnostics=diagnostics, context=request.source_context)
     document = read_bedside_document(
         request.snapshot,
-        class_year=request.source_context.class_year,
+        context=request.source_context,
         numeric_date_order=profile.numeric_date_order,
         diagnostics=diagnostics,
     )
@@ -283,10 +292,40 @@ def _read_schedule_into(
     grid: WorksheetGrid,
     header_row: int,
     pairs: list[tuple[int, int, str]],
-    class_year: int,
+    context: ParseSourceContext,
     numeric_date_order: NumericDateOrder,
     diagnostics: ParseDiagnostics,
 ) -> None:
+    # Each group's date column runs down the table in order — autumn on the left
+    # and spring on the right — so every column is its own chronological run and
+    # a date that contradicts its own is read as a mistyped year (ADR-139). The
+    # two columns are deliberately not one run: they are two halves of a year
+    # written side by side, and reading them as one would report every spring
+    # date as an anomaly.
+    sequences = {}
+    for date_column, _, _ in pairs:
+        sequence = read_date_run(
+            tuple(
+                _column_dates(
+                    grid=grid,
+                    header_row=header_row,
+                    date_column=date_column,
+                    numeric_date_order=numeric_date_order,
+                )
+            ),
+            context=context,
+        )
+        report_date_run(
+            sequence,
+            diagnostics=diagnostics,
+            evidence_for=lambda row_index, column=date_column: grid.evidence(
+                row_index,
+                column,
+                extraction_rule=RULE_DATE_SEQUENCE,
+            ),
+        )
+        sequences[date_column] = sequence
+
     for row_index in range(header_row + 1, grid.worksheet.row_count):
         diagnostics.increment(METRIC_SCHEDULE_ROWS)
         for date_column, code_column, letter in pairs:
@@ -295,7 +334,10 @@ def _read_schedule_into(
             if not date_text and not code_text:
                 continue
 
-            resolution = resolve_date_text(date_text, numeric_order=numeric_date_order)
+            resolution = sequences[date_column].resolution(
+                row_index,
+                resolve_date_text(date_text, numeric_order=numeric_date_order),
+            )
             if not resolution.resolved or resolution.value is None:
                 diagnostics.record_ignored_cell(
                     REASON_UNRESOLVED_SLOT_DATE,
@@ -321,12 +363,30 @@ def _read_schedule_into(
 
             document.slots.append(
                 BedsideSlot(
-                    curriculum_group=f"{class_year}-{letter}",
+                    curriculum_group=f"{context.class_year}-{letter}",
                     local_date=resolution.value,
                     code=code,
                     raw_code=code_text,
                 )
             )
+
+
+def _column_dates(
+    *,
+    grid: WorksheetGrid,
+    header_row: int,
+    date_column: int,
+    numeric_date_order: NumericDateOrder,
+) -> Iterator[DateSequenceEntry]:
+    """Resolve one group's date column below the header, in row order."""
+    for row_index in range(header_row + 1, grid.worksheet.row_count):
+        date_text = grid.text(row_index, date_column)
+        if not date_text:
+            continue
+        yield DateSequenceEntry(
+            key=row_index,
+            resolution=resolve_date_text(date_text, numeric_order=numeric_date_order),
+        )
 
 
 @dataclass(slots=True)
@@ -414,8 +474,7 @@ def _codes_of_line(line: str, section: str | None) -> tuple[tuple[TopicCode, ...
         return (), ""
 
     codes = tuple(
-        TopicCode(section=resolved_section, ordinal=ordinal)
-        for ordinal in range(first, last + 1)
+        TopicCode(section=resolved_section, ordinal=ordinal) for ordinal in range(first, last + 1)
     )
     return codes, (match.group("rest") or "").strip()
 

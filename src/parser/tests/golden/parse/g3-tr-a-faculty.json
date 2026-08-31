@@ -1,6 +1,6 @@
 {
   "fixture": "real/g3-tr-a-faculty.snapshot.json",
-  "parserEngineVersion": "0.3.0",
+  "parserEngineVersion": "0.4.0",
   "payload": {
     "candidateCount": 510,
     "candidateDigests": [
@@ -772,9 +772,9 @@
     ],
     "parserProfile": {
       "name": "grade3_faculty_practice_v1",
-      "version": "1.0.0"
+      "version": "1.1.0"
     },
-    "responseDigest": "sha256:b1ca7457675897caf7fcb00c764b5baa8189fa1778add36076dd62c791680945",
+    "responseDigest": "sha256:cbcbab6cc979a68fb67328973826f0e0e13af0982ee2eeee8e32d02b238a0d78",
     "snapshotId": "fixture:sha256:b870569bde9d01fbb072496a32fef0b495f662a001ac3d29b11508b4c9a6c0b6",
     "sourceId": "G3-TR-A-FACULTY",
     "status": "completedWithWarnings",
@@ -782,6 +782,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "facultyPractice.row",
           "range": "A1",
@@ -795,6 +796,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "facultyPractice.row",
           "range": "A4",
@@ -808,6 +810,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "facultyPractice.row",
           "range": "A13",
@@ -821,6 +824,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "facultyPractice.cohortCell",
           "range": "B240",
@@ -834,6 +838,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "facultyPractice.cohortCell",
           "range": "F240",
@@ -847,6 +852,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "facultyPractice.row",
           "range": "A240",
@@ -860,6 +866,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "facultyPractice.cohortCell",
           "range": "B333",

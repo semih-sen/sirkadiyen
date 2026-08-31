@@ -27,7 +27,7 @@ from sirkadiyen_parser.profiles import ParserProfileDefinition, get_profile
 
 PROFILE = ParserProfileDefinition(
     "grade2_vertical_corridor_v1",
-    "1.1.0",
+    "1.2.0",
     "verticalCorridor",
     NumericDateOrder.UNDECLARED,
     ("practiceGroup", "practiceSubgroup"),

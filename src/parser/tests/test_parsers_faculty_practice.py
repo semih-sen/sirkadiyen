@@ -154,7 +154,7 @@ def cohorts_of(response: ParseSnapshotResponse) -> set[str]:
 
 
 def test_the_registered_profile_is_the_faculty_practice_implementation() -> None:
-    profile = get_profile("grade3_faculty_practice_v1", "1.0.0")
+    profile = get_profile("grade3_faculty_practice_v1", "1.1.0")
 
     assert profile is not None
     assert get_parser(profile.name, profile.version) is parse_faculty_practice_snapshot

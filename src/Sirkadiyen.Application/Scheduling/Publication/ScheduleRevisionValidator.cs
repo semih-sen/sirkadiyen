@@ -69,6 +69,7 @@ public sealed class ScheduleRevisionValidator(RevisionValidationOptions options)
         }
 
         ValidateDates(input, findings, atUtc);
+        ValidateDateSequence(input, findings, atUtc);
         ValidateDurations(input, findings, atUtc);
         ValidateConfidence(input, findings, atUtc);
         ValidateStableIdentities(input, findings, atUtc);
@@ -136,6 +137,63 @@ public sealed class ScheduleRevisionValidator(RevisionValidationOptions options)
                 record.DisplayTitle,
             })),
             affectedRecordCount: outside.Count));
+    }
+
+    private static void ValidateDateSequence(
+        RevisionValidationInput input,
+        List<RevisionValidationFinding> findings,
+        DateTimeOffset atUtc)
+    {
+        // The parser reads each date column chronologically and repairs a mistyped
+        // year when the dates around it leave exactly one reading (ADR-139). Two
+        // different things reach here from that, and they are deliberately one
+        // finding rather than two rules: they are the same anomaly, and what
+        // separates them is only whether the parser could resolve it alone.
+        //
+        // A repair moved a lesson to a day the document does not state, so a
+        // reviewer must see it before approving — but it is the corrected reading
+        // of a broken cell, and holding the revision for it would leave the
+        // schedule exactly where the typo left it. It is a warning.
+        //
+        // A suggestion is a date the parser refused to correct and published as
+        // written. That one *does* hold the revision, because approving it would
+        // put a lesson on a day nobody believes, and because the whole point of
+        // reporting the candidates is that an operator picks one.
+        List<ParserDateAnomaly> repaired = [.. input.DateAnomalies.Where(
+            static anomaly => anomaly.Repaired)];
+        List<ParserDateAnomaly> unresolved = [.. input.DateAnomalies.Where(
+            static anomaly => !anomaly.Repaired)];
+
+        if (repaired.Count > 0)
+        {
+            findings.Add(Finding(
+                input,
+                RevisionValidationRule.RecordDateOutOfSequence,
+                ValidationSeverity.Warning,
+                $"{repaired.Count} date(s) contradicted the order of the column they sit in "
+                + "and were read as a mistyped year, which the dates around them left only one "
+                + "reading of. The lessons on them were published on the corrected date.",
+                atUtc,
+                detail: Detail(repaired.Take(20)),
+                affectedRecordCount: repaired.Count));
+        }
+
+        if (unresolved.Count == 0)
+        {
+            return;
+        }
+
+        findings.Add(Finding(
+            input,
+            RevisionValidationRule.RecordDateOutOfSequence,
+            ValidationSeverity.Error,
+            $"{unresolved.Count} date(s) contradict the order of the column they sit in and "
+            + "were published as written, because more than one reading fits or the cell "
+            + "disagrees with its own weekday. Each one lists the dates it may have meant; "
+            + "accepting one corrects the source for every future parse.",
+            atUtc,
+            detail: Detail(unresolved.Take(20)),
+            affectedRecordCount: unresolved.Count));
     }
 
     private void ValidateDurations(
@@ -558,6 +616,66 @@ public sealed record RevisionValidationInput
     public required bool HasPreviousPublishedRevision { get; init; }
 
     public IReadOnlyCollection<string> PreviouslyPublishedIdentities { get; init; } = [];
+
+    /// <summary>
+    /// The dates the parser reported as contradicting the order of the column
+    /// they sit in (ADR-139), read out of the parse run's own response.
+    /// </summary>
+    /// <remarks>
+    /// This is the one input the validator takes from the parser's account of
+    /// itself rather than from the records. It has to be: a date the parser
+    /// repaired leaves a record that looks perfectly ordinary, and a date it
+    /// refused to repair leaves one that only looks wrong next to its neighbours
+    /// — which the flat record list no longer holds.
+    /// <para>
+    /// Empty is the ordinary case and means the parse reported none, not that
+    /// none were looked for.
+    /// </para>
+    /// </remarks>
+    public IReadOnlyList<ParserDateAnomaly> DateAnomalies { get; init; } = [];
+}
+
+/// <summary>
+/// One date the parser reported as out of sequence, and what it did about it
+/// (ADR-139).
+/// </summary>
+/// <remarks>
+/// The shape mirrors the parser warning's own detail, because it is what the
+/// review screen renders and what the "accept this date" action reads: accepting
+/// a candidate writes a source date correction from <see cref="Original"/> to
+/// that candidate.
+/// </remarks>
+public sealed record ParserDateAnomaly
+{
+    public required DateOnly Original { get; init; }
+
+    /// <summary>The date the parser published instead, or null when it published the original.</summary>
+    public DateOnly? Applied { get; init; }
+
+    public DateOnly? LowerAnchor { get; init; }
+
+    public DateOnly? UpperAnchor { get; init; }
+
+    /// <summary>Which rule decided the outcome, in the parser's own vocabulary.</summary>
+    public required string Reason { get; init; }
+
+    /// <summary>Where in the document the date is, so a reviewer can open the cell.</summary>
+    public string? Cell { get; init; }
+
+    public IReadOnlyList<ParserDateCandidate> Candidates { get; init; } = [];
+
+    public bool Repaired => Applied is not null;
+}
+
+/// <summary>One date an out-of-sequence cell may have meant.</summary>
+public sealed record ParserDateCandidate
+{
+    public required DateOnly Value { get; init; }
+
+    public required string Rule { get; init; }
+
+    /// <summary>Whether the cell's own weekday agrees; null when it states none.</summary>
+    public bool? WeekdayMatches { get; init; }
 }
 
 public sealed record RevisionValidationResult

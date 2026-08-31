@@ -21,7 +21,7 @@ states no date, or more than one, publishes nothing.
 """
 
 import re
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass, field
 from datetime import date, time
 
@@ -43,6 +43,7 @@ from sirkadiyen_parser.contracts.snapshot import NormalizedWorksheet
 from sirkadiyen_parser.diagnostics import ParseDiagnostics
 from sirkadiyen_parser.identity import build_identity_components, content_hash, stable_identity
 from sirkadiyen_parser.normalization.courses import course_identity
+from sirkadiyen_parser.normalization.date_sequence import DateSequence, DateSequenceEntry
 from sirkadiyen_parser.normalization.dates import (
     DateResolution,
     NumericDateOrder,
@@ -59,6 +60,12 @@ from sirkadiyen_parser.parsers.annual import (
     encode_all_day,
 )
 from sirkadiyen_parser.parsers.cohort_rotation import date_refusal
+from sirkadiyen_parser.parsers.date_repair import (
+    RULE_DATE_SEQUENCE,
+    read_date_run,
+    report_date_corrections,
+    report_date_run,
+)
 from sirkadiyen_parser.profiles import ParserProfileDefinition
 
 DATE_COLUMN = 0
@@ -150,6 +157,7 @@ def parse_anatomy_snapshot(
     accumulator = _Accumulator()
 
     diagnostics.set_metric(METRIC_WORKSHEETS_SCANNED, len(request.snapshot.worksheets))
+    report_date_corrections(diagnostics=diagnostics, context=request.source_context)
     title = profile.annual_markers[0] if profile.annual_markers else ""
     if not title:
         # The rows of this document name no lesson: they are a date, an hour and
@@ -246,12 +254,30 @@ def _parse_worksheet(
     day: list[_Row] = []
     parsed_any = False
 
+    # The teaching days run in order down the table, so the dates it states form
+    # one chronological run and a date that contradicts it is read as a mistyped
+    # year (ADR-139). A document whose dates are sound is unaffected.
+    date_sequence = read_date_run(
+        tuple(_worksheet_dates(grid=grid, numeric_date_order=profile.numeric_date_order)),
+        context=context,
+    )
+    report_date_run(
+        date_sequence,
+        diagnostics=diagnostics,
+        evidence_for=lambda row_index: grid.evidence(
+            row_index,
+            DATE_COLUMN,
+            extraction_rule=RULE_DATE_SEQUENCE,
+        ),
+    )
+
     for row_index in range(grid.worksheet.row_count):
         diagnostics.increment(METRIC_ROWS_SCANNED)
         row = _read_row(
             grid=grid,
             row_index=row_index,
             numeric_date_order=profile.numeric_date_order,
+            date_sequence=date_sequence,
             diagnostics=diagnostics,
         )
         if row is None:
@@ -291,11 +317,38 @@ def _parse_worksheet(
     return parsed_any
 
 
+def _worksheet_dates(
+    *,
+    grid: WorksheetGrid,
+    numeric_date_order: NumericDateOrder,
+) -> Iterator[DateSequenceEntry]:
+    """Resolve the document's date cells once each, in row order.
+
+    The date of a teaching day is written once and spread over its three hours by
+    a vertical merge, so a run keyed by the row that *holds* the value states each
+    day exactly once. Keying by the reading row instead would put the same date in
+    the run three times, which says nothing new and would make a single mistyped
+    day look like three.
+    """
+    seen: set[int] = set()
+    for row_index in range(grid.worksheet.row_count):
+        resolved = grid.resolve(row_index, DATE_COLUMN)
+        anchor = resolved.value_row_index
+        if not resolved.text or anchor in seen:
+            continue
+        seen.add(anchor)
+        yield DateSequenceEntry(
+            key=anchor,
+            resolution=resolve_date_text(resolved.text, numeric_order=numeric_date_order),
+        )
+
+
 def _read_row(
     *,
     grid: WorksheetGrid,
     row_index: int,
     numeric_date_order: NumericDateOrder,
+    date_sequence: DateSequence,
     diagnostics: ParseDiagnostics,
 ) -> _Row | None:
     """Read one dissection hour, or account for a row that states none."""
@@ -332,8 +385,14 @@ def _read_row(
     # A row inside a vertical merge states the date as much as the anchor does:
     # the merge is the document saying the three hours are one day. Only an
     # empty, unmerged cell leaves the date to the day-block rule.
+    # The document's chronological reading wins where it made one (ADR-139).
     resolved_date = (
-        resolve_date_text(date_text, numeric_order=numeric_date_order) if date_text else None
+        date_sequence.resolution(
+            resolved.value_row_index,
+            resolve_date_text(date_text, numeric_order=numeric_date_order),
+        )
+        if date_text
+        else None
     )
 
     diagnostics.increment(METRIC_ROWS_DISSECTION)

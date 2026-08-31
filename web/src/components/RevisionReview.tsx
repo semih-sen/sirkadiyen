@@ -261,7 +261,9 @@ function RevisionRow({
                   Doğrulama bu revizyonda hiçbir bulgu kaydetmedi.
                 </p>
               )}
-              {detail.findings.map((finding, index) => <Finding key={index} finding={finding} />)}
+              {detail.findings.map((finding, index) => (
+                <Finding key={index} finding={finding} sourceId={summary.sourceId} />
+              ))}
               {actionable
                 ? <ReviewActions summary={summary} onSettled={onSettled} />
                 : <SettledRecord detail={detail} />}

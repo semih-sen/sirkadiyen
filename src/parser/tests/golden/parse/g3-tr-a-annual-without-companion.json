@@ -1,6 +1,6 @@
 {
   "fixture": "real/g3-tr-a-annual.snapshot.json",
-  "parserEngineVersion": "0.3.0",
+  "parserEngineVersion": "0.4.0",
   "payload": {
     "candidateCount": 1119,
     "candidateDigests": [
@@ -1480,9 +1480,9 @@
     ],
     "parserProfile": {
       "name": "grade3_yearly_v1",
-      "version": "1.3.0"
+      "version": "1.4.0"
     },
-    "responseDigest": "sha256:09eb6be7c989b03d896baafc24be9bea758f53fa6431c2fb8dc63aac36327141",
+    "responseDigest": "sha256:9911187a6d40044c553cabbe344fa3b7416916d7443861aba39b38e480a2ad9e",
     "snapshotId": "fixture:sha256:ce603d51a2286e53b6d82500dd7c7ca1bbfdbacda5a7e0e60c7a48de95585ecc",
     "sourceId": "G3-TR-A-ANNUAL",
     "status": "completedWithWarnings",
@@ -1490,6 +1490,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A23:G23",
@@ -1503,6 +1504,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A55:G55",
@@ -1516,6 +1518,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A80:G80",
@@ -1529,6 +1532,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A119:G119",
@@ -1542,6 +1546,7 @@
       {
         "candidateId": "1!R126",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F126",
@@ -1555,6 +1560,7 @@
       {
         "candidateId": "1!R189",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F189",
@@ -1568,6 +1574,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A278:G278",
@@ -1581,6 +1588,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.termCell",
           "range": "A368",
@@ -1594,6 +1602,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.termCell",
           "range": "A371",
@@ -1607,6 +1616,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A621:G621",
@@ -1620,6 +1630,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A668:G668",
@@ -1633,6 +1644,7 @@
       {
         "candidateId": "1!R741",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F741",
@@ -1646,6 +1658,7 @@
       {
         "candidateId": "1!R1141",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F1141",
@@ -1659,6 +1672,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.endTimeCell",
           "range": "D1217",

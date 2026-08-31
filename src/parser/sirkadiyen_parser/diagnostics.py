@@ -7,6 +7,7 @@ into a silent success.
 """
 
 from dataclasses import dataclass, field
+from typing import Any
 
 from sirkadiyen_parser.contracts.parsing import (
     ConfidenceIndicator,
@@ -52,8 +53,14 @@ class ParseDiagnostics:
         message: str,
         candidate_id: str | None = None,
         evidence: SourceEvidence | None = None,
+        detail: dict[str, Any] | None = None,
     ) -> None:
-        """Record a warning at an explicit severity."""
+        """Record a warning at an explicit severity.
+
+        ``detail`` carries machine-readable evidence for the few warnings whose
+        meaning an operator has to act on rather than only read (ADR-139). Almost
+        every warning states nothing there.
+        """
         self._warnings.append(
             ParserWarning(
                 severity=severity,
@@ -61,6 +68,7 @@ class ParseDiagnostics:
                 message=message,
                 candidate_id=candidate_id,
                 evidence=evidence,
+                detail=detail,
             )
         )
 
@@ -71,6 +79,7 @@ class ParseDiagnostics:
         *,
         candidate_id: str | None = None,
         evidence: SourceEvidence | None = None,
+        detail: dict[str, Any] | None = None,
     ) -> None:
         """Record an explanatory note that does not weaken the result."""
         self.warn(
@@ -79,6 +88,7 @@ class ParseDiagnostics:
             message=message,
             candidate_id=candidate_id,
             evidence=evidence,
+            detail=detail,
         )
 
     def warning(
@@ -88,6 +98,7 @@ class ParseDiagnostics:
         *,
         candidate_id: str | None = None,
         evidence: SourceEvidence | None = None,
+        detail: dict[str, Any] | None = None,
     ) -> None:
         """Record an anomaly that must reach revision validation."""
         self.warn(
@@ -96,6 +107,7 @@ class ParseDiagnostics:
             message=message,
             candidate_id=candidate_id,
             evidence=evidence,
+            detail=detail,
         )
 
     def error(
@@ -105,6 +117,7 @@ class ParseDiagnostics:
         *,
         candidate_id: str | None = None,
         evidence: SourceEvidence | None = None,
+        detail: dict[str, Any] | None = None,
     ) -> None:
         """Record a failure that makes the whole parse unpublishable."""
         self.warn(
@@ -113,6 +126,7 @@ class ParseDiagnostics:
             message=message,
             candidate_id=candidate_id,
             evidence=evidence,
+            detail=detail,
         )
 
     def confidence(
@@ -216,19 +230,19 @@ class ParseDiagnostics:
         self.increment(total_metric)
         self.increment(f"{reason_prefix}{reason}")
 
-        detail = message or (
+        text = message or (
             f"{unit} were ignored because of rule '{reason}'. "
             f"See metric '{reason_prefix}{reason}' for the total."
         )
 
         if severity is not ParserWarningSeverity.INFORMATION:
-            self.warn(severity=severity, code=code, message=detail, evidence=evidence)
+            self.warn(severity=severity, code=code, message=text, evidence=evidence)
             return
 
         reported_key = f"{code}:{reason}"
         if reported_key not in self._reported_ignore_reasons:
             self._reported_ignore_reasons.add(reported_key)
-            self.information(code, detail, evidence=evidence)
+            self.information(code, text, evidence=evidence)
 
     @property
     def warnings(self) -> tuple[ParserWarning, ...]:

@@ -57,7 +57,7 @@ published lesson matches one of these assignments closely enough to take its roo
 """
 
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, time
 
@@ -65,6 +65,7 @@ from sirkadiyen_parser.contracts.parsing import (
     ParserProfileDescriptor,
     ParseSnapshotRequest,
     ParseSnapshotResponse,
+    ParseSourceContext,
     ProgramLanguage,
     SourceEvidence,
 )
@@ -73,14 +74,23 @@ from sirkadiyen_parser.contracts.snapshot import (
     NormalizedSpreadsheetSnapshot,
 )
 from sirkadiyen_parser.diagnostics import ParseDiagnostics
+from sirkadiyen_parser.normalization.date_sequence import DateSequence, DateSequenceEntry
 from sirkadiyen_parser.normalization.dates import (
+    DateResolution,
     NumericDateOrder,
     resolve_cell_date,
     resolve_date_text,
+    unresolved_date,
 )
 from sirkadiyen_parser.normalization.grid import WorksheetGrid, cell_display_text
 from sirkadiyen_parser.normalization.text import comparison_key, normalize_text
 from sirkadiyen_parser.normalization.times import resolve_time_range_text, resolve_time_text
+from sirkadiyen_parser.parsers.date_repair import (
+    RULE_DATE_SEQUENCE,
+    read_date_run,
+    report_date_corrections,
+    report_date_run,
+)
 from sirkadiyen_parser.profiles import ParserProfileDefinition
 
 #: The header cell that marks the start of a day block's grid.
@@ -193,6 +203,7 @@ class AmphitheatreDocument:
 def read_amphitheatre_document(
     snapshot: NormalizedSpreadsheetSnapshot,
     *,
+    context: ParseSourceContext | None = None,
     numeric_date_order: NumericDateOrder = NumericDateOrder.UNDECLARED,
     diagnostics: ParseDiagnostics | None = None,
 ) -> AmphitheatreDocument:
@@ -215,7 +226,7 @@ def read_amphitheatre_document(
             continue
 
         grid = WorksheetGrid(worksheet)
-        for block in _find_day_blocks(grid, numeric_date_order, diagnostics):
+        for block in _find_day_blocks(grid, numeric_date_order, context, diagnostics):
             day_blocks += 1
             block_assignments, block_slot_rows = _read_block(grid, block, diagnostics)
             assignments.extend(block_assignments)
@@ -251,8 +262,10 @@ def parse_amphitheatre_snapshot(
     diagnostics = ParseDiagnostics()
     diagnostics.set_metric(METRIC_WORKSHEETS_SCANNED, len(request.snapshot.worksheets))
 
+    report_date_corrections(diagnostics=diagnostics, context=request.source_context)
     document = read_amphitheatre_document(
         request.snapshot,
+        context=request.source_context,
         numeric_date_order=profile.numeric_date_order,
         diagnostics=diagnostics,
     )
@@ -304,6 +317,7 @@ class _DayBlock:
 def _find_day_blocks(
     grid: WorksheetGrid,
     numeric_date_order: NumericDateOrder,
+    context: ParseSourceContext | None,
     diagnostics: ParseDiagnostics,
 ) -> Sequence[_DayBlock]:
     """Every day block on the worksheet, in row order.
@@ -318,13 +332,42 @@ def _find_day_blocks(
         if found is not None:
             headers.append((row_index, *found))
 
+    # A worksheet is one week, and its day blocks run down it in order, so their
+    # titles form a chronological run and a title whose year contradicts it is
+    # read as a mistyped year (ADR-139). Without a source context — the reader is
+    # also called on its own, from tests and from the annual profile's companion
+    # path before one exists — no window can be built and nothing is analysed.
+    date_sequence = (
+        read_date_run(
+            tuple(_block_dates(grid, headers, numeric_date_order)),
+            context=context,
+        )
+        if context is not None
+        else None
+    )
+    if date_sequence is not None:
+        report_date_run(
+            date_sequence,
+            diagnostics=diagnostics,
+            evidence_for=lambda title_row: grid.evidence(
+                title_row,
+                0,
+                extraction_rule=RULE_DATE_SEQUENCE,
+            ),
+        )
+
     blocks: list[_DayBlock] = []
     for position, (header_row, slot_column, rooms) in enumerate(headers):
         title_row = header_row - 1
         if title_row < 0:
             continue
 
-        resolution = _resolve_block_date(grid, title_row, numeric_date_order)
+        resolution = _resolve_block_date(
+            grid,
+            title_row,
+            numeric_date_order,
+            date_sequence=date_sequence,
+        )
         if resolution is None:
             diagnostics.warning(
                 WARNING_UNDATED_DAY_BLOCK,
@@ -334,7 +377,8 @@ def _find_day_blocks(
             )
             continue
 
-        block_date, date_evidence_column = resolution
+        block_date = resolution.value
+        date_evidence_column = resolution.column_index
         next_title_row = (
             headers[position + 1][0] - 1
             if position + 1 < len(headers)
@@ -388,17 +432,58 @@ def _read_header_row(grid: WorksheetGrid, row_index: int) -> tuple[int, Mapping[
     return slot_column, rooms
 
 
+def _block_dates(
+    grid: WorksheetGrid,
+    headers: Sequence[tuple[int, int, Mapping[int, str]]],
+    numeric_date_order: NumericDateOrder,
+) -> Iterator[DateSequenceEntry]:
+    """Resolve each day block's title row, in worksheet order.
+
+    Keyed by the title row rather than by the cell that happens to state the
+    date, because that column moves: the committed fixture writes a Saturday
+    title in column I and a Sunday one as a serial in the same column.
+    """
+    for header_row, _, _ in headers:
+        title_row = header_row - 1
+        if title_row < 0:
+            continue
+        found = _resolve_block_date(grid, title_row, numeric_date_order)
+        if found is not None:
+            yield DateSequenceEntry(key=title_row, resolution=found.resolution)
+
+
+@dataclass(frozen=True, slots=True)
+class _BlockDate:
+    """The date a day block's title row states, and where it was read."""
+
+    resolution: DateResolution
+    column_index: int
+
+    @property
+    def value(self) -> date:
+        value = self.resolution.value
+        if value is None:  # pragma: no cover - only a resolved date is returned
+            raise ValueError("A block date must carry a resolved date.")
+        return value
+
+
 def _resolve_block_date(
     grid: WorksheetGrid,
     title_row_index: int,
     numeric_date_order: NumericDateOrder,
-) -> tuple[date, int] | None:
+    *,
+    date_sequence: DateSequence | None = None,
+) -> _BlockDate | None:
     """The date a block's title row states, and the column that stated it.
 
     The title is normally a merged run starting in the first column, but the
     committed fixture also writes a Saturday title in column I and a Sunday one
     as a date serial in column I. The row is therefore searched rather than a
     single coordinate read, and the first cell of it that resolves to a date wins.
+
+    ``date_sequence`` is the worksheet's chronological reading, when one was made:
+    a title whose year contradicts the week around it is read as the year the
+    week states (ADR-139).
     """
     for column_index in grid.occupied_columns():
         resolved = grid.resolve(title_row_index, column_index)
@@ -406,8 +491,10 @@ def _resolve_block_date(
             continue
 
         resolution = _resolve_title_cell(resolved.cell, numeric_date_order)
-        if resolution is not None:
-            return resolution, column_index
+        if resolution.resolved:
+            if date_sequence is not None:
+                resolution = date_sequence.resolution(title_row_index, resolution)
+            return _BlockDate(resolution=resolution, column_index=column_index)
 
     return None
 
@@ -415,8 +502,8 @@ def _resolve_block_date(
 def _resolve_title_cell(
     cell: NormalizedCell,
     numeric_date_order: NumericDateOrder,
-) -> date | None:
-    """Read a day title cell as a date, or ``None`` when it states none.
+) -> DateResolution:
+    """Read a day title cell as a date, or report that it states none.
 
     These titles hang the weekday off the date with a slash — ``31 AĞUSTOS 2026 /
     Pazartesi`` — and the shared resolver trims only the comma and dash forms of
@@ -433,15 +520,15 @@ def _resolve_title_cell(
     if cell.effective_value is not None and cell.effective_value.text_value is None:
         # A serial or a real date value: one day title is written that way, and
         # rewriting text it does not have would discard it.
-        return resolve_cell_date(cell, numeric_order=numeric_date_order).value
+        return resolve_cell_date(cell, numeric_order=numeric_date_order)
 
     text = cell_display_text(cell)
     if text is None:
-        return None
+        return unresolved_date("emptyDayTitleCell")
     return resolve_date_text(
         text.replace("/", " "),
         numeric_order=numeric_date_order,
-    ).value
+    )
 
 
 def _read_block(

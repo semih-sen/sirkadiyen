@@ -45,6 +45,17 @@ public sealed class ScheduleRevisionValidationStore(SirkadiyenDbContext dbContex
                 .Select(record => record.StableIdentity)
                 .ToListAsync(cancellationToken);
 
+        // Read from the parse run's own response rather than from the records,
+        // because that is the only place it exists: a repaired date leaves a
+        // record that looks perfectly ordinary, and a refused one leaves a record
+        // that only looks wrong beside the neighbours the flat list no longer
+        // holds (ADR-139).
+        string? parseResponse = await dbContext.ParseRuns
+            .AsNoTracking()
+            .Where(run => run.Id == revision.ParseRunId)
+            .Select(run => run.Response)
+            .SingleOrDefaultAsync(cancellationToken);
+
         return new RevisionValidationInput
         {
             Revision = revision,
@@ -52,6 +63,7 @@ public sealed class ScheduleRevisionValidationStore(SirkadiyenDbContext dbContex
             Records = records,
             HasPreviousPublishedRevision = published is not null,
             PreviouslyPublishedIdentities = publishedIdentities,
+            DateAnomalies = ParserDateAnomalyReader.Read(parseResponse),
         };
     }
 

@@ -8,6 +8,7 @@ const api = vi.hoisted(() => ({
   getRevision: vi.fn(),
   approveRevision: vi.fn(),
   rejectRevision: vi.fn(),
+  acceptSourceDateCorrection: vi.fn(),
   ApiError: class ApiError extends Error {},
 }));
 vi.mock('@/lib/api', () => api);
@@ -128,5 +129,104 @@ describe('RevisionReview', () => {
     // And the rule is explained, not just named: the operator is told what approving would do.
     expect(screen.getByText('Akademik yıl dışında tarih')).toBeInTheDocument();
     expect(screen.getByText(/tarihin yanlış okunduğu anlamına gelir/)).toBeInTheDocument();
+  });
+
+  it('offers the readings a refused date may have meant, and corrects the source with one', async () => {
+    // The lever the screen was missing (ADR-139). `21 Mayıs 2026 Perşembe` substitutes to
+    // 2027-05-21, which is a Friday, so the cell disagrees with its own repair and the parser
+    // published it as written. Approving would put the lesson a year early; rejecting would hold
+    // the schedule for a workbook that is not ours to edit. Accepting a reading corrects the
+    // source, and the next poll reads it.
+    api.getRevision.mockResolvedValue({
+      summary,
+      findings: [{
+        rule: 'RecordDateOutOfSequence',
+        severity: 'Error',
+        message: '1 date(s) contradict the order of the column they sit in.',
+        affectedRecordCount: 1,
+        createdAtUtc: '2026-08-15T08:00:00Z',
+        detail: JSON.stringify([{
+          original: '2026-05-21',
+          applied: null,
+          lowerAnchor: null,
+          upperAnchor: '2027-05-24',
+          reason: 'candidateContradictsTheStatedWeekday',
+          cell: 'A248',
+          candidates: [
+            { value: '2027-05-21', rule: 'sequenceYearSubstitution', weekdayMatches: false },
+            { value: '2027-05-20', rule: 'sequenceWeekdayAlternative', weekdayMatches: true },
+          ],
+        }]),
+      }],
+    });
+    api.acceptSourceDateCorrection.mockResolvedValue({ id: 'c-1' });
+
+    render(<RevisionReview />);
+    await userEvent.click(await screen.findByText('Dönem 2 Türkçe pratik programı'));
+
+    expect(await screen.findByText('Sıra dışı tarih')).toBeInTheDocument();
+
+    // The cell's address and the reason the parser withheld the correction, so the operator can
+    // open the document at the row this is about.
+    // Both the generic evidence table and the action above it name the cell, so this asserts
+    // presence rather than uniqueness.
+    expect(screen.getAllByText(/A248/).length).toBeGreaterThan(0);
+    expect(
+      screen.getAllByText(/Hücre kendi yazdığı gün adıyla çelişiyor/).length,
+    ).toBeGreaterThan(0);
+
+    // A decision this consequential is never taken without a recorded reason.
+    await userEvent.click(screen.getByRole('button', { name: /2027-05-20/ }));
+    expect(api.acceptSourceDateCorrection).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('gerekçe');
+
+    await userEvent.type(
+      screen.getByLabelText(/Kabul gerekçesi/),
+      'Belgeyi kontrol ettim; satır geçen yılın dosyasından kalmış.',
+    );
+    await userEvent.click(screen.getByRole('button', { name: /2027-05-20/ }));
+
+    await waitFor(() => expect(api.acceptSourceDateCorrection).toHaveBeenCalledWith(
+      'G2-TR-PRACTICE',
+      '2026-05-21',
+      '2027-05-20',
+      'Belgeyi kontrol ettim; satır geçen yılın dosyasından kalmış.',
+    ));
+
+    // Accepting does not settle this revision, and the screen says so rather than leaving the
+    // operator to wonder why the queue still holds it.
+    expect(await screen.findByText(/^Kabul edildi:/)).toBeInTheDocument();
+  });
+
+  it('offers no decision for a date the parser already repaired', async () => {
+    api.getRevision.mockResolvedValue({
+      summary,
+      findings: [{
+        rule: 'RecordDateOutOfSequence',
+        severity: 'Warning',
+        message: '1 date(s) were read as a mistyped year.',
+        affectedRecordCount: 1,
+        createdAtUtc: '2026-08-15T08:00:00Z',
+        detail: JSON.stringify([{
+          original: '2020-11-20',
+          applied: '2026-11-20',
+          lowerAnchor: '2026-11-19',
+          upperAnchor: '2026-11-20',
+          reason: 'repaired',
+          cell: 'A69',
+          candidates: [
+            { value: '2026-11-20', rule: 'sequenceYearSubstitution', weekdayMatches: null },
+          ],
+        }]),
+      }],
+    });
+
+    render(<RevisionReview />);
+    await userEvent.click(await screen.findByText('Dönem 2 Türkçe pratik programı'));
+
+    // The repair is reported — it moved a lesson — but there is nothing left to accept.
+    expect(await screen.findByText('Sıra dışı tarih')).toBeInTheDocument();
+    expect(screen.getByText('2020-11-20')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/Kabul gerekçesi/)).not.toBeInTheDocument();
   });
 });

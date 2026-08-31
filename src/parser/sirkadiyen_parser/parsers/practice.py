@@ -38,6 +38,7 @@ from sirkadiyen_parser.contracts.snapshot import NormalizedWorksheet
 from sirkadiyen_parser.diagnostics import ParseDiagnostics
 from sirkadiyen_parser.identity import build_identity_components, content_hash, stable_identity
 from sirkadiyen_parser.normalization.courses import course_identity, normalize_course_title
+from sirkadiyen_parser.normalization.date_sequence import DateSequence, DateSequenceEntry
 from sirkadiyen_parser.normalization.dates import (
     DateResolution,
     NumericDateOrder,
@@ -55,6 +56,12 @@ from sirkadiyen_parser.parsers.annual import (
     WARNING_IMPLAUSIBLE_DURATION,
     WARNING_WEEKDAY_MISMATCH,
     encode_all_day,
+)
+from sirkadiyen_parser.parsers.date_repair import (
+    RULE_DATE_SEQUENCE,
+    read_date_run,
+    report_date_corrections,
+    report_date_run,
 )
 from sirkadiyen_parser.profiles import ParserProfileDefinition
 
@@ -205,6 +212,7 @@ def parse_practice_snapshot(
     accumulator = _Accumulator()
 
     diagnostics.set_metric(METRIC_WORKSHEETS_SCANNED, len(request.snapshot.worksheets))
+    report_date_corrections(diagnostics=diagnostics, context=request.source_context)
     selected = 0
 
     for worksheet in request.snapshot.worksheets:
@@ -418,6 +426,24 @@ def _parse_block(
 ) -> None:
     subjects = tuple(_read_subjects(grid, block))
 
+    # A block's dated rows run in chronological order, which is the only thing
+    # that can corroborate a hand-typed date, so they are read as a run before
+    # any of them becomes a lesson (ADR-139). Nothing moves unless the run
+    # contains a date that contradicts its own neighbours.
+    sequence = read_date_run(
+        tuple(_block_dates(grid=grid, block=block, numeric_date_order=numeric_date_order)),
+        context=context,
+    )
+    report_date_run(
+        sequence,
+        diagnostics=diagnostics,
+        evidence_for=lambda row_index: grid.evidence(
+            row_index,
+            block.date_column,
+            extraction_rule=RULE_DATE_SEQUENCE,
+        ),
+    )
+
     for subject in subjects:
         if not subject.out_of_scope:
             continue
@@ -441,6 +467,7 @@ def _parse_block(
             block=block,
             row_index=row_index,
             numeric_date_order=numeric_date_order,
+            sequence=sequence,
             diagnostics=diagnostics,
         )
         if slot is None:
@@ -461,6 +488,31 @@ def _parse_block(
                 diagnostics=diagnostics,
                 accumulator=accumulator,
             )
+
+
+def _block_dates(
+    *,
+    grid: WorksheetGrid,
+    block: _Block,
+    numeric_date_order: NumericDateOrder,
+) -> Iterator[DateSequenceEntry]:
+    """Resolve the block's date cells in source order.
+
+    Only rows that state something in the date column take part. A row with no
+    date is not a position in the run: it is a spacer, or a row whose date the
+    profile refuses for its own reasons, and either way it can neither be
+    corroborated by the order nor corroborate anything else.
+    """
+    for row_index in range(block.header_row + 1, block.end_row_exclusive):
+        if not grid.text(row_index, block.date_column):
+            continue
+        yield DateSequenceEntry(
+            key=row_index,
+            resolution=resolve_cell_date(
+                grid.resolve(row_index, block.date_column).cell,
+                numeric_order=numeric_date_order,
+            ),
+        )
 
 
 def _read_subjects(grid: WorksheetGrid, block: _Block) -> Iterator[_Subject]:
@@ -510,6 +562,7 @@ def _read_slot(
     block: _Block,
     row_index: int,
     numeric_date_order: NumericDateOrder,
+    sequence: DateSequence,
     diagnostics: ParseDiagnostics,
 ) -> _Slot | None:
     date_text = grid.text(row_index, block.date_column)
@@ -536,9 +589,14 @@ def _read_slot(
         )
         return None
 
-    resolved_date = resolve_cell_date(
-        grid.resolve(row_index, block.date_column).cell,
-        numeric_order=numeric_date_order,
+    # The block's chronological reading wins where it made one, and answers with
+    # exactly this cell's own resolution everywhere else (ADR-139).
+    resolved_date = sequence.resolution(
+        row_index,
+        resolve_cell_date(
+            grid.resolve(row_index, block.date_column).cell,
+            numeric_order=numeric_date_order,
+        ),
     )
     if not resolved_date.resolved or resolved_date.value is None:
         diagnostics.record_ignored_row(

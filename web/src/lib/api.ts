@@ -36,6 +36,7 @@ import type {
   RetryDiffResponse,
   DiscardDiffResponse,
   RequestSourcePollResponse,
+  SourceDateCorrectionView,
   RevisionState,
   CalendarDispatchState,
   ScheduleDiffDetail,
@@ -1056,6 +1057,51 @@ export function requestSourcePoll(
   return request<RequestSourcePollResponse>(
     `/api/admin/sources/${encodeURIComponent(sourceId)}/poll`,
     { method: 'POST', body: { force } },
+  );
+}
+
+// ---- Source date corrections (ADR-139) ------------------------------------
+//
+// The parser reads every date column chronologically and repairs a mistyped year where the dates
+// around it leave exactly one reading. Where they do not — the cell contradicts its own weekday,
+// or two years fit equally well — it publishes the date as written and reports the readings that
+// fit, and the revision is held. These are how an operator answers that: the correction is source
+// configuration, so the next poll re-parses the same document and applies it.
+
+export function listSourceDateCorrections(
+  sourceId: string,
+): Promise<SourceDateCorrectionView[]> {
+  return request<SourceDateCorrectionView[]>(
+    `/api/admin/sources/${encodeURIComponent(sourceId)}/date-corrections/`,
+  );
+}
+
+/**
+ * Accepts that a source writes `original` where it means `corrected`, everywhere it writes it.
+ * Replaces any correction the source already has for the same original date, so picking the other
+ * candidate after a second look is one call rather than a delete and a re-accept. Audited, so a
+ * reason is required.
+ */
+export function acceptSourceDateCorrection(
+  sourceId: string,
+  original: string,
+  corrected: string,
+  reason: string,
+): Promise<SourceDateCorrectionView> {
+  return request<SourceDateCorrectionView>(
+    `/api/admin/sources/${encodeURIComponent(sourceId)}/date-corrections/`,
+    { method: 'POST', body: { original, corrected, reason } },
+  );
+}
+
+/** Retires a correction, normally because the faculty fixed the document. */
+export function retireSourceDateCorrection(
+  sourceId: string,
+  correctionId: string,
+): Promise<void> {
+  return request<void>(
+    `/api/admin/sources/${encodeURIComponent(sourceId)}/date-corrections/${encodeURIComponent(correctionId)}`,
+    { method: 'DELETE' },
   );
 }
 

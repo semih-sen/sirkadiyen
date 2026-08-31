@@ -66,7 +66,7 @@ class ParserProfileDefinition:
     amphitheatre_companion: bool = False
 
 
-_PROFILE_VERSION = "1.0.0"
+_PROFILE_VERSION = "1.1.0"
 
 #: Almost every source whose fixture is committed writes dates as spreadsheet
 #: serials or as text naming the month, so those sources have never shown which
@@ -76,6 +76,12 @@ _PROFILE_VERSION = "1.0.0"
 #: corrected from the first refusal a real source produces (ADR-051), which is
 #: what happened to `grade2_practice_v1` below.
 _UNDECLARED = NumericDateOrder.UNDECLARED
+
+#: Every profile below that reads a date is at a version that reads its date
+#: column chronologically and repairs a mistyped year from the dates around it
+#: (ADR-139, parser engine 0.4.0). The bump is required whether or not a
+#: committed fixture moves, for the reason engine 0.2.0 gave: a stored snapshot
+#: cannot be proved free of such a cell the way the fixtures can.
 
 _PROFILES = (
     # 1.1.0 excludes PDÖ/PBL and lunch; 1.2.0 models free study explicitly.
@@ -100,7 +106,7 @@ _PROFILES = (
     # and dropped, so the event reached a student with no place on it.
     ParserProfileDefinition(
         "grade1_yearly_v1",
-        "1.7.0",
+        "1.8.0",
         "annual",
         _UNDECLARED,
         term_column_may_be_unlabelled=True,
@@ -113,7 +119,7 @@ _PROFILES = (
     # which is a value no student's profile holds. Both now publish `İ1`.
     ParserProfileDefinition(
         "grade1_practice_v1",
-        "1.1.0",
+        "1.2.0",
         "practice",
         _UNDECLARED,
         ("practiceGroup", "practiceSubgroup"),
@@ -149,7 +155,7 @@ _PROFILES = (
     ParserProfileDefinition(
         "grade2_yearly_v1",
         # 1.3.0 takes the room from the weekly amphitheatre program (ADR-133).
-        "1.3.0",
+        "1.4.0",
         "annual",
         _UNDECLARED,
         group_rotation_subjects=("diseksiyon", "dissection"),
@@ -180,7 +186,7 @@ _PROFILES = (
     # but a stored snapshot cannot be proved free of the dotted spelling.
     ParserProfileDefinition(
         "grade2_practice_v1",
-        "1.3.0",
+        "1.4.0",
         "practice",
         NumericDateOrder.DAY_FIRST,
         ("practiceGroup",),
@@ -189,7 +195,7 @@ _PROFILES = (
     # 1.1.0: engine 0.3.0, as grade2_practice_v1 (ADR-130).
     ParserProfileDefinition(
         "grade2_anatomy_autumn_v1",
-        "1.1.0",
+        "1.2.0",
         "anatomy",
         _UNDECLARED,
         ("anatomyGroup",),
@@ -198,7 +204,7 @@ _PROFILES = (
     # 1.1.0: engine 0.3.0, as grade2_practice_v1 (ADR-130).
     ParserProfileDefinition(
         "grade2_anatomy_spring_v1",
-        "1.1.0",
+        "1.2.0",
         "anatomy",
         _UNDECLARED,
         ("anatomyGroup",),
@@ -214,7 +220,7 @@ _PROFILES = (
     # under a Turkish source either way.
     ParserProfileDefinition(
         "grade2_vertical_corridor_v1",
-        "1.1.0",
+        "1.2.0",
         "verticalCorridor",
         _UNDECLARED,
         ("practiceGroup", "practiceSubgroup"),
@@ -238,7 +244,7 @@ _PROFILES = (
         "grade3_yearly_v1",
         # 1.3.0 takes the room from the weekly amphitheatre program (ADR-133),
         # which it reads alongside the bedside companion it already had.
-        "1.3.0",
+        "1.4.0",
         "annual",
         _UNDECLARED,
         ("curriculumGroup",),
@@ -280,7 +286,11 @@ _PROFILES = (
     # the rooms reach students only once the faculty practice can be joined to it.
     ParserProfileDefinition(
         "grade3_faculty_locations_v1",
-        _PROFILE_VERSION,
+        # Pinned rather than sharing the version above. This lookup states no
+        # date anywhere, so the chronological reading of a date column (ADR-139)
+        # cannot change what it publishes, and bumping it would re-parse every
+        # stored snapshot of it to produce the same rooms.
+        "1.0.0",
         "facultyPracticeLocations",
         _UNDECLARED,
     ),

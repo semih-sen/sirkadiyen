@@ -1,6 +1,6 @@
 from datetime import date, time
 from enum import StrEnum
-from typing import Literal, Self
+from typing import Any, Literal, Self
 
 from pydantic import Field, model_validator
 
@@ -152,6 +152,15 @@ class ParserWarning(OutboundContractModel):
     candidate_id: str | None = None
     evidence: SourceEvidence | None = None
 
+    #: Machine-readable evidence for warnings whose meaning cannot be recovered
+    #: from prose (ADR-139). A date-repair suggestion states the date the source
+    #: wrote, the anchors that bound it and every date it may have meant, and an
+    #: operator has to be able to act on one of them rather than retype it. Every
+    #: other warning states nothing here: the message is the evidence, and a
+    #: field that every producer filled in with something would stop being
+    #: readable by any consumer.
+    detail: dict[str, Any] | None = None
+
 
 class ParserMetric(OutboundContractModel):
     name: str = Field(min_length=1)
@@ -164,6 +173,30 @@ class ConfidenceIndicator(OutboundContractModel):
     score: float = Field(ge=0, le=1)
     reason: str = Field(min_length=1)
     candidate_id: str | None = None
+
+
+class SourceDateCorrection(ContractModel):
+    """One date an operator has decided the source writes wrongly (ADR-139).
+
+    ``original`` is the date the document resolves to today and ``corrected`` is
+    what it means. The two must differ: a correction that changes nothing is a
+    configuration mistake rather than a no-op, because it would sit in the
+    catalog claiming a typo that is not there.
+    """
+
+    original: date
+    corrected: date
+
+    #: Who accepted the correction, and when, so a published date that no
+    #: document states can always be traced to a person.
+    decided_by: str = Field(min_length=1)
+    decided_at: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _validate_correction(self) -> Self:
+        if self.original == self.corrected:
+            raise ValueError("A date correction must change the date it corrects.")
+        return self
 
 
 class ParseSourceContext(ContractModel):
@@ -205,6 +238,20 @@ class ParseSourceContext(ContractModel):
     #: caller states the coverage it found, and a source with no rotation companion
     #: configured simply sends nothing and parses as it always did.
     group_rotation_covered_dates: list[date] = Field(default_factory=list)
+
+    #: Dates an operator has decided this source states wrongly, keyed by the
+    #: value the document writes (ADR-139). A source typo is a fact about the
+    #: source that the source itself cannot state, which is exactly what ADR-017
+    #: means by source context, and holding the decision here rather than editing
+    #: a parsed record keeps a parse a pure function of its snapshot, its profile
+    #: and its context.
+    #:
+    #: A correction is keyed by the wrong value rather than by a cell address,
+    #: because the document is re-acquired and its rows move while the mistyped
+    #: value does not. It is applied wherever the source writes that date, which
+    #: is the intended reading of "this document says 2020-11-20 and means
+    #: 2026-11-20".
+    date_corrections: list["SourceDateCorrection"] = Field(default_factory=list)
 
 
 class ParseSnapshotRequest(ContractModel):

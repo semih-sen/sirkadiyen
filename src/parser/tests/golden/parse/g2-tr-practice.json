@@ -1,8 +1,8 @@
 {
   "fixture": "real/g2-tr-practice.snapshot.json",
-  "parserEngineVersion": "0.3.0",
+  "parserEngineVersion": "0.4.0",
   "payload": {
-    "candidateCount": 164,
+    "candidateCount": 167,
     "candidateDigests": [
       "1!R4C3|2025-09-08|08:30-10:20|practice|id:5f186cc0565e3644|content:76ae122da1037730|Fizyoloji",
       "1!R4C4|2025-09-09|08:30-10:20|practice|id:17fc73da25764c25|content:39b71b45e0308e77|Fizyoloji",
@@ -91,8 +91,10 @@
       "1!R120C7|2025-12-19|14:00-15:50|exam|id:e90bc9a3d8651791|content:7377d5c0f5e6098c|Biyokimya Sınav",
       "1!R120C8|2025-12-22|08:30-10:20|exam|id:9a58d2624f0ea210|content:40cbeda51367017e|Biyokimya Sınav",
       "1!R120C9|2025-12-23|08:30-10:20|exam|id:5d76d50200a29e1c|content:5df42d81e9232d9c|Biyokimya Sınav",
+      "1!R120C10|2025-12-24|10:30-12:20|exam|id:78f08abc442fa244|content:55ba360e4ae35234|Biyokimya Sınav",
       "1!R134C3|2026-01-30|08:30-10:20|practice|id:f393b5d2af3e7083|content:762aa738acdd1d8f|Biyokimya (1)",
       "1!R134C4|2026-02-02|08:30-10:20|practice|id:0f75d29d0d5ead1d|content:a5919d7b83d66c73|Biyokimya (1)",
+      "1!R134C5|2026-02-03|08:30-10:20|practice|id:9893a10efc044015|content:a64d5fe889569d96|Biyokimya (1)",
       "1!R134C6|2026-02-04|08:30-10:20|practice|id:77948a215f87093d|content:084e011616c0e297|Biyokimya (1)",
       "1!R134C7|2026-02-05|08:30-10:20|practice|id:876251ae90cae3b8|content:913e910fc244bc00|Biyokimya (1)",
       "1!R134C8|2026-02-06|08:30-10:20|practice|id:cde4bcd03e6f6825|content:ef16fdbda91b5c1c|Biyokimya (1)",
@@ -100,6 +102,7 @@
       "1!R134C10|2026-02-10|08:30-10:20|practice|id:157783d9893e7886|content:9db657ed51354901|Biyokimya (1)",
       "1!R135C3|2026-01-30|08:30-10:20|practice|id:bb193235e15c1fdb|content:81951e9da03c3c42|Histoloji (1)",
       "1!R135C4|2026-02-02|08:30-10:20|practice|id:ad5a2482591a9387|content:33edbaf71af7bc91|Histoloji (1)",
+      "1!R135C5|2026-02-03|08:30-10:20|practice|id:98ed76493e6a411a|content:03c039938d0ecf1c|Histoloji (1)",
       "1!R135C6|2026-02-04|08:30-10:20|practice|id:379a213c3460a6d0|content:9b405188d0383dd5|Histoloji (1)",
       "1!R135C7|2026-02-05|08:30-10:20|practice|id:33160aac18642b11|content:693f4d25b4f79c26|Histoloji (1)",
       "1!R135C8|2026-02-06|08:30-10:20|practice|id:72b1cd55b1624e8a|content:3a97cff494715099|Histoloji (1)",
@@ -693,6 +696,12 @@
         "score": 0.9
       },
       {
+        "candidateId": "1!R120C10",
+        "field": "localDate",
+        "reason": "sequenceRepairedDate",
+        "score": 0.8
+      },
+      {
         "candidateId": "1!R134C3",
         "field": "localDate",
         "reason": "monthNameDate",
@@ -703,6 +712,12 @@
         "field": "localDate",
         "reason": "monthNameDate",
         "score": 0.9
+      },
+      {
+        "candidateId": "1!R134C5",
+        "field": "localDate",
+        "reason": "sequenceRepairedDate",
+        "score": 0.8
       },
       {
         "candidateId": "1!R134C6",
@@ -745,6 +760,12 @@
         "field": "localDate",
         "reason": "monthNameDate",
         "score": 0.9
+      },
+      {
+        "candidateId": "1!R135C5",
+        "field": "localDate",
+        "reason": "sequenceRepairedDate",
+        "score": 0.8
       },
       {
         "candidateId": "1!R135C6",
@@ -1347,22 +1368,22 @@
       {
         "name": "audience.dimension.practiceGroup",
         "unit": null,
-        "value": 192.0
+        "value": 196.0
       },
       {
         "name": "candidates.emitted",
         "unit": null,
-        "value": 164.0
+        "value": 167.0
       },
       {
         "name": "candidates.eventType.exam",
         "unit": null,
-        "value": 7.0
+        "value": 8.0
       },
       {
         "name": "candidates.eventType.practice",
         "unit": null,
-        "value": 157.0
+        "value": 159.0
       },
       {
         "name": "candidates.selfDatedCell",
@@ -1372,12 +1393,12 @@
       {
         "name": "cells.ignored",
         "unit": null,
-        "value": 167.0
+        "value": 164.0
       },
       {
         "name": "cells.ignored.cellInRefusedSlot",
         "unit": null,
-        "value": 7.0
+        "value": 4.0
       },
       {
         "name": "cells.ignored.groupsAnnouncedElsewhere",
@@ -1415,6 +1436,11 @@
         "value": 352.0
       },
       {
+        "name": "dates.outOfSequence.repaired",
+        "unit": null,
+        "value": 2.0
+      },
+      {
         "name": "dates.rule.monthNameDate",
         "unit": null,
         "value": 163.0
@@ -1423,6 +1449,11 @@
         "name": "dates.rule.numericDayFirstDate",
         "unit": null,
         "value": 1.0
+      },
+      {
+        "name": "dates.rule.sequenceRepairedDate",
+        "unit": null,
+        "value": 3.0
       },
       {
         "name": "place.deferredToAnnouncement",
@@ -1472,7 +1503,7 @@
       {
         "name": "slots.ignored.weekdayContradictsSlotDate",
         "unit": null,
-        "value": 4.0
+        "value": 2.0
       },
       {
         "name": "subjects.ignored.groupRotation",
@@ -1497,9 +1528,9 @@
     ],
     "parserProfile": {
       "name": "grade2_practice_v1",
-      "version": "1.3.0"
+      "version": "1.4.0"
     },
-    "responseDigest": "sha256:50c5c73589693b53438cdd3f01117f22cc0cd3c88cec0b282ebeaa6991365a9b",
+    "responseDigest": "sha256:0f2e55fa55bf492e63564bd08be0a7a9a87c9570165cbf2998a7dc8af7c17a7d",
     "snapshotId": "fixture:sha256:8f50eb1ea01f9945d5b4cfca7737c83e84fd9642235ab97175e0d8748a2eab27",
     "sourceId": "G2-TR-PRACTICE",
     "status": "completedWithWarnings",
@@ -1507,6 +1538,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.row",
           "range": "A1:S1",
@@ -1520,6 +1552,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.groupCell",
           "range": "C5",
@@ -1533,6 +1566,7 @@
       {
         "candidateId": null,
         "code": "slotHeaderRefused",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.slotHeader",
           "range": "H6",
@@ -1546,6 +1580,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.groupCell",
           "range": "H7",
@@ -1559,6 +1594,7 @@
       {
         "candidateId": null,
         "code": "groupRotationSubjectRow",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.subjectCell",
           "range": "A39",
@@ -1572,6 +1608,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.groupCell",
           "range": "C39",
@@ -1585,6 +1622,7 @@
       {
         "candidateId": null,
         "code": "groupRotationSubjectRow",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.subjectCell",
           "range": "A68",
@@ -1598,6 +1636,7 @@
       {
         "candidateId": null,
         "code": "groupRotationSubjectRow",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.subjectCell",
           "range": "A94",
@@ -1611,6 +1650,7 @@
       {
         "candidateId": null,
         "code": "outOfScopeSubjectRow",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.subjectCell",
           "range": "A118",
@@ -1623,20 +1663,35 @@
       },
       {
         "candidateId": null,
-        "code": "slotHeaderRefused",
+        "code": "outOfSequenceDateRepaired",
+        "detail": {
+          "applied": "2025-12-24",
+          "candidates": [
+            {
+              "rule": "sequenceYearSubstitution",
+              "value": "2025-12-24",
+              "weekdayMatches": true
+            }
+          ],
+          "lowerAnchor": "2025-12-23",
+          "original": "2024-12-24",
+          "reason": "repaired",
+          "upperAnchor": null
+        },
         "evidence": {
-          "extractionRule": "practiceSlots.slotHeader",
+          "extractionRule": "dateSequence",
           "range": "J119",
           "rawText": "2/8\n24 Aralık 2024 Çarşamba\n10:30-12:20",
           "sheetId": "1",
           "sheetTitle": "Sayfa1"
         },
-        "message": "Slot header states '24 Aralık 2024 Çarşamba', but 2024-12-24 is not a 'Çarşamba'. The cell contradicts itself, so nothing was published from it; correcting either part would be a guess.",
+        "message": "The source dates this row 2024-12-24, which falls outside the run it sits in (2025-12-23 to the start of the academic year). Substituting the year is the only reading that fits, so the row was read as 2025-12-24 rather than as written; whatever it publishes carries that date. Reject the revision if the source means what it says.",
         "severity": "warning"
       },
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.groupCell",
           "range": "K120",
@@ -1650,6 +1705,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.groupCell",
           "range": "L120",
@@ -1663,6 +1719,7 @@
       {
         "candidateId": null,
         "code": "outOfScopeSubjectRow",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.subjectCell",
           "range": "A122",
@@ -1675,20 +1732,35 @@
       },
       {
         "candidateId": null,
-        "code": "slotHeaderRefused",
+        "code": "outOfSequenceDateRepaired",
+        "detail": {
+          "applied": "2026-02-03",
+          "candidates": [
+            {
+              "rule": "sequenceYearSubstitution",
+              "value": "2026-02-03",
+              "weekdayMatches": true
+            }
+          ],
+          "lowerAnchor": "2026-02-02",
+          "original": "2025-02-03",
+          "reason": "repaired",
+          "upperAnchor": "2026-02-04"
+        },
         "evidence": {
-          "extractionRule": "practiceSlots.slotHeader",
+          "extractionRule": "dateSequence",
           "range": "E133",
           "rawText": "1/3\n3 Şubat 2025\n Salı\n08:30-10:20",
           "sheetId": "1",
           "sheetTitle": "Sayfa1"
         },
-        "message": "Slot header states '3 Şubat 2025 Salı', but 2025-02-03 is not a 'Salı'. The cell contradicts itself, so nothing was published from it; correcting either part would be a guess.",
+        "message": "The source dates this row 2025-02-03, which falls outside the run it sits in (2026-02-02 to 2026-02-04). Substituting the year is the only reading that fits, so the row was read as 2026-02-03 rather than as written; whatever it publishes carries that date. Reject the revision if the source means what it says.",
         "severity": "warning"
       },
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.groupCell",
           "range": "K134",
@@ -1702,6 +1774,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.groupCell",
           "range": "L134",
@@ -1715,6 +1788,7 @@
       {
         "candidateId": null,
         "code": "groupRotationSubjectRow",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.subjectCell",
           "range": "A137",
@@ -1728,6 +1802,7 @@
       {
         "candidateId": null,
         "code": "slotHeaderRefused",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.slotHeader",
           "range": "F156",
@@ -1741,6 +1816,7 @@
       {
         "candidateId": null,
         "code": "slotHeaderRefused",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.slotHeader",
           "range": "G156",
@@ -1754,6 +1830,7 @@
       {
         "candidateId": null,
         "code": "outOfScopeSubjectRow",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.subjectCell",
           "range": "A158",
@@ -1767,6 +1844,7 @@
       {
         "candidateId": null,
         "code": "groupRotationSubjectRow",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.subjectCell",
           "range": "A185",
@@ -1780,6 +1858,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practiceSlots.groupCell",
           "range": "D225",

@@ -58,6 +58,7 @@ from sirkadiyen_parser.contracts.snapshot import NormalizedWorksheet
 from sirkadiyen_parser.diagnostics import ParseDiagnostics
 from sirkadiyen_parser.identity import build_identity_components, content_hash, stable_identity
 from sirkadiyen_parser.normalization.courses import course_identity
+from sirkadiyen_parser.normalization.date_sequence import DateSequenceEntry
 from sirkadiyen_parser.normalization.dates import (
     DateResolution,
     NumericDateOrder,
@@ -67,6 +68,12 @@ from sirkadiyen_parser.normalization.grid import WorksheetGrid, a1_address
 from sirkadiyen_parser.normalization.text import comparison_key, normalize_text
 from sirkadiyen_parser.normalization.times import TimeRangeResolution, resolve_time_range_text
 from sirkadiyen_parser.parsers.annual import DIMENSION_CURRICULUM_GROUP, encode_all_day
+from sirkadiyen_parser.parsers.date_repair import (
+    RULE_DATE_SEQUENCE,
+    read_date_run,
+    report_date_corrections,
+    report_date_run,
+)
 from sirkadiyen_parser.profiles import ParserProfileDefinition
 
 #: The date sits in the first column of every block, and the departments follow.
@@ -195,6 +202,7 @@ def parse_faculty_practice_snapshot(
     accumulator = _Accumulator()
 
     diagnostics.set_metric(METRIC_WORKSHEETS_SCANNED, len(request.snapshot.worksheets))
+    report_date_corrections(diagnostics=diagnostics, context=request.source_context)
     selected = 0
 
     for worksheet in request.snapshot.worksheets:
@@ -251,6 +259,29 @@ def _parse_worksheet(
     block: _Block | None = None
     held_a_block = False
 
+    # The eight rotation blocks run through the year in order, so the worksheet's
+    # date rows form one chronological run whatever block they belong to, and a
+    # date that contradicts it is read as a mistyped year (ADR-139).
+    date_sequence = read_date_run(
+        tuple(
+            _worksheet_dates(
+                worksheet=worksheet,
+                grid=grid,
+                numeric_date_order=numeric_date_order,
+            )
+        ),
+        context=context,
+    )
+    report_date_run(
+        date_sequence,
+        diagnostics=diagnostics,
+        evidence_for=lambda row_index: grid.evidence(
+            row_index,
+            DATE_COLUMN,
+            extraction_rule=RULE_DATE_SEQUENCE,
+        ),
+    )
+
     for row_index in range(worksheet.row_count):
         diagnostics.increment(METRIC_ROWS_SCANNED)
         first = grid.text(row_index, DATE_COLUMN)
@@ -288,9 +319,12 @@ def _parse_worksheet(
             )
             continue
 
-        resolved = resolve_cell_date(
-            grid.resolve(row_index, DATE_COLUMN).cell,
-            numeric_order=numeric_date_order,
+        resolved = date_sequence.resolution(
+            row_index,
+            resolve_cell_date(
+                grid.resolve(row_index, DATE_COLUMN).cell,
+                numeric_order=numeric_date_order,
+            ),
         )
         if block is not None and block.is_readable:
             if resolved.resolved:
@@ -334,6 +368,28 @@ def _parse_worksheet(
         )
 
     return held_a_block
+
+
+def _worksheet_dates(
+    *,
+    worksheet: NormalizedWorksheet,
+    grid: WorksheetGrid,
+    numeric_date_order: NumericDateOrder,
+) -> Iterator[DateSequenceEntry]:
+    """Resolve every cell of the date column that reads as a date.
+
+    The column also holds block titles, department headers and free-text topic
+    lists, so membership of the run is decided by whether the cell resolves
+    rather than by where it sits. A row of prose does not resolve to a date, and
+    a row that does is a rotation date whatever else surrounds it.
+    """
+    for row_index in range(worksheet.row_count):
+        resolution = resolve_cell_date(
+            grid.resolve(row_index, DATE_COLUMN).cell,
+            numeric_order=numeric_date_order,
+        )
+        if resolution.resolved:
+            yield DateSequenceEntry(key=row_index, resolution=resolution)
 
 
 def _states_cohorts(grid: WorksheetGrid, row_index: int, block: _Block) -> bool:

@@ -1,8 +1,8 @@
 {
   "fixture": "real/g2-anatomy-spring.snapshot.json",
-  "parserEngineVersion": "0.3.0",
+  "parserEngineVersion": "0.4.0",
   "payload": {
-    "candidateCount": 66,
+    "candidateCount": 69,
     "candidateDigests": [
       "1!R2C3|2026-01-27|13:30-14:20|anatomyPractice|id:e6bf3fa2645db36d|content:5d749150a9cabb52|Diseksiyon",
       "1!R3C3|2026-01-27|14:30-15:20|anatomyPractice|id:31a5b74f8bef9622|content:9c9e59c1b5cbd883|Diseksiyon",
@@ -61,6 +61,9 @@
       "2!R7C3|2026-04-07|13:30-14:20|anatomyPractice|id:5a5dd9e818256efb|content:ce1d29f4a4035ccd|Diseksiyon",
       "2!R8C3|2026-04-07|14:30-15:20|anatomyPractice|id:bc2f3963cad2e15d|content:54961625d819ea09|Diseksiyon",
       "2!R9C3|2026-04-07|15:30-16:20|anatomyPractice|id:9e7f99a9164fbc8b|content:719b8a95f2bc59f1|Diseksiyon",
+      "2!R10C3|2026-04-09|13:30-14:20|anatomyPractice|id:d04e6e25d3b8e6c8|content:8333923216c2fd1a|Diseksiyon",
+      "2!R11C3|2026-04-09|14:30-15:20|anatomyPractice|id:99b7ee6c0ae470d7|content:393bf4945d3ee7f2|Diseksiyon",
+      "2!R12C3|2026-04-09|15:30-16:20|anatomyPractice|id:f0ff21e1c1c81421|content:f4942ee47ddf8ea8|Diseksiyon",
       "2!R13C3|2026-04-14|13:30-14:20|anatomyPractice|id:bd67a74680787f96|content:1fe1ee338b54f3e9|Diseksiyon",
       "2!R14C3|2026-04-14|14:30-15:20|anatomyPractice|id:ddb11ccd993a454a|content:6c7f0aa5ea0f22b3|Diseksiyon",
       "2!R15C3|2026-04-14|15:30-16:20|anatomyPractice|id:8c6d2b1bd8a0e9b6|content:0008d9060f737bb5|Diseksiyon",
@@ -415,6 +418,24 @@
         "score": 0.9
       },
       {
+        "candidateId": "2!R10C3",
+        "field": "localDate",
+        "reason": "sequenceRepairedDate",
+        "score": 0.8
+      },
+      {
+        "candidateId": "2!R11C3",
+        "field": "localDate",
+        "reason": "sequenceRepairedDate",
+        "score": 0.8
+      },
+      {
+        "candidateId": "2!R12C3",
+        "field": "localDate",
+        "reason": "sequenceRepairedDate",
+        "score": 0.8
+      },
+      {
         "candidateId": "2!R13C3",
         "field": "localDate",
         "reason": "monthNameDate",
@@ -643,17 +664,22 @@
       {
         "name": "audience.dimension.anatomyGroup",
         "unit": null,
-        "value": 66.0
+        "value": 69.0
       },
       {
         "name": "candidates.emitted",
         "unit": null,
-        "value": 66.0
+        "value": 69.0
       },
       {
         "name": "candidates.eventType.anatomyPractice",
         "unit": null,
-        "value": 66.0
+        "value": 69.0
+      },
+      {
+        "name": "dates.outOfSequence.repaired",
+        "unit": null,
+        "value": 1.0
       },
       {
         "name": "dates.rule.monthNameDate",
@@ -661,14 +687,14 @@
         "value": 22.0
       },
       {
+        "name": "dates.rule.sequenceRepairedDate",
+        "unit": null,
+        "value": 1.0
+      },
+      {
         "name": "days.detected",
         "unit": null,
         "value": 23.0
-      },
-      {
-        "name": "days.ignored.weekdayContradictsSlotDate",
-        "unit": null,
-        "value": 1.0
       },
       {
         "name": "rows.dateFromDayBlock",
@@ -683,20 +709,10 @@
       {
         "name": "rows.ignored",
         "unit": null,
-        "value": 4.0
-      },
-      {
-        "name": "rows.ignored.notADissectionRow",
-        "unit": null,
         "value": 1.0
       },
       {
-        "name": "rows.ignored.rowInRefusedDay",
-        "unit": null,
-        "value": 2.0
-      },
-      {
-        "name": "rows.ignored.weekdayContradictsSlotDate",
+        "name": "rows.ignored.notADissectionRow",
         "unit": null,
         "value": 1.0
       },
@@ -718,9 +734,9 @@
     ],
     "parserProfile": {
       "name": "grade2_anatomy_spring_v1",
-      "version": "1.1.0"
+      "version": "1.2.0"
     },
-    "responseDigest": "sha256:0720aa1f6ae4ae75d8c66c6ed2f0d5792cd7e6c6c68de3665dfb58aa1ce5a58e",
+    "responseDigest": "sha256:06e0f254455ecf2a5ea0a9aad83f2e517cb4a6537074f00bbdab70b7d3f2e79a",
     "snapshotId": "fixture:sha256:32ebc77ae922806b11c3231c9b8ad95af761b9233a7e8ea493bffe56214608de",
     "sourceId": "G2-ANATOMY-SPRING",
     "status": "completedWithWarnings",
@@ -728,6 +744,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "anatomy.row",
           "range": "A1:C1",
@@ -740,29 +757,30 @@
       },
       {
         "candidateId": null,
-        "code": "rowsIgnored",
+        "code": "outOfSequenceDateRepaired",
+        "detail": {
+          "applied": "2026-04-09",
+          "candidates": [
+            {
+              "rule": "sequenceYearSubstitution",
+              "value": "2026-04-09",
+              "weekdayMatches": true
+            }
+          ],
+          "lowerAnchor": "2026-04-07",
+          "original": "2025-04-09",
+          "reason": "repaired",
+          "upperAnchor": "2026-04-14"
+        },
         "evidence": {
-          "extractionRule": "anatomy.dateCell",
+          "extractionRule": "dateSequence",
           "range": "A10:A12",
           "rawText": "\n9 Nisan 2025 Perşembe",
           "sheetId": "2",
           "sheetTitle": "Table 2"
         },
-        "message": "Dissection day states '9 Nisan 2025 Perşembe', but 2025-04-09 is not a 'Perşembe'. The cell contradicts itself, so nothing was published from it; correcting either part would be a guess. 3 dissection hour(s) were not published.",
+        "message": "The source dates this row 2025-04-09, which falls outside the run it sits in (2026-04-07 to 2026-04-14). Substituting the year is the only reading that fits, so the row was read as 2026-04-09 rather than as written; whatever it publishes carries that date. Reject the revision if the source means what it says.",
         "severity": "warning"
-      },
-      {
-        "candidateId": null,
-        "code": "rowsIgnored",
-        "evidence": {
-          "extractionRule": "anatomy.timeRangeCell",
-          "range": "B11",
-          "rawText": "14:30-15:20",
-          "sheetId": "2",
-          "sheetTitle": "Table 2"
-        },
-        "message": "Rows were ignored because of rule 'rowInRefusedDay'. See metric 'rows.ignored.rowInRefusedDay' for the total.",
-        "severity": "information"
       }
     ]
   },

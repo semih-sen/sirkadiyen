@@ -72,6 +72,9 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<ISourceDocumentUploadAuditStore, SourceDocumentUploadAuditStore>();
         services.AddScoped<IScheduleParseResultStore, ScheduleParseResultStore>();
         services.AddScoped<IGroupRotationCoverageStore, GroupRotationCoverageStore>();
+        services.AddScoped<
+            IScheduleSourceDateCorrectionStore,
+            ScheduleSourceDateCorrectionStore>();
         services.AddScoped<IScheduleRevisionValidationStore, ScheduleRevisionValidationStore>();
         services.AddScoped<IScheduleRevisionPublicationStore, ScheduleRevisionPublicationStore>();
         services.AddScoped<IScheduleRevisionReadStore, ScheduleRevisionReadStore>();

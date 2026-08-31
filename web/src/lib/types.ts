@@ -913,6 +913,43 @@ export interface ScheduleRevisionSummary {
   stateReason?: string | null;
 }
 
+/** One date an operator has decided a source states wrongly (ADR-139). */
+export interface SourceDateCorrectionView {
+  id: string;
+  sourceId: string;
+  /** The date the document resolves to today, `yyyy-MM-dd`. */
+  original: string;
+  /** The date it means. */
+  corrected: string;
+  decidedBy: string;
+  decidedAtUtc: string;
+  note: string;
+}
+
+/**
+ * One out-of-sequence date, as the `RecordDateOutOfSequence` finding records it (ADR-139).
+ *
+ * The finding's `detail` is an array of these. They are the only evidence shape the review screen
+ * reads by name rather than rendering generically, because they are the only one an operator acts
+ * on: accepting a candidate writes a source date correction from `original` to that candidate.
+ */
+export interface RevisionDateAnomalyView {
+  original: string;
+  /** The date the parser published instead, or null when it published the original. */
+  applied?: string | null;
+  lowerAnchor?: string | null;
+  upperAnchor?: string | null;
+  reason: string;
+  /** Where in the document the date is, so a reviewer can open the cell. */
+  cell?: string | null;
+  candidates: {
+    value: string;
+    rule: string;
+    /** Whether the cell's own weekday agrees; null when it states none. */
+    weekdayMatches?: boolean | null;
+  }[];
+}
+
 export interface RevisionFindingView {
   rule: string;
   severity: ValidationSeverity;

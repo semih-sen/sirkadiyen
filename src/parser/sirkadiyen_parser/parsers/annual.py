@@ -37,6 +37,7 @@ from sirkadiyen_parser.contracts.snapshot import NormalizedWorksheet
 from sirkadiyen_parser.diagnostics import ParseDiagnostics
 from sirkadiyen_parser.identity import build_identity_components, content_hash, stable_identity
 from sirkadiyen_parser.normalization.courses import course_identity, normalize_course_title
+from sirkadiyen_parser.normalization.date_sequence import DateSequence, DateSequenceEntry
 from sirkadiyen_parser.normalization.dates import (
     DateResolution,
     NumericDateOrder,
@@ -64,6 +65,12 @@ from sirkadiyen_parser.parsers.amphitheatre import (
     read_amphitheatre_document,
 )
 from sirkadiyen_parser.parsers.bedside import read_bedside_document
+from sirkadiyen_parser.parsers.date_repair import (
+    RULE_DATE_SEQUENCE,
+    read_date_run,
+    report_date_corrections,
+    report_date_run,
+)
 from sirkadiyen_parser.profiles import ParserProfileDefinition
 
 ROLE_TERM = "term"
@@ -448,6 +455,7 @@ def parse_annual_snapshot(
 
     bedside_topics = _read_companion_topics(request, profile, diagnostics)
     amphitheatre = _read_amphitheatre_companion(request, profile, diagnostics)
+    report_date_corrections(diagnostics=diagnostics, context=request.source_context)
 
     for worksheet in request.snapshot.worksheets:
         grid = WorksheetGrid(worksheet)
@@ -614,6 +622,32 @@ def _parse_worksheet(
     # the fallback sees any change in the order of its candidates or findings.
     pending_rotation: list[_CandidateDraft] = []
 
+    # A workbook writes its rows in date order, which is the only corroboration
+    # a hand-typed date has, so the whole column is read as one run before any
+    # row becomes a lesson (ADR-139). A worksheet whose dates are sound produces
+    # no repairs and no warnings, and publishes exactly what it always did.
+    date_sequence = read_date_run(
+        tuple(
+            _worksheet_dates(
+                worksheet=worksheet,
+                grid=grid,
+                header_row=header_row,
+                date_column=columns[ROLE_DATE],
+                numeric_date_order=numeric_date_order,
+            )
+        ),
+        context=context,
+    )
+    report_date_run(
+        date_sequence,
+        diagnostics=diagnostics,
+        evidence_for=lambda row_index: grid.evidence(
+            row_index,
+            columns[ROLE_DATE],
+            extraction_rule=RULE_DATE_SEQUENCE,
+        ),
+    )
+
     for row_index in range(header_row + 1, worksheet.row_count):
         diagnostics.increment(METRIC_ROWS_SCANNED)
         if grid.is_row_hidden(row_index):
@@ -632,6 +666,7 @@ def _parse_worksheet(
             row=row,
             context=context,
             numeric_date_order=numeric_date_order,
+            date_sequence=date_sequence,
             group_rotation_subjects=group_rotation_subjects,
             group_rotation_fallback=group_rotation_fallback,
             group_rotation_covered_dates=group_rotation_covered_dates,
@@ -655,11 +690,38 @@ def _parse_worksheet(
         _accept(draft=draft, diagnostics=diagnostics, accumulator=accumulator)
 
 
+def _worksheet_dates(
+    *,
+    worksheet: NormalizedWorksheet,
+    grid: WorksheetGrid,
+    header_row: int,
+    date_column: int,
+    numeric_date_order: NumericDateOrder,
+) -> Iterator[DateSequenceEntry]:
+    """Resolve the worksheet's date cells in row order.
+
+    Only rows that write something in the date column take part. A blank date
+    cell is a spacer or a row this profile refuses for its own reasons, and
+    either way it states no position in the run.
+    """
+    for row_index in range(header_row + 1, worksheet.row_count):
+        if not grid.text(row_index, date_column):
+            continue
+        yield DateSequenceEntry(
+            key=row_index,
+            resolution=resolve_cell_date(
+                grid.resolve(row_index, date_column).cell,
+                numeric_order=numeric_date_order,
+            ),
+        )
+
+
 def _parse_row(
     *,
     row: _RowContext,
     context: ParseSourceContext,
     numeric_date_order: NumericDateOrder,
+    date_sequence: DateSequence,
     group_rotation_subjects: frozenset[str],
     group_rotation_fallback: bool,
     group_rotation_covered_dates: frozenset[date],
@@ -718,6 +780,7 @@ def _parse_row(
     resolved_date = _resolve_date(
         row=row,
         numeric_date_order=numeric_date_order,
+        date_sequence=date_sequence,
         diagnostics=diagnostics,
     )
     if resolved_date is None:
@@ -829,7 +892,7 @@ def _read_companion_topics(
     for snapshot in request.auxiliary_snapshots:
         document = read_bedside_document(
             snapshot,
-            class_year=request.source_context.class_year,
+            context=request.source_context,
             numeric_date_order=profile.companion_numeric_date_order,
         )
         topics.update(document.topics_by_date())
@@ -868,7 +931,10 @@ def _read_amphitheatre_companion(
 
     assignments: list[AmphitheatreAssignment] = []
     for snapshot in request.auxiliary_snapshots:
-        document = read_amphitheatre_document(snapshot)
+        document = read_amphitheatre_document(
+            snapshot,
+            context=request.source_context,
+        )
         assignments.extend(document.assignments)
 
     index = AmphitheatreIndex(AmphitheatreDocument(assignments=tuple(assignments)))
@@ -1092,6 +1158,7 @@ def _resolve_date(
     *,
     row: _RowContext,
     numeric_date_order: NumericDateOrder,
+    date_sequence: DateSequence,
     diagnostics: ParseDiagnostics,
 ) -> DateResolution | None:
     column = row.columns[ROLE_DATE]
@@ -1108,7 +1175,12 @@ def _resolve_date(
     # The date column is declared to hold dates, but a bare number is still not
     # read as a serial: the source has put serials into neighbouring columns by
     # accident, and a wrongly typed cell must surface rather than resolve.
-    resolution = resolve_cell_date(cell, numeric_order=numeric_date_order)
+    # The worksheet's chronological reading wins where it made one, and answers
+    # with exactly this cell's own resolution everywhere else (ADR-139).
+    resolution = date_sequence.resolution(
+        row.row_index,
+        resolve_cell_date(cell, numeric_order=numeric_date_order),
+    )
     if not resolution.resolved:
         diagnostics.record_ignored_row(
             REASON_UNRESOLVED_DATE,

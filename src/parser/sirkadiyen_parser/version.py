@@ -10,6 +10,17 @@ requires bumping this value *and* bumping every parser-profile version whose
 output can change, because only the profile version travels on the wire.
 """
 
+#: 0.4.0 reads a date column chronologically and repairs a mistyped year from the
+#: dates around it (ADR-139). Every profile that reads a date is bumped with it,
+#: because a stored snapshot cannot be proved free of such a cell the way the
+#: fixtures can — and six committed fixtures are not: `G1-TR-ANNUAL` dates a
+#: lunch break 2027-11-30 among 2026-11-30 rows, `G1-TR-PRACTICE` dates a session
+#: 2020-11-20 between two 2026-11-20 rows, and `G2-TR-PRACTICE`,
+#: `G2-VERTICAL-AUTUMN`, `G2-VERTICAL-SPRING` and `G2-ANATOMY-SPRING` each carry
+#: a date whose year is a year out and whose own weekday says so. The last four
+#: used to be refused whole; they now publish. `grade3_faculty_locations_v1` is
+#: pinned rather than bumped: its document states no date at all.
+#:
 #: 0.3.0 reads a one-letter cohort label written with a Turkish dotted or dotless
 #: `i` as the ASCII letter `comparison_key` already folds it to, so `İ1` and `i1`
 #: are one cohort rather than one cohort and one refusal (ADR-130). Longer tokens
@@ -30,4 +41,4 @@ output can change, because only the profile version travels on the wire.
 #: `grade1_yearly_v1` 1.5.0 reparses its stored snapshots, which cannot be proved
 #: free of such a cell the way the fixtures can. `grade1_practice_v1` reads only
 #: time ranges written as text and is untouched.
-PARSER_ENGINE_VERSION = "0.3.0"
+PARSER_ENGINE_VERSION = "0.4.0"

@@ -33,6 +33,7 @@ public sealed class ScheduleSourcePollerTests
             parserClient,
             resultStore,
             new FakeGroupRotationCoverageStore(),
+            new FakeDateCorrectionStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new FakeWeeklyDocumentDiscovery(),
@@ -64,6 +65,7 @@ public sealed class ScheduleSourcePollerTests
             parserClient,
             resultStore,
             new FakeGroupRotationCoverageStore(),
+            new FakeDateCorrectionStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new FakeWeeklyDocumentDiscovery(),
@@ -93,6 +95,7 @@ public sealed class ScheduleSourcePollerTests
             parser,
             new FakeParseResultStore(shouldInvokeParser: true),
             new FakeGroupRotationCoverageStore(),
+            new FakeDateCorrectionStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new FakeWeeklyDocumentDiscovery(),
@@ -121,6 +124,7 @@ public sealed class ScheduleSourcePollerTests
             parser,
             new FakeParseResultStore(shouldInvokeParser: true),
             new FakeGroupRotationCoverageStore(),
+            new FakeDateCorrectionStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new FakeWeeklyDocumentDiscovery(),
@@ -152,6 +156,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeParserClient(),
             parseStore,
             new FakeGroupRotationCoverageStore(),
+            new FakeDateCorrectionStore(),
             ValidationService(),
             new FakeOperationalFreezeStore { IsFrozen = true },
             new FakeWeeklyDocumentDiscovery(),
@@ -181,6 +186,7 @@ public sealed class ScheduleSourcePollerTests
             parser,
             new FakeParseResultStore(shouldInvokeParser: true),
             new FakeGroupRotationCoverageStore(),
+            new FakeDateCorrectionStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new FakeWeeklyDocumentDiscovery(),
@@ -213,6 +219,7 @@ public sealed class ScheduleSourcePollerTests
             parser,
             new FakeParseResultStore(shouldInvokeParser: true),
             new FakeGroupRotationCoverageStore(),
+            new FakeDateCorrectionStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new FakeWeeklyDocumentDiscovery(),
@@ -247,6 +254,7 @@ public sealed class ScheduleSourcePollerTests
             parser,
             new FakeParseResultStore(shouldInvokeParser: true),
             new FakeGroupRotationCoverageStore(),
+            new FakeDateCorrectionStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new FakeWeeklyDocumentDiscovery(),
@@ -286,6 +294,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeParserClient(),
             new FakeParseResultStore(shouldInvokeParser: true),
             new FakeGroupRotationCoverageStore(),
+            new FakeDateCorrectionStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(isFrozen: true),
             new FakeWeeklyDocumentDiscovery(),
@@ -323,6 +332,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeParserClient(),
             new FakeParseResultStore(shouldInvokeParser: true),
             new FakeGroupRotationCoverageStore(),
+            new FakeDateCorrectionStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new FakeWeeklyDocumentDiscovery(),
@@ -350,6 +360,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeParserClient(),
             parseStore,
             new FakeGroupRotationCoverageStore(),
+            new FakeDateCorrectionStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(isFrozen: true),
             new FakeWeeklyDocumentDiscovery(),
@@ -375,6 +386,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeParserClient(),
             new FakeParseResultStore(shouldInvokeParser: true),
             new FakeGroupRotationCoverageStore(),
+            new FakeDateCorrectionStore(),
             ValidationService(),
             new FakeOperationalFreezeStore
             {
@@ -407,6 +419,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeParserClient(),
             parseStore,
             new FakeGroupRotationCoverageStore(),
+            new FakeDateCorrectionStore(),
             ValidationService(),
             freeze,
             new FakeWeeklyDocumentDiscovery(),
@@ -446,6 +459,7 @@ public sealed class ScheduleSourcePollerTests
             parser,
             resultStore,
             new FakeGroupRotationCoverageStore(),
+            new FakeDateCorrectionStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new FakeWeeklyDocumentDiscovery(),
@@ -488,6 +502,7 @@ public sealed class ScheduleSourcePollerTests
             parser,
             resultStore,
             new FakeGroupRotationCoverageStore(),
+            new FakeDateCorrectionStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new FakeWeeklyDocumentDiscovery(),
@@ -574,6 +589,7 @@ public sealed class ScheduleSourcePollerTests
             parser,
             resultStore,
             coverage,
+            new FakeDateCorrectionStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new FakeWeeklyDocumentDiscovery(),
@@ -618,6 +634,7 @@ public sealed class ScheduleSourcePollerTests
             parser,
             resultStore,
             coverage,
+            new FakeDateCorrectionStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new FakeWeeklyDocumentDiscovery(),
@@ -648,6 +665,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeParserClient(),
             resultStore,
             new FakeGroupRotationCoverageStore(),
+            new FakeDateCorrectionStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new FakeWeeklyDocumentDiscovery(),
@@ -809,6 +827,7 @@ public sealed class ScheduleSourcePollerTests
             new FakeParserClient(),
             new FakeParseResultStore(shouldInvokeParser: false),
             new FakeGroupRotationCoverageStore(),
+            new FakeDateCorrectionStore(),
             ValidationService(),
             new FakeOperationalFreezeStore(),
             new FakeWeeklyDocumentDiscovery("this-weeks-workbook"),
@@ -936,6 +955,28 @@ public sealed class ScheduleSourcePollerTests
                 Status = ParserResultStatus.Completed,
             });
         }
+    }
+
+    /// <summary>No source in these tests has an accepted date correction (ADR-139).</summary>
+    private sealed class FakeDateCorrectionStore(
+        params ScheduleSourceDateCorrection[] corrections)
+        : IScheduleSourceDateCorrectionStore
+    {
+        public Task<IReadOnlyList<ScheduleSourceDateCorrection>> ListForSourceAsync(
+            SourceId sourceId,
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<ScheduleSourceDateCorrection>>(corrections);
+
+        public Task<ScheduleSourceDateCorrection> AcceptAsync(
+            ScheduleSourceDateCorrection correction,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
+        public Task<bool> RetireAsync(
+            SourceId sourceId,
+            Guid correctionId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
     }
 
     private sealed class FakeGroupRotationCoverageStore(params DateOnly[] published)

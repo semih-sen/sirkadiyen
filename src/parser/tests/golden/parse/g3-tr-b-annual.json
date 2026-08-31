@@ -1,6 +1,6 @@
 {
   "fixture": "real/g3-tr-b-annual.snapshot.json",
-  "parserEngineVersion": "0.3.0",
+  "parserEngineVersion": "0.4.0",
   "payload": {
     "candidateCount": 1110,
     "candidateDigests": [
@@ -1394,6 +1394,16 @@
         "value": 700.0
       },
       {
+        "name": "dates.outOfSequence.suggested",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "dates.outOfSequence.suggested.noCandidateFitsTheAnchors",
+        "unit": null,
+        "value": 1.0
+      },
+      {
         "name": "dates.rule.serialDate",
         "unit": null,
         "value": 1110.0
@@ -1476,16 +1486,38 @@
     ],
     "parserProfile": {
       "name": "grade3_yearly_v1",
-      "version": "1.3.0"
+      "version": "1.4.0"
     },
-    "responseDigest": "sha256:4d91629791a6426e146aeae5c1ad48381d557ecbab25a5a44745679a448a39fa",
+    "responseDigest": "sha256:86a33d4d5ed3964fd3296b21f7b34f851536f1b35ffb6dbf1e49a8333fb83e53",
     "snapshotId": "fixture:sha256:9cab38024268178e5b29e508e5de9c4f764f6ef2c5fde70a72dc2be343761c34",
     "sourceId": "G3-TR-B-ANNUAL",
     "status": "completedWithWarnings",
     "warnings": [
       {
         "candidateId": null,
+        "code": "outOfSequenceDateNotRepaired",
+        "detail": {
+          "applied": null,
+          "candidates": [],
+          "lowerAnchor": "2026-11-09",
+          "original": "2026-12-23",
+          "reason": "noCandidateFitsTheAnchors",
+          "upperAnchor": "2026-11-10"
+        },
+        "evidence": {
+          "extractionRule": "dateSequence",
+          "range": "B320",
+          "rawText": "46379",
+          "sheetId": "1",
+          "sheetTitle": "B GRUBU"
+        },
+        "message": "The source dates this row 2026-12-23, which falls outside the run it sits in (2026-11-09 to 2026-11-10), and it was read as written. No year puts this day and month between its neighbours, so the row states something this analysis cannot explain as a mistyped year.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A79:G79",
@@ -1499,6 +1531,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A100:G100",
@@ -1512,6 +1545,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A116:G116",
@@ -1525,6 +1559,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A159:G159",
@@ -1538,6 +1573,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A227:G227",
@@ -1551,6 +1587,7 @@
       {
         "candidateId": "1!R292",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F292",
@@ -1564,6 +1601,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A320:G320",
@@ -1577,6 +1615,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.termCell",
           "range": "A436",
@@ -1590,6 +1629,7 @@
       {
         "candidateId": "1!R506",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F506",
@@ -1603,6 +1643,7 @@
       {
         "candidateId": "1!R506",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F506",
@@ -1616,6 +1657,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A623:G623",
@@ -1629,6 +1671,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A857:G857",
@@ -1642,6 +1685,7 @@
       {
         "candidateId": "1!R877",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F877",
@@ -1655,6 +1699,7 @@
       {
         "candidateId": "1!R994",
         "code": "unmarkedBlockDepartmentSegment",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.blockCell",
           "range": "F994",
@@ -1668,6 +1713,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A1224:G1224",
@@ -1681,6 +1727,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A1225:G1225",
@@ -1694,6 +1741,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A1228:G1228",
@@ -1707,6 +1755,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "annual.row",
           "range": "A1234:G1234",

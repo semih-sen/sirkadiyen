@@ -1,6 +1,6 @@
 {
   "fixture": "real/g1-en-practice.snapshot.json",
-  "parserEngineVersion": "0.3.0",
+  "parserEngineVersion": "0.4.0",
   "payload": {
     "candidateCount": 88,
     "candidateDigests": [
@@ -357,9 +357,9 @@
     ],
     "parserProfile": {
       "name": "grade1_practice_v1",
-      "version": "1.1.0"
+      "version": "1.2.0"
     },
-    "responseDigest": "sha256:52809c542dbcad4ed8868a6f09c038d6cbb611e2c0e807818143ed14fb3b7831",
+    "responseDigest": "sha256:6e5ba343b8224e41d346242ee67f7d3f212678024feb168796d929d8a6d81c02",
     "snapshotId": "fixture:sha256:36df0ae4f3de4d09155f15905c26c13b428f0c310dabe96c56ba3facc9b9540b",
     "sourceId": "G1-EN-PRACTICE",
     "status": "completedWithWarnings",
@@ -367,6 +367,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "C33",
@@ -380,6 +381,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "D33",
@@ -393,6 +395,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "E33",
@@ -406,6 +409,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "F33",
@@ -419,6 +423,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A34:F34",
@@ -432,6 +437,7 @@
       {
         "candidateId": null,
         "code": "outOfScopeSubjectColumn",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.subjectHeader",
           "range": "G36",
@@ -445,6 +451,7 @@
       {
         "candidateId": null,
         "code": "outOfScopeSubjectColumn",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.subjectHeader",
           "range": "G141",
@@ -458,6 +465,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "E211:F211",
@@ -471,6 +479,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "E211:F211",
@@ -484,6 +493,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "G211",
@@ -497,6 +507,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "E212:F212",
@@ -510,6 +521,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "E212:F212",
@@ -523,6 +535,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "G212",
@@ -536,6 +549,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "E213:F213",
@@ -549,6 +563,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "E213:F213",
@@ -562,6 +577,7 @@
       {
         "candidateId": null,
         "code": "cellsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.groupCell",
           "range": "G213",
@@ -575,6 +591,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A214:G214",
@@ -588,6 +605,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A215:G215",
@@ -601,6 +619,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A216:G216",
@@ -614,6 +633,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A217:G217",
@@ -627,6 +647,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A218:G218",
@@ -640,6 +661,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A219:G219",
@@ -653,6 +675,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A220:G220",
@@ -666,6 +689,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A221:G221",
@@ -679,6 +703,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A222:G222",
@@ -692,6 +717,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A223:G223",
@@ -705,6 +731,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A224:G224",
@@ -718,6 +745,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A225:G225",
@@ -731,6 +759,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A226:G226",
@@ -744,6 +773,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A227:G227",
@@ -757,6 +787,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A228:G228",
@@ -770,6 +801,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A229:G229",
@@ -783,6 +815,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A230:G230",
@@ -796,6 +829,7 @@
       {
         "candidateId": null,
         "code": "rowsIgnored",
+        "detail": null,
         "evidence": {
           "extractionRule": "practice.row",
           "range": "A231:G231",

@@ -20,7 +20,10 @@ the one that decides *which* students receive an event:
 - A slot whose header states a weekday that contradicts its own date is refused.
   These headers are typed by hand, the weekday is the only corroboration the
   cell carries, and the real workbook contains four dates whose year is a year
-  out — each caught exactly this way. Correcting the year would be inference.
+  out — each caught exactly this way. Two of them are now repaired before the
+  refusal rules see them, because the table's own date order says which year was
+  meant and the cell's own weekday agrees (ADR-139); the other two are refused
+  exactly as before, and neither is ever corrected on a guess.
 - A cell that states a session but not who attends — a bare ``*``, a make-up
   marker — publishes nothing. Refusing loses one session for one group;
   publishing it to everyone puts a lesson in the wrong students' calendars.
@@ -50,6 +53,7 @@ from sirkadiyen_parser.contracts.snapshot import NormalizedWorksheet
 from sirkadiyen_parser.diagnostics import ParseDiagnostics
 from sirkadiyen_parser.identity import build_identity_components, content_hash, stable_identity
 from sirkadiyen_parser.normalization.courses import course_identity, normalize_course_title
+from sirkadiyen_parser.normalization.date_sequence import DateSequence, DateSequenceEntry
 from sirkadiyen_parser.normalization.dates import (
     DateResolution,
     NumericDateOrder,
@@ -74,6 +78,12 @@ from sirkadiyen_parser.parsers.cohort_rotation import (
     cohort_audience_selectors,
     date_refusal,
     read_cohort_groups,
+)
+from sirkadiyen_parser.parsers.date_repair import (
+    RULE_DATE_SEQUENCE,
+    read_date_run,
+    report_date_corrections,
+    report_date_run,
 )
 from sirkadiyen_parser.parsers.practice import (
     DIMENSION_PRACTICE_GROUP,
@@ -245,6 +255,7 @@ def parse_practice_slot_snapshot(
     accumulator = _Accumulator()
 
     diagnostics.set_metric(METRIC_WORKSHEETS_SCANNED, len(request.snapshot.worksheets))
+    report_date_corrections(diagnostics=diagnostics, context=request.source_context)
     selected = 0
 
     for worksheet in request.snapshot.worksheets:
@@ -335,6 +346,7 @@ def _parse_worksheet(
                 grid=grid,
                 row_index=row_index,
                 heading=heading,
+                context=context,
                 numeric_date_order=profile.numeric_date_order,
                 diagnostics=diagnostics,
             )
@@ -410,9 +422,48 @@ def _read_slot_table(
     grid: WorksheetGrid,
     row_index: int,
     heading: str | None,
+    context: ParseSourceContext,
     numeric_date_order: NumericDateOrder,
     diagnostics: ParseDiagnostics,
 ) -> _SlotTable:
+    """Read one slot-header row into the dated columns it declares.
+
+    The headers are split before any of them becomes a slot, because a table's
+    slots run left to right in date order and that order is what identifies a
+    mistyped year (ADR-139). A table whose dates are sound is unaffected: the
+    analysis returns nothing and every column resolves exactly as it did.
+    """
+    headers = [
+        (column, header)
+        for column in range(FIRST_SLOT_COLUMN, grid.worksheet.column_count)
+        if grid.text(row_index, column)
+        and (header := _read_slot_header(grid, row_index, column)) is not None
+    ]
+
+    date_sequence = read_date_run(
+        _in_slot_order(
+            tuple(
+                (
+                    column,
+                    header,
+                    resolve_date_text(header.date_text, numeric_order=numeric_date_order),
+                )
+                for column, header in headers
+                if header.time_range.resolved
+            )
+        ),
+        context=context,
+    )
+    report_date_run(
+        date_sequence,
+        diagnostics=diagnostics,
+        evidence_for=lambda column: grid.evidence(
+            row_index,
+            column,
+            extraction_rule=RULE_DATE_SEQUENCE,
+        ),
+    )
+
     slots: list[_Slot] = []
     refused: set[int] = set()
     for column in range(FIRST_SLOT_COLUMN, grid.worksheet.column_count):
@@ -426,6 +477,7 @@ def _read_slot_table(
             row_index=row_index,
             column=column,
             numeric_date_order=numeric_date_order,
+            date_sequence=date_sequence,
             diagnostics=diagnostics,
         )
         if slot is None:
@@ -441,33 +493,79 @@ def _read_slot_table(
     )
 
 
-def _read_slot(
-    *,
+def _in_slot_order(
+    headers: Sequence[tuple[int, "_SlotHeader", DateResolution]],
+) -> tuple[DateSequenceEntry, ...]:
+    """Order a table's dated headers by the slot number the source gives them.
+
+    Column order is not date order in this document, and reading it as one would
+    report sound dates as anomalies. Two layouts prove it: a table may end with
+    extra columns that repeat earlier days at a second hour, and one writes the
+    slot number ``1/7`` twice, once for the slot that actually follows ``1/6``.
+    The number is what the source states about the order, so it is what the order
+    is taken from, and a repeated number keeps its hours together.
+
+    Headers sharing a number are ordered among themselves by their own date. One
+    number states no order between its parts, so any other tie-break would invent
+    one — and inventing one here is what reported the second ``1/7`` as an
+    anomaly while the source was merely repeating a label.
+
+    Columns the source leaves unnumbered are dropped rather than appended. They
+    carry no statement about where they belong, and a position guessed from the
+    layout would be exactly the kind of inference this analysis exists to avoid —
+    at the price that a mistyped date in one of them is offered no correction.
+    """
+    numbered = [
+        (ordinal, resolution.value or date.max, column, resolution)
+        for column, header, resolution in headers
+        if (ordinal := _slot_ordinal(header.label)) is not None
+    ]
+    return tuple(
+        DateSequenceEntry(key=column, resolution=resolution)
+        for _, _, column, resolution in sorted(numbered, key=lambda entry: entry[:3])
+    )
+
+
+def _slot_ordinal(label: str | None) -> tuple[int, int] | None:
+    """Read a ``2/8`` slot label as the pair of numbers that orders it."""
+    if label is None:
+        return None
+    block, _, slot = label.partition("/")
+    return int(block.strip()), int(slot.strip())
+
+
+@dataclass(frozen=True, slots=True)
+class _SlotHeader:
+    """The parts a slot-header cell states, before its date is resolved."""
+
+    label: str | None
+    date_text: str
+    time_range: TimeRangeResolution
+
+    #: The line the time range was taken from, quoted verbatim when it could not
+    #: be read.
+    time_text: str
+
+
+def _read_slot_header(
     grid: WorksheetGrid,
     row_index: int,
     column: int,
-    numeric_date_order: NumericDateOrder,
-    diagnostics: ParseDiagnostics,
-) -> _Slot | None:
-    """Read one dated column header, or refuse it with its address.
+) -> _SlotHeader | None:
+    """Split one dated column header into its parts, or ``None`` when it has none.
 
     The header wraps a slot label, a date and a time range over separate lines,
     and the date itself sometimes wraps. The time range is therefore taken from
     the last line and the date from everything between the label and it.
+
+    Splitting is separated from resolving so that a table's dates can be read as
+    a run before any single one of them is judged.
     """
     resolved = grid.resolve(row_index, column)
     lines = list(text_lines(resolved.display_text or ""))
     label = lines[0] if lines and _SLOT_LABEL_PATTERN.match(lines[0]) else None
     body = lines[1:] if label is not None else lines
-
-    evidence = grid.evidence(row_index, column, extraction_rule=RULE_SLOT_HEADER)
     if not body:
-        _refuse_slot(
-            REASON_UNRESOLVED_SLOT_TIME,
-            "Slot header states no date or time range, so its column was not read.",
-            evidence=evidence,
-            diagnostics=diagnostics,
-        )
         return None
 
     date_parts = list(body[:-1])
@@ -482,19 +580,54 @@ def _read_slot(
             time_text = inline_match.group("range")
             time_range = resolve_time_range_text(time_text)
 
+    return _SlotHeader(
+        label=label,
+        date_text=_COMPACT_DAY_MONTH_PATTERN.sub(" ", " ".join(date_parts)),
+        time_range=time_range,
+        time_text=body[-1],
+    )
+
+
+def _read_slot(
+    *,
+    grid: WorksheetGrid,
+    row_index: int,
+    column: int,
+    numeric_date_order: NumericDateOrder,
+    date_sequence: DateSequence,
+    diagnostics: ParseDiagnostics,
+) -> _Slot | None:
+    """Read one dated column header, or refuse it with its address."""
+    header = _read_slot_header(grid, row_index, column)
+    evidence = grid.evidence(row_index, column, extraction_rule=RULE_SLOT_HEADER)
+    if header is None:
+        _refuse_slot(
+            REASON_UNRESOLVED_SLOT_TIME,
+            "Slot header states no date or time range, so its column was not read.",
+            evidence=evidence,
+            diagnostics=diagnostics,
+        )
+        return None
+
+    time_range = header.time_range
     if not time_range.resolved or time_range.start is None or time_range.end is None:
         _refuse_slot(
             REASON_UNRESOLVED_SLOT_TIME,
-            f"Slot header time range '{body[-1]}' could not be read "
+            f"Slot header time range '{header.time_text}' could not be read "
             f"({time_range.reason}), so its column was not read.",
             evidence=evidence,
             diagnostics=diagnostics,
         )
         return None
 
-    date_text = _COMPACT_DAY_MONTH_PATTERN.sub(" ", " ".join(date_parts))
-    resolved_date = resolve_date_text(date_text, numeric_order=numeric_date_order)
-    refusal = date_refusal(resolved_date, date_text)
+    # The table's chronological reading wins where it made one (ADR-139), and a
+    # repaired date faces the refusal rules exactly as a written one does: a year
+    # its own weekday corroborates is no longer a cell contradicting itself.
+    resolved_date = date_sequence.resolution(
+        column,
+        resolve_date_text(header.date_text, numeric_order=numeric_date_order),
+    )
+    refusal = date_refusal(resolved_date, header.date_text)
     if refusal is not None:
         reason, message = refusal
         _refuse_slot(reason, message, evidence=evidence, diagnostics=diagnostics)
@@ -503,7 +636,7 @@ def _read_slot(
     return _Slot(
         column=column,
         header_row=row_index,
-        label=label,
+        label=header.label,
         local_date=_require_date(resolved_date),
         start=time_range.start,
         end=time_range.end,

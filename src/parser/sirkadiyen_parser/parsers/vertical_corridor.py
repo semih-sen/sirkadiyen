@@ -51,6 +51,7 @@ from sirkadiyen_parser.contracts.snapshot import NormalizedWorksheet
 from sirkadiyen_parser.diagnostics import ParseDiagnostics
 from sirkadiyen_parser.identity import build_identity_components, content_hash, stable_identity
 from sirkadiyen_parser.normalization.courses import course_identity, normalize_course_title
+from sirkadiyen_parser.normalization.date_sequence import DateSequence, DateSequenceEntry
 from sirkadiyen_parser.normalization.dates import NumericDateOrder, resolve_date_text
 from sirkadiyen_parser.normalization.grid import WorksheetGrid
 from sirkadiyen_parser.normalization.groups import GroupExpression
@@ -69,6 +70,12 @@ from sirkadiyen_parser.parsers.cohort_rotation import (
     cohort_audience_selectors,
     date_refusal,
     read_cohort_groups,
+)
+from sirkadiyen_parser.parsers.date_repair import (
+    RULE_DATE_SEQUENCE,
+    read_date_run,
+    report_date_corrections,
+    report_date_run,
 )
 from sirkadiyen_parser.parsers.practice import split_trailing_note
 from sirkadiyen_parser.profiles import ParserProfileDefinition
@@ -200,6 +207,7 @@ def parse_vertical_corridor_snapshot(
     accumulator = _Accumulator()
 
     diagnostics.set_metric(METRIC_WORKSHEETS_SCANNED, len(request.snapshot.worksheets))
+    report_date_corrections(diagnostics=diagnostics, context=request.source_context)
     selected = 0
 
     for worksheet in request.snapshot.worksheets:
@@ -273,6 +281,23 @@ def _parse_worksheet(
     table: _Table | None = None
     parsed_any = False
 
+    # The dated rows run down the document in order, so they form one
+    # chronological run and a date that contradicts it is read as a mistyped
+    # year (ADR-139). A document whose dates are sound is unaffected.
+    date_sequence = read_date_run(
+        tuple(_worksheet_dates(grid=grid, numeric_date_order=profile.numeric_date_order)),
+        context=context,
+    )
+    report_date_run(
+        date_sequence,
+        diagnostics=diagnostics,
+        evidence_for=lambda row_index: grid.evidence(
+            row_index,
+            SLOT_COLUMN,
+            extraction_rule=RULE_DATE_SEQUENCE,
+        ),
+    )
+
     for row_index in range(grid.worksheet.row_count):
         diagnostics.increment(METRIC_ROWS_SCANNED)
 
@@ -292,6 +317,7 @@ def _parse_worksheet(
             row_index=row_index,
             table=table,
             numeric_date_order=profile.numeric_date_order,
+            date_sequence=date_sequence,
             group_rotation_subjects=frozenset(profile.group_rotation_subjects),
             diagnostics=diagnostics,
         )
@@ -415,12 +441,45 @@ def _read_place_statement(
     )
 
 
+def _worksheet_dates(
+    *,
+    grid: WorksheetGrid,
+    numeric_date_order: NumericDateOrder,
+) -> Iterator[DateSequenceEntry]:
+    """Resolve every slot cell that states a date, in row order.
+
+    Most rows of this document are not slots — notes, banners, spacers — so
+    membership of the run is decided by whether the cell's date lines resolve
+    rather than by where the row sits.
+    """
+    for row_index in range(grid.worksheet.row_count):
+        date_text = _slot_date_text(grid, row_index)
+        if date_text is None:
+            continue
+        resolution = resolve_date_text(date_text, numeric_order=numeric_date_order)
+        if resolution.resolved:
+            yield DateSequenceEntry(key=row_index, resolution=resolution)
+
+
+def _slot_date_text(grid: WorksheetGrid, row_index: int) -> str | None:
+    """Return the date lines of a slot cell, or ``None`` when it states none.
+
+    A slot cell wraps an optional label, a date that may itself wrap, and a time
+    range on the last line. Shared with :func:`_read_slot_row` so the run and the
+    row can never disagree about which text is the date.
+    """
+    lines = list(text_lines(grid.resolve(row_index, SLOT_COLUMN).display_text or ""))
+    body = lines[1:] if lines and _SLOT_LABEL_PATTERN.match(lines[0]) else lines
+    return " ".join(body[:-1]) if len(body) >= 2 else None
+
+
 def _read_slot_row(
     *,
     grid: WorksheetGrid,
     row_index: int,
     table: _Table | None,
     numeric_date_order: NumericDateOrder,
+    date_sequence: DateSequence,
     group_rotation_subjects: frozenset[str],
     diagnostics: ParseDiagnostics,
 ) -> _Slot | None:
@@ -506,7 +565,12 @@ def _read_slot_row(
         return None
 
     date_text = " ".join(body[:-1])
-    resolved_date = resolve_date_text(date_text, numeric_order=numeric_date_order)
+    # The document's chronological reading wins where it made one (ADR-139), and
+    # a repaired date faces the refusal rules exactly as a written one does.
+    resolved_date = date_sequence.resolution(
+        row_index,
+        resolve_date_text(date_text, numeric_order=numeric_date_order),
+    )
     refusal = date_refusal(resolved_date, date_text, subject="Slot")
     if refusal is not None or resolved_date.value is None:
         reason, message = refusal if refusal is not None else (REASON_NOT_A_SLOT_ROW, "")

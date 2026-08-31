@@ -15,6 +15,7 @@ from sirkadiyen_parser.contracts.parsing import (
     ParserResultStatus,
     ParseSnapshotRequest,
     ParseSnapshotResponse,
+    ParseSourceContext,
     ProgramLanguage,
 )
 from sirkadiyen_parser.contracts.snapshot import (
@@ -40,7 +41,7 @@ from tests.support.snapshots import merged_range, number_cell, text_cell, worksh
 
 PROFILE = ParserProfileDefinition(
     "weekly_amphitheatre_v1",
-    "1.0.0",
+    "1.1.0",
     "amphitheatre",
     NumericDateOrder.UNDECLARED,
 )
@@ -307,7 +308,7 @@ def test_a_cell_naming_no_class_year_is_accounted_for_rather_than_published() ->
 
 def test_the_profile_publishes_nothing_from_the_real_document() -> None:
     """A cell says which room a session uses, never that the session exists."""
-    profile = get_profile("weekly_amphitheatre_v1", "1.0.0")
+    profile = get_profile("weekly_amphitheatre_v1", "1.1.0")
     assert profile is not None
 
     request = ParseSnapshotRequest.model_validate(
@@ -513,7 +514,14 @@ def test_neither_companion_reader_claims_the_other_s_document() -> None:
 
     read_as_bedside = read_bedside_document(
         amphitheatre,
-        class_year=3,
+        context=ParseSourceContext.model_validate(
+            {
+                "academicYear": "2026-2027",
+                "classYear": 3,
+                "programLanguage": "turkish",
+                "timeZoneId": "Europe/Istanbul",
+            }
+        ),
         numeric_date_order=Order.DAY_FIRST,
     )
     assert read_as_bedside.slots == []
