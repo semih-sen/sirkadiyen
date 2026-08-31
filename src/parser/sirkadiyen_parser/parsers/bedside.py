@@ -37,16 +37,18 @@ import re
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 from datetime import date
+from functools import partial
 
 from sirkadiyen_parser.contracts.parsing import (
     ParserProfileDescriptor,
     ParseSnapshotRequest,
     ParseSnapshotResponse,
     ParseSourceContext,
+    SourceEvidence,
 )
 from sirkadiyen_parser.contracts.snapshot import NormalizedSpreadsheetSnapshot
 from sirkadiyen_parser.diagnostics import ParseDiagnostics
-from sirkadiyen_parser.normalization.date_sequence import DateSequenceEntry
+from sirkadiyen_parser.normalization.date_sequence import DateSequence, DateSequenceEntry
 from sirkadiyen_parser.normalization.dates import NumericDateOrder, resolve_date_text
 from sirkadiyen_parser.normalization.grid import WorksheetGrid
 from sirkadiyen_parser.normalization.text import comparison_key, normalize_text
@@ -302,7 +304,7 @@ def _read_schedule_into(
     # two columns are deliberately not one run: they are two halves of a year
     # written side by side, and reading them as one would report every spring
     # date as an anomaly.
-    sequences = {}
+    sequences: dict[int, DateSequence] = {}
     for date_column, _, _ in pairs:
         sequence = read_date_run(
             tuple(
@@ -318,11 +320,7 @@ def _read_schedule_into(
         report_date_run(
             sequence,
             diagnostics=diagnostics,
-            evidence_for=lambda row_index, column=date_column: grid.evidence(
-                row_index,
-                column,
-                extraction_rule=RULE_DATE_SEQUENCE,
-            ),
+            evidence_for=partial(_column_evidence, grid, date_column),
         )
         sequences[date_column] = sequence
 
@@ -369,6 +367,17 @@ def _read_schedule_into(
                     raw_code=code_text,
                 )
             )
+
+
+def _column_evidence(grid: WorksheetGrid, column: int, row_index: int) -> SourceEvidence:
+    """Point at one cell of a group's date column.
+
+    A named function rather than a closure over the loop variable: the loop builds
+    one of these per column, and a lambda capturing ``date_column`` would either
+    close over the last one or need a default argument, which is the shape mypy
+    cannot infer a type for.
+    """
+    return grid.evidence(row_index, column, extraction_rule=RULE_DATE_SEQUENCE)
 
 
 def _column_dates(

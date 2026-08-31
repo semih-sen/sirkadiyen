@@ -24,6 +24,7 @@ from sirkadiyen_parser.normalization.date_sequence import (
     RULE_SEQUENCE_WEEKDAY_ALTERNATIVE,
     RULE_SEQUENCE_YEAR_SUBSTITUTION,
     AcademicYearWindow,
+    DateSequence,
     DateSequenceEntry,
     analyze_date_sequence,
 )
@@ -34,7 +35,21 @@ from sirkadiyen_parser.normalization.dates import (
     unresolved_date,
 )
 
-WINDOW = AcademicYearWindow.from_label("2026-2027")
+
+def window(label: str) -> AcademicYearWindow:
+    """The window a label names, refusing a label these tests meant to be readable.
+
+    `AcademicYearWindow.from_label` answers `None` for a label it cannot read,
+    which is the right answer for a misconfigured source and never the answer a
+    test wants: a test whose window silently became `None` would assert that
+    nothing was analysed and pass for the wrong reason.
+    """
+    built = AcademicYearWindow.from_label(label)
+    assert built is not None, f"'{label}' should be a readable academic year."
+    return built
+
+
+WINDOW = window("2026-2027")
 
 
 def serial(value: str) -> DateResolution:
@@ -49,8 +64,11 @@ def run(*resolutions: DateResolution) -> tuple[DateSequenceEntry, ...]:
     )
 
 
-def analyze(*resolutions: DateResolution, window: AcademicYearWindow | None = WINDOW):
-    return analyze_date_sequence(run(*resolutions), window=window)
+def analyze(
+    *resolutions: DateResolution,
+    academic_year: AcademicYearWindow | None = WINDOW,
+) -> DateSequence:
+    return analyze_date_sequence(run(*resolutions), window=academic_year)
 
 
 def test_a_sound_run_is_left_entirely_alone() -> None:
@@ -107,14 +125,14 @@ def test_a_repair_replaces_the_resolution_and_lowers_its_confidence() -> None:
 
 def test_a_weekday_the_repair_agrees_with_raises_its_confidence() -> None:
     """`G2-ANATOMY-SPRING` writes `9 Nisan 2025` and its own weekday says 2026."""
-    spring = AcademicYearWindow.from_label("2025-2026")
+    spring = window("2025-2026")
     sequence = analyze(
         serial("2026-03-31"),
         serial("2026-04-07"),
         resolve_date_text("9 Nisan 2025 Perşembe"),
         serial("2026-04-14"),
         serial("2026-04-21"),
-        window=spring,
+        academic_year=spring,
     )
 
     (outcome,) = sequence.outcomes
@@ -246,6 +264,8 @@ def test_a_bracket_wider_than_the_limit_withholds_the_repair() -> None:
     )
 
     (outcome,) = sequence.outcomes
+    assert outcome.lower_anchor is not None
+    assert outcome.upper_anchor is not None
     assert (outcome.upper_anchor - outcome.lower_anchor).days > MAX_ANCHOR_SPAN_DAYS
     assert outcome.reason == OUTCOME_ANCHORS_TOO_WIDE
     assert outcome.applied is None
@@ -292,7 +312,7 @@ def test_no_academic_year_means_no_analysis() -> None:
         serial("2020-11-20"),
         serial("2026-11-20"),
         serial("2026-11-23"),
-        window=None,
+        academic_year=None,
     )
 
     assert sequence.outcomes == ()
@@ -314,14 +334,14 @@ def test_an_unreadable_cell_is_neither_a_suspect_nor_an_anchor() -> None:
 
 
 def test_a_february_29_that_the_other_year_does_not_have_yields_no_candidate() -> None:
-    window = AcademicYearWindow.from_label("2027-2028")
+    leap = window("2027-2028")
     sequence = analyze(
         serial("2028-02-27"),
         serial("2028-02-28"),
         serial("2024-02-29"),
         serial("2028-03-01"),
         serial("2028-03-02"),
-        window=window,
+        academic_year=leap,
     )
 
     (outcome,) = sequence.outcomes
