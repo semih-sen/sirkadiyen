@@ -1068,6 +1068,17 @@ export function requestSourcePoll(
 // fit, and the revision is held. These are how an operator answers that: the correction is source
 // configuration, so the next poll re-parses the same document and applies it.
 
+/**
+ * Every stored correction, across every source, newest decision first.
+ *
+ * A correction outlives the revision it was decided from and keeps applying on every later parse,
+ * so the set has to be readable on its own — otherwise an override nobody remembers stays in place
+ * long after the faculty fixed the document.
+ */
+export function listAllSourceDateCorrections(): Promise<SourceDateCorrectionView[]> {
+  return request<SourceDateCorrectionView[]>('/api/admin/sources/date-corrections');
+}
+
 export function listSourceDateCorrections(
   sourceId: string,
 ): Promise<SourceDateCorrectionView[]> {

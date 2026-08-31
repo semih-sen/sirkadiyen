@@ -9,6 +9,8 @@ const api = vi.hoisted(() => ({
   approveRevision: vi.fn(),
   rejectRevision: vi.fn(),
   acceptSourceDateCorrection: vi.fn(),
+  listAllSourceDateCorrections: vi.fn(),
+  retireSourceDateCorrection: vi.fn(),
   ApiError: class ApiError extends Error {},
 }));
 vi.mock('@/lib/api', () => api);
@@ -29,6 +31,16 @@ const summary = {
   stateReason: 'AudienceOverlap: 4 aynı ders çakışması.',
 };
 
+const storedCorrection = {
+  id: 'corr-1',
+  sourceId: 'G2-TR-PRACTICE',
+  original: '2019-10-02',
+  corrected: '2026-10-02',
+  decidedBy: 'ops@example.com',
+  decidedAtUtc: '2026-08-15T09:00:00Z',
+  note: 'Satır geçen yılın dosyasından kalmış.',
+};
+
 describe('RevisionReview', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -41,6 +53,8 @@ describe('RevisionReview', () => {
       }],
     });
     api.rejectRevision.mockResolvedValue({ revisionId: 'rev-1', rejected: true });
+    api.listAllSourceDateCorrections.mockResolvedValue([storedCorrection]);
+    api.retireSourceDateCorrection.mockResolvedValue(undefined);
   });
 
   it('makes rejection a deliberate, reasoned and terminal action', async () => {
@@ -121,7 +135,9 @@ describe('RevisionReview', () => {
     render(<RevisionReview />);
     await userEvent.click(await screen.findByText('Dönem 2 Türkçe pratik programı'));
 
-    expect(await screen.findByText('2019-10-02')).toBeInTheDocument();
+    // The date appears twice on purpose: once as evidence, once as the correction it can be given
+    // (ADR-139 amendment), so this asserts the evidence row rather than a unique occurrence.
+    expect((await screen.findAllByText('2019-10-02')).length).toBeGreaterThan(0);
     expect(screen.getByText('Anatomi')).toBeInTheDocument();
     expect(screen.getByText('Fizyoloji')).toBeInTheDocument();
     expect(screen.queryByText('[object Object]')).not.toBeInTheDocument();
@@ -228,5 +244,137 @@ describe('RevisionReview', () => {
     expect(await screen.findByText('Sıra dışı tarih')).toBeInTheDocument();
     expect(screen.getByText('2020-11-20')).toBeInTheDocument();
     expect(screen.queryByLabelText(/Kabul gerekçesi/)).not.toBeInTheDocument();
+  });
+
+  it('takes a date typed from the document when the parser proposed none', async () => {
+    // The parser reads the dates around a cell; the operator reads the document. When the anchors
+    // leave no candidate the parser proposes nothing, and before this the screen could only tell
+    // the operator to go elsewhere — to a screen that did not exist.
+    api.getRevision.mockResolvedValue({
+      summary,
+      findings: [{
+        rule: 'RecordDateOutOfSequence',
+        severity: 'Error',
+        message: '1 date(s) could not be read.',
+        affectedRecordCount: 1,
+        createdAtUtc: '2026-08-15T08:00:00Z',
+        detail: JSON.stringify([{
+          original: '2019-10-02',
+          applied: null,
+          reason: 'noCandidateFitsTheAnchors',
+          cell: 'A248',
+          candidates: [],
+        }]),
+      }],
+    });
+
+    render(<RevisionReview />);
+    await userEvent.click(await screen.findByText('Dönem 2 Türkçe pratik programı'));
+
+    expect(await screen.findByText(/doğru tarihi belgeden okuyup yukarıya/)).toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText('Belgedeki doğru tarih'), '2026-10-02');
+    await userEvent.click(screen.getByRole('button', { name: 'Bu tarihi kabul et' }));
+
+    // Still no decision without a recorded reason, exactly as accepting a candidate.
+    expect(api.acceptSourceDateCorrection).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('gerekçe');
+
+    await userEvent.type(screen.getByLabelText(/Kabul gerekçesi/), 'Belgede 2 Ekim 2026 yazıyor.');
+    await userEvent.click(screen.getByRole('button', { name: 'Bu tarihi kabul et' }));
+
+    await waitFor(() => expect(api.acceptSourceDateCorrection).toHaveBeenCalledWith(
+      'G2-TR-PRACTICE',
+      '2019-10-02',
+      '2026-10-02',
+      'Belgede 2 Ekim 2026 yazıyor.',
+    ));
+  });
+
+  it('lets a date outside the academic year be corrected per distinct date, not per lesson', async () => {
+    api.getRevision.mockResolvedValue({
+      summary,
+      findings: [{
+        rule: 'RecordDateOutsideAcademicYear',
+        severity: 'Error',
+        message: '3 record(s) fall outside academic year.',
+        affectedRecordCount: 3,
+        createdAtUtc: '2026-08-15T08:00:00Z',
+        detail: JSON.stringify([
+          { candidateId: 'c-1', date: '2019-10-02', displayTitle: 'Anatomi' },
+          { candidateId: 'c-2', date: '2019-10-02', displayTitle: 'Fizyoloji' },
+          { candidateId: 'c-3', date: '2019-10-03', displayTitle: 'Histoloji' },
+        ]),
+      }],
+    });
+
+    render(<RevisionReview />);
+    await userEvent.click(await screen.findByText('Dönem 2 Türkçe pratik programı'));
+
+    // A correction is keyed by the wrong date, so three lessons on two dates are two decisions.
+    expect(await screen.findByText(/2 ders/)).toBeInTheDocument();
+    expect(screen.getAllByLabelText('Belgedeki doğru tarih')).toHaveLength(2);
+
+    await userEvent.type(
+      screen.getAllByLabelText('Belgedeki doğru tarih')[0],
+      '2026-10-02',
+    );
+    await userEvent.type(
+      screen.getAllByLabelText(/Kabul gerekçesi/)[0],
+      'Belgede 2026 yazıyor; parser yılı doğru okumuş, satır eski dosyadan kalmış.',
+    );
+    await userEvent.click(screen.getAllByRole('button', { name: 'Bu tarihi kabul et' })[0]);
+
+    await waitFor(() => expect(api.acceptSourceDateCorrection).toHaveBeenCalledWith(
+      'G2-TR-PRACTICE',
+      '2019-10-02',
+      '2026-10-02',
+      'Belgede 2026 yazıyor; parser yılı doğru okumuş, satır eski dosyadan kalmış.',
+    ));
+  });
+
+  it('reads back the stored corrections and changes one without touching a calendar', async () => {
+    render(<RevisionReview />);
+    await userEvent.click(await screen.findByRole('tab', { name: 'Sıradışı tarihler' }));
+
+    expect(await screen.findByText('G2-TR-PRACTICE')).toBeInTheDocument();
+    expect(screen.getByText('2019-10-02')).toBeInTheDocument();
+    expect(screen.getByText('Satır geçen yılın dosyasından kalmış.')).toBeInTheDocument();
+
+    // Changing a correction does not repair a written calendar; it changes what the next parse
+    // reads, and the screen says so (ADR-033).
+    expect(screen.getByText(/kaynağı yeniden çekin/)).toBeInTheDocument();
+
+    await userEvent.clear(screen.getByLabelText('Okunacak tarih'));
+    await userEvent.type(screen.getByLabelText('Okunacak tarih'), '2026-10-09');
+    await userEvent.click(screen.getByRole('button', { name: 'Tarihi değiştir' }));
+    expect(api.acceptSourceDateCorrection).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert')).toHaveTextContent('gerekçe');
+
+    await userEvent.type(screen.getByLabelText(/Gerekçe/), 'Ders bir hafta ileri alındı.');
+    await userEvent.click(screen.getByRole('button', { name: 'Tarihi değiştir' }));
+
+    await waitFor(() => expect(api.acceptSourceDateCorrection).toHaveBeenCalledWith(
+      'G2-TR-PRACTICE',
+      '2019-10-02',
+      '2026-10-09',
+      'Ders bir hafta ileri alındı.',
+    ));
+  });
+
+  it('confirms before retiring a stored correction, saying what returns', async () => {
+    render(<RevisionReview />);
+    await userEvent.click(await screen.findByRole('tab', { name: 'Sıradışı tarihler' }));
+    await screen.findByText('G2-TR-PRACTICE');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Düzeltmeyi kaldır' }));
+    expect(api.retireSourceDateCorrection).not.toHaveBeenCalled();
+    expect(screen.getByText(/dersler o tarihe/)).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Kaldırmayı onayla' }));
+    await waitFor(() => expect(api.retireSourceDateCorrection).toHaveBeenCalledWith(
+      'G2-TR-PRACTICE',
+      'corr-1',
+    ));
   });
 });

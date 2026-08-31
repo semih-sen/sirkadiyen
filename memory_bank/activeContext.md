@@ -3522,3 +3522,30 @@ kayıtlı. **Dürüst olması gereken tek nokta:** Apple'ın dosyası Apple'ın 
 `localized-responsive-google-play-badge` paketinin çok dilli SVG'sinden İngilizce varyant ayıklanarak
 üretildi. Tarayıcıda resmî rozetle aynı görünüyor (headless Chromium'da doğrulandı) ama byte düzeyinde
 Google'ın dosyası değil; resmî dosya elde edilirse tek yapılacak o dosyanın üzerine yazmak.
+
+
+## Sıradışı tarihte elle giriş, ve düzeltmelerin kendi ekranı (2026-09-01)
+
+ADR-139'un bıraktığı iki boşluk kapandı; mekanizma aynı kaldı — düzeltme hâlâ kaynak
+yapılandırması, parse isteğiyle gidiyor, yeni tablo yok.
+
+- **Elle tarih her durumda sunuluyor.** Parser'ın adayları komşu hücrelerden gelir; operatörünki
+  belgenin kendisinden. İkisi çeliştiğinde belge kazanır. Aday yokken ekran artık başka bir sayfaya
+  yönlendirmiyor (o sayfa hiç yoktu); tarihi burada alıyor. Gerekçe ve denetim kaydı, aday kabul
+  etmekle birebir aynı.
+- **`RecordDateOutsideAcademicYear` de düzeltilebiliyor.** Parser bu bulguda hiçbir şey önermez —
+  tarih sıra dışı değil, kaynağın hiçbir dersinin düşemeyeceği bir yılda. Düzeltme bir *değere*
+  bağlı olduğu için karar ders başına değil ayrık tarih başına: iki tarihe yayılmış üç ders iki
+  karar.
+- **"Sıradışı tarihler" sekmesi.** Kaydedilmiş düzeltmeler kaynak kaynak listeleniyor; kim, ne
+  zaman, hangi gerekçeyle. Değiştirmek aynı `original` ile yeniden kabul etmek (backend fikir
+  değiştirmeyi zaten böyle modelliyor), kaldırmak onay arkasında ve neyin geri geleceğini söylüyor.
+
+### Sınırı bilerek çizilmiş yer / açık kalan
+
+- Bu ekran takvim düzeltmiyor: değişiklik bir sonraki poll'ün yayımladığı revizyonla ulaşır
+  (ADR-033). Metin bunu açıkça söylüyor, çünkü aksini varsaymak en olası yanlış okuma.
+- Kaldırma gerekçe almıyor — ADR-139'un DELETE ucu gerekçe taşımıyor. Kabul/değiştirme alıyor.
+- `feat/adr-128-unusual-dates` dalı aynı ihtiyacı kayıt bazlı override ile çözen paralel bir
+  tasarım; merge edilmemeli. Parse edilmiş kaydı sonradan düzenlemek, parse'ın girdilerinin saf
+  fonksiyonu olmasını bozar (ADR-017) — ADR-139 tam olarak bundan kaçınmıştı.

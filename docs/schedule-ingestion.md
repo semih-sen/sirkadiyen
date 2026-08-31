@@ -258,6 +258,49 @@ field. The write requires the CSRF token described in `docs/authentication.md`.
 The API publishes the OpenAPI document at `/openapi/v1.json`; requests are also
 in `src/Sirkadiyen.Api/Sirkadiyen.Api.http`.
 
+### Correcting a date the source states wrongly
+
+A source date correction (ADR-139) is the third answer to a held revision, beside
+approving it and rejecting it, and the only one available to a team that cannot
+edit the faculty's document. It is source configuration rather than an edit to a
+parsed record: the poller sends it with the parse request, so re-parsing applies
+it again, and it is part of the parse-run key, so it takes effect on the next
+ordinary poll.
+
+```text
+GET    /api/admin/sources/date-corrections               every correction, newest first
+GET    /api/admin/sources/{sourceId}/date-corrections/   one source's corrections
+POST   /api/admin/sources/{sourceId}/date-corrections/   { original, corrected, reason }
+DELETE /api/admin/sources/{sourceId}/date-corrections/{id}
+```
+
+`POST` replaces any correction the source already has for the same `original`
+date, so an operator changing their mind simply accepts again; the new decider,
+time and reason are recorded and audited.
+
+The review screen offers the decision in two places:
+
+- **`RecordDateOutOfSequence`** — the parser lists the readings that fit the
+  dates around the cell, each a button. It repairs an unambiguous mistyped year
+  on its own; only the anomalies it refused are offered.
+- **`RecordDateOutsideAcademicYear`** — the parser proposes nothing here, because
+  the date is not out of sequence, it is simply in a year no lesson of this
+  source can fall in. The distinct dates the finding names are offered instead,
+  one decision per date rather than per lesson.
+
+Both also take **a date typed from the document**, whether or not the parser
+proposed anything: the parser's readings come from the neighbouring cells, the
+operator's comes from the document, and where they disagree the document wins.
+Every acceptance requires a reason and is audited.
+
+Accepting settles nothing about the revision under review — it is still held, and
+publishing the corrected schedule means re-polling the source and letting the new
+revision supersede it (ADR-033). The **Sıradışı tarihler** tab of the revision
+module lists every stored correction across sources with who decided it and why,
+because the revision it was decided from is superseded within days and the
+correction keeps applying long after: it is where an override is changed, and
+where one the faculty has since fixed is retired.
+
 ## Semantic diff
 
 Publishing makes a revision live; the diff records what publishing it actually

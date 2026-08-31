@@ -36,6 +36,15 @@ public static class SourceDateCorrectionEndpoints
     {
         ArgumentNullException.ThrowIfNull(builder);
 
+        // Every source's corrections in one read, for the screen that answers "which dates are we
+        // overriding, and are they still needed?" — a correction outlives the revision it was
+        // decided from and keeps applying on every later parse.
+        builder
+            .MapGet("/api/admin/sources/date-corrections", ListAllAsync)
+            .RequireAuthorization(AuthorizationPolicies.SuperAdmin)
+            .WithTags("Source Administration")
+            .WithSummary("Lists every stored source date correction, newest decision first.");
+
         RouteGroupBuilder corrections = builder
             .MapGroup("/api/admin/sources/{sourceId}/date-corrections")
             .RequireAuthorization(AuthorizationPolicies.SuperAdmin)
@@ -61,6 +70,12 @@ public static class SourceDateCorrectionEndpoints
 
         return builder;
     }
+
+    private static async Task<IResult> ListAllAsync(
+        IScheduleSourceDateCorrectionStore store,
+        CancellationToken cancellationToken) =>
+        Results.Ok(
+            (await store.ListAllAsync(cancellationToken)).Select(Describe).ToList());
 
     private static async Task<IResult> ListAsync(
         string sourceId,

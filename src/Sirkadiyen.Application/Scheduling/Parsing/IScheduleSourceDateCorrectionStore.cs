@@ -28,6 +28,19 @@ public interface IScheduleSourceDateCorrectionStore
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Every correction any source has, newest decision first.
+    /// </summary>
+    /// <remarks>
+    /// A correction outlives the revision it was decided from and keeps applying
+    /// silently on every later parse, so an operator has to be able to see the
+    /// whole set without knowing which source to ask. Asking source by source
+    /// would mean a request per catalogued source to answer "what dates are we
+    /// overriding?", which is the question this list exists for.
+    /// </remarks>
+    Task<IReadOnlyList<ScheduleSourceDateCorrection>> ListAllAsync(
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Accepts a correction, replacing any the source already has for the same
     /// original date.
     /// </summary>

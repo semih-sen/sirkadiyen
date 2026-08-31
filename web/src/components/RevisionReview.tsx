@@ -11,6 +11,7 @@ import {
 } from '@/lib/api';
 import { Tabs, formatDateTime } from '@/components/AdminData';
 import { Finding, STATE_EXPLAINS, stateLabel } from '@/components/RevisionFindings';
+import { SourceDateCorrections } from '@/components/SourceDateCorrections';
 import type {
   RevisionState,
   ScheduleRevisionDetail,
@@ -23,12 +24,16 @@ import type {
  * Rejected is included because rejection is terminal: once a revision leaves the review queue the
  * only surface that can still answer "why did this never reach a calendar" is this one.
  */
-type RevisionTab = RevisionState | 'history';
+type RevisionTab = RevisionState | 'history' | 'dateCorrections';
 
 const QUEUES: { value: RevisionTab; label: string }[] = [
   { value: 'ReviewRequired', label: 'İnceleme bekleyen' },
   { value: 'Rejected', label: 'Reddedilen' },
   { value: 'history', label: 'Geçmiş' },
+
+  // The accepted date corrections belong beside the queue they are decided from: they are answers
+  // to review findings, and nothing else on any screen says which dates we override (ADR-139).
+  { value: 'dateCorrections', label: 'Sıradışı tarihler' },
 ];
 
 function ReviewActions({
@@ -285,6 +290,9 @@ export function RevisionReview() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    // The corrections tab lists source configuration rather than revisions, and loads its own.
+    if (queue === 'dateCorrections') return;
+
     setRevisions(null);
     setError(null);
     try {
@@ -330,8 +338,11 @@ export function RevisionReview() {
           önce. Salt görüntüleme.
         </p>
       )}
-      {revisions === null && !error && <p className="loading-note">Yükleniyor…</p>}
-      {revisions !== null && revisions.length === 0 && (
+      {queue === 'dateCorrections' && <SourceDateCorrections />}
+      {queue !== 'dateCorrections' && revisions === null && !error && (
+        <p className="loading-note">Yükleniyor…</p>
+      )}
+      {queue !== 'dateCorrections' && revisions !== null && revisions.length === 0 && (
         <p className="muted">
           {actionable
             ? 'İnceleme bekleyen revizyon yok.'
@@ -340,7 +351,7 @@ export function RevisionReview() {
               : 'Reddedilmiş revizyon yok.'}
         </p>
       )}
-      {revisions?.map((summary) => (
+      {queue !== 'dateCorrections' && revisions?.map((summary) => (
         <RevisionRow
           key={summary.revisionId}
           summary={summary}

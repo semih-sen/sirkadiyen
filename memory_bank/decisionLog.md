@@ -8663,3 +8663,58 @@ overwriting that one file is all it takes to replace it.
 The two badges carry different built-in clear space (Play's is inside the artwork, Apple's is not),
 so their black bodies are matched by giving them different total heights, 52px and 40px, measured
 in a browser rather than assumed.
+
+
+---
+
+## ADR-139 amendment: the operator may type the date, and the corrections have a screen
+
+**Status:** Accepted
+**Date:** 2026-09-01
+
+### Context
+
+ADR-139 gave a held revision its third answer, but only through the parser's own vocabulary. Two
+gaps showed up the moment it was used against real documents:
+
+1. **The only dates on offer were the parser's.** The candidates come from the dates around the
+   cell; when the anchors leave none, the screen said "doğru tarihi belgeden okuyup kaynak
+   sayfasından elle bir düzeltme girmeniz gerekir" — and no such screen existed. `RecordDateOutside
+   AcademicYear`, the other half of the same problem, offered no decision at all: the parser
+   proposes nothing for a year no lesson of the source can fall in.
+2. **A stored correction had no home.** `listSourceDateCorrections` and `retireSourceDateCorrection`
+   existed in the frontend client and nothing called them. A correction outlives by months the
+   revision it was decided from, and keeps applying to every parse; after that revision was
+   superseded, nothing on any screen could say which dates we override, who decided so, or whether
+   the document has since been fixed.
+
+### Decision
+
+No new storage, no second model — ADR-139's `ScheduleSourceDateCorrection` is the whole mechanism.
+
+1. **A typed date is a first-class answer, always offered.** The correction UI takes a date input
+   beside the candidate buttons, whether or not the parser produced any. The parser's readings come
+   from the neighbouring cells; the operator's comes from the document, and where they disagree the
+   document wins. It posts to the same endpoint with the same required reason and the same audit
+   entry — a manual date is not a lesser decision, it is the same decision from better evidence.
+2. **`RecordDateOutsideAcademicYear` gains the same action**, keyed on the distinct dates its
+   evidence names rather than on its records: a correction matches a value, so three lessons on two
+   dates are two decisions. The entity's own reasoning covers this exactly — the dates these
+   corrections name are outside the source's academic year, so no legitimate row can carry one.
+3. **`GET /api/admin/sources/date-corrections`** lists every correction across sources, and a
+   **Sıradışı tarihler** tab in the revision module renders them grouped by source with the decider,
+   the time and the note. Changing one is an accept with the same `original`, which is already how
+   the backend models a changed mind; retiring one is behind a confirmation that states what comes
+   back if the document still says the old date.
+
+### Consequences
+
+- The cross-source read is the one addition to ADR-139's surface. Asking source by source would be
+  a request per catalogued source to answer "what are we overriding?", which is the only question
+  the screen exists for.
+- The tab does not repair calendars, and says so: a changed correction reaches students through the
+  revision the next poll publishes (ADR-033).
+- A superseded ADR-128 branch (`feat/adr-128-unusual-dates`) implemented the same capability as
+  record-level overrides applied after the parse, keyed by stable identity. It is not merged and
+  should not be: editing parsed records breaks the parse being a pure function of its inputs
+  (ADR-017), which is exactly what ADR-139 avoided by making a correction source context.

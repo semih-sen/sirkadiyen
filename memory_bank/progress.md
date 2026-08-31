@@ -1498,3 +1498,27 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
   103 test; `tsc --noEmit` temiz.
 - **Bilinen kısıt:** Play rozeti Google'ın sunucusundan indirilemedi (ağ politikası); MIT lisanslı
   bir paketten ayıklandı, görünüm aynı, dosya birebir Google'ınki değil.
+
+
+## Tarih düzeltmesinde elle giriş ve düzeltme ekranı (2026-09-01)
+
+- **Root cause:** ADR-139 kararı doğruydu ama iki ucu açık kalmıştı: (1) operatör yalnızca
+  parser'ın önerdiği tarihleri seçebiliyordu, aday yoksa ekran var olmayan bir sayfaya
+  yönlendiriyordu; `RecordDateOutsideAcademicYear` için hiç eylem yoktu. (2) Kaydedilmiş
+  düzeltmeleri gösteren hiçbir ekran yoktu — `listSourceDateCorrections` / `retire…` istemcide
+  duruyor, kimse çağırmıyordu. Ayrıntı: ADR-139 eki.
+- **Changed:** `IScheduleSourceDateCorrectionStore.ListAllAsync` + store, yeni okuma ucu
+  `GET /api/admin/sources/date-corrections`. Web'de `DateCorrectionAction` genelleştirildi ve her
+  durumda elle tarih girişi sunuyor; `RecordDateOutsideAcademicYear` bulgusu ayrık tarih başına
+  düzeltme öneriyor; yeni `SourceDateCorrections` bileşeni ve revizyonlar modülünde "Sıradışı
+  tarihler" sekmesi (listele / değiştir / kaldır). Yeni tablo, yeni migration, yeni denetim
+  kategorisi yok.
+- **Tests executed:** .NET: `dotnet build` 0 uyarı; Infrastructure 820, Api 11, Contracts 6 test
+  geçti. Web: typecheck temiz, 107 test geçti (yeni: aday yokken elle tarih, akademik yıl dışı
+  tarih için ayrık tarih başına düzeltme, sekmede listeleme/değiştirme, kaldırma onayı).
+- **Not done / not verified:** `Sirkadiyen.Persistence.Tests` bu makinede koşmuyor — Docker kapalı,
+  `127.0.0.1:15432` yok; 237 testin tamamı bağlantı hatası (CI'da koşacak). `ListAllAsync` için
+  ayrı bir persistence testi eklenmedi; mevcut store testleri kaynak bazlı okumayı kapsıyor.
+  `next lint` bu depoda etkileşimli kurulum istediği için çalıştırılamadı.
+- **Parked:** `feat/adr-128-unusual-dates` dalı aynı ihtiyacı kayıt bazlı override olarak çözen
+  paralel bir tasarım taşıyor; merge edilmemeli (ADR-017'yi bozar), referans olarak duruyor.

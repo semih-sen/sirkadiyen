@@ -967,6 +967,11 @@ public sealed class ScheduleSourcePollerTests
             CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<ScheduleSourceDateCorrection>>(corrections);
 
+        // The poller never asks across sources; only the operator's overview does.
+        public Task<IReadOnlyList<ScheduleSourceDateCorrection>> ListAllAsync(
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException();
+
         public Task<ScheduleSourceDateCorrection> AcceptAsync(
             ScheduleSourceDateCorrection correction,
             CancellationToken cancellationToken) =>

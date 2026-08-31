@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { acceptSourceDateCorrection, ApiError } from '@/lib/api';
 import type {
   RevisionDateAnomalyView,
@@ -277,18 +277,30 @@ const CANDIDATE_RULES: Record<string, string> = {
  */
 function DateCorrectionAction({
   sourceId,
-  anomaly,
+  original,
+  description,
+  candidates = [],
 }: {
   sourceId: string;
-  anomaly: RevisionDateAnomalyView;
+  /** The date the document resolves to today; what the correction is keyed by. */
+  original: string;
+  /** What is wrong with it, in the terms the finding stated. */
+  description?: ReactNode;
+  /** The readings the parser proposed, if it could propose any. */
+  candidates?: RevisionDateAnomalyView['candidates'];
 }) {
   const [reason, setReason] = useState('');
+  const [typed, setTyped] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [accepted, setAccepted] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function accept(corrected: string) {
     const trimmed = reason.trim();
+    if (corrected.length === 0) {
+      setError('Bir tarih girin.');
+      return;
+    }
     if (trimmed.length === 0) {
       setError('Kabul için bir gerekçe girin; bu karar denetim kaydına yazılır.');
       return;
@@ -296,7 +308,7 @@ function DateCorrectionAction({
     setBusy(corrected);
     setError(null);
     try {
-      await acceptSourceDateCorrection(sourceId, anomaly.original, corrected, trimmed);
+      await acceptSourceDateCorrection(sourceId, original, corrected, trimmed);
       setAccepted(corrected);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Tarih düzeltmesi kaydedilemedi.');
@@ -305,24 +317,18 @@ function DateCorrectionAction({
     }
   }
 
-  const field = `date-correction-${sourceId}-${anomaly.original}`;
+  const field = `date-correction-${sourceId}-${original}`;
 
   return (
     <div className="revision-date-correction">
       <p className="revision-date-correction-head">
-        <strong className="mono">{anomaly.original}</strong>
-        {anomaly.cell && <small className="mono muted"> · {anomaly.cell}</small>}
-        <span className="muted">
-          {' '}— {ANOMALY_REASONS[anomaly.reason] ?? anomaly.reason}
-          {anomaly.lowerAnchor && anomaly.upperAnchor && (
-            <> (komşular: {anomaly.lowerAnchor} … {anomaly.upperAnchor})</>
-          )}
-        </span>
+        <strong className="mono">{original}</strong>
+        {description}
       </p>
 
       {accepted ? (
         <p className="muted">
-          Kabul edildi: bu kaynak {anomaly.original} yazdığı her yerde {accepted} okunacak.
+          Kabul edildi: bu kaynak {original} yazdığı her yerde {accepted} okunacak.
           Değişikliğin derslere yansıması için kaynağı yeniden çekin.
         </p>
       ) : (
@@ -334,28 +340,59 @@ function DateCorrectionAction({
             onChange={(event) => setReason(event.target.value)}
             placeholder="Belgeyi kontrol ettim; satır bir önceki yılın dosyasından kalmış."
           />
-          <div className="cluster" style={{ gap: 8 }}>
-            {anomaly.candidates.map((candidate) => (
-              <button
-                key={candidate.value}
-                className="btn btn-secondary btn-sm"
-                type="button"
-                onClick={() => void accept(candidate.value)}
-                disabled={busy !== null}
-              >
-                {busy === candidate.value ? 'Kaydediliyor…' : candidate.value}
-                <small className="muted">
-                  {' '}({CANDIDATE_RULES[candidate.rule] ?? candidate.rule}
-                  {candidate.weekdayMatches === true && ', gün adı uyuyor'}
-                  {candidate.weekdayMatches === false && ', gün adı uymuyor'})
-                </small>
-              </button>
-            ))}
+          {candidates.length > 0 && (
+            <div className="cluster" style={{ gap: 8 }}>
+              {candidates.map((candidate) => (
+                <button
+                  key={candidate.value}
+                  className="btn btn-secondary btn-sm"
+                  type="button"
+                  onClick={() => void accept(candidate.value)}
+                  disabled={busy !== null}
+                >
+                  {busy === candidate.value ? 'Kaydediliyor…' : candidate.value}
+                  <small className="muted">
+                    {' '}({CANDIDATE_RULES[candidate.rule] ?? candidate.rule}
+                    {candidate.weekdayMatches === true && ', gün adı uyuyor'}
+                    {candidate.weekdayMatches === false && ', gün adı uymuyor'})
+                  </small>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/*
+            The manual entry is offered whether or not the parser proposed anything. Its readings
+            come from the dates around the cell; the operator's comes from the document itself, and
+            when the two disagree the document wins. Without this the only answers a screen could
+            give were the parser's, and a date it could not read at all had no answer at all.
+          */}
+          <div className="cluster" style={{ gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div>
+              <label htmlFor={`${field}-manual`}>
+                {candidates.length > 0 ? 'Ya da belgedeki tarihi yazın' : 'Belgedeki doğru tarih'}
+              </label>
+              <input
+                id={`${field}-manual`}
+                type="date"
+                value={typed}
+                onChange={(event) => setTyped(event.target.value)}
+              />
+            </div>
+            <button
+              className="btn btn-secondary btn-sm"
+              type="button"
+              onClick={() => void accept(typed)}
+              disabled={busy !== null}
+            >
+              {busy === typed && typed.length > 0 ? 'Kaydediliyor…' : 'Bu tarihi kabul et'}
+            </button>
           </div>
-          {anomaly.candidates.length === 0 && (
+
+          {candidates.length === 0 && (
             <p className="muted">
-              Parser bu tarih için makul bir okuma üretemedi. Doğru tarihi belgeden okuyup kaynak
-              sayfasından elle bir düzeltme girmeniz gerekir.
+              Parser bu tarih için makul bir okuma üretemedi; doğru tarihi belgeden okuyup yukarıya
+              yazın.
             </p>
           )}
         </>
@@ -364,6 +401,34 @@ function DateCorrectionAction({
       {error && <div className="error" role="alert">{error}</div>}
     </div>
   );
+}
+
+/**
+ * The distinct dates an out-of-academic-year finding names, with how many lessons carry each.
+ *
+ * A correction is keyed by the wrong date rather than by a row (ADR-139), so the twenty records the
+ * finding lists are usually a handful of dates. Grouping them is what turns a list of lessons into
+ * the small set of decisions an operator actually has to make.
+ */
+function readOutOfYearDates(detail: string): { date: string; count: number }[] {
+  try {
+    const parsed: unknown = detail ? JSON.parse(detail) : null;
+    if (!Array.isArray(parsed)) return [];
+
+    const counts = new Map<string, number>();
+    for (const entry of parsed) {
+      const date = (entry as { date?: unknown })?.date;
+      if (typeof date === 'string' && date.length > 0) {
+        counts.set(date, (counts.get(date) ?? 0) + 1);
+      }
+    }
+
+    return [...counts.entries()]
+      .map(([date, count]) => ({ date, count }))
+      .sort((left, right) => left.date.localeCompare(right.date));
+  } catch {
+    return [];
+  }
 }
 
 /** The anomalies a date-sequence finding carries, or an empty list when its detail is not one. */
@@ -399,6 +464,14 @@ export function Finding({
     ? readAnomalies(finding.detail).filter((anomaly) => !anomaly.applied)
     : [];
 
+  // A date outside the source's own academic year is the other half of the same problem, and the
+  // parser proposes nothing for it: it is not out of sequence, it is simply a year no lesson of
+  // this source can fall in. The operator reads the document and states the date, and the same
+  // source correction carries it into every later parse.
+  const outOfYear = finding.rule === 'RecordDateOutsideAcademicYear' && sourceId
+    ? readOutOfYearDates(finding.detail)
+    : [];
+
   return (
     <section className="revision-finding">
       <div className="cluster revision-finding-head">
@@ -428,7 +501,42 @@ export function Finding({
             gelir.
           </p>
           {anomalies.map((anomaly) => (
-            <DateCorrectionAction key={anomaly.original} sourceId={sourceId} anomaly={anomaly} />
+            <DateCorrectionAction
+              key={anomaly.original}
+              sourceId={sourceId}
+              original={anomaly.original}
+              candidates={anomaly.candidates}
+              description={
+                <>
+                  {anomaly.cell && <small className="mono muted"> · {anomaly.cell}</small>}
+                  <span className="muted">
+                    {' '}— {ANOMALY_REASONS[anomaly.reason] ?? anomaly.reason}
+                    {anomaly.lowerAnchor && anomaly.upperAnchor && (
+                      <> (komşular: {anomaly.lowerAnchor} … {anomaly.upperAnchor})</>
+                    )}
+                  </span>
+                </>
+              }
+            />
+          ))}
+        </div>
+      )}
+
+      {outOfYear.length > 0 && sourceId && (
+        <div className="revision-date-corrections">
+          <p className="muted">
+            Tarih belgede yanlış yazılmışsa doğrusunu girin: kaynak o tarihi nerede yazarsa yazsın
+            bundan sonraki her ayrıştırmada sizin girdiğiniz tarih okunur. Bu revizyonu değiştirmez;
+            kabul ettikten sonra kaynağı yeniden çekin. Tarihler belgedekiyle aynıysa düzeltilmesi
+            gereken şey kaynağın akademik yıl ayarıdır, tarihler değil.
+          </p>
+          {outOfYear.map((entry) => (
+            <DateCorrectionAction
+              key={entry.date}
+              sourceId={sourceId}
+              original={entry.date}
+              description={<span className="muted"> — {entry.count} ders</span>}
+            />
           ))}
         </div>
       )}

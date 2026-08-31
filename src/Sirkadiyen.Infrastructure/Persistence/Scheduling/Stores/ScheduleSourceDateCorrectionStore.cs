@@ -20,6 +20,14 @@ public sealed class ScheduleSourceDateCorrectionStore(SirkadiyenDbContext dbCont
             .OrderBy(correction => correction.Original)
             .ToListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<ScheduleSourceDateCorrection>> ListAllAsync(
+        CancellationToken cancellationToken) =>
+        await dbContext.ScheduleSourceDateCorrections
+            .AsNoTracking()
+            .OrderByDescending(correction => correction.DecidedAtUtc)
+            .ThenBy(correction => correction.Original)
+            .ToListAsync(cancellationToken);
+
     public async Task<ScheduleSourceDateCorrection> AcceptAsync(
         ScheduleSourceDateCorrection correction,
         CancellationToken cancellationToken)
