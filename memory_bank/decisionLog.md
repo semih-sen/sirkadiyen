@@ -8592,3 +8592,54 @@ source and the next poll produces a revision that no longer trips the rule.
   nothing. It is reported on every parse as an accepted correction, which is how an operator learns
   it can be retired, but nothing retires it automatically. Detecting that would need the parse to
   report which corrections it actually applied, which is a larger change than this one.
+
+## ADR-140: The panel recommends Google Takvim and says where to get it, and the mobile panel opens with who you are
+
+**Status:** Accepted and implemented
+**Date:** 2026-08-31
+**Relates to:** ADR-024 (every student owns a dedicated, app-created Google calendar), ADR-057
+(the minimally scoped Calendar authorization), ADR-058 (the initial sync the student waits on)
+
+### Context
+
+Sirkadiyen writes to one place: a managed Google calendar the app creates for the student
+(ADR-024). Nothing else is ever written, and no other client is synchronised. A student who reads
+that calendar through a subscription in another client — the iOS built-in Calendar being the common
+case — sees a delayed, stripped copy: reminders, per-department colours and same-day corrections
+are the first things to go. The product therefore has a recommendation it had never actually
+stated on any screen, and no screen linked the app it recommends.
+
+The two screens where it matters are the initial-sync screen, where the student is already waiting
+with nothing to do for minutes, and the dashboard, which is where they return afterwards.
+
+Separately, the dashboard is a two-column grid that collapses to one column below 900px by
+stacking the left column and then the right. The right column opens with the academic profile —
+the card that answers "is the panel showing *my* schedule?" — so on a phone that card sat below
+the summary, the upcoming lessons, the change feed, the repair card and the colour editor. The
+identity check was the last thing a phone user could reach.
+
+### Decision
+
+A single component, `GoogleCalendarAppLinks`, owns both the recommendation sentence and the two
+official store links (Google Play `com.google.android.calendar`, App Store `id909319292`). It is
+rendered as a card in the dashboard's right column and, in its `plain` variant, inside a card on
+the initial-sync screen, so the wait is the moment the app gets installed. Links open in a new tab
+with `rel="noreferrer noopener"`: the sync screen must not be navigated away from.
+
+Mobile order is fixed in CSS, not by duplicating markup. Every dashboard card gains a `.dash-cell`
+wrapper with a modifier class; below 900px the two `.stack` columns become `display: contents`, so
+the cards themselves become the grid items and `order` sequences them — profile, calendar summary,
+upcoming lessons, changes, the app links, calendar connection, license, colours, repair, "yakında",
+and the delete-account danger zone last. The desktop layout is untouched.
+
+### Consequences
+
+- The recommendation is now a stated product position, on the two screens where a student can act
+  on it, rather than an unwritten assumption.
+- A phone user opens the panel on their own profile and can confirm the schedule is theirs before
+  reading a single lesson; the destructive card is furthest away, which it was not before.
+- One ordering source. A new dashboard card must be given a `.dash-cell--*` class and an `order`,
+  or it lands in the default band (`order: 50`) before the explicitly late cards — visible, but
+  unordered. The dashboard test asserts every card carries a distinct cell hook.
+- The store URLs are hard-coded. They are Google's own canonical product listings and are stable;
+  if either moves, one component changes.

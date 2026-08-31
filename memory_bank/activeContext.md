@@ -3480,3 +3480,31 @@ Bir şey daha öğrenildi: **sütun sırası tarih sırası değil.** `G2-TR-PRA
 kanıtlıyor — bir slot tablosu, önceki günleri ikinci bir saatte tekrarlayan ek sütunlarla bitebiliyor
 ve bir tablo `1/7` slot numarasını iki kez yazıyor. Sırayı sütundan okumak üç sağlam tarihi anomali
 diye raporluyordu. Sıra artık kaynağın kendi söylediği yerden, slot numarasından alınıyor.
+
+## Panelde Google Takvim tavsiyesi ve mobil bölüm sırası (ADR-140) (2026-08-31)
+
+Sirkadiyen tek bir yere yazıyor: öğrencinin uygulama tarafından açılmış yönetilen Google takvimi
+(ADR-024). Programı başka bir istemciden abonelikle okuyan öğrenci — yaygın hâli iOS'un yerleşik
+Takvim uygulaması — hatırlatmaları, anabilim dalı renklerini ve gün içi düzeltmeleri eksik görüyor.
+Bu tavsiye ürünün baştan beri varsaydığı ama **hiçbir ekranda söylemediği** şeydi; önerilen
+uygulamanın bağlantısı da hiçbir yerde yoktu.
+
+Artık tek bir bileşen (`GoogleCalendarAppLinks`) hem tavsiye cümlesini hem iki resmî mağaza
+bağlantısını taşıyor: panelde sağ sütunda bir kart, ilk senkronizasyon ekranında ise beklemenin
+tam ortasında — öğrencinin dakikalarca yapacak işi olmadığı an, uygulamanın kurulacağı andır.
+Bağlantılar yeni sekmede açılıyor; senkronizasyon ekranından ayrılınmaması gerekiyor.
+
+Mobil sıra CSS'te çözüldü, işaretleme çoğaltılmadan. Her kart bir `.dash-cell` sarmalayıcısı ve bir
+niteleyici sınıf alıyor; 900px altında iki `.stack` sütunu `display: contents` ile kalkıyor,
+kartlar doğrudan ızgaranın öğeleri oluyor ve `order` sırayı kuruyor: **profil en üstte**, sonra
+takvim özeti, sıradaki dersler, değişiklikler, uygulama bağlantıları, takvim bağlantısı, lisans,
+renkler, onarım, "yakında" ve en sonda hesap silme. Masaüstü düzeni değişmedi.
+
+Önceden telefonda profil kartı; özetin, ders listesinin, değişiklik akışının, onarım kartının ve
+renk düzenleyicisinin altındaydı — yani "bu panel *benim* programımı mı gösteriyor?" sorusunun
+cevabı en son ulaşılan şeydi.
+
+**Riskler / açık kalanlar:** Mağaza adresleri bileşende sabit (Google'ın kanonik ürün sayfaları).
+Panele eklenecek yeni bir kart `.dash-cell--*` sınıfı ve bir `order` almazsa varsayılan banda
+(`order: 50`) düşer: görünür ama sırasız. Değişiklik tarayıcıda gerçek bir telefonla doğrulanmadı;
+doğrulama `vitest` + `tsc` düzeyinde.

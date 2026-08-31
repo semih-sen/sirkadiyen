@@ -7,6 +7,7 @@ import { useSession } from '@/components/SessionProvider';
 import { getSyncStatus, startSync, ApiError } from '@/lib/api';
 import { ROUTES } from '@/lib/onboarding';
 import { AuthShell, Banner, Brand, Stepper } from '@/components/ui';
+import { GoogleCalendarAppLinks } from '@/components/GoogleCalendarAppLinks';
 import type { CalendarSyncStatusResponse, GoogleCalendarInitialSyncState } from '@/lib/types';
 
 // The worker pipeline (plan §4.2). The backend exposes one authoritative state
@@ -175,6 +176,15 @@ function InitialSync() {
             <span className="value mono">{writtenCount}</span>
           </div>
         </div>
+      </div>
+
+      {/* Senkronizasyon sürerken bile kurulacak tek şey Google Takvim uygulaması;
+          bekleme süresi bunun için doğru an. */}
+      <div style={{ marginTop: 20 }}>
+        <section className="card card-content calendar-app-links">
+          <h3 style={{ fontSize: 15 }}>Bu arada: Google Takvim uygulamasını kur</h3>
+          <GoogleCalendarAppLinks variant="plain" />
+        </section>
       </div>
 
       {!completed && (

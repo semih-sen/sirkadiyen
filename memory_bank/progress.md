@@ -1464,3 +1464,23 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
 - **Not done / not verified:** Tarayıcıda doğrulanmadı (oturum + API + PostgreSQL gerekiyor).
   Migration uygulanmadı. Belgesi düzeltilen bir düzeltme katalogda hiçbir şeye uymadan kalıyor;
   her ayrıştırmada bildiriliyor ama otomatik emekliye ayrılmıyor.
+
+## 2026-08-31 — Google Takvim tavsiyesi + mobil panel sırası (ADR-140)
+
+- **Added (web):** `web/src/components/GoogleCalendarAppLinks.tsx` — tavsiye metni ve iki resmî
+  mağaza bağlantısı (Google Play `com.google.android.calendar`, App Store `id909319292`), `card` ve
+  `plain` varyantları, bağlantılar `target="_blank" rel="noreferrer noopener"`.
+- **Changed (web):** Panel (`app/dashboard/page.tsx`) her kartı `.dash-cell dash-cell--*`
+  sarmalayıcısına aldı ve uygulama kartını sağ sütuna ekledi; ilk senkronizasyon ekranı
+  (`app/onboarding/sync/page.tsx`) bekleme sırasında aynı bileşeni gösteriyor.
+- **Changed (css):** `globals.css` — `.store-badges`/`.store-badge` rozetleri (480px altında tek
+  sütun) ve 900px altında `.dashboard-grid > .stack { display: contents }` + `.dash-cell` `order`
+  sırası: profil, özet, sıradaki dersler, değişiklikler, uygulama, takvim bağlantısı, lisans,
+  renkler, onarım, yakında, hesap silme. Masaüstü düzeni değişmedi.
+- **Tests added:** `GoogleCalendarAppLinks.test.tsx` (3 test: tavsiye metni, iki mağaza adresi,
+  yeni sekme/`noopener`, `plain` varyantında başlık yok) ve
+  `app/onboarding/sync/page.test.tsx` (senkronizasyon ekranında tavsiye + iki bağlantı). Panel
+  testine her kartın ayrı bir `.dash-cell--*` kancası taşıdığını doğrulayan bir test eklendi.
+- **Tests executed:** `vitest run` 21 dosya / 102 test geçti; `tsc --noEmit` temiz.
+- **Not done / not verified:** Gerçek bir telefonda tarayıcı doğrulaması yapılmadı (oturum + API
+  gerekiyor). `next lint` bu depoda yapılandırılmamış (etkileşimli kurulum soruyor), çalıştırılmadı.

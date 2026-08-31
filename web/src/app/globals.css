@@ -2700,6 +2700,107 @@ body.has-drawer {
   border-color: color-mix(in oklab, var(--border) 60%, transparent);
 }
 
+/* --- Google Takvim uygulaması tavsiyesi + mağaza bağlantıları ------------- */
+
+.store-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+.store-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 8px 15px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--canvas);
+  color: var(--fg-ink);
+  text-decoration: none;
+  box-shadow: var(--shadow-sm);
+  transition:
+    border-color 0.14s ease,
+    box-shadow 0.14s ease;
+}
+.store-badge:hover {
+  border-color: var(--fg);
+  box-shadow: var(--shadow-md);
+}
+.store-badge > span {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.store-badge small {
+  font-size: 11px;
+  color: var(--ink-50);
+}
+.store-badge strong {
+  font-family: var(--font-display);
+  font-size: 14.5px;
+}
+@media (max-width: 480px) {
+  .store-badges {
+    flex-direction: column;
+  }
+  .store-badge {
+    width: 100%;
+  }
+}
+
+/* --- Öğrenci paneli: mobil bölüm sırası ----------------------------------- */
+/* Panel iki sütun; dar ekranda tek sütuna iniyor ve sütunlar art arda geldiği
+   için profil kartı listenin çok altında kalıyordu. Sarmalayıcı yığınları
+   `display: contents` ile kaldırıp her kartı doğrudan ızgaraya veriyoruz;
+   böylece sıra `order` ile kuruluyor: önce kimlik, sonra takvim durumu ve
+   dersler, en sonda seyrek kullanılan yönetim kartları. */
+.dash-cell {
+  min-width: 0;
+}
+@media (max-width: 900px) {
+  .dashboard-grid > .stack {
+    display: contents;
+  }
+  .dash-cell {
+    order: 50;
+  }
+  .dash-cell--profile {
+    order: 1;
+  }
+  .dash-cell--summary {
+    order: 2;
+  }
+  .dash-cell--upcoming {
+    order: 3;
+  }
+  .dash-cell--changes {
+    order: 4;
+  }
+  .dash-cell--app {
+    order: 5;
+  }
+  .dash-cell--calendar {
+    order: 6;
+  }
+  .dash-cell--license {
+    order: 7;
+  }
+  .dash-cell--colors {
+    order: 8;
+  }
+  .dash-cell--repair {
+    order: 9;
+  }
+  .dash-cell--soon {
+    order: 10;
+  }
+  .dash-cell--danger {
+    order: 11;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .btn,
   .disclosure-trigger,

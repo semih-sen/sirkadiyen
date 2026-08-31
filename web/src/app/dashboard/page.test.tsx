@@ -29,6 +29,22 @@ describe('Dashboard', () => {
     expect(screen.getByText('Takvimdeki toplam ders')).toBeInTheDocument();
   });
 
+  it('marks every card with a mobile-order cell hook and offers the Google Takvim app links', async () => {
+    const { container } = render(<DashboardPage />);
+    await screen.findByText('Akademik profil');
+
+    // Mobile order is CSS-driven (`.dashboard-grid > .stack { display: contents }`
+    // plus `order`), so the contract the markup owes is the cell hook on every card.
+    const cells = Array.from(container.querySelectorAll('.dash-cell'));
+    const ordered = cells.map((cell) => Array.from(cell.classList).find((name) => name.startsWith('dash-cell--')));
+    expect(ordered).toContain('dash-cell--profile');
+    expect(ordered).toContain('dash-cell--app');
+    expect(new Set(ordered).size).toBe(ordered.length);
+
+    expect(screen.getByRole('link', { name: /Google Play/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /App Store/ })).toBeInTheDocument();
+  });
+
   it('reports rate limiting for reconciliation', async () => {
     api.requestReconciliation.mockRejectedValue(new ApiError(429, null, 'rate limited'));
     render(<DashboardPage />);
