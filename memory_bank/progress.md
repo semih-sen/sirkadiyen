@@ -1484,3 +1484,17 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
 - **Tests executed:** `vitest run` 21 dosya / 102 test geçti; `tsc --noEmit` temiz.
 - **Not done / not verified:** Gerçek bir telefonda tarayıcı doğrulaması yapılmadı (oturum + API
   gerekiyor). `next lint` bu depoda yapılandırılmamış (etkileşimli kurulum soruyor), çalıştırılmadı.
+
+### Ek: mağaza rozetleri (aynı gün)
+
+- **Added (web):** `public/store/app-store-badge.svg` (Apple'ın kendi dosyası, developer.apple.com),
+  `public/store/google-play-badge.svg` (İngilizce tek dilli Play rozeti) ve kaynak/uyarıları
+  anlatan `public/store/README.md`.
+- **Changed (web):** `GoogleCalendarAppLinks` artık kendi çizdiği düğmeleri değil resmî rozet
+  görsellerini kullanıyor (`next/image`, `unoptimized`); CSS'te `.store-badge` sade bir bağlantıya
+  indi, siyah gövdeler `--play` 52px / `--apple` 40px ile eşitlendi.
+- **Doğrulama:** Rozetler ve kart headless Chromium'da gerçekten render edilip görüntü olarak
+  incelendi (dosya olarak ve `globals.css` ile birlikte kart hâlinde). `vitest run` 21 dosya /
+  103 test; `tsc --noEmit` temiz.
+- **Bilinen kısıt:** Play rozeti Google'ın sunucusundan indirilemedi (ağ politikası); MIT lisanslı
+  bir paketten ayıklandı, görünüm aynı, dosya birebir Google'ınki değil.

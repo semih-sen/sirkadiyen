@@ -3508,3 +3508,17 @@ cevabı en son ulaşılan şeydi.
 Panele eklenecek yeni bir kart `.dash-cell--*` sınıfı ve bir `order` almazsa varsayılan banda
 (`order: 50`) düşer: görünür ama sırasız. Değişiklik tarayıcıda gerçek bir telefonla doğrulanmadı;
 doğrulama `vitest` + `tsc` düzeyinde.
+
+### Ek (aynı gün): bağlantılar mağazaların kendi rozetleri
+
+İlk hâlde bağlantılar kendi çizdiğimiz Türkçe metinli düğmelerdi. İki mağaza da tam bu iş için
+resmî bir rozet yayımlıyor ve marka kılavuzları bunu bekliyor; artık **"Get it on Google Play"** ve
+**"Download on the App Store"** görselleri kullanılıyor, değiştirilmeden, yalnızca ölçeklenerek.
+
+Rozetler `web/public/store/` altından servis ediliyor, hotlink değil: bir mağaza rozeti öğrencinin
+ağından üçüncü bir sunucuya erişilebilmesine bağlı olmamalı. Kaynakları `web/public/store/README.md`'de
+kayıtlı. **Dürüst olması gereken tek nokta:** Apple'ın dosyası Apple'ın kendi dosyası, ama
+`play.google.com` bu ortamın ağ politikasından kapalı olduğu için Play rozeti MIT lisanslı
+`localized-responsive-google-play-badge` paketinin çok dilli SVG'sinden İngilizce varyant ayıklanarak
+üretildi. Tarayıcıda resmî rozetle aynı görünüyor (headless Chromium'da doğrulandı) ama byte düzeyinde
+Google'ın dosyası değil; resmî dosya elde edilirse tek yapılacak o dosyanın üzerine yazmak.

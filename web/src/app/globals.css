@@ -2705,49 +2705,31 @@ body.has-drawer {
 .store-badges {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
   margin-top: 14px;
 }
+/* Rozetler mağazaların resmî görselleri; değiştirilmiyor, yalnızca ölçekleniyor.
+   Google Play rozetinin zorunlu boşluğu görselin içinde olduğu için iki siyah
+   gövde ancak farklı toplam yüksekliklerde eşitleniyor. */
 .store-badge {
   display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 48px;
-  padding: 8px 15px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-control);
-  background: var(--canvas);
-  color: var(--fg-ink);
+  border-radius: 8px;
   text-decoration: none;
-  box-shadow: var(--shadow-sm);
-  transition:
-    border-color 0.14s ease,
-    box-shadow 0.14s ease;
 }
-.store-badge:hover {
-  border-color: var(--fg);
-  box-shadow: var(--shadow-md);
+.store-badge img {
+  display: block;
+  width: auto;
 }
-.store-badge > span {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.2;
+.store-badge--play img {
+  height: 52px;
 }
-.store-badge small {
-  font-size: 11px;
-  color: var(--ink-50);
+.store-badge--apple img {
+  height: 40px;
 }
-.store-badge strong {
-  font-family: var(--font-display);
-  font-size: 14.5px;
-}
-@media (max-width: 480px) {
-  .store-badges {
-    flex-direction: column;
-  }
-  .store-badge {
-    width: 100%;
-  }
+.store-badge:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 3px;
 }
 
 /* --- Öğrenci paneli: mobil bölüm sırası ----------------------------------- */

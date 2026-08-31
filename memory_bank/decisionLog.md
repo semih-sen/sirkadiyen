@@ -8643,3 +8643,23 @@ and the delete-account danger zone last. The desktop layout is untouched.
   unordered. The dashboard test asserts every card carries a distinct cell hook.
 - The store URLs are hard-coded. They are Google's own canonical product listings and are stable;
   if either moves, one component changes.
+
+### Amendment (2026-08-31): the links are the stores' own badges, self-hosted
+
+The first implementation drew its own pill buttons with a small store glyph and Turkish text. Both
+stores publish a badge for exactly this purpose and their brand guidelines expect it, so the links
+are now the official **"Get it on Google Play"** and **"Download on the App Store"** artwork,
+unmodified and only scaled.
+
+The badges are served from `web/public/store/`, not hotlinked: a store badge must not depend on a
+third party's server being reachable from the student's network. Their provenance, including one
+honest caveat about the Play badge, is recorded in `web/public/store/README.md` — Apple's file is
+Apple's own; Google's `play.google.com` badge URL is unreachable from this environment's network
+policy, so the Play badge was extracted (English variant, language `<switch>` and script removed)
+from the MIT-licensed `localized-responsive-google-play-badge` package. It renders identically to
+the official badge — verified in headless Chromium — but is not Google's byte-exact file, and
+overwriting that one file is all it takes to replace it.
+
+The two badges carry different built-in clear space (Play's is inside the artwork, Apple's is not),
+so their black bodies are matched by giving them different total heights, 52px and 40px, measured
+in a browser rather than assumed.
