@@ -195,17 +195,13 @@ public sealed class RetriableTransactionTests(PostgresFixture fixture)
             Now);
 
         ScheduleRevision revision = new(source.Id, source.SourceId, run.Id, Now);
-        revision.SetRecordCount(1);
 
         IReadOnlyList<AudienceSelector> audience =
         [
             new AudienceSelector { Dimension = "practiceGroup", Value = "A" },
         ];
 
-        context.SourceSnapshots.Add(snapshot);
-        context.ParseRuns.Add(run);
-        context.ScheduleRevisions.Add(revision);
-        context.CanonicalScheduleRecords.Add(new CanonicalScheduleRecord(
+        CanonicalScheduleRecord record = new(
             revision.Id,
             source.SourceId,
             "candidate-0",
@@ -226,7 +222,13 @@ public sealed class RetriableTransactionTests(PostgresFixture fixture)
             "identity-0",
             "sha256:content-0",
             1.0m,
-            "[]"));
+            "[]");
+        revision.SetRecordSet([record]);
+
+        context.SourceSnapshots.Add(snapshot);
+        context.ParseRuns.Add(run);
+        context.ScheduleRevisions.Add(revision);
+        context.CanonicalScheduleRecords.Add(record);
 
         await context.SaveChangesAsync(Token);
         context.ChangeTracker.Clear();

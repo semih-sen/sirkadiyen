@@ -244,14 +244,15 @@ public sealed class ScheduleRevisionValidationStoreTests(PostgresFixture fixture
 
         ParseRun run = new(snapshot.Id, source.ParserProfile, source.ParserProfileVersion, "c1", Now);
         ScheduleRevision revision = new(source.Id, source.SourceId, run.Id, Now);
-        revision.SetRecordCount(records.Count);
+        List<CanonicalScheduleRecord> materialized = [.. records.Select(
+            specification => Materialize(revision.Id, sourceId, specification))];
+        revision.SetRecordSet(materialized);
 
         context.ScheduleSources.Add(source);
         context.SourceSnapshots.Add(snapshot);
         context.ParseRuns.Add(run);
         context.ScheduleRevisions.Add(revision);
-        context.CanonicalScheduleRecords.AddRange(
-            records.Select(specification => Materialize(revision.Id, sourceId, specification)));
+        context.CanonicalScheduleRecords.AddRange(materialized);
 
         await context.SaveChangesAsync(Token);
         return (source, revision);

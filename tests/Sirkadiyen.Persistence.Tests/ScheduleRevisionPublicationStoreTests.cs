@@ -514,13 +514,14 @@ public sealed class ScheduleRevisionPublicationStoreTests(PostgresFixture fixtur
             createdAtUtc);
 
         ScheduleRevision revision = new(source.Id, source.SourceId, run.Id, createdAtUtc);
-        revision.SetRecordCount(1);
+        CanonicalScheduleRecord record = Materialize(revision.Id, source.SourceId, createdAtUtc);
+        revision.SetRecordSet([record]);
         MoveTo(revision, state, createdAtUtc);
 
         context.SourceSnapshots.Add(snapshot);
         context.ParseRuns.Add(run);
         context.ScheduleRevisions.Add(revision);
-        context.CanonicalScheduleRecords.Add(Materialize(revision.Id, source.SourceId, createdAtUtc));
+        context.CanonicalScheduleRecords.Add(record);
 
         await context.SaveChangesAsync(Token);
         return revision;

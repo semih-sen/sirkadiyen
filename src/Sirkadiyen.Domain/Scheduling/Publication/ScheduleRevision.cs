@@ -109,6 +109,17 @@ public sealed class ScheduleRevision
 
     public int RecordCount { get; private set; }
 
+    /// <summary>
+    /// What this revision's records say, as one value, so that the next parse can
+    /// be recognised as saying the same thing before anything acts on it.
+    /// </summary>
+    /// <remarks>
+    /// Null on revisions created before this was recorded. A null never matches,
+    /// so an unrecognised predecessor simply produces a revision the way it always
+    /// did, and the source recovers the shortcut on its next parse.
+    /// </remarks>
+    public string? RecordSetHash { get; private set; }
+
     public uint RowVersion { get; private set; }
 
     public void TransitionTo(RevisionState state, DateTimeOffset atUtc, string? reason = null)
@@ -221,10 +232,20 @@ public sealed class ScheduleRevision
         SupersededAtUtc = atUtc;
     }
 
-    public void SetRecordCount(int recordCount)
+    /// <summary>
+    /// Records how many records this revision carries and what they say.
+    /// </summary>
+    /// <remarks>
+    /// The two are set together on purpose. A count without the set hash is a
+    /// revision the next parse cannot recognise itself in, which is how a
+    /// pipeline ends up publishing the same schedule over and over.
+    /// </remarks>
+    public void SetRecordSet(IReadOnlyCollection<CanonicalScheduleRecord> records)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(recordCount);
-        RecordCount = recordCount;
+        ArgumentNullException.ThrowIfNull(records);
+
+        RecordCount = records.Count;
+        RecordSetHash = CanonicalRecordSetHash.Compute(records);
     }
 
     private static string Truncate(string value, int maximumLength) =>

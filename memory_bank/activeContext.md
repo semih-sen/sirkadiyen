@@ -604,9 +604,14 @@ programs. **Google Drive acquisition is implemented too** (ADR-083): the two
 vertical-corridor calendars are downloaded over the Drive v3 REST API with the shared
 read-only source credential, checked against what Drive states about the file, and
 converted onto the same normalized snapshot a sheet produces — so **every Grade 2 Turkish
-source can now be acquired**. HTTP acquisition for `SHARED-AMPHI`, a workbook converter for
+source can now be acquired**. A workbook converter for
 the Drive-published Grade 3 sources, Grade 2 English onboarding/audience completion,
-and the remaining operational surfaces still do not exist. The English practice
+and the remaining operational surfaces still do not exist.
+(Superseded, 2026-08-31: `SHARED-AMPHI` no longer waits on an HTTP adapter. Its weekly
+workbook is republished into a Drive folder rather than edited in place, so the folder
+became its address and it is acquired through discovery + the Drive transport (ADR-133).
+It has taken 19 snapshots in production. It publishes nothing itself — it is a companion —
+but every one of those snapshots re-parses the seven annual sources that name it.) The English practice
 source itself is implemented and declares `İ1`/`İ2`; onboarding stays closed until
 group-labelled annual rows and the shared vertical-corridor source have safe English
 audience handling (ADR-084). The **consumer frontend now
@@ -3549,3 +3554,54 @@ yapılandırması, parse isteğiyle gidiyor, yeni tablo yok.
 - `feat/adr-128-unusual-dates` dalı aynı ihtiyacı kayıt bazlı override ile çözen paralel bir
   tasarım; merge edilmemeli. Parse edilmiş kaydı sonradan düzenlemek, parse'ın girdilerinin saf
   fonksiyonu olmasını bozar (ADR-017) — ADR-139 tam olarak bundan kaçınmıştı.
+
+
+## Üretim teşhisi: revizyon churn (2026-09-01)
+
+Şikâyet: "sürekli bir revizyon düşüyor, sistemin kendi kendine yetmesi lazım." Canlı
+PostgreSQL ve çalışan servisler üzerinde yalnızca okuma sorgularıyla teşhis edildi.
+Sistem bozuk değil, **fazla çalışıyor**: programlar neredeyse hiç değişmediği hâlde boru
+hattı her turda baştan dönüyor.
+
+**Ölçülenler.** 173 diff'in 106'sı hiçbir şey değiştirmiyor (`Created`/`Updated`/`Deleted`
+sıfır) ve hepsi `Dispatched` — takvim gönderim makinesi de boşuna çalışmış. 131 parse,
+belge değişmediği hâlde yapılmış. İncelemede 24 revizyon kilitli, hepsi aynı gerekçeyle
+(`Held for review: RecordDateOutOfSequence`), iki belgede toplam 1 + 3 tarih yüzünden.
+`canonical_schedule_records` 315 MB ve 194.631 satırın 148.162'si (%76) `Superseded`
+revizyonlara ait — bir daha okunmayacak veri. Journal 4,0 GB.
+
+**İki kök neden.**
+
+1. **Anlamsal denklik hiç kontrol edilmiyor.** Dedup yalnızca bayt düzeyinde
+   `ContentHash` ile. Bir hücre rengi değişince ya da Drive dosyayı yeniden üretince
+   hash değişir, tur sonuna kadar döner, ve çıkan kayıt kümesi bir öncekiyle birebir
+   aynı olur. Bunu anlayan tek yer zincirin *sonundaki* `SemanticScheduleDiffer`.
+2. **Companion değişimi bağımlıların tamamını geçersiz kılıyor.** `ParseRunCompanionFingerprint`
+   companion'ın ham `ContentHash`'ini alıyor; `SHARED-AMPHI`'nin 19 içerik değişimi yedi
+   yıllık kaynağın hepsini yeniden parse ettirdi. Amfi ataması aslında yalnızca dokunduğu
+   derslerle ilgili. 31 Ağustos'ta 106, 1 Eylül'de 72 revizyon üretti; normal seviye 1-9.
+
+**Sırayla ne yapıldı / yapılacak (ADR-141).** (A) journald sınırı + takvim poll aralıkları — sunucu tarafı.
+(B) Log seviyesi: `Logging__LogLevel__Microsoft.EntityFrameworkCore.Database.Command`
+env dosyalarında yazıyordu ama **systemd adında nokta olan değişkeni sessizce atıyor**;
+EF her SQL cümlesini `Information` seviyesinde yazmaya devam ediyordu (günde ~420 bin
+satır). Worker'a `appsettings.json` eklendi, aynı satır Api'ye de kondu, `.env.example`
+düzeltildi. (C) **yapıldı, ADR-141:** `ScheduleRevision.RecordSetHash` — parse
+sonucu kaynağın en son revizyonuyla aynıysa revizyon hiç yaratılmıyor, poll `ParsedUnchanged`
+raporluyor. (D) %100 kaybın `MassDeletion` incelemesinden ayrılması,
+companion-only kaynaklara terminal durum, saklama job'ı, uyarılar.
+
+**Companion fingerprint'i daraltmak bilerek ertelendi.** (C) devredeyken geriye kalan
+maliyet 131 gereksiz parse; parse ucuz, fingerprint'i daraltmak ADR-102/126/139'un
+tamamına dokunuyor.
+
+### Teşhis raporunun yanıldığı yer — kayda geçsin
+
+Rapor "tarih düzeltmelerini kural hâline getirin, `(kaynak, orijinal tarih)` anahtarıyla
+saklayın" diyor. **Zaten öyle:** `schedule_source_date_corrections` tam o anahtarla unique
+index'li, poller her parse'ta kaynağın bütün düzeltmelerini okuyup source context olarak
+gönderiyor ve düzeltme fingerprint'in parçası (ADR-139). B-03'teki 24 kilit yeni mekanizma
+eksikliğinden değil, (a) o iki belgede kalan anomali tarihleri için henüz düzeltme
+girilmemiş olmasından ve (b) her companion churn turunun aynı belgeyi yeniden parse edip
+**yeni bir `ReviewRequired` revizyonu** üretmesinden geliyor. Yani B-03, B-02'nin semptomu
+artı bir operatör işi.

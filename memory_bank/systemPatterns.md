@@ -137,10 +137,39 @@ Poll source
 → fetch values and structural metadata
 → normalize transport representation
 → calculate snapshot hash
-→ if unchanged, stop
-→ persist immutable snapshot
-→ enqueue parse job
+→ if unchanged, keep the stored snapshot (do not persist a second one)
+→ otherwise persist immutable snapshot
+→ open or resume the parse run for this snapshot AND its parse inputs
 ```
+
+An unchanged snapshot does **not** mean no parse. This is the single most
+misread step in the pipeline, so it is stated here rather than left to the
+poller: a parse run is identified by `(snapshot, parser profile, profile
+version, companion fingerprint)`, and the fingerprint covers the companion
+documents' content hashes, the group-rotation coverage, and the source's date
+corrections (ADR-102, ADR-126, ADR-127, ADR-139). Any of those changing opens a
+new run over a document that never moved — which is the intended behaviour, and
+also the reason a shared companion can re-parse every source that names it.
+
+What it must not mean is a new *revision* every time. Until 2026-09-01 it did:
+`CompleteAsync` created a revision for every successful parse, and whether
+anything had actually changed was discovered only at the end of the pipeline, by
+the semantic diff — after validation, publication and calendar dispatch had
+already run. 106 of 173 stored diffs changed nothing.
+
+The parse now ends with one more question, asked before a revision exists:
+
+```text
+→ compute CanonicalRecordSetHash over the parsed records
+→ if it equals the source's most recent revision's hash, stop
+   (the parse run stays completed and keeps the response; no revision is created)
+→ otherwise create the revision and continue
+```
+
+The hash is built from each record's stable identity and content hash — exactly
+what the semantic differ compares — so an equal hash guarantees a diff of nothing.
+The converse is not claimed and is not needed: an unequal hash simply proceeds as
+before, so this can suppress redundant work but never a real change.
 
 A source poll result must distinguish:
 

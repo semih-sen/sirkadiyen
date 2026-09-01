@@ -1522,3 +1522,37 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
   `next lint` bu depoda etkileşimli kurulum istediği için çalıştırılamadı.
 - **Parked:** `feat/adr-128-unusual-dates` dalı aynı ihtiyacı kayıt bazlı override olarak çözen
   paralel bir tasarım taşıyor; merge edilmemeli (ADR-017'yi bozar), referans olarak duruyor.
+
+
+## 2026-09-01 — Aynı şeyi söyleyen parse artık revizyon üretmiyor (ADR-141)
+
+- **Teşhis:** Canlı veritabanında 173 diff'in 106'sı hiçbir şey değiştirmiyor ve hepsi
+  `Dispatched`; 131 parse değişmemiş belge üzerinde yapılmış; incelemede 24 revizyon aynı üç tarih
+  yüzünden kilitli. Kök neden ikili: dedup yalnızca bayt düzeyinde, ve companion `ContentHash`'i run
+  kimliğinin parçası olduğu için `SHARED-AMPHI`'nin 19 değişimi yedi yıllık kaynağı yeniden parse
+  ettirmiş.
+- **Yapılan:** `CanonicalRecordSetHash` — her kaydın `StableIdentity` + `ContentHash`'i üzerinden tek
+  digest, semantik differ'ın karşılaştırdığı şeyin aynısı. `ScheduleRevision.RecordSetHash` (yeni,
+  nullable kolon; `AddRevisionRecordSetHash` migration'ı yalnızca kolon ekliyor). `CompleteAsync`
+  artık `ParseCompletion` döndürüyor (`RevisionCreated` / `ParserRejected` / `UnchangedRecordSet`);
+  hash kaynağın en son revizyonununkiyle aynıysa revizyon yaratılmıyor, parse run tamamlanıp
+  parser yanıtını saklıyor. Poller bunu yeni `ParsedUnchanged` sonucu olarak raporluyor.
+- **Log seviyesi gerçekten uygulanıyor:** Worker'a `appsettings.json` eklendi (Web SDK olmadığı için
+  `None Update ... CopyToOutputDirectory`), EF `Database.Command` kategorisi `Warning`; aynı satır
+  Api'nin `appsettings.json`'ına da kondu. `.env.example`'daki noktalı satır kaldırıldı —
+  **systemd adında nokta olan değişkeni hatasızca atıyor**, üretimde EF her SQL cümlesini
+  `Information` seviyesinde yazıyordu (günde ~420 bin satır, 4 GB journal).
+- **Dokümantasyon borcu kapatıldı:** `systemPatterns.md` §4 artık parse run kimliğinin
+  `(snapshot, profil, sürüm, companion fingerprint)` olduğunu ve değişmemiş snapshot'ın parse
+  edilebileceğini söylüyor; `activeContext.md`'deki "SHARED-AMPHI için HTTP alımı yok" cümlesi
+  ADR-133 ile eskimişti, düzeltildi; `docs/schedule-ingestion.md` boru hattı şemasına karşılaştırma
+  adımı eklendi.
+- **Tests executed:** `dotnet build` 0 uyarı 0 hata; Infrastructure 828, Api 11, Contracts 6 test
+  geçti (yeni: `CanonicalRecordSetHashTests` 7 test, poller'ın `ParsedUnchanged` raporu).
+- **Not done / not verified:** `Sirkadiyen.Persistence.Tests` bu makinede yine koşmuyor — Docker
+  kapalı, `127.0.0.1:15432` yok. Yeni iki store testi (`AReParseSayingTheSameThingCreatesNoSecond
+  Revision`, `AReParseWhoseRecordsMovedStillCreatesARevision`) ve migration bu yüzden gerçek
+  PostgreSQL'de doğrulanmadı; CI'da ya da Docker açıkken koşturulmalı.
+- **Bilerek ertelendi:** Companion fingerprint'i daraltmak (bir amfi değişimi yalnızca gerçekten
+  dokunduğu bağımlıları geçersiz kılsın). Geriye kalan maliyet 131 gereksiz parse; parse ucuz,
+  değişiklik ADR-102/126/139'un üçüne birden dokunuyor.

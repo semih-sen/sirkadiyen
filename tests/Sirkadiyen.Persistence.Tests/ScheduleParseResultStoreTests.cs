@@ -36,12 +36,14 @@ public sealed class ScheduleParseResultStoreTests(PostgresFixture fixture)
             StaleAfter,
             ParseRunCompanionFingerprint.None,
             Token);
-        ScheduleRevision? revision = await store.CompleteAsync(
+        ParseCompletion completion = await store.CompleteAsync(
             begun.ParseRunId,
             Response(source, snapshot, "correlation-1"),
             now.AddSeconds(2),
             Token);
+        ScheduleRevision? revision = completion.Revision;
 
+        Assert.Equal(ParseCompletionOutcome.RevisionCreated, completion.Outcome);
         Assert.NotNull(revision);
         context.ChangeTracker.Clear();
         // Scoped to this test's own snapshot and revision: the fixture database
@@ -91,11 +93,11 @@ public sealed class ScheduleParseResultStoreTests(PostgresFixture fixture)
             StaleAfter,
             ParseRunCompanionFingerprint.None,
             Token);
-        ScheduleRevision? revision = await store.CompleteAsync(
+        ScheduleRevision? revision = (await store.CompleteAsync(
             begun.ParseRunId,
             Response(source, snapshot, "correlation-1", withClosure: true),
             now.AddSeconds(2),
-            Token);
+            Token)).Revision;
 
         Assert.NotNull(revision);
         context.ChangeTracker.Clear();
@@ -137,11 +139,11 @@ public sealed class ScheduleParseResultStoreTests(PostgresFixture fixture)
             StaleAfter,
             ParseRunCompanionFingerprint.None,
             Token);
-        ScheduleRevision? revision = await store.CompleteAsync(
+        ScheduleRevision? revision = (await store.CompleteAsync(
             begun.ParseRunId,
             Response(source, snapshot, "correlation-1"),
             now.AddSeconds(2),
-            Token);
+            Token)).Revision;
         Assert.NotNull(revision);
 
         // Straight past the domain, the way a future producer or a repair script
@@ -432,11 +434,142 @@ public sealed class ScheduleParseResultStoreTests(PostgresFixture fixture)
         return (source, snapshot);
     }
 
+    /// <summary>
+    /// The companion churn, reproduced: a document nobody touched, re-parsed
+    /// because something beside it moved, must not become a second revision.
+    /// </summary>
+    /// <remarks>
+    /// This is the case that produced 106 no-op diffs in production — each one
+    /// validated, published, diffed and dispatched to student calendars before
+    /// anything discovered it changed nothing.
+    /// </remarks>
+    [Fact]
+    public async Task AReParseSayingTheSameThingCreatesNoSecondRevision()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        (ScheduleSource source, SourceSnapshot snapshot) = await AddSourceAndSnapshotAsync(context);
+        ScheduleParseResultStore store = new(context);
+        DateTimeOffset now = new(2026, 9, 1, 9, 0, 0, TimeSpan.Zero);
+        SourceId companionId = SourceId.Parse("SHARED-AMPHI");
+
+        var first = await store.BeginOrResumeAsync(
+            snapshot,
+            source,
+            "correlation-1",
+            now,
+            StaleAfter,
+            ParseRunCompanionFingerprint.Compute([new CompanionEvidence(companionId, "sha256:amphi-1")]),
+            Token);
+        ParseCompletion created = await store.CompleteAsync(
+            first.ParseRunId,
+            Response(source, snapshot, "correlation-1"),
+            now.AddSeconds(2),
+            Token);
+
+        // The amphitheatre workbook is republished. The annual document has not
+        // moved, but its run identity has, so it is parsed again — and says
+        // exactly what it said before.
+        var second = await store.BeginOrResumeAsync(
+            snapshot,
+            source,
+            "correlation-2",
+            now.AddMinutes(5),
+            StaleAfter,
+            ParseRunCompanionFingerprint.Compute([new CompanionEvidence(companionId, "sha256:amphi-2")]),
+            Token);
+        Assert.True(second.ShouldInvokeParser);
+
+        ParseCompletion repeated = await store.CompleteAsync(
+            second.ParseRunId,
+            Response(source, snapshot, "correlation-2"),
+            now.AddMinutes(5).AddSeconds(2),
+            Token);
+
+        Assert.Equal(ParseCompletionOutcome.RevisionCreated, created.Outcome);
+        Assert.Equal(ParseCompletionOutcome.UnchangedRecordSet, repeated.Outcome);
+        Assert.Null(repeated.Revision);
+        Assert.Equal(created.Revision!.Id, repeated.UnchangedFromRevisionId);
+
+        context.ChangeTracker.Clear();
+        Assert.Equal(
+            1,
+            await context.ScheduleRevisions.CountAsync(
+                revision => revision.ScheduleSourceId == source.Id,
+                Token));
+
+        // Both parse runs stay completed and keep the parser's response. That the
+        // document was read is evidence; that it said the same thing is not a
+        // reason to forget reading it.
+        Assert.Equal(
+            2,
+            await context.ParseRuns.CountAsync(
+                run => run.SourceSnapshotId == snapshot.Id
+                    && run.Status == ParseRunStatus.CompletedWithWarnings,
+                Token));
+    }
+
+    /// <summary>
+    /// The other half of the same rule: suppression must be impossible to confuse
+    /// with a real change.
+    /// </summary>
+    [Fact]
+    public async Task AReParseWhoseRecordsMovedStillCreatesARevision()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        (ScheduleSource source, SourceSnapshot snapshot) = await AddSourceAndSnapshotAsync(context);
+        ScheduleParseResultStore store = new(context);
+        DateTimeOffset now = new(2026, 9, 1, 9, 0, 0, TimeSpan.Zero);
+        SourceId companionId = SourceId.Parse("SHARED-AMPHI");
+
+        var first = await store.BeginOrResumeAsync(
+            snapshot,
+            source,
+            "correlation-1",
+            now,
+            StaleAfter,
+            ParseRunCompanionFingerprint.Compute([new CompanionEvidence(companionId, "sha256:amphi-1")]),
+            Token);
+        await store.CompleteAsync(
+            first.ParseRunId,
+            Response(source, snapshot, "correlation-1"),
+            now.AddSeconds(2),
+            Token);
+
+        var second = await store.BeginOrResumeAsync(
+            snapshot,
+            source,
+            "correlation-2",
+            now.AddMinutes(5),
+            StaleAfter,
+            ParseRunCompanionFingerprint.Compute([new CompanionEvidence(companionId, "sha256:amphi-2")]),
+            Token);
+
+        // Same lesson, same identity — the amphitheatre assignment gave it a room.
+        ParseCompletion changed = await store.CompleteAsync(
+            second.ParseRunId,
+            Response(source, snapshot, "correlation-2", contentHash: "sha256:content-with-room"),
+            now.AddMinutes(5).AddSeconds(2),
+            Token);
+
+        Assert.Equal(ParseCompletionOutcome.RevisionCreated, changed.Outcome);
+        Assert.NotNull(changed.Revision);
+
+        context.ChangeTracker.Clear();
+        Assert.Equal(
+            2,
+            await context.ScheduleRevisions.CountAsync(
+                revision => revision.ScheduleSourceId == source.Id,
+                Token));
+    }
+
     private static ParseSnapshotResponse Response(
         ScheduleSource source,
         SourceSnapshot snapshot,
         string correlationId,
-        bool withClosure = false) => new()
+        bool withClosure = false,
+        string contentHash = "sha256:content") => new()
         {
             ContractVersion = ParserContractVersions.V1,
             CorrelationId = correlationId,
@@ -479,7 +612,7 @@ public sealed class ScheduleParseResultStoreTests(PostgresFixture fixture)
                     CurriculumBlock = "HÜCRE DİLİMİ",
                     Departments = ["TIBBİ BİYOLOJİ AD.", "BİYOFİZİK AD."],
                     StableIdentity = "sha256:identity",
-                    ContentHash = "sha256:content",
+                    ContentHash = contentHash,
                     Confidence = 0.95m,
                 },
                 .. withClosure

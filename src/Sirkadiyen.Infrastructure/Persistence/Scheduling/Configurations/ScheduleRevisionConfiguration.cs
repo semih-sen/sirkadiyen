@@ -26,6 +26,12 @@ internal sealed class ScheduleRevisionConfiguration : IEntityTypeConfiguration<S
             .HasMaxLength(ScheduleRevision.MaximumStateReasonLength);
         builder.Property(revision => revision.RowVersion).IsRowVersion();
 
+        // What the revision's records say, as one value. Nullable only because
+        // revisions created before it existed have none, and a null is read as
+        // "unrecognisable" rather than as "empty".
+        builder.Property(revision => revision.RecordSetHash)
+            .HasMaxLength(CanonicalRecordSetHash.Length);
+
         // Who released a quarantined revision, and why. Nullable because the
         // normal path never needs approval: a null here means the revision was
         // published on its own validation, not that the approver went unrecorded.

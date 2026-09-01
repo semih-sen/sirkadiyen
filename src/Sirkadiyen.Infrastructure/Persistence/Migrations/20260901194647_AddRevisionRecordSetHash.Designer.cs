@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Sirkadiyen.Infrastructure.Persistence;
@@ -11,9 +12,11 @@ using Sirkadiyen.Infrastructure.Persistence;
 namespace Sirkadiyen.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(SirkadiyenDbContext))]
-    partial class SirkadiyenDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260901194647_AddRevisionRecordSetHash")]
+    partial class AddRevisionRecordSetHash
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -371,7 +374,7 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
 
                     b.ToTable("finance_accounts", "sirkadiyen", t =>
                         {
-                            t.HasCheckConstraint("ck_finance_accounts_closure", "(\"Status\" = 'Closed' AND \"ClosedAtUtc\" IS NOT NULL AND \"ClosedReason\" IS NOT NULL)\r\nOR\r\n(\"Status\" <> 'Closed' AND \"ClosedAtUtc\" IS NULL AND \"ClosedReason\" IS NULL)");
+                            t.HasCheckConstraint("ck_finance_accounts_closure", "(\"Status\" = 'Closed' AND \"ClosedAtUtc\" IS NOT NULL AND \"ClosedReason\" IS NOT NULL)\nOR\n(\"Status\" <> 'Closed' AND \"ClosedAtUtc\" IS NULL AND \"ClosedReason\" IS NULL)");
 
                             t.HasCheckConstraint("ck_finance_accounts_currency", "\"CurrencyCode\" = 'TRY'");
 
@@ -505,7 +508,7 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
 
                     b.ToTable("finance_audits", "sirkadiyen", t =>
                         {
-                            t.HasCheckConstraint("ck_finance_audits_action", "\"Action\" IN ('AccountOpened', 'AccountUpdated', 'AccountClosed', 'HolderCreated',\r\n             'HolderUpdated', 'HolderDeactivated', 'PartnerSharesChanged',\r\n             'TransactionCreated', 'TransactionUpdated', 'TransactionDeleted',\r\n             'ObligationCreated', 'ObligationUpdated', 'ObligationSettled',\r\n             'ObligationSettlementCancelled', 'ObligationWrittenOff', 'ObligationCancelled',\r\n             'DistributionExecuted', 'DistributionReversed')");
+                            t.HasCheckConstraint("ck_finance_audits_action", "\"Action\" IN ('AccountOpened', 'AccountUpdated', 'AccountClosed', 'HolderCreated',\n             'HolderUpdated', 'HolderDeactivated', 'PartnerSharesChanged',\n             'TransactionCreated', 'TransactionUpdated', 'TransactionDeleted',\n             'ObligationCreated', 'ObligationUpdated', 'ObligationSettled',\n             'ObligationSettlementCancelled', 'ObligationWrittenOff', 'ObligationCancelled',\n             'DistributionExecuted', 'DistributionReversed')");
 
                             t.HasCheckConstraint("ck_finance_audits_reason_required", "\"Action\" NOT IN ('AccountClosed', 'HolderDeactivated', 'TransactionUpdated', 'TransactionDeleted', 'ObligationSettlementCancelled', 'ObligationWrittenOff', 'ObligationCancelled', 'DistributionExecuted', 'DistributionReversed') OR \"Reason\" IS NOT NULL");
                         });
@@ -600,7 +603,7 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_finance_distributions_period", "\"PeriodEndOn\" >= \"PeriodStartOn\"");
 
-                            t.HasCheckConstraint("ck_finance_distributions_reversal", "(\"Status\" = 'Reversed'\r\n AND \"ReversedByUserId\" IS NOT NULL\r\n AND \"ReversedByEmail\" IS NOT NULL\r\n AND \"ReversalReason\" IS NOT NULL\r\n AND \"ReversedAtUtc\" IS NOT NULL)\r\nOR\r\n(\"Status\" <> 'Reversed'\r\n AND \"ReversedByUserId\" IS NULL\r\n AND \"ReversedByEmail\" IS NULL\r\n AND \"ReversalReason\" IS NULL\r\n AND \"ReversedAtUtc\" IS NULL)");
+                            t.HasCheckConstraint("ck_finance_distributions_reversal", "(\"Status\" = 'Reversed'\n AND \"ReversedByUserId\" IS NOT NULL\n AND \"ReversedByEmail\" IS NOT NULL\n AND \"ReversalReason\" IS NOT NULL\n AND \"ReversedAtUtc\" IS NOT NULL)\nOR\n(\"Status\" <> 'Reversed'\n AND \"ReversedByUserId\" IS NULL\n AND \"ReversedByEmail\" IS NULL\n AND \"ReversalReason\" IS NULL\n AND \"ReversedAtUtc\" IS NULL)");
 
                             t.HasCheckConstraint("ck_finance_distributions_status", "\"Status\" IN ('Executed', 'Reversed')");
                         });
@@ -705,7 +708,7 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_finance_ledger_entries_kind", "\"Kind\" IN ('OpeningBalance', 'Income', 'Expense', 'Transfer', 'Distribution')");
 
-                            t.HasCheckConstraint("ck_finance_ledger_entries_leg", "(\"Kind\" = 'Transfer' AND \"Leg\" IN ('From', 'To') AND ((\"Leg\" = 'From') = (\"Amount\" < 0)))\r\nOR (\"Kind\" IN ('OpeningBalance', 'Income', 'Expense', 'Distribution') AND \"Leg\" = 'Single')");
+                            t.HasCheckConstraint("ck_finance_ledger_entries_leg", "(\"Kind\" = 'Transfer' AND \"Leg\" IN ('From', 'To') AND ((\"Leg\" = 'From') = (\"Amount\" < 0)))\nOR (\"Kind\" IN ('OpeningBalance', 'Income', 'Expense', 'Distribution') AND \"Leg\" = 'Single')");
                         });
                 });
 
@@ -798,11 +801,11 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
 
                             t.HasCheckConstraint("ck_finance_obligations_direction", "\"Direction\" IN ('Receivable', 'Payable')");
 
-                            t.HasCheckConstraint("ck_finance_obligations_direction_category", "(\"Direction\" = 'Receivable' AND \"Category\" IN ('LicenseSales', 'Sponsorship', 'Donation', 'OtherIncome'))\r\nOR (\"Direction\" = 'Payable' AND \"Category\" IN ('Servers', 'Domains', 'ExternalServices',\r\n                                'SoftwareLicenses', 'Marketing', 'Operational', 'Charitable', 'OtherExpense'))");
+                            t.HasCheckConstraint("ck_finance_obligations_direction_category", "(\"Direction\" = 'Receivable' AND \"Category\" IN ('LicenseSales', 'Sponsorship', 'Donation', 'OtherIncome'))\nOR (\"Direction\" = 'Payable' AND \"Category\" IN ('Servers', 'Domains', 'ExternalServices',\n                                'SoftwareLicenses', 'Marketing', 'Operational', 'Charitable', 'OtherExpense'))");
 
                             t.HasCheckConstraint("ck_finance_obligations_settled", "\"SettledAmount\" >= 0 AND \"SettledAmount\" <= \"Amount\"");
 
-                            t.HasCheckConstraint("ck_finance_obligations_status", "(\"Status\" = 'Open'             AND \"SettledAmount\" = 0)\r\nOR (\"Status\" = 'PartiallySettled' AND \"SettledAmount\" > 0 AND \"SettledAmount\" < \"Amount\")\r\nOR (\"Status\" = 'Settled'          AND \"SettledAmount\" = \"Amount\")\r\nOR (\"Status\" = 'WrittenOff'       AND \"WrittenOffOn\" IS NOT NULL AND \"ClosureReason\" IS NOT NULL)\r\nOR (\"Status\" = 'Cancelled'        AND \"CancelledOn\" IS NOT NULL AND \"ClosureReason\" IS NOT NULL\r\n                                   AND \"SettledAmount\" = 0)");
+                            t.HasCheckConstraint("ck_finance_obligations_status", "(\"Status\" = 'Open'             AND \"SettledAmount\" = 0)\nOR (\"Status\" = 'PartiallySettled' AND \"SettledAmount\" > 0 AND \"SettledAmount\" < \"Amount\")\nOR (\"Status\" = 'Settled'          AND \"SettledAmount\" = \"Amount\")\nOR (\"Status\" = 'WrittenOff'       AND \"WrittenOffOn\" IS NOT NULL AND \"ClosureReason\" IS NOT NULL)\nOR (\"Status\" = 'Cancelled'        AND \"CancelledOn\" IS NOT NULL AND \"ClosureReason\" IS NOT NULL\n                                   AND \"SettledAmount\" = 0)");
                         });
                 });
 
@@ -935,7 +938,7 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("ck_finance_transactions_amount", "\"Amount\" > 0");
 
-                            t.HasCheckConstraint("ck_finance_transactions_category", "(\"Kind\" = 'Income'  AND \"Category\" IN ('LicenseSales', 'Sponsorship', 'Donation', 'OtherIncome'))\r\nOR (\"Kind\" = 'Expense' AND \"Category\" IN ('Servers', 'Domains', 'ExternalServices',\r\n                                'SoftwareLicenses', 'Marketing', 'Operational', 'Charitable', 'OtherExpense'))\r\nOR (\"Kind\" IN ('OpeningBalance', 'Transfer', 'Distribution') AND \"Category\" IS NULL)");
+                            t.HasCheckConstraint("ck_finance_transactions_category", "(\"Kind\" = 'Income'  AND \"Category\" IN ('LicenseSales', 'Sponsorship', 'Donation', 'OtherIncome'))\nOR (\"Kind\" = 'Expense' AND \"Category\" IN ('Servers', 'Domains', 'ExternalServices',\n                                'SoftwareLicenses', 'Marketing', 'Operational', 'Charitable', 'OtherExpense'))\nOR (\"Kind\" IN ('OpeningBalance', 'Transfer', 'Distribution') AND \"Category\" IS NULL)");
 
                             t.HasCheckConstraint("ck_finance_transactions_distribution_link", "(\"Kind\" = 'Distribution') = (\"FinanceDistributionId\" IS NOT NULL)");
 
@@ -1373,15 +1376,15 @@ namespace Sirkadiyen.Infrastructure.Persistence.Migrations
 
                     b.ToTable("licenses", "sirkadiyen", t =>
                         {
-                            t.HasCheckConstraint("ck_licenses_code_hash", "(\"Kind\" = 'Code' AND octet_length(\"CodeHash\") = 32)\r\nOR (\"Kind\" = 'Manual' AND \"CodeHash\" IS NULL)");
+                            t.HasCheckConstraint("ck_licenses_code_hash", "(\"Kind\" = 'Code' AND octet_length(\"CodeHash\") = 32)\nOR (\"Kind\" = 'Manual' AND \"CodeHash\" IS NULL)");
 
                             t.HasCheckConstraint("ck_licenses_expiration", "\"ExpiresAtUtc\" IS NULL OR \"ExpiresAtUtc\" > \"CreatedAtUtc\"");
 
                             t.HasCheckConstraint("ck_licenses_kind", "\"Kind\" IN ('Code', 'Manual')");
 
-                            t.HasCheckConstraint("ck_licenses_redemption", "(\"RedeemedByUserId\" IS NULL) = (\"RedeemedAtUtc\" IS NULL)\r\nAND (\"Status\" <> 'Redeemed'\r\n     OR (\"RedeemedByUserId\" IS NOT NULL AND \"RedeemedAtUtc\" IS NOT NULL))\r\nAND (\"Status\" NOT IN ('Active', 'Expired')\r\n     OR \"RedeemedByUserId\" IS NULL)");
+                            t.HasCheckConstraint("ck_licenses_redemption", "(\"RedeemedByUserId\" IS NULL) = (\"RedeemedAtUtc\" IS NULL)\nAND (\"Status\" <> 'Redeemed'\n     OR (\"RedeemedByUserId\" IS NOT NULL AND \"RedeemedAtUtc\" IS NOT NULL))\nAND (\"Status\" NOT IN ('Active', 'Expired')\n     OR \"RedeemedByUserId\" IS NULL)");
 
-                            t.HasCheckConstraint("ck_licenses_revocation", "(\"Status\" = 'Revoked'\r\n AND \"RevokedByUserId\" IS NOT NULL\r\n AND \"RevokedByEmail\" IS NOT NULL\r\n AND \"RevocationReason\" IS NOT NULL\r\n AND \"RevokedAtUtc\" IS NOT NULL)\r\nOR\r\n(\"Status\" <> 'Revoked'\r\n AND \"RevokedByUserId\" IS NULL\r\n AND \"RevokedByEmail\" IS NULL\r\n AND \"RevocationReason\" IS NULL\r\n AND \"RevokedAtUtc\" IS NULL)");
+                            t.HasCheckConstraint("ck_licenses_revocation", "(\"Status\" = 'Revoked'\n AND \"RevokedByUserId\" IS NOT NULL\n AND \"RevokedByEmail\" IS NOT NULL\n AND \"RevocationReason\" IS NOT NULL\n AND \"RevokedAtUtc\" IS NOT NULL)\nOR\n(\"Status\" <> 'Revoked'\n AND \"RevokedByUserId\" IS NULL\n AND \"RevokedByEmail\" IS NULL\n AND \"RevocationReason\" IS NULL\n AND \"RevokedAtUtc\" IS NULL)");
 
                             t.HasCheckConstraint("ck_licenses_status", "\"Status\" IN ('Active', 'Redeemed', 'Revoked', 'Expired')");
                         });

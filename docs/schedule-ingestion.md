@@ -127,10 +127,21 @@ acquires normalized snapshot
 → begins or resumes the deterministic parse run
 → calls POST /v1/parse
 → persists the response
-→ creates a candidate revision and canonical records in one transaction
+→ compares the record set with the source's most recent revision
+→ if it says the same thing, stops here: no revision, no diff, no dispatch
+→ otherwise creates a candidate revision and canonical records in one transaction
 → validates the revision in a separate transaction
 → publishes it in a third, superseding the revision it replaces
 ```
+
+The comparison step is `CanonicalRecordSetHash`: one digest over every record's
+stable identity and content hash, which is exactly what the semantic differ
+compares. It exists because a document is re-parsed for reasons that have nothing
+to do with its content — a companion document edited beside it, a re-export that
+moved no lesson — and without it every one of those produced a revision, a
+publication, a diff of nothing, and a calendar dispatch that wrote nothing. The
+poll reports this as `ParsedUnchanged`, which is distinct from `AlreadyParsed`:
+the first parsed and found nothing, the second did not parse at all.
 
 Every store that opens its own transaction runs through `RetriableTransaction`.
 The hosts configure the context with `EnableRetryOnFailure`, and saving inside a

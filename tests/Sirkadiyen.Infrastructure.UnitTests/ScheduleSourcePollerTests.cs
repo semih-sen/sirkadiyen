@@ -51,6 +51,50 @@ public sealed class ScheduleSourcePollerTests
         Assert.True(resultStore.Completed);
     }
 
+    /// <summary>
+    /// A cycle that parsed and found nothing new says so, rather than reporting a
+    /// plain parse with a mysteriously missing revision.
+    /// </summary>
+    /// <remarks>
+    /// It is the ordinary outcome for a source re-parsed because a companion
+    /// document moved, so it has to be legible: an operator looking at a source
+    /// with no new revision needs to see that the work ran and found the schedule
+    /// unchanged, not wonder whether the cycle broke.
+    /// </remarks>
+    [Fact]
+    public async Task AParseThatRepeatsTheLastRevisionIsReportedAsUnchanged()
+    {
+        ScheduleSource source = Source();
+        NormalizedSpreadsheetSnapshot snapshot = Snapshot(source);
+        SourceSnapshot storedSnapshot = StoredSnapshot(source, snapshot);
+        FakeParseResultStore resultStore = new(
+            shouldInvokeParser: true,
+            ParseCompletionOutcome.UnchangedRecordSet);
+        ScheduleSourcePoller poller = new(
+            new FakeSnapshotAcquirer(snapshot),
+            new FakeDriveDocumentAcquirer(),
+            new FakeSnapshotStore(storedSnapshot, changed: false),
+            new FakeParserClient(),
+            resultStore,
+            new FakeGroupRotationCoverageStore(),
+            new FakeDateCorrectionStore(),
+            ValidationService(),
+            new FakeOperationalFreezeStore(),
+            new FakeWeeklyDocumentDiscovery(),
+            new ParseRunOptions(),
+            new FixedTimeProvider(new DateTimeOffset(2026, 9, 1, 9, 0, 0, TimeSpan.Zero)));
+
+        ScheduleSourcePollResult result = await poller.PollAsync(source, CancellationToken.None);
+
+        Assert.Equal(ScheduleSourcePollOutcome.ParsedUnchanged, result.Outcome);
+        Assert.Null(result.RevisionId);
+        Assert.Equal(FakeParseResultStore.RepeatedRevisionId, result.UnchangedFromRevisionId);
+
+        // Nothing was validated, because there is nothing to validate.
+        Assert.Null(result.RevisionState);
+        Assert.Null(result.ValidationFindingCount);
+    }
+
     [Fact]
     public async Task ParserFailureIsPersistedBeforeTheErrorEscapes()
     {
@@ -1010,9 +1054,14 @@ public sealed class ScheduleSourcePollerTests
         }
     }
 
-    private sealed class FakeParseResultStore(bool shouldInvokeParser)
+    private sealed class FakeParseResultStore(
+        bool shouldInvokeParser,
+        ParseCompletionOutcome completionOutcome = ParseCompletionOutcome.RevisionCreated)
         : IScheduleParseResultStore
     {
+        /// <summary>The revision this fake claims a completed parse repeated.</summary>
+        public static readonly Guid RepeatedRevisionId = Guid.CreateVersion7();
+
         private readonly Guid runId = Guid.CreateVersion7();
 
         public bool Completed { get; private set; }
@@ -1047,14 +1096,25 @@ public sealed class ScheduleSourcePollerTests
             });
         }
 
-        public Task<ScheduleRevision?> CompleteAsync(
+        public Task<ParseCompletion> CompleteAsync(
             Guid parseRunId,
             ParseSnapshotResponse response,
             DateTimeOffset completedAtUtc,
             CancellationToken cancellationToken)
         {
             Completed = true;
-            return Task.FromResult<ScheduleRevision?>(null);
+
+            // No revision instance is produced: these tests are about what the
+            // poller does around the store, and a persisted revision needs a
+            // database. The outcome is what the poller reads.
+            return Task.FromResult(new ParseCompletion
+            {
+                Outcome = completionOutcome,
+                UnchangedFromRevisionId =
+                    completionOutcome is ParseCompletionOutcome.UnchangedRecordSet
+                        ? RepeatedRevisionId
+                        : null,
+            });
         }
 
         public Task FailAsync(

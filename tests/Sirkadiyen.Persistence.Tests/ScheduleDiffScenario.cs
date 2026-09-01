@@ -81,24 +81,21 @@ internal static class ScheduleDiffScenario
             createdAtUtc);
 
         ScheduleRevision revision = new(source.Id, source.SourceId, run.Id, createdAtUtc);
-        revision.SetRecordCount(identities.Count);
+        List<CanonicalScheduleRecord> records = [.. identities.Select(identity => Materialize(
+            revision.Id,
+            source.SourceId,
+            identity,
+            changedContentIdentities?.Contains(identity) == true
+                ? $"sha256:changed-{identity}"
+                : $"sha256:{identity}"))];
+        revision.SetRecordSet(records);
         revision.TransitionTo(RevisionState.Validating, createdAtUtc);
         revision.TransitionTo(RevisionState.Validated, createdAtUtc, "All validation rules passed.");
 
         context.SourceSnapshots.Add(snapshot);
         context.ParseRuns.Add(run);
         context.ScheduleRevisions.Add(revision);
-
-        foreach (string identity in identities)
-        {
-            context.CanonicalScheduleRecords.Add(Materialize(
-                revision.Id,
-                source.SourceId,
-                identity,
-                changedContentIdentities?.Contains(identity) == true
-                    ? $"sha256:changed-{identity}"
-                    : $"sha256:{identity}"));
-        }
+        context.CanonicalScheduleRecords.AddRange(records);
 
         await context.SaveChangesAsync(Token);
         return revision;

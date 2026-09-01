@@ -8718,3 +8718,72 @@ No new storage, no second model — ADR-139's `ScheduleSourceDateCorrection` is 
   record-level overrides applied after the parse, keyed by stable identity. It is not merged and
   should not be: editing parsed records breaks the parse being a pure function of its inputs
   (ADR-017), which is exactly what ADR-139 avoided by making a correction source context.
+
+
+## ADR-141: A parse that says nothing new produces no revision
+
+**Status:** Accepted and implemented
+**Date:** 2026-09-01
+**Relates to:** ADR-018 and ADR-035 (the semantic diff and what it compares), ADR-025 and ADR-029
+(validation is the boundary between a parse and a student's calendar), ADR-032 (a validated
+revision publishes itself), ADR-102, ADR-126, ADR-127 and ADR-139 (every input that opens a new
+parse run over an unmoved document)
+
+### Context
+
+The 2026-09-01 production diagnosis measured what the pipeline was actually doing: **106 of 173
+stored diffs changed nothing** — zero created, zero updated, zero deleted — and every one of them
+was marked `Dispatched`, so the calendar machinery ran for them too. 131 parses were performed on
+documents that had not changed.
+
+Nothing was broken. Two mechanisms were working exactly as designed and compounding:
+
+1. **Deduplication was byte-level only.** A recoloured cell or a Drive re-export changes the
+   snapshot's `ContentHash`, and the pipeline ran end to end to find out that the resulting records
+   were identical to the ones already published.
+2. **A companion's content hash is part of the run's identity** (ADR-102). `SHARED-AMPHI` is a
+   companion of all seven annual sources and changed 19 times; each change re-parsed all seven
+   documents, none of which had moved. That produced 106 revisions on 31 August and 72 on
+   1 September, against a normal level of 1 to 9.
+
+The second is deliberate and stays. Re-parsing when an input changed is correct — the alternative
+is a schedule that ignores the room assignment it was just given. What was wrong is that a re-parse
+*always* produced a revision, and the question "did anything change" was asked only at the end, by
+the semantic differ, after validation, publication and dispatch had already run.
+
+### Decision
+
+**The parse asks the question itself, before a revision exists.** `CanonicalRecordSetHash` reduces
+the parsed record set to one digest over each record's stable identity and content hash. If it
+equals the hash of the source's most recent revision, `CompleteAsync` completes the parse run,
+keeps the parser's whole response as evidence, and creates **no revision** — so no validation, no
+publication, no diff and no dispatch follow. The outcome is reported as `ParsedUnchanged`, distinct
+from `AlreadyParsed`: one parsed and found nothing, the other did not parse.
+
+Three choices inside that are worth stating:
+
+1. **The hash is built from what the differ compares**, not from a re-serialization of the records.
+   That is what makes "equal hash" mean "diff of nothing" rather than merely "probably nothing".
+   The implication runs one way only, which is the safe direction: an unequal hash proceeds exactly
+   as before, so this can suppress redundant work but never a real change.
+2. **The comparison is against the most recent revision whatever state it is in**, not against the
+   published one. Repeating a revision that is waiting for review is as pointless as repeating a
+   published one, and it is what buried the review queue: two documents held on three unreadable
+   dates had accumulated 24 identical `ReviewRequired` revisions, one per companion churn cycle.
+3. **The hash is nullable.** Revisions that predate it have none, and a null never matches, so a
+   source with an unrecognisable predecessor behaves exactly as it did before and recovers the
+   shortcut on its next parse. No backfill, no migration of existing data.
+
+### Consequences
+
+- The 106 no-op diffs, their publications and their dispatches stop at the source. The parse still
+  runs, and the parse run still records that the document was read.
+- **Narrowing the companion fingerprint is deliberately deferred.** With this in place, what remains
+  of the companion cascade is 131 unnecessary parses; parsing is cheap, and making a companion
+  invalidate only the dependents whose slots it actually touches would reach into ADR-102, ADR-126
+  and ADR-139 at once. It stays a separate decision.
+- A completed parse run with candidates and no revision is now an ordinary sight in the database.
+  It means the document said what it said last time.
+- What this does **not** fix: a source held for review stops multiplying its identical holds, but
+  the hold itself stands until an operator answers it. For the two documents in the diagnosis that
+  answer is a date correction (ADR-139), which is built and waiting to be used.

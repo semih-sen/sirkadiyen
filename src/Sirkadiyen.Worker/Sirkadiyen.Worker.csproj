@@ -11,6 +11,16 @@
     <ProjectReference Include="../Sirkadiyen.Infrastructure/Sirkadiyen.Infrastructure.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <!--
+      This is not the Web SDK, so nothing copies appsettings.json to the output
+      on its own. It has to be shipped: it is the only place the worker's log
+      levels can be stated. An EnvironmentFile cannot carry them, because systemd
+      silently drops any variable whose name contains a dot - which is every EF
+      Core logging category.
+    -->
+    <None Update="appsettings.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <InternalsVisibleTo Include="Sirkadiyen.Infrastructure.UnitTests" />
   </ItemGroup>
 </Project>

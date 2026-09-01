@@ -322,7 +322,7 @@ public sealed class ScheduleSourcePoller(
             ParseSnapshotResponse response = await parserClient.ParseAsync(
                 request,
                 cancellationToken);
-            ScheduleRevision? revision = await parseResultStore.CompleteAsync(
+            ParseCompletion completion = await parseResultStore.CompleteAsync(
                 parseRun.ParseRunId,
                 response,
                 timeProvider.GetUtcNow(),
@@ -331,20 +331,33 @@ public sealed class ScheduleSourcePoller(
             // Validation runs in its own transaction. A revision that survives
             // parse persistence but not validation stays in Parsed and is picked
             // up by the next pass, rather than being lost or silently published.
-            RevisionValidationResult? validation = revision is null
+            RevisionValidationResult? validation = completion.Revision is null
                 ? null
-                : await revisionValidation.ValidateAsync(revision.Id, cancellationToken);
+                : await revisionValidation.ValidateAsync(completion.Revision.Id, cancellationToken);
 
             return new ScheduleSourcePollResult
             {
                 SourceId = source.SourceId,
-                Outcome = response.Status is ParserResultStatus.Rejected
-                    ? ScheduleSourcePollOutcome.ParserRejected
-                    : ScheduleSourcePollOutcome.Parsed,
+                Outcome = completion.Outcome switch
+                {
+                    ParseCompletionOutcome.ParserRejected =>
+                        ScheduleSourcePollOutcome.ParserRejected,
+
+                    // A cycle that read the document, parsed it, and found the
+                    // schedule unchanged. It is reported as its own outcome rather
+                    // than as a plain parse, because "parsed and produced nothing"
+                    // is the answer an operator is looking for when they ask why a
+                    // source shows no new revision.
+                    ParseCompletionOutcome.UnchangedRecordSet =>
+                        ScheduleSourcePollOutcome.ParsedUnchanged,
+
+                    _ => ScheduleSourcePollOutcome.Parsed,
+                },
                 SnapshotChanged = snapshotChanged,
                 ParseRunId = parseRun.ParseRunId,
                 ParseRunStartKind = parseRun.StartKind,
-                RevisionId = revision?.Id,
+                RevisionId = completion.Revision?.Id,
+                UnchangedFromRevisionId = completion.UnchangedFromRevisionId,
                 RevisionState = validation?.Outcome,
                 ValidationFindingCount = validation?.Findings.Count,
             };
@@ -555,6 +568,12 @@ public sealed record ScheduleSourcePollResult
 
     public Guid? RevisionId { get; init; }
 
+    /// <summary>
+    /// The revision this cycle's parse turned out to repeat, when it repeated one
+    /// and therefore created none.
+    /// </summary>
+    public Guid? UnchangedFromRevisionId { get; init; }
+
     /// <summary>The state validation moved the revision to, when it ran.</summary>
     public RevisionState? RevisionState { get; init; }
 
@@ -598,7 +617,22 @@ public enum ScheduleSourcePollOutcome
     AwaitingAdministrativeUpload,
 
     ParseAlreadyRunning,
+
+    /// <summary>The stored snapshot was already parsed under this run identity.</summary>
     AlreadyParsed,
+
     Parsed,
+
+    /// <summary>
+    /// The document was parsed and said exactly what the source's most recent
+    /// revision already says, so no revision was created.
+    /// </summary>
+    /// <remarks>
+    /// Distinct from <see cref="AlreadyParsed"/>, which means no parse happened at
+    /// all. This one did the work and found nothing to publish — the ordinary
+    /// outcome for a source re-parsed because a companion document moved.
+    /// </remarks>
+    ParsedUnchanged,
+
     ParserRejected,
 }

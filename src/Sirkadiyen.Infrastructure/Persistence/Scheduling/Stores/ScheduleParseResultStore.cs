@@ -105,7 +105,7 @@ public sealed class ScheduleParseResultStore(SirkadiyenDbContext dbContext)
         };
     }
 
-    public Task<ScheduleRevision?> CompleteAsync(
+    public Task<ParseCompletion> CompleteAsync(
         Guid parseRunId,
         ParseSnapshotResponse response,
         DateTimeOffset completedAtUtc,
@@ -118,7 +118,7 @@ public sealed class ScheduleParseResultStore(SirkadiyenDbContext dbContext)
             () => CompleteCoreAsync(parseRunId, response, completedAtUtc, cancellationToken));
     }
 
-    private async Task<ScheduleRevision?> CompleteCoreAsync(
+    private async Task<ParseCompletion> CompleteCoreAsync(
         Guid parseRunId,
         ParseSnapshotResponse response,
         DateTimeOffset completedAtUtc,
@@ -152,20 +152,55 @@ public sealed class ScheduleParseResultStore(SirkadiyenDbContext dbContext)
         {
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
-            return null;
+            return new ParseCompletion { Outcome = ParseCompletionOutcome.ParserRejected };
         }
 
         ScheduleRevision revision = new(source.Id, source.SourceId, run.Id, completedAtUtc);
         List<CanonicalScheduleRecord> records = response.Candidates
             .Select(candidate => MapCandidate(revision.Id, source, candidate))
             .ToList();
-        revision.SetRecordCount(records.Count);
+        revision.SetRecordSet(records);
+
+        // The one question worth asking before a revision exists: does this parse
+        // say anything the source has not already said? A document is re-parsed
+        // for reasons that have nothing to do with its content — a companion
+        // document edited beside it, a re-export that moved no lesson, a profile
+        // re-run — and until this was asked, every one of those produced a
+        // revision, a validation, a publication, a diff of nothing, and a calendar
+        // dispatch that wrote nothing. The comparison is against the source's most
+        // recent revision whatever state it is in: repeating a revision that is
+        // waiting for review, or one that was rejected, is exactly as pointless as
+        // repeating a published one, and it is what buries a review queue.
+        ScheduleRevision? previous = await dbContext.ScheduleRevisions
+            .Where(candidate => candidate.ScheduleSourceId == source.Id)
+            .OrderByDescending(candidate => candidate.CreatedAtUtc)
+            .ThenByDescending(candidate => candidate.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (previous?.RecordSetHash is { Length: > 0 } previousHash
+            && string.Equals(previousHash, revision.RecordSetHash, StringComparison.Ordinal))
+        {
+            // The run stays completed and keeps the parser's whole response. What
+            // the document said is evidence; that it said it again is not a
+            // revision.
+            await dbContext.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            return new ParseCompletion
+            {
+                Outcome = ParseCompletionOutcome.UnchangedRecordSet,
+                UnchangedFromRevisionId = previous.Id,
+            };
+        }
 
         dbContext.ScheduleRevisions.Add(revision);
         dbContext.CanonicalScheduleRecords.AddRange(records);
         await dbContext.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
-        return revision;
+        return new ParseCompletion
+        {
+            Outcome = ParseCompletionOutcome.RevisionCreated,
+            Revision = revision,
+        };
     }
 
     public async Task FailAsync(
