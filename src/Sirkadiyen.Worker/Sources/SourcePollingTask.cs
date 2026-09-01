@@ -1,17 +1,20 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Sirkadiyen.Application.Notifications;
 using Sirkadiyen.Application.Operations;
 using Sirkadiyen.Application.Scheduling.Ingestion;
 using Sirkadiyen.Application.Scheduling.Parsing;
 using Sirkadiyen.Application.Scheduling.Sources;
 using Sirkadiyen.Domain.Scheduling.Sources;
 using Sirkadiyen.Infrastructure.Scheduling.Sources;
+using Sirkadiyen.Worker.Notifications;
 
 namespace Sirkadiyen.Worker.Sources;
 
 internal sealed class SourcePollingTask(
     IServiceScopeFactory scopeFactory,
     TimeProvider timeProvider,
+    IOperatorAlertNotifier alerts,
     ILogger<SourcePollingTask> logger)
 {
     public async Task RunAsync(CancellationToken cancellationToken)
@@ -95,6 +98,20 @@ internal sealed class SourcePollingTask(
                 result.ParseRunId,
                 result.RevisionId);
 
+            // The event the operator asked to hear about (ADR-144). A revision only exists when
+            // the document actually said something new (ADR-141), so this is a real change rather
+            // than a heartbeat, and its validation state is what says whether anyone must act.
+            if (result.RevisionId is { } revisionId)
+            {
+                await alerts.SendAsync(
+                    WorkerAlerts.RevisionCreated(
+                        result.SourceId,
+                        revisionId,
+                        result.RevisionState,
+                        result.ValidationFindingCount),
+                    cancellationToken);
+            }
+
             // A discovery fallback is a poll that succeeded while quietly ceasing to
             // track the source, so it is the one success worth a warning (ADR-133).
             if (result.DiscoveryOutcome is WeeklyDocumentDiscoveryOutcome.FellBackToCatalog)
@@ -106,6 +123,12 @@ internal sealed class SourcePollingTask(
                     + "can be listed again.",
                     result.SourceId,
                     result.DiscoveryFailure?.ToString() ?? "the folder held no matching document");
+                await alerts.SendAsync(
+                    WorkerAlerts.SourceDiscoveryFallback(
+                        result.SourceId,
+                        result.DiscoveryFailure?.ToString()
+                            ?? "klasörde eşleşen belge bulunamadı"),
+                    cancellationToken);
             }
             else if (result.DiscoveryOutcome is not null)
             {
@@ -124,6 +147,9 @@ internal sealed class SourcePollingTask(
                     + "left running by a worker that stopped mid-parse.",
                     result.ParseRunId,
                     result.SourceId);
+                await alerts.SendAsync(
+                    WorkerAlerts.ParseRunRecovered(result.SourceId, result.ParseRunId),
+                    cancellationToken);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -139,6 +165,12 @@ internal sealed class SourcePollingTask(
             // log line and a poll timestamp that stops advancing — which is how three trashed
             // Grade 3 workbooks went unnoticed for four days.
             await RecordFailureAsync(services, source, exception, cancellationToken);
+
+            // And said out loud, because a source nobody can read produces nothing at all: no
+            // snapshot, no revision, and therefore not one of the alerts above (ADR-144).
+            await alerts.SendAsync(
+                WorkerAlerts.SourcePollFailed(source.SourceId, exception),
+                cancellationToken);
         }
     }
 

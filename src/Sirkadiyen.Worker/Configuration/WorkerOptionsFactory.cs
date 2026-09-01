@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Sirkadiyen.Application.Announcements;
 using Sirkadiyen.Application.GoogleCalendar;
+using Sirkadiyen.Application.Notifications;
 using Sirkadiyen.Application.Operations;
 using Sirkadiyen.Application.StudentProfiles;
 using Sirkadiyen.Application.Scheduling.Diffing;
@@ -10,6 +11,7 @@ using Sirkadiyen.Application.Scheduling.Parsing;
 using Sirkadiyen.Application.Scheduling.Publication;
 using Sirkadiyen.Domain.Scheduling.Diffing;
 using Sirkadiyen.Infrastructure.Google;
+using Sirkadiyen.Infrastructure.Notifications;
 using Sirkadiyen.Infrastructure.Scheduling.Ingestion;
 
 namespace Sirkadiyen.Worker.Configuration;
@@ -224,6 +226,39 @@ internal sealed class WorkerOptionsFactory(
             PollSilence = TimeSpan.FromHours(ConfigurationValueParser.Double(
                 configuration["SIRKADIYEN_STALL:POLL_SILENCE_HOURS"], 12)),
         }, static options => options.Validate());
+
+    /// <summary>
+    /// The outbound alert channel (ADR-144).
+    /// </summary>
+    /// <remarks>
+    /// Every value is optional and an absent bot token simply leaves alerting off, so an existing
+    /// deployment keeps starting unchanged. Nothing here is required, because a messaging
+    /// credential must never be able to stop the pipeline.
+    /// </remarks>
+    public TelegramAlertOptions CreateTelegramAlertOptions() =>
+        Validate(new TelegramAlertOptions
+        {
+            BotToken = configuration["SIRKADIYEN_TELEGRAM:BOT_TOKEN"],
+            ChatIds = TelegramAlertOptions.ParseChatIds(
+                configuration["SIRKADIYEN_TELEGRAM:CHAT_IDS"]),
+            MinimumSeverity = ParseSeverity(
+                configuration["SIRKADIYEN_TELEGRAM:MINIMUM_SEVERITY"]),
+            RepeatCooldown = ConfigurationValueParser.Duration(
+                configuration["SIRKADIYEN_TELEGRAM:REPEAT_COOLDOWN"],
+                TelegramAlertOptions.DefaultRepeatCooldown),
+            Timeout = ConfigurationValueParser.Duration(
+                configuration["SIRKADIYEN_TELEGRAM:TIMEOUT"],
+                TelegramAlertOptions.DefaultTimeout),
+        }, static options => options.Validate());
+
+    private static OperatorAlertSeverity ParseSeverity(string? value) =>
+        string.IsNullOrWhiteSpace(value)
+            ? OperatorAlertSeverity.Info
+            : Enum.TryParse(value, ignoreCase: true, out OperatorAlertSeverity severity)
+                ? severity
+                : throw new InvalidOperationException(
+                    $"'{value}' is not an alert severity. Set "
+                    + "SIRKADIYEN_TELEGRAM__MINIMUM_SEVERITY to Info, Warning or Error.");
 
     public WorkerOptions CreateWorkerOptions()
     {

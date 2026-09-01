@@ -8892,3 +8892,77 @@ Three choices are deliberate:
   it — permanently, since the queue is re-read from the same end every cycle. Failures are now
   reported per revision and the batch continues. The diff stage already worked this way; validation
   did not, and its own documentation claimed it did.
+
+## ADR-144: The pipeline says it out loud, to a person
+
+**Status:** Accepted and implemented
+**Date:** 2026-09-01
+**Relates to:** ADR-143 (the stall watch: "a panel view or an outbound alert reads the same
+service"), ADR-141 (an unchanged parse produces no revision), ADR-133 (a discovery fallback is a
+success that stops tracking the source), ADR-032 (a quarantined revision waits for an approver),
+ADR-042 (a held diff waits for a named operator), ADR-124 (worker heartbeats)
+
+### Context
+
+ADR-143 built the measurement and said explicitly that it was not building a notification channel:
+the journal became the operator surface. That is enough for somebody reading logs and worth nothing
+for somebody who is not. The system's own diagnosis stands — 24 revisions held since August on three
+unreadable dates, discovered by looking rather than by being told — and the same is true of every
+other condition the pipeline waits on. A schedule nobody published still looks exactly like a
+schedule nobody changed, and now it looks that way in a log file nobody opens.
+
+The operator asked for two things: to be told when a revision arrives, and to be told when something
+is wrong.
+
+### Decision
+
+**An outbound alert channel, driven by the worker, delivered over Telegram.** An application port
+(`IOperatorAlertNotifier` over an `OperatorAlert`) and a Telegram adapter behind it. Every worker
+stage that already detects a condition now also states it as an alert.
+
+Announced: a revision was created (with the validation state that decides whether anyone must act),
+a diff was calculated (with its counts, and its hold reason when it is held), a source could not be
+read, a source fell back to its catalogued document, a parse run was recovered, a revision cannot be
+validated, a stage threw, and the pipeline is stalled.
+
+Six choices are deliberate:
+
+1. **The alert channel can never break the pipeline.** `SendAsync` never throws — not on an HTTP
+   failure, not on a refusal, not on cancellation. A messaging outage must not be able to stop a
+   published schedule from reaching a student's calendar, which is what any other error policy
+   eventually allows. Failures are logged and the alert is lost; everything an alert names is
+   already persisted and visible in the panel.
+2. **It is optional and absent by default.** No bot token resolves `NullOperatorAlertNotifier`, and
+   the worker starts exactly as before. Making a messaging credential a startup requirement of the
+   pipeline is the same inversion as (1).
+3. **A dedupe key per alert decides whether it repeats.** A key naming one revision, diff or parse
+   run is unique and always delivered. A key naming a standing condition — a stalled pipeline, an
+   unreadable source, a failing stage — is suppressed for a configured cooldown (6h), because those
+   are re-detected every cycle. The journal repeats a surviving stall every cycle on purpose; a chat
+   that does the same stops being read, which costs more than the repetition buys.
+4. **The suppression record is in memory, per instance.** A restart re-announces a standing
+   condition once, which is the harmless direction to be wrong in. No table, no migration, no round
+   trip on a path whose whole job is to stay off the critical path.
+5. **The bot token is treated as the credential it is.** It is a path segment of every request, so
+   the client's own request logging is removed at registration (it would otherwise write the
+   credential at Information on every alert), the options' `Describe()` deliberately omits it, and
+   anything derived from an exception is redacted before it is logged. Nothing personal goes into an
+   alert either: sources, revisions, diffs and counts leave the system, never a student.
+6. **The messages are Turkish and say what happens next.** The journal is written in English for
+   whoever reads logs; an alert is read on a phone by the person who operates the faculty's
+   schedules. All wording lives in one file (`WorkerAlerts`) and is unit-tested without a worker.
+
+### Consequences
+
+- The severity floor is configuration (`SIRKADIYEN_TELEGRAM__MINIMUM_SEVERITY`), so a deployment
+  that finds routine revisions noisy can drop to Warning without a code change.
+- **Publication outcomes are deliberately not announced.** A revision that publishes was already
+  announced when it was created, and one that does not is either intentional (a freeze) or
+  ordinary (superseded, or a concurrent publication). A revision that never publishes at all is
+  what ADR-143's stall watch is for, and that now reaches the channel.
+- **A latent bug was found while building it.** A Telegram bot token is `<digits>:<secret>`, so a
+  relative request path of `bot<token>/sendMessage` parses its first segment as a URI scheme and
+  the request goes somewhere else entirely. The path is rooted, and a test asserts the path on the
+  wire rather than only the response.
+- Only the worker alerts. The API detects nothing on its own that the worker does not, and giving
+  it the token as well would double every message.

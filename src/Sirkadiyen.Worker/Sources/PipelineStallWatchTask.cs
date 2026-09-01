@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Sirkadiyen.Application.Notifications;
 using Sirkadiyen.Application.Operations;
+using Sirkadiyen.Worker.Notifications;
 
 namespace Sirkadiyen.Worker.Sources;
 
@@ -22,6 +24,7 @@ namespace Sirkadiyen.Worker.Sources;
 /// </remarks>
 internal sealed class PipelineStallWatchTask(
     IServiceScopeFactory scopeFactory,
+    IOperatorAlertNotifier alerts,
     ILogger<PipelineStallWatchTask> logger)
 {
     public async Task RunAsync(CancellationToken cancellationToken)
@@ -67,6 +70,12 @@ internal sealed class PipelineStallWatchTask(
                 "{Count} source(s) that used to be acquired have not been read since "
                 + "{OldestSinceUtc}, the oldest {SourceId}. A source can keep polling successfully "
                 + "while quietly tracking a document that no longer changes.");
+
+            // The journal repeats a surviving stall every cycle on purpose; the alert does not.
+            // One message names the whole report and the cooldown decides how often it is said
+            // again, because a chat that repeats itself every fifteen minutes is not read
+            // (ADR-144).
+            await alerts.SendAsync(WorkerAlerts.PipelineStalled(report), cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {

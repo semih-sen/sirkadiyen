@@ -1,11 +1,14 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Sirkadiyen.Application.Notifications;
 using Sirkadiyen.Application.Scheduling.Publication;
+using Sirkadiyen.Worker.Notifications;
 
 namespace Sirkadiyen.Worker.Sources;
 
 internal sealed class RevisionPublicationTask(
     IServiceScopeFactory scopeFactory,
+    IOperatorAlertNotifier alerts,
     ILogger<RevisionPublicationTask> logger)
 {
     private const int BatchSize = 50;
@@ -37,6 +40,9 @@ internal sealed class RevisionPublicationTask(
         catch (Exception exception)
         {
             logger.LogError(exception, "Publishing validated revisions failed.");
+            await alerts.SendAsync(
+                WorkerAlerts.StageFailed("revizyon yayınlama", exception),
+                cancellationToken);
         }
     }
 }

@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
+using Sirkadiyen.Application.Notifications;
+using Sirkadiyen.Infrastructure.Notifications;
 using Sirkadiyen.Worker.Configuration;
 using Xunit;
 
@@ -63,6 +65,60 @@ public sealed class WorkerOptionsFactoryTests
         Assert.Equal(
             8,
             factory.CreateProfileAcademicYearDriftOptions().ProfilesPerProgramPerCycle);
+    }
+
+    [Fact]
+    public void AlertingIsOffUntilBothABotTokenAndAChatAreConfigured()
+    {
+        // A deployment that predates ADR-144 configures neither and must keep starting. A
+        // messaging credential is never allowed to be a startup requirement of the pipeline.
+        HostApplicationBuilder builder = CreateBuilder();
+
+        TelegramAlertOptions options = new WorkerOptionsFactory(
+            builder.Configuration,
+            builder.Environment).CreateTelegramAlertOptions();
+
+        Assert.False(options.IsConfigured);
+        Assert.Empty(options.ChatIds);
+        Assert.Equal(OperatorAlertSeverity.Info, options.MinimumSeverity);
+        Assert.Equal(TimeSpan.FromHours(6), options.RepeatCooldown);
+    }
+
+    [Fact]
+    public void ConfiguredAlertingIsReadIntoTheChannelOptions()
+    {
+        HostApplicationBuilder builder = CreateBuilder(new Dictionary<string, string?>
+        {
+            ["SIRKADIYEN_TELEGRAM:BOT_TOKEN"] = "1234567:token",
+            ["SIRKADIYEN_TELEGRAM:CHAT_IDS"] = "5027475773, 1176903009",
+            ["SIRKADIYEN_TELEGRAM:MINIMUM_SEVERITY"] = "warning",
+            ["SIRKADIYEN_TELEGRAM:REPEAT_COOLDOWN"] = "02:00:00",
+        });
+
+        TelegramAlertOptions options = new WorkerOptionsFactory(
+            builder.Configuration,
+            builder.Environment).CreateTelegramAlertOptions();
+
+        Assert.True(options.IsConfigured);
+        Assert.Equal([5027475773L, 1176903009L], options.ChatIds);
+
+        // Case-insensitively, because nobody types an enum name from memory.
+        Assert.Equal(OperatorAlertSeverity.Warning, options.MinimumSeverity);
+        Assert.Equal(TimeSpan.FromHours(2), options.RepeatCooldown);
+    }
+
+    [Fact]
+    public void AMisspeltSeverityIsRefusedRatherThanSilentlyTreatedAsInfo()
+    {
+        // Falling back would mean somebody who asked for problems only keeps receiving every
+        // routine revision and has no way to tell that their setting was ignored.
+        HostApplicationBuilder builder = CreateBuilder(new Dictionary<string, string?>
+        {
+            ["SIRKADIYEN_TELEGRAM:MINIMUM_SEVERITY"] = "critical",
+        });
+        WorkerOptionsFactory factory = new(builder.Configuration, builder.Environment);
+
+        Assert.Throws<InvalidOperationException>(() => factory.CreateTelegramAlertOptions());
     }
 
     private static HostApplicationBuilder CreateBuilder(

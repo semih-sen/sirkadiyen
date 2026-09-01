@@ -2,9 +2,12 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Sirkadiyen.Application.Auditing;
+using Sirkadiyen.Application.Notifications;
 using Sirkadiyen.Application.StudentProfiles;
+using Sirkadiyen.Infrastructure.Notifications;
 using Sirkadiyen.Worker.Calendars;
 using Sirkadiyen.Worker.Composition;
+using Sirkadiyen.Worker.Sources;
 using Xunit;
 
 namespace Sirkadiyen.Infrastructure.UnitTests;
@@ -77,7 +80,37 @@ public sealed class WorkerCompositionTests
             schema.Programs.Count);
     }
 
-    private static ServiceProvider BuildProvider()
+    [Fact]
+    public void AWorkerWithNoAlertChannelConfiguredStillResolvesOneAndStillStarts()
+    {
+        // Every pipeline stage now takes IOperatorAlertNotifier as a dependency (ADR-144). If a
+        // missing bot token left it unregistered, the absence of an optional messaging credential
+        // would stop the worker from starting at all — the exact inversion this must not have.
+        using ServiceProvider provider = BuildProvider();
+
+        Assert.IsType<NullOperatorAlertNotifier>(
+            provider.GetRequiredService<IOperatorAlertNotifier>());
+        Assert.NotNull(provider.GetRequiredService<SourceProcessingPipeline>());
+        Assert.NotNull(provider.GetRequiredService<PipelineStallWatchTask>());
+    }
+
+    [Fact]
+    public void AConfiguredAlertChannelResolvesTheGatedTelegramNotifier()
+    {
+        using ServiceProvider provider = BuildProvider(new Dictionary<string, string?>
+        {
+            ["SIRKADIYEN_TELEGRAM:BOT_TOKEN"] = "1234567:token",
+            ["SIRKADIYEN_TELEGRAM:CHAT_IDS"] = "5027475773,1176903009",
+        });
+
+        // The gate, not the transport: the severity floor and the repeat cooldown are what stop
+        // the channel from becoming unreadable, so nothing may be registered past them.
+        Assert.IsType<OperatorAlertGate>(provider.GetRequiredService<IOperatorAlertNotifier>());
+        Assert.NotNull(provider.GetRequiredService<SourceProcessingPipeline>());
+    }
+
+    private static ServiceProvider BuildProvider(
+        IReadOnlyDictionary<string, string?>? overrides = null)
     {
         HostApplicationBuilder builder = Host.CreateApplicationBuilder(
             new HostApplicationBuilderSettings
@@ -85,13 +118,19 @@ public sealed class WorkerCompositionTests
                 ContentRootPath = AppContext.BaseDirectory,
                 DisableDefaults = true,
             });
-        builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+        Dictionary<string, string?> values = new()
         {
             ["SIRKADIYEN_DATABASE:CONNECTION_STRING"] = "Host=localhost;Database=test",
             ["SIRKADIYEN_PARSER:BASE_URL"] = "http://127.0.0.1:8000",
             ["SIRKADIYEN_GOOGLE:CALENDAR_CLIENT_ID"] = "client-id",
             ["SIRKADIYEN_GOOGLE:CALENDAR_CLIENT_SECRET"] = "client-secret",
-        });
+        };
+        foreach ((string key, string? value) in overrides ?? new Dictionary<string, string?>())
+        {
+            values[key] = value;
+        }
+
+        builder.Configuration.AddInMemoryCollection(values);
 
         builder.Services.AddWorkerApplication(builder.Configuration, builder.Environment);
         return builder.Services.BuildServiceProvider(new ServiceProviderOptions

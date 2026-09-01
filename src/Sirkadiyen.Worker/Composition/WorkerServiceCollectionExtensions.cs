@@ -14,6 +14,7 @@ using Sirkadiyen.Application.Scheduling.Publication;
 using Sirkadiyen.Application.Scheduling.Sources;
 using Sirkadiyen.Domain.Scheduling.Diffing;
 using Sirkadiyen.Infrastructure.Google;
+using Sirkadiyen.Infrastructure.Notifications;
 using Sirkadiyen.Infrastructure.Persistence;
 using Sirkadiyen.Infrastructure.Scheduling.Ingestion;
 using Sirkadiyen.Infrastructure.Scheduling.Parsing;
@@ -49,6 +50,11 @@ internal static class WorkerServiceCollectionExtensions
         services.AddSingleton(options.CreateValidationOptions());
         services.AddSingleton(options.CreateRetentionOptions());
         services.AddSingleton(options.CreatePipelineStallOptions());
+
+        // The outbound half of ADR-143: the stall watch and every other stage measure what is
+        // wrong, and this is what says so somewhere other than the journal (ADR-144). Registered
+        // unconditionally — with nothing configured it resolves to the silent notifier.
+        services.AddSirkadiyenOperatorAlerts(options.CreateTelegramAlertOptions());
         services.AddSingleton(options.CreateParseRunOptions());
         services.AddSingleton<ScheduleRevisionValidator>();
         services.AddScoped<SnapshotRetentionService>();

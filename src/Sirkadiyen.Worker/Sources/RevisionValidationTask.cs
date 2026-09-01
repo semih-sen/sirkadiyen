@@ -1,6 +1,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Sirkadiyen.Application.Notifications;
 using Sirkadiyen.Application.Scheduling.Publication;
+using Sirkadiyen.Worker.Notifications;
 
 namespace Sirkadiyen.Worker.Sources;
 
@@ -23,6 +25,7 @@ namespace Sirkadiyen.Worker.Sources;
 /// </remarks>
 internal sealed class RevisionValidationTask(
     IServiceScopeFactory scopeFactory,
+    IOperatorAlertNotifier alerts,
     ILogger<RevisionValidationTask> logger)
 {
     private const int BatchSize = 50;
@@ -49,6 +52,11 @@ internal sealed class RevisionValidationTask(
                         "Revision {RevisionId} could not be validated and was skipped; the rest "
                         + "of the batch continued.",
                         outcome.RevisionId);
+                    await alerts.SendAsync(
+                        WorkerAlerts.RevisionValidationFailed(
+                            outcome.RevisionId,
+                            outcome.Failure),
+                        cancellationToken);
                     continue;
                 }
 
@@ -70,6 +78,9 @@ internal sealed class RevisionValidationTask(
         catch (Exception exception)
         {
             logger.LogError(exception, "Validating revisions left behind by an earlier cycle failed.");
+            await alerts.SendAsync(
+                WorkerAlerts.StageFailed("revizyon doğrulama", exception),
+                cancellationToken);
         }
     }
 }

@@ -94,6 +94,51 @@ revision can be rejected** and **a terminally failed diff can be retried**, both
 reason-required `SuperAdmin` routes, with the failed-dispatch queue made enumerable by
 `GET /api/diffs?dispatchState=Failed`.
 
+## Latest implementation session (2026-09-01, outbound operator alerts over Telegram)
+
+**ADR-143 built the measurement and explicitly declined to build the channel** ("a panel view or an
+outbound alert reads the same service"). ADR-144 builds the channel: the worker now tells a person,
+on Telegram, when a revision arrives and when something is wrong.
+
+- **New application port, new infrastructure adapter.** `IOperatorAlertNotifier` over an
+  `OperatorAlert` (title, severity, dedupe key, labelled fields) in
+  `Application/Notifications`; `TelegramOperatorAlertNotifier`, `OperatorAlertGate`,
+  `TelegramAlertMessageFormatter` and `TelegramAlertOptions` in `Infrastructure/Notifications`.
+  Every message's wording lives in `Worker/Notifications/WorkerAlerts.cs`, in Turkish, and is
+  unit-tested without a worker.
+- **Wired into the stages that already detect these conditions**, none of which changed behaviour:
+  `SourcePollingTask` (revision created, poll failed, discovery fallback, recovered parse run),
+  `RevisionValidationTask`, `RevisionPublicationTask`, `ScheduleDiffCalculationTask` (a stored diff,
+  a held diff) and `PipelineStallWatchTask` (one message for the whole ADR-143 report).
+- **It cannot break the pipeline and it is off by default.** `SendAsync` never throws — HTTP
+  failure, refusal, cancellation, all swallowed and logged. Nothing configured resolves
+  `NullOperatorAlertNotifier` and the worker starts exactly as before; a `WorkerCompositionTests`
+  case asserts both halves, because every stage now takes the notifier as a constructor dependency.
+- **The dedupe key is what decides whether an alert repeats.** Unique per revision/diff/parse run;
+  stable for a standing condition (stall, unreadable source, failing stage) and then suppressed for
+  `SIRKADIYEN_TELEGRAM__REPEAT_COOLDOWN` (6h). The record is in memory per instance — a restart
+  re-announces a standing condition once, deliberately.
+- **The bot token is treated as a credential.** The alert client's own request logging is
+  `RemoveAllLoggers()`-ed (the token is a path segment and would otherwise be logged at Information
+  on every alert), `Describe()` omits it, and anything derived from an exception is redacted.
+- **A latent bug found by a test, not by reading:** a token is `<digits>:<secret>`, so the relative
+  path `bot<token>/sendMessage` parses its first segment as a URI scheme and the request goes to a
+  mangled path. The path is now rooted, and the test asserts what is on the wire.
+- **Configuration:** `SIRKADIYEN_TELEGRAM__BOT_TOKEN`, `__CHAT_IDS` (comma-separated numeric ids),
+  `__MINIMUM_SEVERITY` (Info/Warning/Error), `__REPEAT_COOLDOWN`, `__TIMEOUT`. Documented in
+  `.env.example`, and in `deploy/README.md` as belonging in `worker.env` (0640, worker-only).
+- **Tests/build:** 885 Infrastructure unit tests pass (30 new across the formatter, the gate, the
+  options, the transport, the message factory, the options factory and composition); Api 11 and
+  Contracts 6 pass; Release build of the whole solution 0 warnings; `dotnet format` clean over every
+  file this session created or edited.
+- **Verification limit:** no message was sent to a real Telegram chat — that needs the operator's
+  bot token, which is theirs to place in `.env`. Everything up to the HTTP request is covered by a
+  stubbed handler, including the request path, the JSON body and every failure mode.
+- **Not done:** alerting from the API host (it detects nothing the worker does not, and a second
+  token holder would double every message), an alert on `DispatchRetryCount` before a dispatch gives
+  up, an alert on an announcement that hit its delivery cap, and a per-recipient or per-kind
+  subscription model (every configured chat gets every alert above the severity floor).
+
 ## Latest implementation session (2026-08-22, student dashboard + initial-sync progress UX)
 
 Frontend-only polish, continuing the 9d4a1d2 collapsible-palette work. No backend, contract, or

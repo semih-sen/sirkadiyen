@@ -126,8 +126,11 @@ Populate them from `.env.example` in the repository root, split by consumer:
 - `api.env` — `ASPNETCORE_URLS=http://127.0.0.1:5080`, `SIRKADIYEN_WORKER__BASE_URL=http://127.0.0.1:5081`,
   `SIRKADIYEN_LICENSING__HASH_KEY`.
 - `worker.env` — `SIRKADIYEN_WORKER__HEALTH_URL=http://127.0.0.1:5081`,
-  `SIRKADIYEN_PARSER__BASE_URL=http://127.0.0.1:8000`, and the polling,
-  validation, diff, sync and retention values.
+  `SIRKADIYEN_PARSER__BASE_URL=http://127.0.0.1:8000`, the polling, validation,
+  diff, sync and retention values, and the `SIRKADIYEN_TELEGRAM__*` alert
+  channel (ADR-144). The bot token belongs here rather than in `common.env`:
+  only the worker sends alerts, and the file is `0640` because the token has
+  full control of the bot. Leaving it unset simply turns alerting off.
 - `parser.env` — may be empty; the parser reads no secrets today.
 - `web.env` — may be empty. `BACKEND_ORIGIN` deliberately does **not** belong
   here: Next evaluates `rewrites()` at build time, so it is set by the workflow.

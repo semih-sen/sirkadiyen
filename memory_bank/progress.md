@@ -286,8 +286,13 @@
 - [x] Metrics (`GET /api/admin/metrics` JSON operational-count snapshot, ADR-089)
 - [~] Structured logs (correlation-id middleware stamps every request/log line; a full
   structured-logging/OpenTelemetry stack is still pending)
-- [ ] Alerts (nothing watches `ScheduleDiff.DispatchRetryCount` or an announcement that reached
-  its delivery attempt cap; both are readable in the UI, neither is alerted on)
+- [~] Alerts (ADR-144: the worker sends Telegram alerts for a created revision, a calculated or
+  held diff, an unreadable source, a discovery fallback, a recovered parse run, an unvalidatable
+  revision, a failing stage, and the ADR-143 stall report — severity floor and repeat cooldown
+  configurable, off entirely without `SIRKADIYEN_TELEGRAM__BOT_TOKEN`. Still not alerted on:
+  `ScheduleDiff.DispatchRetryCount` before it gives up, and an announcement that reached its
+  delivery attempt cap; both remain readable in the UI only. Terminally failed dispatches do
+  reach the channel, through the stall report.)
 
 ## Phase 11: Consumer frontend
 

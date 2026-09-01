@@ -1,12 +1,15 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Sirkadiyen.Application.Notifications;
 using Sirkadiyen.Application.Scheduling.Diffing;
 using Sirkadiyen.Domain.Scheduling.Diffing;
+using Sirkadiyen.Worker.Notifications;
 
 namespace Sirkadiyen.Worker.Sources;
 
 internal sealed class ScheduleDiffCalculationTask(
     IServiceScopeFactory scopeFactory,
+    IOperatorAlertNotifier alerts,
     ILogger<ScheduleDiffCalculationTask> logger)
 {
     private const int BatchSize = 10;
@@ -24,6 +27,15 @@ internal sealed class ScheduleDiffCalculationTask(
             foreach (ScheduleDiffCalculationResult result in results)
             {
                 LogResult(result);
+
+                // Only a diff this pass actually stored is announced. A recalculation that lost
+                // the race has already been announced by whichever pass won it (ADR-144).
+                if (result.Outcome is ScheduleDiffPersistenceOutcome.Stored)
+                {
+                    await alerts.SendAsync(
+                        WorkerAlerts.DiffCalculated(result.Diff),
+                        cancellationToken);
+                }
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -33,6 +45,9 @@ internal sealed class ScheduleDiffCalculationTask(
         catch (Exception exception)
         {
             logger.LogError(exception, "Calculating pending schedule diffs failed.");
+            await alerts.SendAsync(
+                WorkerAlerts.StageFailed("fark hesaplama", exception),
+                cancellationToken);
         }
     }
 
