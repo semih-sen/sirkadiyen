@@ -136,6 +136,98 @@ public sealed class ScheduleRevisionValidatorTests
             result.Outcome);
     }
 
+    /// <summary>
+    /// A parse that kept nothing is rejected outright instead of queueing for a
+    /// decision nobody can make.
+    /// </summary>
+    /// <remarks>
+    /// This is the production case: ten holds reading "935 of 935 (100.0 %) are
+    /// absent", each waiting for an operator, each in front of the genuine
+    /// schedule edits behind them.
+    /// </remarks>
+    [Fact]
+    public void ARevisionSharingNoRecordWithThePublishedOneIsRejectedRatherThanHeld()
+    {
+        List<string> priorIdentities = [.. Enumerable.Range(0, 40)
+            .Select(index => $"published-{index}")];
+
+        // A different document entirely: same source, nothing in common.
+        List<CanonicalScheduleRecord> records = [.. Enumerable.Range(0, 12)
+            .Select(index => Record(
+                $"r{index}",
+                date: new DateOnly(2025, 10, 3).AddDays(index),
+                stableIdentity: $"unrelated-{index}"))];
+
+        RevisionValidationResult result = Validate(
+            records,
+            hasPreviousPublishedRevision: true,
+            previouslyPublishedIdentities: priorIdentities);
+
+        Assert.Equal(RevisionState.Rejected, result.Outcome);
+        RevisionValidationFinding finding = Assert.Single(
+            result.Findings,
+            candidate => candidate.Rule is RevisionValidationRule.ParseCollapse);
+        Assert.Equal(40, finding.AffectedRecordCount);
+
+        // The rule that would have queued it for review does not also fire: a
+        // collapse is reported once, as what it is.
+        Assert.DoesNotContain(
+            result.Findings,
+            candidate => candidate.Rule is RevisionValidationRule.MassDeletion);
+    }
+
+    /// <summary>
+    /// One surviving lesson is enough to make it an edit rather than a collapse,
+    /// however large the deletion is.
+    /// </summary>
+    /// <remarks>
+    /// The boundary is deliberately at exactly zero overlap. A faculty that
+    /// rewrites a whole block still keeps something somewhere in the year, and
+    /// that revision has to stay approvable by a person.
+    /// </remarks>
+    [Fact]
+    public void ASingleSurvivingRecordKeepsTheRevisionReviewable()
+    {
+        List<string> priorIdentities = [.. Enumerable.Range(0, 40)
+            .Select(index => $"published-{index}")];
+
+        RevisionValidationResult result = Validate(
+            [Record("r0", stableIdentity: "published-7")],
+            hasPreviousPublishedRevision: true,
+            previouslyPublishedIdentities: priorIdentities);
+
+        Assert.Equal(RevisionState.ReviewRequired, result.Outcome);
+        Assert.Contains(
+            result.Findings,
+            candidate => candidate.Rule is RevisionValidationRule.MassDeletion);
+        Assert.DoesNotContain(
+            result.Findings,
+            candidate => candidate.Rule is RevisionValidationRule.ParseCollapse);
+    }
+
+    /// <summary>
+    /// A small source keeps the old behaviour: zero overlap there is not evidence
+    /// of a collapse.
+    /// </summary>
+    [Fact]
+    public void ASmallSourceWithNoOverlapIsStillOnlyHeldForReview()
+    {
+        // Under MinimumDeletionCount (10), which both this rule and the deletion
+        // rule use as their floor.
+        List<string> priorIdentities = [.. Enumerable.Range(0, 6)
+            .Select(index => $"published-{index}")];
+
+        RevisionValidationResult result = Validate(
+            [Record("r0", stableIdentity: "unrelated-0")],
+            hasPreviousPublishedRevision: true,
+            previouslyPublishedIdentities: priorIdentities);
+
+        Assert.NotEqual(RevisionState.Rejected, result.Outcome);
+        Assert.DoesNotContain(
+            result.Findings,
+            candidate => candidate.Rule is RevisionValidationRule.ParseCollapse);
+    }
+
     [Fact]
     public void TheFirstRevisionOfASourceCannotTripTheDeletionRule()
     {

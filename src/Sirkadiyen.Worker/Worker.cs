@@ -17,6 +17,7 @@ internal sealed class Worker(
     FencedCalendarMaintenanceTask calendarMaintenance,
     WorkerHeartbeatTask heartbeat,
     SnapshotRetentionTask snapshotRetention,
+    PipelineStallWatchTask stallWatch,
     WorkerOptions options,
     AdaptivePollingIntervalPolicy intervalPolicy,
     TimeProvider timeProvider,
@@ -73,6 +74,13 @@ internal sealed class Worker(
             {
                 healthState.MarkActivity("snapshot-retention");
                 await snapshotRetention.RunAsync(cancellationToken);
+
+                // Last in the cycle, and only on a polling cycle: everything this
+                // reads was decided earlier in the same pass, and a stall is a
+                // condition measured in hours, not something to re-measure every
+                // five seconds while draining a calendar queue.
+                healthState.MarkActivity("stall-watch");
+                await stallWatch.RunAsync(cancellationToken);
             }
 
             WorkerCycleSchedule next = WorkerCycleScheduler.GetNext(

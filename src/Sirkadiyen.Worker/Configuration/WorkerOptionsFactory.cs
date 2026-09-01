@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Sirkadiyen.Application.Announcements;
 using Sirkadiyen.Application.GoogleCalendar;
+using Sirkadiyen.Application.Operations;
 using Sirkadiyen.Application.StudentProfiles;
 using Sirkadiyen.Application.Scheduling.Diffing;
 using Sirkadiyen.Application.Scheduling.Ingestion;
@@ -201,6 +202,27 @@ internal sealed class WorkerOptionsFactory(
                 configuration["SIRKADIYEN_RETENTION:SNAPSHOT_RECENT_DAYS"], 10)),
             BatchSize = ConfigurationValueParser.Integer(
                 configuration["SIRKADIYEN_RETENTION:SNAPSHOT_BATCH_SIZE"], 50),
+        }, static options => options.Validate());
+
+    /// <summary>
+    /// How long each kind of waiting work may wait before the worker says so.
+    /// </summary>
+    /// <remarks>
+    /// Configurable because what counts as "too long" is operational, not a
+    /// domain rule: a faculty that reviews revisions twice a week wants a
+    /// different number than one that reviews them hourly.
+    /// </remarks>
+    public PipelineStallOptions CreatePipelineStallOptions() =>
+        Validate(new PipelineStallOptions
+        {
+            ReviewAge = TimeSpan.FromHours(ConfigurationValueParser.Double(
+                configuration["SIRKADIYEN_STALL:REVIEW_HOURS"], 48)),
+            UnvalidatedAge = TimeSpan.FromHours(ConfigurationValueParser.Double(
+                configuration["SIRKADIYEN_STALL:UNVALIDATED_HOURS"], 2)),
+            DiffHoldAge = TimeSpan.FromHours(ConfigurationValueParser.Double(
+                configuration["SIRKADIYEN_STALL:DIFF_HOLD_HOURS"], 24)),
+            PollSilence = TimeSpan.FromHours(ConfigurationValueParser.Double(
+                configuration["SIRKADIYEN_STALL:POLL_SILENCE_HOURS"], 12)),
         }, static options => options.Validate());
 
     public WorkerOptions CreateWorkerOptions()

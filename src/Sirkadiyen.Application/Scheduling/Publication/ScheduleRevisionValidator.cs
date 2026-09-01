@@ -68,6 +68,38 @@ public sealed class ScheduleRevisionValidator(RevisionValidationOptions options)
             };
         }
 
+        if (DescribeParseCollapse(input) is ParseCollapse collapse)
+        {
+            // Terminal for the same reason an empty revision is: there is no
+            // version of this that an operator could approve. Approving it would
+            // delete every event this source has on every student's calendar and
+            // replace it with an unrelated set. It is the same fault as an empty
+            // revision — the parse read something other than this source's
+            // schedule — and it must not sit in the review queue pretending to be
+            // a decision, in front of the real ones.
+            findings.Add(Finding(
+                input,
+                RevisionValidationRule.ParseCollapse,
+                ValidationSeverity.Error,
+                $"Not one of the {collapse.PreviousCount} currently published record(s) appears in "
+                + $"this revision's {collapse.CurrentCount} record(s). A schedule that changed "
+                + "keeps some of its lessons; a parse that read the wrong document, the wrong "
+                + "sheet, or read it under the wrong profile keeps none. The published revision "
+                + "stays live and nothing was removed from any calendar.",
+                atUtc,
+                detail: Detail(input.PreviouslyPublishedIdentities.Take(20)),
+                affectedRecordCount: collapse.PreviousCount));
+
+            return new RevisionValidationResult
+            {
+                Outcome = RevisionState.Rejected,
+                Findings = findings,
+                StateReason =
+                    $"Parse collapse: none of {collapse.PreviousCount} published record(s) "
+                    + "survived into this revision.",
+            };
+        }
+
         ValidateDates(input, findings, atUtc);
         ValidateDateSequence(input, findings, atUtc);
         ValidateDurations(input, findings, atUtc);
@@ -88,6 +120,48 @@ public sealed class ScheduleRevisionValidator(RevisionValidationOptions options)
                 ? DescribeQuarantine(findings)
                 : "All validation rules passed.",
         };
+    }
+
+    /// <summary>
+    /// Whether this revision replaced the published schedule wholesale instead of
+    /// changing it, and the sizes involved when it did.
+    /// </summary>
+    /// <remarks>
+    /// The distinction this draws is between a deletion and a collapse. A faculty
+    /// really does delete lessons — a rewritten block, a finished term — and those
+    /// revisions must stay approvable, which is what <see cref="ValidateDeletionShare"/>
+    /// is for. But a real edit keeps *something*: some lesson, somewhere in the
+    /// year, still matches. When the overlap is exactly zero, the document that
+    /// was read is not the document that was published from, and no human
+    /// judgement can turn it into a schedule.
+    /// <para>
+    /// Production is what made this its own rule. Seventeen mass-deletion holds
+    /// covered 12,256 records, ten of them reading "935 of 935 (100.0 %) are
+    /// absent" — parses that had collapsed, queued for review beside genuine
+    /// schedule edits, which then waited behind them.
+    /// </para>
+    /// <para>
+    /// The size floor is <see cref="RevisionValidationOptions.MinimumDeletionCount"/>,
+    /// shared with the deletion rule for the same reason it exists there: on a
+    /// source publishing a handful of records, zero overlap is not evidence of
+    /// anything. A small source keeps the old behaviour and stays reviewable.
+    /// </para>
+    /// </remarks>
+    private ParseCollapse? DescribeParseCollapse(RevisionValidationInput input)
+    {
+        if (!input.HasPreviousPublishedRevision
+            || input.PreviouslyPublishedIdentities.Count < options.MinimumDeletionCount)
+        {
+            return null;
+        }
+
+        HashSet<string> current = input.Records
+            .Select(record => record.StableIdentity)
+            .ToHashSet(StringComparer.Ordinal);
+
+        return input.PreviouslyPublishedIdentities.Any(current.Contains)
+            ? null
+            : new ParseCollapse(input.PreviouslyPublishedIdentities.Count, input.Records.Count);
     }
 
     private void ValidateDates(
@@ -599,6 +673,9 @@ public sealed class ScheduleRevisionValidator(RevisionValidationOptions options)
     private static string Detail<T>(IEnumerable<T> values) =>
         JsonSerializer.Serialize(values, JsonOptions);
 }
+
+/// <summary>A revision that kept nothing of what is published, and by how much.</summary>
+internal readonly record struct ParseCollapse(int PreviousCount, int CurrentCount);
 
 /// <summary>Everything revision validation needs, gathered by the caller.</summary>
 public sealed record RevisionValidationInput

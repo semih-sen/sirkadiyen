@@ -1556,3 +1556,37 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
 - **Bilerek ertelendi:** Companion fingerprint'i daraltmak (bir amfi değişimi yalnızca gerçekten
   dokunduğu bağımlıları geçersiz kılsın). Geriye kalan maliyet 131 gereksiz parse; parse ucuz,
   değişiklik ADR-102/126/139'un üçüne birden dokunuyor.
+
+## 2026-09-01 — İnceleme kuyruğu insanın karar verebileceği şeylere indi; boru hattı artık neyi beklediğini söylüyor (ADR-142, ADR-143)
+
+- **`ParseCollapse` (ADR-142).** Yayımdaki revizyonla **tek bir kaydı bile** ortak olmayan revizyon
+  artık `ReviewRequired` değil `Rejected`. Üretimdeki 17 `MassDeletion` kilidinin onu "935 of 935
+  (100.0 %) absent" diyordu — bu bir silme değil, yanlış belgenin okunması. Sınır tam olarak sıfır
+  kesişim: bir tek ders hayatta kaldıysa bu bir düzenlemedir, `MassDeletion` olarak eskisi gibi
+  incelemeye gider. Kaynak eşiği (`MinimumDeletionCount`) korunuyor, küçük kaynaklar etkilenmiyor.
+  Panelde kendi açıklaması var; `MassDeletion` metni de artık kesişimsiz durumun ayrı raporlandığını
+  söylüyor.
+- **Durak gözcüsü (ADR-143).** `PipelineStallWatch` her poll döngüsünün sonunda beş koşulu ölçüyor:
+  incelemede bekleyen revizyonlar (48s), hiç doğrulanmamış revizyonlar (2s), tutulan diff'ler (24s),
+  pes etmiş dispatch'ler (anında), ve **eskiden alınırken artık alınmayan** kaynaklar (12s). Sadece
+  takılan varsa yazıyor; sayı, en eskisinin yaşı ve bakılacak kaynak tek satırda. Hiçbir şeyi
+  iptal etmiyor, onaylamıyor, süresini doldurmuyor — tek eksik olan şey söylemekti.
+  Eşikler `SIRKADIYEN_STALL__*` ile ayarlanıyor.
+- **Yanında çıkan gerçek kusur:** `ValidatePendingAsync` en eskiden başlayan kuyruğunu hata
+  yalıtımı olmadan işliyordu. Doğrulaması istisna atan **tek** bir revizyon, arkasındaki her
+  revizyonu kalıcı olarak `Parsed`'da bırakıyordu — kuyruk her döngüde aynı uçtan okunduğu için hata
+  tekrarlanmakla kalmıyor, kalıcı hâle geliyordu. Artık revizyon başına raporlanıyor ve parti devam
+  ediyor (diff aşaması bunu zaten yapıyordu; doğrulama yapmıyordu ama dokümantasyonu yaptığını
+  söylüyordu). Üretimdeki 20 `Parsed` SHARED-AMPHI revizyonunun en olası açıklaması bu.
+- **Tests executed:** `dotnet build` 0 uyarı 0 hata; Infrastructure 835 test geçti (yeni:
+  `ParseCollapse` için 3 test, `PipelineStallWatch` için 4 test). Web: `tsc --noEmit` temiz,
+  107 test geçti.
+- **Not done / not verified:** Persistence testleri yine koşmadı (Docker kapalı). Yeni
+  `PipelineStallReadStoreTests` tam da bunun için yazıldı — beş sorgunun **çevrilebildiğini** boş
+  şemada kanıtlıyor; değer nesnesi `SourceId` projeksiyonu ve kaynak başına "en son snapshot" alt
+  sorgusu çalışmadan doğrulanmadı, CI'da koşmalı.
+- **Yapılmadı — ayrı bir karar gerekiyor:** `Superseded` revizyonların canonical kayıtlarının
+  silinmesi (veritabanının %76'sı). `schedule_diff_entries` bu kayıtlara **RESTRICT** yabancı
+  anahtarla bağlı ve diff'ler ADR-060 replay'inin silme yetkisi; dolayısıyla saklama politikası
+  "kayıtları sil" değil, "diff'i de sil" demek ve en eski replay imlecinden daha yeni hiçbir diff
+  silinemez. Bu, kendi ADR'sini hak eden bir tasarım kararı; bu oturumda yapılmadı.

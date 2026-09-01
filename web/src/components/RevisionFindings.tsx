@@ -92,13 +92,27 @@ const RULES: Record<string, { label: string; explains: string }> = {
       + 'çakışma yayımlamış olabilir; ama daha sık görülen sebep, bir dersin hedef kitlesinin fazla '
       + 'geniş okunmasıdır. Onaylarsanız öğrencinin takviminde üst üste iki etkinlik görünür.',
   },
+  ParseCollapse: {
+    label: 'Ayrıştırma çöktü',
+    explains:
+      'Bu revizyonda, hâlihazırda yayımlanmış derslerin hiçbiri yok — tek biri bile eşleşmiyor. '
+      + 'Gerçekten değişen bir program derslerinin bir kısmını korur; hiçbirini korumayan bir sonuç, '
+      + 'yanlış belgenin, yanlış sayfanın ya da yanlış profilin okunduğu anlamına gelir. Bu yüzden '
+      + 'inceleme beklemez, doğrudan reddedilir: onaylanabilecek bir şey yok, çünkü onaylamak bu '
+      + 'kaynağın bütün etkinliklerini takvimlerden silip yerine alakasız bir küme koymak olurdu. '
+      + 'Yayımdaki revizyon yerinde duruyor, kimsenin takviminden bir şey silinmedi. Bakılacak yer '
+      + 'belgenin kendisi: kaynak doğru dosyayı mı gösteriyor, haftalık keşif doğru kitabı mı '
+      + 'buluyor, profil sürümü belgenin biçimiyle uyuşuyor mu.',
+  },
   MassDeletion: {
     label: 'Toplu silme',
     explains:
       'Bu revizyon, yayımlanmış revizyona göre çok sayıda dersi ortadan kaldırıyor. Yayımlanırsa o '
       + 'dersler öğrencilerin takviminden silinir. Belge gerçekten kısaldıysa (dönem bitti, program '
       + 'yeniden yazıldı) beklenen bir durumdur; kısalmadıysa belge eksik alınmış ya da eksik '
-      + 'okunmuş demektir. Aşağıdaki sayıyı belgeyle karşılaştırmadan onaylamayın.',
+      + 'okunmuş demektir. Aşağıdaki sayıyı belgeyle karşılaştırmadan onaylamayın. Derslerin '
+      + 'hiçbirinin eşleşmediği durum bu bulgu değildir; o "Ayrıştırma çöktü" olarak ayrı '
+      + 'raporlanır ve incelemeye hiç gelmez.',
   },
 };
 

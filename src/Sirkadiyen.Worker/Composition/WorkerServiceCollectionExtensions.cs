@@ -1,4 +1,4 @@
-using Google.Apis.Sheets.v4;
+﻿using Google.Apis.Sheets.v4;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -6,6 +6,7 @@ using Sirkadiyen.Application.Announcements;
 using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.StudentProfiles;
 using Sirkadiyen.Application.Auditing;
+using Sirkadiyen.Application.Operations;
 using Sirkadiyen.Application.Scheduling.Diffing;
 using Sirkadiyen.Application.Scheduling.Ingestion;
 using Sirkadiyen.Application.Scheduling.Parsing;
@@ -47,9 +48,11 @@ internal static class WorkerServiceCollectionExtensions
         services.AddSingleton(options.CreatePollingOptions());
         services.AddSingleton(options.CreateValidationOptions());
         services.AddSingleton(options.CreateRetentionOptions());
+        services.AddSingleton(options.CreatePipelineStallOptions());
         services.AddSingleton(options.CreateParseRunOptions());
         services.AddSingleton<ScheduleRevisionValidator>();
         services.AddScoped<SnapshotRetentionService>();
+        services.AddScoped<PipelineStallWatch>();
         services.AddScoped<ScheduleRevisionValidationService>();
         services.AddScoped<ScheduleRevisionPublicationService>();
         services.AddSingleton<AdaptivePollingIntervalPolicy>();
@@ -119,6 +122,7 @@ internal static class WorkerServiceCollectionExtensions
         services.AddSingleton<ScheduleDiffCalculationTask>();
         services.AddSingleton<SourceProcessingPipeline>();
         services.AddSingleton<SnapshotRetentionTask>();
+        services.AddSingleton<PipelineStallWatchTask>();
         services.AddSingleton<InitialCalendarSyncTask>();
         services.AddSingleton<PendingDiffDispatchTask>();
         services.AddSingleton<CalendarReconciliationTask>();

@@ -3588,8 +3588,11 @@ EF her SQL cümlesini `Information` seviyesinde yazmaya devam ediyordu (günde ~
 satır). Worker'a `appsettings.json` eklendi, aynı satır Api'ye de kondu, `.env.example`
 düzeltildi. (C) **yapıldı, ADR-141:** `ScheduleRevision.RecordSetHash` — parse
 sonucu kaynağın en son revizyonuyla aynıysa revizyon hiç yaratılmıyor, poll `ParsedUnchanged`
-raporluyor. (D) %100 kaybın `MassDeletion` incelemesinden ayrılması,
-companion-only kaynaklara terminal durum, saklama job'ı, uyarılar.
+raporluyor. (D) **kısmen yapıldı:** %100 kayıp artık `ParseCollapse` olarak
+ayrı ve terminal (ADR-142); durak gözcüsü boru hattının neyi beklediğini söylüyor (ADR-143);
+doğrulama kuyruğunda hata yalıtımı. Companion-only kaynaklar ADR-141 ile zaten susuyor. Açık kalan:
+`Superseded` canonical kayıtların saklama politikası — diff FK'leri ve replay imleci yüzünden kendi
+kararını hak ediyor.
 
 **Companion fingerprint'i daraltmak bilerek ertelendi.** (C) devredeyken geriye kalan
 maliyet 131 gereksiz parse; parse ucuz, fingerprint'i daraltmak ADR-102/126/139'un

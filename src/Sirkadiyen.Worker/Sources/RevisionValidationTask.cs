@@ -39,6 +39,19 @@ internal sealed class RevisionValidationTask(
 
             foreach (RevisionValidationOutcome outcome in outcomes)
             {
+                if (outcome.Result is null)
+                {
+                    // The rest of the batch was validated; this one was skipped and stays in
+                    // Parsed for the next pass. Logged as an error because a revision that
+                    // cannot be validated at all will otherwise be retried silently forever.
+                    logger.LogError(
+                        outcome.Failure,
+                        "Revision {RevisionId} could not be validated and was skipped; the rest "
+                        + "of the batch continued.",
+                        outcome.RevisionId);
+                    continue;
+                }
+
                 // Logged at warning: a revision reaching this task is one the poller was supposed
                 // to have validated, so it is evidence that a cycle did not finish, even though
                 // the revision itself is now recovered.

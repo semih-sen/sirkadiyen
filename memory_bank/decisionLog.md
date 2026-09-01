@@ -8787,3 +8787,108 @@ Three choices inside that are worth stating:
 - What this does **not** fix: a source held for review stops multiplying its identical holds, but
   the hold itself stands until an operator answers it. For the two documents in the diagnosis that
   answer is a date correction (ADR-139), which is built and waiting to be used.
+
+## ADR-142: A revision that kept nothing of what is published is rejected, not reviewed
+
+**Status:** Accepted and implemented
+**Date:** 2026-09-01
+**Relates to:** ADR-025 and ADR-029 (validation thresholds and the review boundary), ADR-032
+(a held revision reaches students only through a named approver), ADR-033 (forward-fix),
+ADR-141 (a parse that says nothing new produces no revision)
+
+### Context
+
+The 2026-09-01 diagnosis found 17 `MassDeletion` holds covering 12,256 records. Ten of them read
+the same sentence: *"935 of 935 previously published record(s) (100.0 %) are absent."*
+
+A hundred percent is not a deletion. A faculty that rewrites a block still keeps the rest of the
+year; a parse that lost every single record read something that is not this source's schedule —
+the wrong file in a discovery folder, the wrong sheet, a profile that no longer matches the
+document. No operator can approve that into a schedule, because approving it would delete every
+event this source owns from every student's calendar and replace it with an unrelated set. Yet it
+entered the same review queue as genuine schedule edits, and those edits then waited behind it.
+
+### Decision
+
+**Zero overlap with the published revision is its own rule, `ParseCollapse`, and it is terminal.**
+The revision is `Rejected` rather than `ReviewRequired`, the published revision stays live, nothing
+is removed from any calendar, and the review queue never sees it.
+
+The boundary is exactly zero overlap. One surviving record makes it an edit, however large the
+deletion, and it stays approvable by a person — `MassDeletion` continues to handle that case
+unchanged. The rule also keeps the deletion rule's size floor (`MinimumDeletionCount`): on a source
+publishing a handful of records, no overlap is not evidence of anything.
+
+This is the generalization of `EmptyRevision`, which has always been terminal on the same
+reasoning. The two now cover the same fault at both of its sizes: a parse that produced nothing,
+and a parse that produced something unrelated.
+
+### Consequences
+
+- The review queue holds only decisions a person can actually make. That is the whole point: an
+  operator who opens it sees schedule changes, not broken parses.
+- Rejection is terminal, so a false positive would be a source that stops publishing. Two things
+  bound that risk: the rule fires only on *exact* zero overlap, and a rejected revision is visible
+  with its reason rather than silent — the ADR-143 stall watch reports the source as no longer
+  publishing if it persists.
+- A collapse repeats harmlessly. The next parse of an unchanged document produces the same record
+  set, which ADR-141 recognises against the rejected revision and suppresses, so the fault is
+  recorded once rather than every cycle.
+- The finding has its own explanation in the panel, and the `MassDeletion` text now says that the
+  no-overlap case is reported separately and never reaches review.
+
+
+## ADR-143: The pipeline says what it is waiting for
+
+**Status:** Accepted and implemented
+**Date:** 2026-09-01
+**Relates to:** ADR-042 (a held diff waits for a named operator), ADR-097 (a failed dispatch waits
+for a named operator), ADR-032 (a quarantined revision waits for an approver), ADR-124 (worker
+heartbeats), ADR-133 (a discovery fallback is a success that stops tracking the source)
+
+### Context
+
+Every stage of this pipeline is built never to lose work. A failed dispatch waits for an operator.
+A held diff waits for a release. A quarantined revision waits for approval. A source that cannot
+resolve its discovery folder keeps polling the catalogued document. Each is correct on its own, and
+together they produce a system that can sit blocked for weeks while every component reports itself
+healthy — because from the inside, a schedule nobody published looks exactly like a schedule nobody
+changed.
+
+The memory bank has listed this as an unbuilt operator surface since the pipeline was written. The
+diagnosis is what made it concrete: 24 revisions had been held since August on three unreadable
+dates, and nothing anywhere said so. The system was not failing to work; it was failing to say that
+it had stopped.
+
+### Decision
+
+**A stall watch runs at the end of each polling cycle and writes one warning per kind of work that
+has been waiting too long**, naming the count, the age of the oldest, and the source to look at.
+Five conditions, each with its own configurable age: revisions awaiting review (48h), revisions
+never validated (2h), diffs held for release (24h), dispatches that gave up (immediately), and
+sources that used to be acquired and are not any more (12h).
+
+Three choices are deliberate:
+
+1. **It decides nothing and changes nothing.** Every condition it reports is one a human is meant
+   to resolve; the fault was never that the system waited, only that it waited silently. Expiring
+   or auto-approving any of them would trade a visible stall for an invisible mistake.
+2. **A quiet pipeline writes nothing at all**, and a stall is repeated every cycle it survives, so
+   the last line in the journal is always the current state. A watch that speaks every cycle is a
+   watch nobody reads.
+3. **A source that has never been acquired is not a stall.** That is a known gap in the catalog — a
+   document nobody publishes yet, a transport nobody wrote. Only a source that used to be acquired
+   and stopped is reported, because that is the signal that something which worked has broken.
+
+### Consequences
+
+- The journal is now the operator surface. It is not a notification channel, and this ADR does not
+  build one: what it establishes is the measurement, in the place every other worker event already
+  goes. A panel view or an outbound alert reads the same service.
+- The thresholds are configuration (`SIRKADIYEN_STALL__*`), because "too long" depends on how often
+  the faculty's operator actually works the queue.
+- **A related fault was fixed with it.** `ValidatePendingAsync` processed its oldest-first queue
+  without isolating failures, so one revision whose validation threw stopped every revision behind
+  it — permanently, since the queue is re-read from the same end every cycle. Failures are now
+  reported per revision and the batch continues. The diff stage already worked this way; validation
+  did not, and its own documentation claimed it did.

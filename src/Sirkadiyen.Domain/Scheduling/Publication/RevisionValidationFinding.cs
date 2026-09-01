@@ -96,6 +96,12 @@ public enum RevisionValidationRule
 
     /// <summary>Records disappearing relative to the last published revision.</summary>
     MassDeletion,
+
+    /// <summary>
+    /// A revision that has no record in common with the one currently published —
+    /// a parse that collapsed, rather than a schedule that changed.
+    /// </summary>
+    ParseCollapse,
 }
 
 /// <summary>
