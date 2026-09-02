@@ -1,3 +1,4 @@
+using Sirkadiyen.Application.Administration;
 using Sirkadiyen.Infrastructure.Observability;
 using Xunit;
 
