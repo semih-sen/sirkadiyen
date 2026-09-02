@@ -34,7 +34,7 @@ public sealed class ServerResourceMonitor : IServerResourceMonitor
     private readonly int _capacity;
     private readonly bool _isLinux;
     private readonly Lock _gate = new();
-    private readonly Queue<Sample> _samples = new();
+    private readonly Queue<ResourceSample> _samples = new();
 
     public ServerResourceMonitor(TimeProvider timeProvider, ServerResourceMonitorOptions options)
     {
@@ -82,7 +82,7 @@ public sealed class ServerResourceMonitor : IServerResourceMonitor
                 ? ComputeCpuPercent(_samples.Last(), idle, total)
                 : null;
 
-            _samples.Enqueue(new Sample(now, idle, total, cpuPercent, memoryPercent, memoryUsedBytes, rootDiskPercent));
+            _samples.Enqueue(new ResourceSample(now, idle, total, cpuPercent, memoryPercent, memoryUsedBytes, rootDiskPercent));
             while (_samples.Count > _capacity)
             {
                 _samples.Dequeue();
@@ -99,7 +99,7 @@ public sealed class ServerResourceMonitor : IServerResourceMonitor
             return Unavailable(now, "Sunucu kaynak sayaçları yalnızca Linux (/proc) üzerinde okunur.");
         }
 
-        Sample[] samples;
+        ResourceSample[] samples;
         lock (_gate)
         {
             samples = [.. _samples];
@@ -157,16 +157,16 @@ public sealed class ServerResourceMonitor : IServerResourceMonitor
     }
 
     /// <summary>Picks the buffered sample nearest the target age, or an empty reading when none is close enough.</summary>
-    private ResourceReading HistoricalReading(Sample[] samples, DateTimeOffset now, int secondsAgo)
+    private ResourceReading HistoricalReading(ResourceSample[] samples, DateTimeOffset now, int secondsAgo)
     {
         DateTimeOffset target = now.AddSeconds(-secondsAgo);
         // A nearest sample beyond this distance means the buffer does not yet span the target age; the
         // reading stays empty rather than passing off a much newer sample as "15 minutes ago".
         double toleranceSeconds = _sampleIntervalSeconds;
 
-        Sample? nearest = null;
+        ResourceSample? nearest = null;
         double bestDistance = double.MaxValue;
-        foreach (Sample sample in samples)
+        foreach (ResourceSample sample in samples)
         {
             double distance = Math.Abs((sample.At - target).TotalSeconds);
             if (distance < bestDistance)
@@ -204,7 +204,7 @@ public sealed class ServerResourceMonitor : IServerResourceMonitor
         Disks = [],
     };
 
-    private static double ComputeCpuPercent(Sample previous, ulong idle, ulong total)
+    private static double ComputeCpuPercent(ResourceSample previous, ulong idle, ulong total)
     {
         double totalDelta = total >= previous.CpuTotal ? total - previous.CpuTotal : 0d;
         double idleDelta = idle >= previous.CpuIdle ? idle - previous.CpuIdle : 0d;
@@ -458,7 +458,7 @@ public sealed class ServerResourceMonitor : IServerResourceMonitor
         }
     }
 
-    private readonly record struct Sample(
+    private readonly record struct ResourceSample(
         DateTimeOffset At,
         ulong CpuIdle,
         ulong CpuTotal,
