@@ -62,7 +62,7 @@ public sealed class ServerResourceMonitorTests
         bool parsed = ServerResourceMonitor.TryParseLoadAvg("0.52 0.41 0.33 1/512 12345\n", out double[] loads);
 
         Assert.True(parsed);
-        Assert.Equal([0.52, 0.41, 0.33], loads);
+        Assert.Equal(new[] { 0.52, 0.41, 0.33 }, loads);
     }
 
     [Fact]
