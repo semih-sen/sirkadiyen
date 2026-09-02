@@ -57,6 +57,7 @@ import type {
   AdminLicenseListItem,
   AdminMetricsSnapshot,
   AdminServiceHealthSnapshot,
+  ServerResourceSnapshot,
   WorkerInstancesResponse,
   AdminUserCalendarEventsResponse,
   CalendarVerificationResult,
@@ -912,6 +913,14 @@ export function getAdminMetrics(): Promise<AdminMetricsSnapshot> {
 
 export function getAdminServiceHealth(): Promise<AdminServiceHealthSnapshot> {
   return request('/api/admin/services/health');
+}
+
+/**
+ * The host's own CPU, memory and disk usage — now and 1, 5 and 15 minutes ago — served from an
+ * in-process ring buffer of real /proc samples. Reports itself unavailable off Linux (ADR §19).
+ */
+export function getAdminServerResources(): Promise<ServerResourceSnapshot> {
+  return request('/api/admin/server/resources');
 }
 
 /**

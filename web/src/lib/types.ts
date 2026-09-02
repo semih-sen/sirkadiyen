@@ -810,6 +810,38 @@ export interface WorkerInstancesResponse {
   instances: WorkerInstanceStatus[];
 }
 
+/** One reading in the server-resource history: now (0), or the sample closest to 60/300/900s ago. */
+export interface ServerResourceReading {
+  targetSecondsAgo: number;
+  sampleAtUtc: string | null;
+  cpuPercent: number | null;
+  memoryPercent: number | null;
+  memoryUsedBytes: number | null;
+  diskPercent: number | null;
+}
+
+export interface DiskUsageView {
+  mountPoint: string;
+  totalBytes: number;
+  usedBytes: number;
+  availableBytes: number;
+  usedPercent: number;
+}
+
+/** Host CPU/memory/disk usage read from /proc, with a short in-process history (Linux only). */
+export interface ServerResourceSnapshot {
+  generatedAtUtc: string;
+  isAvailable: boolean;
+  unavailableReason?: string | null;
+  sampleIntervalSeconds: number;
+  retainedSampleCount: number;
+  processorCount: number;
+  loadAverages?: number[] | null;
+  memoryTotalBytes?: number | null;
+  readings: ServerResourceReading[];
+  disks: DiskUsageView[];
+}
+
 export interface CalendarSyncResponse {
   connection: GoogleCalendarConnectionView;
   onboarding: OnboardingSnapshot;

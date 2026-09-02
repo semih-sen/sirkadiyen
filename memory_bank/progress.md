@@ -243,6 +243,14 @@
   stage/uptime/last-seen) with 1-day auto-retention; `GET /api/admin/workers` + "Worker instance'ları"
   panel list all live instances and warn when more than one is active — the observability gap behind the
   ADR-122 incident. Supersedes ADR-091's no-heartbeat clause only.
+- [x] Host resource monitoring (2026-09-02): `GET /api/admin/server/resources` (SuperAdmin) serves the
+  Ubuntu host's own CPU/RAM/disk now and 1/5/15 minutes ago. `ServerResourceMonitor` reads `/proc/stat`,
+  `/proc/meminfo`, `/proc/loadavg` and `DriveInfo` into an in-process ~17-minute ring buffer that an API
+  `BackgroundService` fills every 10 s; the shared singleton also answers the read. Host-wide (not
+  process), Linux-only (reports itself unavailable otherwise — no synthesized zeros, §19). The
+  "Sunucu kaynakları" card on `/admin/server` renders load-average badges, a time×(CPU/RAM/disk) table
+  and a per-mount disk table. No server-side setup needed (`/proc` is world-readable); only caveat is
+  systemd `ProtectProc`/`ProcSubset` hardening, which the default Ubuntu 24 unit does not set.
 - [x] Operator recovery tools (ADR-127): four levers a SuperAdmin lacked when the diff/revision
   machinery stalled. (1) **Discard a held diff** — terminal `ScheduleDiffState.Discarded`,
   `POST /api/diffs/{id}/discard`, "Reddet" on the held queue; forward-fix preserved, ambiguous holds

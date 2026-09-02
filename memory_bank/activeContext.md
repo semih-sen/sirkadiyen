@@ -3653,3 +3653,40 @@ eksikliğinden değil, (a) o iki belgede kalan anomali tarihleri için henüz d�
 girilmemiş olmasından ve (b) her companion churn turunun aynı belgeyi yeniden parse edip
 **yeni bir `ReviewRequired` revizyonu** üretmesinden geliyor. Yani B-03, B-02'nin semptomu
 artı bir operatör işi.
+
+## Sunucu kaynak izleme: CPU/RAM/disk, anlık + 1/5/15 dk (2026-09-02)
+
+İstek: admin panelinde sunucunun (Ubuntu Server 24) RAM, CPU ve disk durumunu anlık ve 1, 5,
+15 dakika öncesiyle görmek. `/admin/server` ekranı ("Sistem sağlığı") zaten vardı ama tam da
+"CPU, RAM, disk için backend sözleşmesi yok" notunu düşüyordu; bu boşluk dolduruldu.
+
+**Sözleşme.** `GET /api/admin/server/resources` (SuperAdmin), `IServerResourceMonitor.GetSnapshot()`
+üzerinden. `ServerResourceSnapshot`: `isAvailable` (yalnız Linux; değilse `unavailableReason`
+ile dürüstçe boş döner, uydurma sıfır yok — §19), `sampleIntervalSeconds`, `retainedSampleCount`,
+`processorCount`, `loadAverages` (çekirdek yükü 1/5/15, `/proc/loadavg`), `memoryTotalBytes`,
+dört `readings` (0/60/300/900 sn önce; her biri cpu%, ram%, ram kullanım baytı, kök disk%) ve
+mount başına `disks` tablosu.
+
+**Nasıl.** `ServerResourceMonitor` (Infrastructure/Observability) `/proc/stat` (CPU jiffy farkı),
+`/proc/meminfo` (MemTotal/MemAvailable), `/proc/loadavg` ve `DriveInfo` ile ana bilgisayarı okur;
+süreç içi halka tamponunda ~17 dk örnek tutar. Değerler **host geneli**, süreç değil. Örnekleme
+döngüsü API'de `ServerResourceSamplingService : BackgroundService` (varsayılan 10 sn) — monitör
+kendi zamanlamasını taşımaz, aynı singleton hem tamponu doldurur hem endpoint'e cevap verir.
+"Şimdi" değeri her istekte canlı okunur (CPU için en yeni örneğe göre delta); 5/15 dk satırları
+tampon dolana kadar boş kalır (dürüst). Diskte `/dev/*` gerçek bloklar alınır, tmpfs/overlay/loop
+squashfs elenir.
+
+**Frontend.** `AdminServerStatus` içine "Sunucu kaynakları" kartı: yük ortalaması rozetleri,
+zaman×(CPU/RAM/RAM kullanımı/Disk) tablosu ve mount tablosu. Eski impl-note "Redis ve Google API
+hata oranı" ile daraltıldı (onların hâlâ sözleşmesi yok).
+
+**Sunucuda yapılacak.** Ek bir şey yok: `/proc` ve mount'lar herhangi bir yetki gerektirmeden
+API kullanıcısıyla okunur. Sadece API ve worker aynı Ubuntu host'unda çalışıyorsa sayılar o
+sunucuya ait olur (öyle). systemd hardening kullanılıyorsa `ProcSubset=all` / `ProtectProc`
+`/proc`'u kısıtlamamalı; varsayılan Ubuntu 24 kurulumunda sorun yok.
+
+**Test/derleme.** 109 frontend testi geçti (yeni: kaynak satırları + kullanılamıyor durumu; not:
+başlık yükleniyorken de göründüğünden testte önce yüklenmiş-duruma özgü işaret beklenir), tsc temiz.
+Parser'lar (`TryParseProcStatCpu/MemInfo/LoadAvg`) Infrastructure.UnitTests'te birim testli. .NET SDK
+bu oturum ortamında yok; C# derlemesi/testi **çalıştırılamadı**, kod konvansiyona göre elle gözden
+geçirildi — açık risk olarak kalıyor.

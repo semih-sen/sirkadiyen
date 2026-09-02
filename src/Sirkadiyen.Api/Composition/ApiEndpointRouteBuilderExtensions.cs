@@ -60,6 +60,7 @@ internal static class ApiEndpointRouteBuilderExtensions
         app.MapFinanceDistributionEndpoints();
         app.MapMetricsEndpoints();
         app.MapServiceHealthEndpoints();
+        app.MapServerResourcesEndpoints();
 
         return app;
     }

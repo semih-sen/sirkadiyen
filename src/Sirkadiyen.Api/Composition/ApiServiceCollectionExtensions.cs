@@ -93,6 +93,14 @@ internal static class ApiServiceCollectionExtensions
         });
         services.AddHttpClient<IAdminServiceHealthProbe, AdminServiceHealthProbe>(client =>
             client.Timeout = TimeSpan.FromSeconds(5));
+
+        // Host CPU/memory/disk sampling for the admin server dashboard. One shared monitor holds the
+        // ring buffer; a background service fills it on a cadence while the endpoint reads it (§19).
+        services.AddSingleton(new ServerResourceMonitorOptions());
+        services.AddSingleton<ServerResourceMonitor>();
+        services.AddSingleton<IServerResourceMonitor>(
+            provider => provider.GetRequiredService<ServerResourceMonitor>());
+        services.AddHostedService<ServerResourceSamplingService>();
         services
             .AddHealthChecks()
             .AddCheck<DatabaseHealthCheck>("database", tags: ["ready"]);
