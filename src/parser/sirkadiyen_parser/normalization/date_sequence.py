@@ -254,8 +254,8 @@ class DateSequence:
         Used to layer a decision the analysis did not make — today, the dates an
         operator has corrected — over the ones it did, without either of them
         having to know about the other. A repair the analysis applied wins,
-        because a corrected date is never a suspect in the first place and so can
-        never be the key of a repair.
+        because a corrected position is passed to :func:`analyze_date_sequence`
+        as ``decided`` and so is never a suspect and never the key of a repair.
         """
         return DateSequence(
             _resolutions={**overrides, **self._resolutions},
@@ -276,6 +276,7 @@ def analyze_date_sequence(
     entries: Sequence[DateSequenceEntry],
     *,
     window: AcademicYearWindow | None,
+    decided: frozenset[Hashable] = frozenset(),
 ) -> DateSequence:
     """Read one run of dates chronologically and repair what it can.
 
@@ -283,6 +284,14 @@ def analyze_date_sequence(
     including the ones that resolved to nothing: an unreadable cell is not a
     suspect and must not become an anchor either, and passing it keeps the run's
     order intact.
+
+    ``decided`` names the positions an operator has already ruled on (ADR-139),
+    by the same key the entries carry. Their reading outranks the order the
+    parser would read them under, so they are never repaired and never reported
+    as a suspect — including when the operator confirmed the very date the
+    document states, which stays out of sequence and would otherwise be flagged
+    on every later parse. Such a position still counts toward the run's order and
+    may still anchor its neighbours; it simply is not itself questioned.
 
     Returns an empty analysis — one that repairs nothing and reports nothing —
     when there is no window, when the run is too short to state an order, or when
@@ -311,6 +320,11 @@ def analyze_date_sequence(
 
     for index, entry in enumerate(dated):
         if index in anchors:
+            continue
+        if entry.key in decided:
+            # The operator has already answered this position. Questioning it
+            # again would re-raise a suggestion they resolved, and for a date they
+            # confirmed as written that suggestion would never stop coming back.
             continue
 
         outcome = _examine(

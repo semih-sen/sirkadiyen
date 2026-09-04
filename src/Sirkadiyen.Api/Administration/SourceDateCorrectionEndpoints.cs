@@ -126,15 +126,10 @@ public static class SourceDateCorrectionEndpoints
                 statusCode: StatusCodes.Status400BadRequest);
         }
 
-        if (request.Original == request.Corrected)
-        {
-            return Results.Problem(
-                title: "The correction changes nothing",
-                detail: "'original' and 'corrected' are the same date, so there is no typo to "
-                    + "correct.",
-                statusCode: StatusCodes.Status400BadRequest);
-        }
-
+        // The original and corrected dates are allowed to be equal: that is the
+        // operator confirming the source states this date correctly despite it
+        // sitting out of sequence, which stops every later parse from holding the
+        // revision over it (ADR-139).
         ScheduleSourceDateCorrection correction = new(
             SourceId.Parse(sourceId),
             request.Original,

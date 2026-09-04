@@ -176,12 +176,13 @@ class ConfidenceIndicator(OutboundContractModel):
 
 
 class SourceDateCorrection(ContractModel):
-    """One date an operator has decided the source writes wrongly (ADR-139).
+    """One date an operator has decided the source states out of sequence (ADR-139).
 
     ``original`` is the date the document resolves to today and ``corrected`` is
-    what it means. The two must differ: a correction that changes nothing is a
-    configuration mistake rather than a no-op, because it would sit in the
-    catalog claiming a typo that is not there.
+    what it means. When they differ the parser reads the first as the second
+    wherever the source writes it. When they are the same the operator is
+    confirming that the date the document states is right despite sitting out of
+    sequence, so nothing is rewritten and the row simply stops being flagged.
     """
 
     original: date
@@ -191,12 +192,6 @@ class SourceDateCorrection(ContractModel):
     #: document states can always be traced to a person.
     decided_by: str = Field(min_length=1)
     decided_at: str = Field(min_length=1)
-
-    @model_validator(mode="after")
-    def _validate_correction(self) -> Self:
-        if self.original == self.corrected:
-            raise ValueError("A date correction must change the date it corrects.")
-        return self
 
 
 class ParseSourceContext(ContractModel):

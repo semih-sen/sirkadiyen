@@ -383,3 +383,31 @@ def test_overrides_layer_under_the_analysis_rather_than_over_it() -> None:
 
     assert layered.resolution(1, serial("2020-11-20")).value == date(2026, 11, 20)
     assert layered.resolution(9, serial("2020-11-20")) is override
+
+
+def test_a_decided_position_is_neither_repaired_nor_reported() -> None:
+    """An operator's ruling settles a position, even one they confirmed as written.
+
+    2026-11-10 drops back inside a rising November run, and no year substitution
+    lands it between its neighbours, so it is reported as `noCandidateFitsTheAnchors`
+    and read as written. When the operator has read the document and confirmed the
+    date is right anyway (ADR-139), the analysis must stop questioning it — otherwise
+    the confirmation would be re-raised on every parse and never take.
+    """
+    entries = run(
+        serial("2026-11-18"),
+        serial("2026-11-19"),
+        serial("2026-11-10"),
+        serial("2026-11-20"),
+        serial("2026-11-21"),
+    )
+
+    flagged = analyze_date_sequence(entries, window=WINDOW)
+    assert [outcome.reason for outcome in flagged.outcomes] == [OUTCOME_NO_CANDIDATE]
+
+    settled = analyze_date_sequence(entries, window=WINDOW, decided=frozenset({2}))
+    assert settled.outcomes == ()
+    # The neighbours it bracketed are still read as they were: a decided position
+    # bows out of being questioned without dropping out of the run's order.
+    fallback = serial("2026-11-21")
+    assert settled.resolution(4, fallback) is fallback

@@ -289,6 +289,12 @@ DELETE /api/admin/sources/{sourceId}/date-corrections/{id}
 date, so an operator changing their mind simply accepts again; the new decider,
 time and reason are recorded and audited.
 
+`corrected` may equal `original`. That is not a no-op: it is the operator
+confirming the source states the date correctly even though it sits out of
+sequence — the answer to a `noCandidateFitsTheAnchors` cell the parser could
+read no other way. Nothing on any calendar moves, but the row stops being read
+as an anomaly on every later parse, so the revision it held is no longer held.
+
 The review screen offers the decision in two places:
 
 - **`RecordDateOutOfSequence`** — the parser lists the readings that fit the

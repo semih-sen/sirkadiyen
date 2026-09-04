@@ -342,8 +342,18 @@ function DateCorrectionAction({
 
       {accepted ? (
         <p className="muted">
-          Kabul edildi: bu kaynak {original} yazdığı her yerde {accepted} okunacak.
-          Değişikliğin derslere yansıması için kaynağı yeniden çekin.
+          {accepted === original ? (
+            <>
+              Kabul edildi: bu kaynağın {original} tarihi belgedeki hâliyle doğru sayılacak ve
+              bundan sonra sıra dışı olarak işaretlenmeyecek.
+              Değişikliğin yansıması için kaynağı yeniden çekin.
+            </>
+          ) : (
+            <>
+              Kabul edildi: bu kaynak {original} yazdığı her yerde {accepted} okunacak.
+              Değişikliğin derslere yansıması için kaynağı yeniden çekin.
+            </>
+          )}
         </p>
       ) : (
         <>

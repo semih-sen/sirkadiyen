@@ -99,7 +99,16 @@ def read_date_run(
         corrected[entry.key] = resolution
         adjusted.append(DateSequenceEntry(key=entry.key, resolution=resolution))
 
-    sequence = analyze_date_sequence(adjusted, window=academic_year_window(context))
+    sequence = analyze_date_sequence(
+        adjusted,
+        window=academic_year_window(context),
+        # A position the operator has ruled on is settled, so the analysis must
+        # not question it again. Without this a correction that confirms the date
+        # the document states — same original and corrected — would leave the row
+        # out of sequence and re-report it on every parse, and accepting it would
+        # change nothing.
+        decided=frozenset(corrected),
+    )
     return sequence.with_resolutions(corrected) if corrected else sequence
 
 
@@ -121,12 +130,26 @@ def report_date_corrections(
     """
     for correction in context.date_corrections:
         diagnostics.increment(METRIC_DATES_CORRECTED)
+        if correction.original == correction.corrected:
+            # A confirmation, not a substitution: the operator read the document
+            # and decided the date it states is right despite the run's order, so
+            # nothing is rewritten and the row simply stops being questioned.
+            message = (
+                f"An operator has confirmed this source states "
+                f"{correction.original.isoformat()} correctly, so it is no longer read as "
+                f"out of sequence (accepted by {correction.decided_by} on "
+                f"{correction.decided_at})."
+            )
+        else:
+            message = (
+                f"An operator has decided this source writes {correction.original.isoformat()} "
+                f"where it means {correction.corrected.isoformat()}, so every cell stating the "
+                f"first was read as the second (accepted by {correction.decided_by} on "
+                f"{correction.decided_at})."
+            )
         diagnostics.information(
             WARNING_DATE_CORRECTED,
-            f"An operator has decided this source writes {correction.original.isoformat()} "
-            f"where it means {correction.corrected.isoformat()}, so every cell stating the "
-            f"first was read as the second (accepted by {correction.decided_by} on "
-            f"{correction.decided_at}).",
+            message,
             detail={
                 "original": correction.original.isoformat(),
                 "corrected": correction.corrected.isoformat(),
