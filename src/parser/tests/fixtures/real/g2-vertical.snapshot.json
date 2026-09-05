@@ -1,0 +1,3316 @@
+{
+ "contractVersion": "1.0",
+ "sourceId": "G2-VERTICAL",
+ "snapshotId": "g2-vertical-2026-2027-v1",
+ "spreadsheetId": "1-EigEZue7FVRoRxx0J_FXcZxypVbozVD",
+ "acquiredAtUtc": "2026-09-05T09:00:00Z",
+ "contentHash": "sha256:g2-vertical-2026-2027",
+ "contentHashAlgorithm": "SHA-256",
+ "worksheets": [
+  {
+   "sheetId": "1",
+   "title": "TR",
+   "index": 0,
+   "rowCount": 115,
+   "columnCount": 6,
+   "frozenRowCount": 0,
+   "frozenColumnCount": 0,
+   "hidden": false,
+   "requestedRanges": [],
+   "mergedRanges": [
+    {
+     "startRowIndex": 17,
+     "startColumnIndex": 0,
+     "endRowIndexExclusive": 18,
+     "endColumnIndexExclusive": 6
+    }
+   ],
+   "hiddenRows": [],
+   "hiddenColumns": [],
+   "cells": [
+    {
+     "rowIndex": 0,
+     "columnIndex": 0,
+     "a1Address": "A1",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "Uygulama yeri",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "Uygulama yeri",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "Uygulama yeri",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 0,
+     "columnIndex": 1,
+     "a1Address": "B1",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "Oksijen \nDoç. Dr. Bengüsu MİRASOĞLU\n Sualtı Hekimliği",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "Oksijen \nDoç. Dr. Bengüsu MİRASOĞLU\n Sualtı Hekimliği",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "Oksijen \nDoç. Dr. Bengüsu MİRASOĞLU\n Sualtı Hekimliği",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 0,
+     "columnIndex": 2,
+     "a1Address": "C1",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "Onam Alma \nProf. Dr. Ayşe PALANDUZ\n Amfi programına bakınız",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "Onam Alma \nProf. Dr. Ayşe PALANDUZ\n Amfi programına bakınız",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "Onam Alma \nProf. Dr. Ayşe PALANDUZ\n Amfi programına bakınız",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 0,
+     "columnIndex": 3,
+     "a1Address": "D1",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "Hastane enfeksiyonlarının önlenmesi \nProf. Dr. Yaşar NAKİPOĞLU\n Mikrobiyoloji Lab",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "Hastane enfeksiyonlarının önlenmesi \nProf. Dr. Yaşar NAKİPOĞLU\n Mikrobiyoloji Lab",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "Hastane enfeksiyonlarının önlenmesi \nProf. Dr. Yaşar NAKİPOĞLU\n Mikrobiyoloji Lab",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 0,
+     "columnIndex": 4,
+     "a1Address": "E1",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "Ekip Olma \nDoç. Dr. A. Nilüfer ALÇALAR\nTemel Bilimler Tıp Eğitimi AD",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "Ekip Olma \nDoç. Dr. A. Nilüfer ALÇALAR\nTemel Bilimler Tıp Eğitimi AD",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "Ekip Olma \nDoç. Dr. A. Nilüfer ALÇALAR\nTemel Bilimler Tıp Eğitimi AD",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 0,
+     "columnIndex": 5,
+     "a1Address": "F1",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "SH Öykü Alma \nDr. Öğr. Üyesi Hacer NALBANT\nBehçet Kütüphanesi Simülasyon Merkezi",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "SH Öykü Alma \nDr. Öğr. Üyesi Hacer NALBANT\nBehçet Kütüphanesi Simülasyon Merkezi",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "SH Öykü Alma \nDr. Öğr. Üyesi Hacer NALBANT\nBehçet Kütüphanesi Simülasyon Merkezi",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 1,
+     "columnIndex": 0,
+     "a1Address": "A2",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/1\n7 Eylül 2026 Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/1\n7 Eylül 2026 Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/1\n7 Eylül 2026 Pazartesi\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 1,
+     "columnIndex": 2,
+     "a1Address": "C2",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "E",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "E",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "E",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 2,
+     "columnIndex": 0,
+     "a1Address": "A3",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/2\n8 Eylül 2026 Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/2\n8 Eylül 2026 Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/2\n8 Eylül 2026 Salı\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 2,
+     "columnIndex": 2,
+     "a1Address": "C3",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "F",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "F",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "F",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 3,
+     "columnIndex": 0,
+     "a1Address": "A4",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/3\n9 Eylül 2026 Çarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/3\n9 Eylül 2026 Çarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/3\n9 Eylül 2026 Çarşamba\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 3,
+     "columnIndex": 2,
+     "a1Address": "C4",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "G",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "G",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "G",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 4,
+     "columnIndex": 0,
+     "a1Address": "A5",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/4\n10 Eylül 2026 Perşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/4\n10 Eylül 2026 Perşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/4\n10 Eylül 2026 Perşembe\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 4,
+     "columnIndex": 2,
+     "a1Address": "C5",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "A",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "A",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "A",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 5,
+     "columnIndex": 0,
+     "a1Address": "A6",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/5\n14 Eylül 2026 Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/5\n14 Eylül 2026 Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/5\n14 Eylül 2026 Pazartesi\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 5,
+     "columnIndex": 2,
+     "a1Address": "C6",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "B",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "B",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "B",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 6,
+     "columnIndex": 0,
+     "a1Address": "A7",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/6\n14 Eylül 2026 Pazartesi\n13:30-15:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/6\n14 Eylül 2026 Pazartesi\n13:30-15:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/6\n14 Eylül 2026 Pazartesi\n13:30-15:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 7,
+     "columnIndex": 0,
+     "a1Address": "A8",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/7\n15 Eylül 2026\n Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/7\n15 Eylül 2026\n Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/7\n15 Eylül 2026\n Salı\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 7,
+     "columnIndex": 2,
+     "a1Address": "C8",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "C",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "C",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "C",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 8,
+     "columnIndex": 0,
+     "a1Address": "A9",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/8\n16 Eylül 2026\nÇarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/8\n16 Eylül 2026\nÇarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/8\n16 Eylül 2026\nÇarşamba\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 8,
+     "columnIndex": 2,
+     "a1Address": "C9",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "D",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "D",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "D",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 9,
+     "columnIndex": 0,
+     "a1Address": "A10",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/1\n17 Eylül 2026\n Perşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/1\n17 Eylül 2026\n Perşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/1\n17 Eylül 2026\n Perşembe\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 10,
+     "columnIndex": 0,
+     "a1Address": "A11",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/2\n18 Eylül 2026 \nCuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/2\n18 Eylül 2026 \nCuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/2\n18 Eylül 2026 \nCuma\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 11,
+     "columnIndex": 0,
+     "a1Address": "A12",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/3\n21 Eylül 2026 Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/3\n21 Eylül 2026 Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/3\n21 Eylül 2026 Pazartesi\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 11,
+     "columnIndex": 2,
+     "a1Address": "C12",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "H",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "H",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "H",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 12,
+     "columnIndex": 0,
+     "a1Address": "A13",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/4\n22 Eylül 2026 \nSalı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/4\n22 Eylül 2026 \nSalı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/4\n22 Eylül 2026 \nSalı\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 13,
+     "columnIndex": 0,
+     "a1Address": "A14",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/5\n22 Eylül 2026 \nSalı\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/5\n22 Eylül 2026 \nSalı\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/5\n22 Eylül 2026 \nSalı\n10:30-12:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 13,
+     "columnIndex": 1,
+     "a1Address": "B14",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "A",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "A",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "A",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 14,
+     "columnIndex": 0,
+     "a1Address": "A15",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/6\n23 Eylü 2026\nÇarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/6\n23 Eylü 2026\nÇarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/6\n23 Eylü 2026\nÇarşamba\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 15,
+     "columnIndex": 0,
+     "a1Address": "A16",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/7\n24 Eylül 2026\nPerşembe\n8:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/7\n24 Eylül 2026\nPerşembe\n8:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/7\n24 Eylül 2026\nPerşembe\n8:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 16,
+     "columnIndex": 0,
+     "a1Address": "A17",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/8\n25 Eylül 2026\nCuma\n8:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/8\n25 Eylül 2026\nCuma\n8:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/8\n25 Eylül 2026\nCuma\n8:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 17,
+     "columnIndex": 0,
+     "a1Address": "A18",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "TÜM GRUPLAR\n7.10.2026\nÇarşamba\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "TÜM GRUPLAR\n7.10.2026\nÇarşamba\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "TÜM GRUPLAR\n7.10.2026\nÇarşamba\n10:30-12:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 18,
+     "columnIndex": 0,
+     "a1Address": "A19",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/1\n08 Ekim 2026\nPerşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/1\n08 Ekim 2026\nPerşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/1\n08 Ekim 2026\nPerşembe\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 19,
+     "columnIndex": 0,
+     "a1Address": "A20",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/2\n9 Ekim 2026 \nCuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/2\n9 Ekim 2026 \nCuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/2\n9 Ekim 2026 \nCuma\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 20,
+     "columnIndex": 0,
+     "a1Address": "A21",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/3\n12 Ekim 2026 \nPazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/3\n12 Ekim 2026 \nPazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/3\n12 Ekim 2026 \nPazartesi\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 21,
+     "columnIndex": 0,
+     "a1Address": "A22",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/4\n12 Ekim 2026 \nPazartesi\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/4\n12 Ekim 2026 \nPazartesi\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/4\n12 Ekim 2026 \nPazartesi\n10:30-12:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 22,
+     "columnIndex": 0,
+     "a1Address": "A23",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/5\n14 Ekim 2026\nÇarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/5\n14 Ekim 2026\nÇarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/5\n14 Ekim 2026\nÇarşamba\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 23,
+     "columnIndex": 0,
+     "a1Address": "A24",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/6\n14 Ekim 2026\nÇarşamba\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/6\n14 Ekim 2026\nÇarşamba\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/6\n14 Ekim 2026\nÇarşamba\n10:30-12:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 24,
+     "columnIndex": 0,
+     "a1Address": "A25",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/7\n15 Ekim 2026 Perşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/7\n15 Ekim 2026 Perşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/7\n15 Ekim 2026 Perşembe\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 25,
+     "columnIndex": 0,
+     "a1Address": "A26",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/8\n15 Ekim 2026 Perşembe\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/8\n15 Ekim 2026 Perşembe\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/8\n15 Ekim 2026 Perşembe\n10:30-12:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 25,
+     "columnIndex": 1,
+     "a1Address": "B26",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "C",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "C",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "C",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 26,
+     "columnIndex": 0,
+     "a1Address": "A27",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/1\n21 Ekim 2026 Çarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/1\n21 Ekim 2026 Çarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/1\n21 Ekim 2026 Çarşamba\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 27,
+     "columnIndex": 0,
+     "a1Address": "A28",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/2\n23 Ekim 2026\n Cuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/2\n23 Ekim 2026\n Cuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/2\n23 Ekim 2026\n Cuma\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 28,
+     "columnIndex": 0,
+     "a1Address": "A29",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/3\n26 Ekim 2026 Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/3\n26 Ekim 2026 Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/3\n26 Ekim 2026 Pazartesi\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 29,
+     "columnIndex": 0,
+     "a1Address": "A30",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/4\n26 Ekim 2026 Pazartesi\n13:30-15:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/4\n26 Ekim 2026 Pazartesi\n13:30-15:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/4\n26 Ekim 2026 Pazartesi\n13:30-15:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 30,
+     "columnIndex": 0,
+     "a1Address": "A31",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/5\n27 Ekim 2026\n Salı\n8:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/5\n27 Ekim 2026\n Salı\n8:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/5\n27 Ekim 2026\n Salı\n8:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 31,
+     "columnIndex": 0,
+     "a1Address": "A32",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/6\n28 Ekim 2026\nÇarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/6\n28 Ekim 2026\nÇarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/6\n28 Ekim 2026\nÇarşamba\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 32,
+     "columnIndex": 0,
+     "a1Address": "A33",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/1\n9 Kasım 2026\nPazartesi\n8:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/1\n9 Kasım 2026\nPazartesi\n8:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/1\n9 Kasım 2026\nPazartesi\n8:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 33,
+     "columnIndex": 0,
+     "a1Address": "A34",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/2\n9 Kasım 2026\nPazartesi\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/2\n9 Kasım 2026\nPazartesi\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/2\n9 Kasım 2026\nPazartesi\n10:30-12:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 34,
+     "columnIndex": 0,
+     "a1Address": "A35",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/3\n10 Kasım 2026 \nSalı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/3\n10 Kasım 2026 \nSalı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/3\n10 Kasım 2026 \nSalı\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 35,
+     "columnIndex": 0,
+     "a1Address": "A36",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/4\n11 Kasım 2026 Çarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/4\n11 Kasım 2026 Çarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/4\n11 Kasım 2026 Çarşamba\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 36,
+     "columnIndex": 0,
+     "a1Address": "A37",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/5\n12 Kasım 2026  Perşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/5\n12 Kasım 2026  Perşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/5\n12 Kasım 2026  Perşembe\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 37,
+     "columnIndex": 0,
+     "a1Address": "A38",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/6\n13 Kasım 2026  Cuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/6\n13 Kasım 2026  Cuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/6\n13 Kasım 2026  Cuma\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 38,
+     "columnIndex": 0,
+     "a1Address": "A39",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/7\n16 Kasım 2026 Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/7\n16 Kasım 2026 Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/7\n16 Kasım 2026 Pazartesi\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 39,
+     "columnIndex": 0,
+     "a1Address": "A40",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/8\n16 Kasım 2026 Pazartesi\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/8\n16 Kasım 2026 Pazartesi\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/8\n16 Kasım 2026 Pazartesi\n10:30-12:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 40,
+     "columnIndex": 0,
+     "a1Address": "A41",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/1\n17 Kasım 2026 Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/1\n17 Kasım 2026 Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/1\n17 Kasım 2026 Salı\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 41,
+     "columnIndex": 0,
+     "a1Address": "A42",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/2\n18 Kasım 2026 \nÇarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/2\n18 Kasım 2026 \nÇarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/2\n18 Kasım 2026 \nÇarşamba\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 41,
+     "columnIndex": 1,
+     "a1Address": "B42",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "B",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "B",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "B",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 42,
+     "columnIndex": 0,
+     "a1Address": "A43",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/3\n19 Kasım 2026 Perşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/3\n19 Kasım 2026 Perşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/3\n19 Kasım 2026 Perşembe\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 43,
+     "columnIndex": 0,
+     "a1Address": "A44",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/4\n23 Kasım 2026 \nPazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/4\n23 Kasım 2026 \nPazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/4\n23 Kasım 2026 \nPazartesi\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 44,
+     "columnIndex": 0,
+     "a1Address": "A45",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/5\n24 Kasım 2026 \n Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/5\n24 Kasım 2026 \n Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/5\n24 Kasım 2026 \n Salı\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 45,
+     "columnIndex": 0,
+     "a1Address": "A46",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/6\n25 Kasım 2026  Çarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/6\n25 Kasım 2026  Çarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/6\n25 Kasım 2026  Çarşamba\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 46,
+     "columnIndex": 0,
+     "a1Address": "A47",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/7\n26 Kasım 2026 \n Perşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/7\n26 Kasım 2026 \n Perşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/7\n26 Kasım 2026 \n Perşembe\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 47,
+     "columnIndex": 0,
+     "a1Address": "A48",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/8\n30 Kasım 2026 \nPazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/8\n30 Kasım 2026 \nPazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/8\n30 Kasım 2026 \nPazartesi\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 48,
+     "columnIndex": 0,
+     "a1Address": "A49",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/1\n1 Aralık 2065\nSalı \n8:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/1\n1 Aralık 2065\nSalı \n8:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/1\n1 Aralık 2065\nSalı \n8:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 49,
+     "columnIndex": 0,
+     "a1Address": "A50",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/2\n2 Aralık 2026 \nÇarşamba\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/2\n2 Aralık 2026 \nÇarşamba\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/2\n2 Aralık 2026 \nÇarşamba\n10:30-12:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 49,
+     "columnIndex": 1,
+     "a1Address": "B50",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "D",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "D",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "D",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 50,
+     "columnIndex": 0,
+     "a1Address": "A51",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/3\n3 Aralık 2026\n Perşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/3\n3 Aralık 2026\n Perşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/3\n3 Aralık 2026\n Perşembe\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 51,
+     "columnIndex": 0,
+     "a1Address": "A52",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/4\n4 Aralık 2026  \nCuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/4\n4 Aralık 2026  \nCuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/4\n4 Aralık 2026  \nCuma\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 52,
+     "columnIndex": 0,
+     "a1Address": "A53",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/5\n7 Aralık 2026 Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/5\n7 Aralık 2026 Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/5\n7 Aralık 2026 Pazartesi\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 53,
+     "columnIndex": 0,
+     "a1Address": "A54",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/6\n7 Aralık 2026 Pazartesi\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/6\n7 Aralık 2026 Pazartesi\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/6\n7 Aralık 2026 Pazartesi\n10:30-12:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 54,
+     "columnIndex": 0,
+     "a1Address": "A55",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/7\n8 Aralık 2026  \nSalı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/7\n8 Aralık 2026  \nSalı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/7\n8 Aralık 2026  \nSalı\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 55,
+     "columnIndex": 0,
+     "a1Address": "A56",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/8\n9 Aralık 2026\nÇarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/8\n9 Aralık 2026\nÇarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/8\n9 Aralık 2026\nÇarşamba\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 56,
+     "columnIndex": 0,
+     "a1Address": "A57",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/1\n10 Aralık 2026\nPerşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/1\n10 Aralık 2026\nPerşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/1\n10 Aralık 2026\nPerşembe\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 57,
+     "columnIndex": 0,
+     "a1Address": "A58",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/2\n16 Aralık 2026 \nÇarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/2\n16 Aralık 2026 \nÇarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/2\n16 Aralık 2026 \nÇarşamba\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 58,
+     "columnIndex": 0,
+     "a1Address": "A59",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/3\n17 Aralık 2026\nPerşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/3\n17 Aralık 2026\nPerşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/3\n17 Aralık 2026\nPerşembe\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 59,
+     "columnIndex": 0,
+     "a1Address": "A60",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/4\n18 Aralık 20256\nCuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/4\n18 Aralık 20256\nCuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/4\n18 Aralık 20256\nCuma\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 60,
+     "columnIndex": 0,
+     "a1Address": "A61",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/5\n18 Aralık 2026 \nCuma\n14:00-15:50",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/5\n18 Aralık 2026 \nCuma\n14:00-15:50",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/5\n18 Aralık 2026 \nCuma\n14:00-15:50",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 61,
+     "columnIndex": 0,
+     "a1Address": "A62",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/6\n21 Aralık 2026 Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/6\n21 Aralık 2026 Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/6\n21 Aralık 2026 Pazartesi\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 62,
+     "columnIndex": 0,
+     "a1Address": "A63",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/7\n22 Aralık 2026\n Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/7\n22 Aralık 2026\n Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/7\n22 Aralık 2026\n Salı\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 62,
+     "columnIndex": 1,
+     "a1Address": "B63",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "E",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "E",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "E",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 63,
+     "columnIndex": 0,
+     "a1Address": "A64",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/8\n22 Aralık 2026 Salı\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/8\n22 Aralık 2026 Salı\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/8\n22 Aralık 2026 Salı\n10:30-12:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 64,
+     "columnIndex": 0,
+     "a1Address": "A65",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/1\n29 Ocak 2027 Cuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/1\n29 Ocak 2027 Cuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/1\n29 Ocak 2027 Cuma\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 65,
+     "columnIndex": 0,
+     "a1Address": "A66",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/2\n1 Şubat 2027\n Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/2\n1 Şubat 2027\n Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/2\n1 Şubat 2027\n Pazartesi\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 66,
+     "columnIndex": 0,
+     "a1Address": "A67",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/3\n2 Şubat 2027\n Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/3\n2 Şubat 2027\n Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/3\n2 Şubat 2027\n Salı\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 67,
+     "columnIndex": 0,
+     "a1Address": "A68",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/4\n3 Şubat 2027 Çarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/4\n3 Şubat 2027 Çarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/4\n3 Şubat 2027 Çarşamba\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 67,
+     "columnIndex": 1,
+     "a1Address": "B68",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "F",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "F",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "F",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 68,
+     "columnIndex": 0,
+     "a1Address": "A69",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/5\n4 Şubat 2027 \nPerşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/5\n4 Şubat 2027 \nPerşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/5\n4 Şubat 2027 \nPerşembe\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 69,
+     "columnIndex": 0,
+     "a1Address": "A70",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/6\n5 Şubat 2026\n Cuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/6\n5 Şubat 2026\n Cuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/6\n5 Şubat 2026\n Cuma\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 70,
+     "columnIndex": 0,
+     "a1Address": "A71",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/7\n8 Şubat 2027\n Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/7\n8 Şubat 2027\n Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/7\n8 Şubat 2027\n Pazartesi\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 71,
+     "columnIndex": 0,
+     "a1Address": "A72",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/8\n9 Şubat 2027\n Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/8\n9 Şubat 2027\n Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/8\n9 Şubat 2027\n Salı\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 72,
+     "columnIndex": 0,
+     "a1Address": "A73",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/1\n22 Şubat 2027 Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/1\n22 Şubat 2027 Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/1\n22 Şubat 2027 Pazartesi\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 72,
+     "columnIndex": 1,
+     "a1Address": "B73",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "G",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "G",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "G",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 73,
+     "columnIndex": 0,
+     "a1Address": "A74",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/2\n23 Şubat 2027\n Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/2\n23 Şubat 2027\n Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/2\n23 Şubat 2027\n Salı\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 74,
+     "columnIndex": 0,
+     "a1Address": "A75",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/3\n24 Şubat 2027 Çarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/3\n24 Şubat 2027 Çarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/3\n24 Şubat 2027 Çarşamba\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 75,
+     "columnIndex": 0,
+     "a1Address": "A76",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/4\n25 Şubat 2027 Perşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/4\n25 Şubat 2027 Perşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/4\n25 Şubat 2027 Perşembe\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 76,
+     "columnIndex": 0,
+     "a1Address": "A77",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/5\n26 Şubat 2027 \nCuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/5\n26 Şubat 2027 \nCuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/5\n26 Şubat 2027 \nCuma\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 77,
+     "columnIndex": 0,
+     "a1Address": "A78",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/6\n1 Mart 2027\nPazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/6\n1 Mart 2027\nPazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/6\n1 Mart 2027\nPazartesi\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 78,
+     "columnIndex": 0,
+     "a1Address": "A79",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/7\n2 Mart 2027\n Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/7\n2 Mart 2027\n Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/7\n2 Mart 2027\n Salı\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 79,
+     "columnIndex": 0,
+     "a1Address": "A80",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/8\n3 Mart 2027\nÇarşamba\n8:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/8\n3 Mart 2027\nÇarşamba\n8:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/8\n3 Mart 2027\nÇarşamba\n8:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 80,
+     "columnIndex": 0,
+     "a1Address": "A81",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/1\n19 Mart 2027 \nCuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/1\n19 Mart 2027 \nCuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/1\n19 Mart 2027 \nCuma\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 81,
+     "columnIndex": 0,
+     "a1Address": "A82",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/2\n23 Mart 2027\n Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/2\n23 Mart 2027\n Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/2\n23 Mart 2027\n Pazartesi\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 82,
+     "columnIndex": 0,
+     "a1Address": "A83",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/4\n29 Mart 2027\nÇarşamba\n8:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/4\n29 Mart 2027\nÇarşamba\n8:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/4\n29 Mart 2027\nÇarşamba\n8:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 83,
+     "columnIndex": 0,
+     "a1Address": "A84",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/5\n29 Mart 2027 \nSalı\n10.30-12.20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/5\n29 Mart 2027 \nSalı\n10.30-12.20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/5\n29 Mart 2027 \nSalı\n10.30-12.20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 83,
+     "columnIndex": 1,
+     "a1Address": "B84",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "H",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "H",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "H",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 84,
+     "columnIndex": 0,
+     "a1Address": "A85",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/6\n30 Mart 2027\nSalı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/6\n30 Mart 2027\nSalı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/6\n30 Mart 2027\nSalı\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 85,
+     "columnIndex": 0,
+     "a1Address": "A86",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/7\n31 Mart 2027 \nÇarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/7\n31 Mart 2027 \nÇarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/7\n31 Mart 2027 \nÇarşamba\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 86,
+     "columnIndex": 0,
+     "a1Address": "A87",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1/8\n5 Nisan 2027\nPazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1/8\n5 Nisan 2027\nPazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1/8\n5 Nisan 2027\nPazartesi\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 87,
+     "columnIndex": 0,
+     "a1Address": "A88",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/1\n5 Nisan 2027\n Perşembe\n10.30-12.20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/1\n5 Nisan 2027\n Perşembe\n10.30-12.20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/1\n5 Nisan 2027\n Perşembe\n10.30-12.20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 88,
+     "columnIndex": 0,
+     "a1Address": "A89",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/2\n6 Nisan 2027\n Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/2\n6 Nisan 2027\n Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/2\n6 Nisan 2027\n Salı\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 89,
+     "columnIndex": 0,
+     "a1Address": "A90",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/3\n7 Nisan 2027 \nÇarşamba\n08.30-10.20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/3\n7 Nisan 2027 \nÇarşamba\n08.30-10.20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/3\n7 Nisan 2027 \nÇarşamba\n08.30-10.20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 90,
+     "columnIndex": 0,
+     "a1Address": "A91",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/4\n8 Nisan 2027 \nPerşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/4\n8 Nisan 2027 \nPerşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/4\n8 Nisan 2027 \nPerşembe\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 91,
+     "columnIndex": 0,
+     "a1Address": "A92",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/5\n9 Nisan 2027\nCuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/5\n9 Nisan 2027\nCuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/5\n9 Nisan 2027\nCuma\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 92,
+     "columnIndex": 0,
+     "a1Address": "A93",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/6\n12 Nisan 2027\nPazartesi\n8:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/6\n12 Nisan 2027\nPazartesi\n8:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/6\n12 Nisan 2027\nPazartesi\n8:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 92,
+     "columnIndex": 3,
+     "a1Address": "D93",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "AB",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "AB",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "AB",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 93,
+     "columnIndex": 0,
+     "a1Address": "A94",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/7\n13 Nisan 2027\n Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/7\n13 Nisan 2027\n Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/7\n13 Nisan 2027\n Salı\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 93,
+     "columnIndex": 3,
+     "a1Address": "D94",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "CD",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "CD",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "CD",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 94,
+     "columnIndex": 0,
+     "a1Address": "A95",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "2/8\n14 Nisan 2027\nÇarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "2/8\n14 Nisan 2027\nÇarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "2/8\n14 Nisan 2027\nÇarşamba\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 94,
+     "columnIndex": 3,
+     "a1Address": "D95",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "EF",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "EF",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "EF",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 95,
+     "columnIndex": 0,
+     "a1Address": "A96",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "3/1\n15 Nisan 2027 \nPerşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "3/1\n15 Nisan 2027 \nPerşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "3/1\n15 Nisan 2027 \nPerşembe\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 95,
+     "columnIndex": 3,
+     "a1Address": "D96",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "GH",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "GH",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "GH",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 96,
+     "columnIndex": 0,
+     "a1Address": "A97",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "3/2\n16 Nisan 2027\nCuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "3/2\n16 Nisan 2027\nCuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "3/2\n16 Nisan 2027\nCuma\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 96,
+     "columnIndex": 3,
+     "a1Address": "D97",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "Telafi (Tüm Gruplar)",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "Telafi (Tüm Gruplar)",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "Telafi (Tüm Gruplar)",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 97,
+     "columnIndex": 0,
+     "a1Address": "A98",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "3/3\n19 Nisan 2027 Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "3/3\n19 Nisan 2027 Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "3/3\n19 Nisan 2027 Pazartesi\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 98,
+     "columnIndex": 0,
+     "a1Address": "A99",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "3/4\n20 Nisan 2027\n Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "3/4\n20 Nisan 2027\n Salı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "3/4\n20 Nisan 2027\n Salı\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 99,
+     "columnIndex": 0,
+     "a1Address": "A100",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "3/5\n21 Nisan 2027 \nÇarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "3/5\n21 Nisan 2027 \nÇarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "3/5\n21 Nisan 2027 \nÇarşamba\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 100,
+     "columnIndex": 0,
+     "a1Address": "A101",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "3/6\n22 Nisan 2027\nPerşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "3/6\n22 Nisan 2027\nPerşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "3/6\n22 Nisan 2027\nPerşembe\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 101,
+     "columnIndex": 0,
+     "a1Address": "A102",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "3/7\n27 Nisan 2027\nSalı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "3/7\n27 Nisan 2027\nSalı\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "3/7\n27 Nisan 2027\nSalı\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 102,
+     "columnIndex": 0,
+     "a1Address": "A103",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "3/8\n28 Nisan 2027 \nÇarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "3/8\n28 Nisan 2027 \nÇarşamba\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "3/8\n28 Nisan 2027 \nÇarşamba\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 103,
+     "columnIndex": 0,
+     "a1Address": "A104",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "11 Mayıs 2027 \nSalı\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "11 Mayıs 2027 \nSalı\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "11 Mayıs 2027 \nSalı\n10:30-12:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 103,
+     "columnIndex": 1,
+     "a1Address": "B104",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "Telafi (Tüm Gruplar)",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "Telafi (Tüm Gruplar)",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "Telafi (Tüm Gruplar)",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 104,
+     "columnIndex": 0,
+     "a1Address": "A105",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "12 Mayıs 2027 \nÇarşamba\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "12 Mayıs 2027 \nÇarşamba\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "12 Mayıs 2027 \nÇarşamba\n10:30-12:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 105,
+     "columnIndex": 0,
+     "a1Address": "A106",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "13 Mayıs 2027 \nPerşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "13 Mayıs 2027 \nPerşembe\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "13 Mayıs 2027 \nPerşembe\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 106,
+     "columnIndex": 0,
+     "a1Address": "A107",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "14 Mayıs 2027\nCuma\n8:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "14 Mayıs 2027\nCuma\n8:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "14 Mayıs 2027\nCuma\n8:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 107,
+     "columnIndex": 0,
+     "a1Address": "A108",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "14 Mayıs 2027\nCuma\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "14 Mayıs 2027\nCuma\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "14 Mayıs 2027\nCuma\n10:30-12:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 108,
+     "columnIndex": 0,
+     "a1Address": "A109",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "24 Mayıs 2027 Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "24 Mayıs 2027 Pazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "24 Mayıs 2027 Pazartesi\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 109,
+     "columnIndex": 0,
+     "a1Address": "A110",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "24 Mayıs 2027\nPazartesi\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "24 Mayıs 2027\nPazartesi\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "24 Mayıs 2027\nPazartesi\n10:30-12:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 110,
+     "columnIndex": 0,
+     "a1Address": "A111",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "26 Mayıs 2027\nÇarşamba\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "26 Mayıs 2027\nÇarşamba\n10:30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "26 Mayıs 2027\nÇarşamba\n10:30-12:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 111,
+     "columnIndex": 0,
+     "a1Address": "A112",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "27 Mayıs 2027 Perşembe\n8:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "27 Mayıs 2027 Perşembe\n8:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "27 Mayıs 2027 Perşembe\n8:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 112,
+     "columnIndex": 0,
+     "a1Address": "A113",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "28 Mayıs 2027 \nCuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "28 Mayıs 2027 \nCuma\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "28 Mayıs 2027 \nCuma\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 113,
+     "columnIndex": 0,
+     "a1Address": "A114",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "31 Mayıs 2027 \nPazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "31 Mayıs 2027 \nPazartesi\n08:30-10:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "31 Mayıs 2027 \nPazartesi\n08:30-10:20",
+     "note": null,
+     "effectiveFormat": null
+    },
+    {
+     "rowIndex": 114,
+     "columnIndex": 0,
+     "a1Address": "A115",
+     "userEnteredValue": {
+      "kind": "text",
+      "textValue": "1 Haziran 2027\n Salı\n10.30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "effectiveValue": {
+      "kind": "text",
+      "textValue": "1 Haziran 2027\n Salı\n10.30-12:20",
+      "numberValue": null,
+      "booleanValue": null,
+      "errorValue": null
+     },
+     "formula": null,
+     "formattedValue": "1 Haziran 2027\n Salı\n10.30-12:20",
+     "note": null,
+     "effectiveFormat": null
+    }
+   ]
+  },
+  {
+   "sheetId": "2",
+   "title": "İNG",
+   "index": 1,
+   "rowCount": 0,
+   "columnCount": 1,
+   "frozenRowCount": 0,
+   "frozenColumnCount": 0,
+   "hidden": false,
+   "requestedRanges": [],
+   "mergedRanges": [],
+   "hiddenRows": [],
+   "hiddenColumns": [],
+   "cells": []
+  }
+ ],
+ "diagnostics": []
+}

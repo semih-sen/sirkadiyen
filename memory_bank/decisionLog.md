@@ -9121,3 +9121,86 @@ the group-scoped event from a student who has not declared `microPathologyGroup`
   doing clinical research, so those groups lose that afternoon's block. It is two days for part of the
   class, visible in the exclusion metric; correcting it would mean modelling clinical research as its own
   rotation, which the source does not state.
+
+## ADR-147: The Grade 2 vertical-corridor calendar moved from Word to a workbook
+
+**Status:** Accepted and implemented
+**Date:** 2026-09-05
+**Implements:** `grade2_vertical_corridor_v1` 1.3.0 (`G2-VERTICAL`)
+**Supersedes the layout half of:** ADR-071/ADR-074/ADR-077 (the Word-document layout of this
+source), while keeping their audience and refusal rules unchanged
+**Relates to:** ADR-076 (a Word document and a workbook reach the parser on the same normalized
+snapshot contract), ADR-139 (a run of dates repairs a mistyped year), ADR-133 (an "amfi
+programına bakınız" location is a pointer, not a room), ADR-048 (the eight lettered cohorts;
+another programme's cohorts are counted, not published), ADR-051 (a numeric date order is
+declared, never guessed)
+
+### Context
+
+Through 2025-2026 Student Affairs published the Dönem 2 skill-practice ("dikey koridor")
+calendar as a Word document, and `grade2_vertical_corridor_v1` read it: the header corner cell
+read `Uygulama adı`, a second column held the room, a `Uygulama yeri` row stated one room for the
+whole table, and each practice header wrapped its instructor in brackets.
+
+For 2026-2027 they publish the same calendar as an `.xlsx` workbook (one `TR` sheet, an empty
+`İNG` sheet). The reading is the same shape — a row is a dated slot, a column is one of the five
+skill practices — but three details of the layout changed, and the old reader rejected the whole
+file (its header row was unrecognizable):
+
+- the corner cell now reads `Uygulama yeri`, and the practices start in the **next** column: the
+  separate room column is gone;
+- each practice states its **own** room, on a third line of its header cell, below the title and
+  the instructor, instead of once for the whole table in a place-statement row;
+- the header cell separates title, instructor and room with line breaks, not brackets.
+
+The workbook also carries the source's usual hand-typed-date hazards, now confirmed on real
+content: a `TÜM GRUPLAR` divider merged across every column, a month typo (`23 Eylü`), years a
+year and even decades out (`5 Şubat 2026` for 2027, `1 Aralık 2065`, `18 Aralık 20256`), four
+dates whose weekday contradicts the day itself, and a `Telafi (Tüm Gruplar)` makeup.
+
+### Decision
+
+Rewrite the reader for the workbook layout and bump the profile to **1.3.0** (a behavioural change
+to what it reads). The corner-cell alias set accepts both `Uygulama yeri` and the old `Uygulama
+adı` so a revert does not silently drop the table; the practices are read from the column
+immediately after the slot column; each practice's room is the header cell's non-title,
+non-instructor line, and a room that points at an announcement or the amphitheatre program
+(`bakınız`/`yayınlanacak`) is not published, exactly as the annual reader drops it (ADR-133).
+
+Everything below the header is unchanged and still shared with the practice table
+(`cohort_rotation`): the lettered A–H cohorts, the runs (`AB`→A,B), the hyphenated exam cohorts
+(`A-B-C-D SINAV`), the English/annex cohorts counted-not-published, the date-sequence year repair
+(ADR-139), and the weekday-contradiction refusal. Two audience additions were needed: a group cell
+is read from the value **stored at the cell**, not merge-expanded, so the full-width `TÜM GRUPLAR`
+banner is not read as the same audience for all five practices; and a `Telafi` makeup marker and
+its `(Tüm Gruplar)` brackets are stripped before the audience is read, so the makeup resolves to
+the whole class. `Telafi` is not a new event type — none exists for a makeup of a vertical-corridor
+practice, and the source family still decides the type.
+
+The numeric date order stays **undeclared** (ADR-051): the only numeric date with an ambiguous
+reading (`7.10.2026`, on the `TÜM GRUPLAR` banner) carries no audience, so nothing forces the
+declaration, and it is refused rather than guessed.
+
+The 2025-2026 Word snapshot fixtures (`g2-vertical-autumn`, `g2-vertical-spring`) stay committed
+and still prove the inbound contract (`test_real_snapshot_contracts`), but their parse-goldens are
+retired: the profile no longer reads that layout, and the new `G2-VERTICAL` golden exercises the
+same shared primitives on real content.
+
+### Consequences
+
+- `G2-VERTICAL` publishes 21 candidates from the 2026-2027 workbook: eight `Aydınlatılmış Onam`
+  sessions (room deferred to the amphitheatre program), seven `Oksijen` (Sualtı Hekimliği), four
+  `Hastane enfeksiyonları` cohort-pairs and one whole-class makeup of each, all `verticalCorridor`.
+  Most of the 107 dated rows still state no groups — the document is filled in over the year — and
+  raise nothing.
+- Ten diagnostics, every one a real anomaly an operator can act on: two year repairs (2065→2026,
+  2026→2027), three unreadable dates (the month typo, the merged banner, the five-digit year), four
+  weekday contradictions (one of them, `29 Mart 2027 Salı`, carries group H, so a real session is
+  refused loudly rather than published on the wrong day), and one note that the `İNG` sheet is
+  empty. Nothing is silently discarded (AI_GUIDELINE §9).
+- The parser engine version does not move — no shared primitive changed — so no other profile's
+  stored snapshots are reparsed. The worker will re-parse the stored vertical-corridor snapshots
+  because a parse run is keyed by (snapshot, profile, version) and the profile version moved.
+- **Open risk:** the English (`İNG`) track is present but empty, so no English vertical-corridor
+  source is published yet; when it is filled in it will need its own catalogue entry and a check
+  that its cohorts are declared (ADR-048), not read under the Turkish context.

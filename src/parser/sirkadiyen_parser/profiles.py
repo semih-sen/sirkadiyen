@@ -218,9 +218,13 @@ _PROFILES = (
     # 1.1.0: engine 0.3.0, as grade2_practice_v1 (ADR-130). This document does
     # carry the English programme's cohorts, which stay counted and unpublished
     # under a Turkish source either way.
+    # 1.3.0 reads the workbook layout Student Affairs moved to for 2026-2027: the
+    # corner cell reads `Uygulama yeri`, the practices start in the next column
+    # with no separate place column, and each practice states its own room inside
+    # its header cell rather than once in a place-statement row (ADR-147).
     ParserProfileDefinition(
         "grade2_vertical_corridor_v1",
-        "1.2.0",
+        "1.3.0",
         "verticalCorridor",
         _UNDECLARED,
         ("practiceGroup", "practiceSubgroup"),

@@ -23,6 +23,10 @@ FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "real"
         ("g3-tr-a-faculty.snapshot.json", "G3-TR-A-FACULTY", "Sayfa1", 382, 9, 1),
         ("g3-tr-b-faculty.snapshot.json", "G3-TR-B-FACULTY", "Sayfa2", 397, 9, 1),
         ("g3-faculty-locations.snapshot.json", "G3-FACULTY-LOCATIONS", "Sayfa1", 59, 2, 1),
+        # The Grade 2 vertical-corridor calendar moved from Word to a workbook for
+        # 2026-2027 (ADR-147). Its Turkish sheet leads; the English sheet follows,
+        # present but empty.
+        ("g2-vertical.snapshot.json", "G2-VERTICAL", "TR", 115, 6, 2),
     ),
 )
 def test_real_xlsx_snapshot_matches_inbound_contract(

@@ -3762,3 +3762,54 @@ başlık yükleniyorken de göründüğünden testte önce yüklenmiş-duruma ö
 Parser'lar (`TryParseProcStatCpu/MemInfo/LoadAvg`) Infrastructure.UnitTests'te birim testli. .NET SDK
 bu oturum ortamında yok; C# derlemesi/testi **çalıştırılamadı**, kod konvansiyona göre elle gözden
 geçirildi — açık risk olarak kalıyor.
+## Dönem 2 dikey koridor: DOCX → XLSX, parser yeniden yazıldı (2026-09-05)
+
+İstek: Dönem 2 dikey koridor (beceri uygulama) programı bu yıl DOCX yerine XLSX olarak geldi
+(Drive id `1-EigEZue7FVRoRxx0J_FXcZxypVbozVD`). İncele ve parser'ı yeniden yaz. Detay: ADR-147.
+
+**Ne değişti (layout).** `grade2_vertical_corridor_v1` eski Word düzenini okuyordu: köşe hücresi
+`Uygulama adı`, ayrı bir yer sütunu, tabloya bir kez oda veren `Uygulama yeri` satırı, parantezli
+öğretim üyesi. Yeni workbook (tek `TR` sayfası, boş `İNG` sayfası): köşe hücresi `Uygulama yeri`,
+uygulamalar **hemen sonraki** sütundan başlıyor (ayrı yer sütunu yok), her uygulama kendi odasını
+başlık hücresinin 3. satırında yazıyor (başlık / öğretim üyesi / oda, satır sonlarıyla). Eski
+reader dosyayı tümüyle **reddediyordu** (başlık satırı tanınmıyor).
+
+**Yeniden yazım.** `parsers/vertical_corridor.py` workbook düzenine göre okundu; profil **1.3.0**.
+Köşe alias'ı hem `Uygulama yeri` hem eski `Uygulama adı` (geri dönüş sessizce tablo düşürmesin).
+Oda başlık hücresinin başlık-olmayan, öğretim-üyesi-olmayan satırı; `bakınız`/`yayınlanacak` içeren
+oda yayınlanmıyor (ADR-133 ile aynı — "Amfi programına bakınız" bir işaret, oda değil). Başlık
+altındaki her şey pratik tablosuyla paylaşılan `cohort_rotation` kurallarıyla aynı kaldı: A–H
+kohortları, `AB`→A,B koşuları, `A-B-C-D SINAV` sınav kohortları, İngilizce/EK kohortları
+sayılıp-yayınlanmıyor, ADR-139 yıl onarımı, hafta günü çelişkisi reddi.
+
+**İki audience eklemesi.** (1) Grup hücresi **hücrede saklı** değerden okunuyor (merge genişletmesi
+değil), böylece tüm satıra merge edilmiş `TÜM GRUPLAR` banner'ı beş uygulamaya birden audience diye
+okunmuyor. (2) `Telafi (Tüm Gruplar)` — `Telafi` makeup işareti ve `(Tüm Gruplar)` parantezleri
+audience okunmadan önce sıyrılıyor → tüm sınıf. Yeni event type yok (bir dikey koridorun telafisi
+yine dikey koridordur).
+
+**Sayısal tarih sırası hâlâ undeclared (ADR-051).** Belirsiz okunan tek sayısal tarih
+(`7.10.2026`, `TÜM GRUPLAR` banner'ında) audience taşımıyor; hiçbir gerçek satır sırayı zorlamıyor,
+o yüzden tahmin edilmeden reddediliyor.
+
+**Sonuç.** `G2-VERTICAL` workbook'tan **21 aday** yayınlıyor (8 Aydınlatılmış Onam odası amfiye
+devredilmiş, 7 Oksijen = Sualtı Hekimliği, 4 Hastane enfeksiyonları kohort-çifti + birer tüm-sınıf
+telafisi). 107 tarihli satırın çoğu hâlâ grupsuz (belge yıl içinde dolduruluyor) ve hiçbir uyarı
+üretmiyor. On tanı, hepsi gerçek anomali: 2 yıl onarımı (2065→2026, 2026→2027), 3 okunamayan tarih
+(ay yazım hatası `23 Eylü`, merge banner, beş haneli yıl `20256`), 4 hafta günü çelişkisi (biri —
+`29 Mart 2027 Salı` — grup H taşıyor, yani gerçek bir oturum sessizce yanlış güne gitmek yerine
+yüksek sesle reddediliyor), 1 not (`İNG` sayfası boş).
+
+**Fikstür/golden.** Yeni `tests/fixtures/real/g2-vertical.snapshot.json` (kişisel veri yok; öğretim
+üyesi adları README uyarınca kalır) + `tests/golden/parse/g2-vertical.json`. Eski 2025-2026 Word
+snapshot fikstürleri (`g2-vertical-autumn/spring`) commit'te kalıyor ve hâlâ giriş sözleşmesini
+kanıtlıyor (`test_real_snapshot_contracts`); parse-golden'ları emekli edildi (profil o düzeni artık
+okumuyor). Ham kaynak `sheets/donem-2-tr/xlsx/` altına eklendi + `SOURCE_NOTES.md`.
+
+**Test/derleme.** Tüm parser paketi **600 test geçti**; ruff temiz, mypy temiz. Parser engine
+sürümü değişmedi (paylaşılan primitive değişmedi) — başka profil reparse edilmiyor; worker bu
+kaynağın saklı snapshot'larını sürüm değiştiği için yeniden parse edecek.
+
+**Açık risk.** İngilizce (`İNG`) track boş; İngilizce dikey koridor kaynağı henüz yok. Dolunca
+kendi katalog girdisi ve kohortlarının Türkçe context altında değil, ADR-048 uyarınca deklare
+edilmesi gerekir.

@@ -1,0 +1,626 @@
+{
+  "fixture": "real/g2-vertical.snapshot.json",
+  "parserEngineVersion": "0.4.0",
+  "payload": {
+    "candidateCount": 21,
+    "candidateDigests": [
+      "1!R2C3|2026-09-07|08:30-10:20|verticalCorridor|id:64ea3572d30ea12f|content:2bcc4f88ec8ae1b1|Onam Alma",
+      "1!R3C3|2026-09-08|08:30-10:20|verticalCorridor|id:3a39c440eb52752f|content:eccd1501addcf171|Onam Alma",
+      "1!R4C3|2026-09-09|08:30-10:20|verticalCorridor|id:f7b5c095c60e70a6|content:3f6e3a9833b13688|Onam Alma",
+      "1!R5C3|2026-09-10|08:30-10:20|verticalCorridor|id:72046b1600d8b8de|content:498847ace06b1e3a|Onam Alma",
+      "1!R6C3|2026-09-14|08:30-10:20|verticalCorridor|id:0fc8383f8460911d|content:7088f3570fbd615a|Onam Alma",
+      "1!R8C3|2026-09-15|08:30-10:20|verticalCorridor|id:428ca2b145781419|content:1fd31ed27463fa11|Onam Alma",
+      "1!R9C3|2026-09-16|08:30-10:20|verticalCorridor|id:a46ae0fba96b1203|content:a975b3f7fa1f8f9d|Onam Alma",
+      "1!R12C3|2026-09-21|08:30-10:20|verticalCorridor|id:e3d274c464e9172f|content:d680d29a863de8b5|Onam Alma",
+      "1!R14C2|2026-09-22|10:30-12:20|verticalCorridor|id:4b1423d51f7068dc|content:c6c48dd64d42ef6f|Oksijen",
+      "1!R26C2|2026-10-15|10:30-12:20|verticalCorridor|id:49a7ce3bfe849505|content:e070ec016404b849|Oksijen",
+      "1!R42C2|2026-11-18|08:30-10:20|verticalCorridor|id:eaaeec931058c257|content:47e001eae5c1bc14|Oksijen",
+      "1!R50C2|2026-12-02|10:30-12:20|verticalCorridor|id:8c8c35339d396289|content:35f7672013d58085|Oksijen",
+      "1!R63C2|2026-12-22|08:30-10:20|verticalCorridor|id:b6cc6fed21fa5ba1|content:b0bbaba6a571e0fb|Oksijen",
+      "1!R68C2|2027-02-03|08:30-10:20|verticalCorridor|id:246651e41dcd5919|content:7d08636fd1c11a8f|Oksijen",
+      "1!R73C2|2027-02-22|08:30-10:20|verticalCorridor|id:5512c4269f514d23|content:27671a4d6ecda0ff|Oksijen",
+      "1!R93C4|2027-04-12|08:30-10:20|verticalCorridor|id:d002dbdd47dff0aa|content:611116d89810f9af|Hastane enfeksiyonlarının önlenmesi",
+      "1!R94C4|2027-04-13|08:30-10:20|verticalCorridor|id:b11d838402c57c50|content:a009469b2fa991ae|Hastane enfeksiyonlarının önlenmesi",
+      "1!R95C4|2027-04-14|08:30-10:20|verticalCorridor|id:6b27fe4e5b6318ef|content:8b72ccd0419538e3|Hastane enfeksiyonlarının önlenmesi",
+      "1!R96C4|2027-04-15|08:30-10:20|verticalCorridor|id:63561aacb01979f0|content:95aa8d75049a4f85|Hastane enfeksiyonlarının önlenmesi",
+      "1!R97C4|2027-04-16|08:30-10:20|verticalCorridor|id:7ee22886b7e54e19|content:f5d33dcfbe2d4b35|Hastane enfeksiyonlarının önlenmesi",
+      "1!R104C2|2027-05-11|10:30-12:20|verticalCorridor|id:67d5e9c289b3636d|content:ca806a12b7637d43|Oksijen"
+    ],
+    "confidenceIndicators": [
+      {
+        "candidateId": "1!R2C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R3C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R4C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R5C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R6C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R8C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R9C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R12C3",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R14C2",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R26C2",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R42C2",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R50C2",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R63C2",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R68C2",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R73C2",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R93C4",
+        "field": "audience",
+        "reason": "letterRunGroups",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R93C4",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R94C4",
+        "field": "audience",
+        "reason": "letterRunGroups",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R94C4",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R95C4",
+        "field": "audience",
+        "reason": "letterRunGroups",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R95C4",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R96C4",
+        "field": "audience",
+        "reason": "letterRunGroups",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R96C4",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R97C4",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      },
+      {
+        "candidateId": "1!R104C2",
+        "field": "localDate",
+        "reason": "monthNameDate",
+        "score": 0.9
+      }
+    ],
+    "firstCandidate": {
+      "academicYear": "2026-2027",
+      "audience": {
+        "scope": "selectedGroups",
+        "selectors": [
+          {
+            "dimension": "practiceGroup",
+            "value": "E"
+          }
+        ]
+      },
+      "candidateId": "1!R2C3",
+      "classYear": 2,
+      "confidence": 0.9,
+      "contentHash": "sha256:2bcc4f88ec8ae1b10b07f7acb378ae9507c0f50c3716af84d711faac432788a0",
+      "curriculumBlock": null,
+      "departments": [],
+      "displayTitle": "Onam Alma",
+      "endLocalTime": "10:20:00",
+      "eventType": "verticalCorridor",
+      "evidence": [
+        {
+          "extractionRule": "verticalCorridor.subjectHeader",
+          "range": "C1",
+          "rawText": "Onam Alma \nProf. Dr. Ayşe PALANDUZ\n Amfi programına bakınız",
+          "sheetId": "1",
+          "sheetTitle": "TR"
+        },
+        {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A2",
+          "rawText": "1/1\n7 Eylül 2026 Pazartesi\n08:30-10:20",
+          "sheetId": "1",
+          "sheetTitle": "TR"
+        },
+        {
+          "extractionRule": "verticalCorridor.groupCell",
+          "range": "C2",
+          "rawText": "E",
+          "sheetId": "1",
+          "sheetTitle": "TR"
+        }
+      ],
+      "identityComponents": [
+        {
+          "name": "academicYear",
+          "value": "2026-2027"
+        },
+        {
+          "name": "classYear",
+          "value": "2"
+        },
+        {
+          "name": "programLanguage",
+          "value": "turkish"
+        },
+        {
+          "name": "localDate",
+          "value": "2026-09-07"
+        },
+        {
+          "name": "startLocalTime",
+          "value": "08:30:00"
+        },
+        {
+          "name": "courseIdentity",
+          "value": "onam-alma"
+        },
+        {
+          "name": "audience",
+          "value": "practiceGroup:E"
+        }
+      ],
+      "instructor": "Prof. Dr. Ayşe PALANDUZ",
+      "isAllDay": false,
+      "localDate": "2026-09-07",
+      "location": null,
+      "normalizedCourseIdentity": "onam-alma",
+      "notes": null,
+      "programLanguage": "turkish",
+      "stableIdentity": "sha256:64ea3572d30ea12f5f9b31847f421e78d51c8d0d95a6c8efe1077f946bc1ca44",
+      "startLocalTime": "08:30:00",
+      "status": "scheduled",
+      "timeZoneId": "Europe/Istanbul"
+    },
+    "lastCandidate": {
+      "academicYear": "2026-2027",
+      "audience": {
+        "scope": "allStudentsInProgram",
+        "selectors": []
+      },
+      "candidateId": "1!R104C2",
+      "classYear": 2,
+      "confidence": 0.9,
+      "contentHash": "sha256:ca806a12b7637d4322a307beab4814c936d523a127cd66812c456d7150a743c4",
+      "curriculumBlock": null,
+      "departments": [],
+      "displayTitle": "Oksijen",
+      "endLocalTime": "12:20:00",
+      "eventType": "verticalCorridor",
+      "evidence": [
+        {
+          "extractionRule": "verticalCorridor.subjectHeader",
+          "range": "B1",
+          "rawText": "Oksijen \nDoç. Dr. Bengüsu MİRASOĞLU\n Sualtı Hekimliği",
+          "sheetId": "1",
+          "sheetTitle": "TR"
+        },
+        {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A104",
+          "rawText": "11 Mayıs 2027 \nSalı\n10:30-12:20",
+          "sheetId": "1",
+          "sheetTitle": "TR"
+        },
+        {
+          "extractionRule": "verticalCorridor.groupCell",
+          "range": "B104",
+          "rawText": "Telafi (Tüm Gruplar)",
+          "sheetId": "1",
+          "sheetTitle": "TR"
+        }
+      ],
+      "identityComponents": [
+        {
+          "name": "academicYear",
+          "value": "2026-2027"
+        },
+        {
+          "name": "classYear",
+          "value": "2"
+        },
+        {
+          "name": "programLanguage",
+          "value": "turkish"
+        },
+        {
+          "name": "localDate",
+          "value": "2027-05-11"
+        },
+        {
+          "name": "startLocalTime",
+          "value": "10:30:00"
+        },
+        {
+          "name": "courseIdentity",
+          "value": "oksijen"
+        },
+        {
+          "name": "audience",
+          "value": "*"
+        }
+      ],
+      "instructor": "Doç. Dr. Bengüsu MİRASOĞLU",
+      "isAllDay": false,
+      "localDate": "2027-05-11",
+      "location": "Sualtı Hekimliği",
+      "normalizedCourseIdentity": "oksijen",
+      "notes": null,
+      "programLanguage": "turkish",
+      "stableIdentity": "sha256:67d5e9c289b3636dbdc19c6ead640f816a9326d0aa179b295c80c3e842f6dbfe",
+      "startLocalTime": "10:30:00",
+      "status": "scheduled",
+      "timeZoneId": "Europe/Istanbul"
+    },
+    "metrics": [
+      {
+        "name": "audience.dimension.practiceGroup",
+        "unit": null,
+        "value": 23.0
+      },
+      {
+        "name": "candidates.emitted",
+        "unit": null,
+        "value": 21.0
+      },
+      {
+        "name": "candidates.eventType.verticalCorridor",
+        "unit": null,
+        "value": 21.0
+      },
+      {
+        "name": "cells.scanned",
+        "unit": null,
+        "value": 21.0
+      },
+      {
+        "name": "dates.outOfSequence.repaired",
+        "unit": null,
+        "value": 2.0
+      },
+      {
+        "name": "dates.rule.monthNameDate",
+        "unit": null,
+        "value": 105.0
+      },
+      {
+        "name": "dates.rule.sequenceRepairedDate",
+        "unit": null,
+        "value": 2.0
+      },
+      {
+        "name": "place.deferredToAnnouncement",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "rows.headerRow",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "rows.ignored",
+        "unit": null,
+        "value": 7.0
+      },
+      {
+        "name": "rows.ignored.unresolvedSlotDate",
+        "unit": null,
+        "value": 3.0
+      },
+      {
+        "name": "rows.ignored.weekdayContradictsSlotDate",
+        "unit": null,
+        "value": 4.0
+      },
+      {
+        "name": "rows.scanned",
+        "unit": null,
+        "value": 115.0
+      },
+      {
+        "name": "rows.slot",
+        "unit": null,
+        "value": 107.0
+      },
+      {
+        "name": "slots.ignored.unresolvedSlotDate",
+        "unit": null,
+        "value": 3.0
+      },
+      {
+        "name": "slots.ignored.weekdayContradictsSlotDate",
+        "unit": null,
+        "value": 4.0
+      },
+      {
+        "name": "subjects.detected",
+        "unit": null,
+        "value": 5.0
+      },
+      {
+        "name": "worksheets.ignored.noSlotTable",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "worksheets.scanned",
+        "unit": null,
+        "value": 2.0
+      },
+      {
+        "name": "worksheets.selected",
+        "unit": null,
+        "value": 1.0
+      }
+    ],
+    "parserProfile": {
+      "name": "grade2_vertical_corridor_v1",
+      "version": "1.3.0"
+    },
+    "responseDigest": "sha256:28b4f5f214930687f050866029b8677a9a9f6d9dc23809f13c9128aead7c944a",
+    "snapshotId": "g2-vertical-2026-2027-v1",
+    "sourceId": "G2-VERTICAL",
+    "status": "completedWithWarnings",
+    "warnings": [
+      {
+        "candidateId": null,
+        "code": "outOfSequenceDateRepaired",
+        "detail": {
+          "applied": "2026-12-01",
+          "candidates": [
+            {
+              "rule": "sequenceYearSubstitution",
+              "value": "2026-12-01",
+              "weekdayMatches": true
+            }
+          ],
+          "lowerAnchor": "2026-11-30",
+          "original": "2065-12-01",
+          "reason": "repaired",
+          "upperAnchor": "2026-12-02"
+        },
+        "evidence": {
+          "extractionRule": "dateSequence",
+          "range": "A49",
+          "rawText": "1/1\n1 Aralık 2065\nSalı \n8:30-10:20",
+          "sheetId": "1",
+          "sheetTitle": "TR"
+        },
+        "message": "The source dates this row 2065-12-01, which falls outside the run it sits in (2026-11-30 to 2026-12-02). Substituting the year is the only reading that fits, so the row was read as 2026-12-01 rather than as written; whatever it publishes carries that date. Reject the revision if the source means what it says.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "outOfSequenceDateRepaired",
+        "detail": {
+          "applied": "2027-02-05",
+          "candidates": [
+            {
+              "rule": "sequenceYearSubstitution",
+              "value": "2027-02-05",
+              "weekdayMatches": true
+            }
+          ],
+          "lowerAnchor": "2027-02-04",
+          "original": "2026-02-05",
+          "reason": "repaired",
+          "upperAnchor": "2027-02-08"
+        },
+        "evidence": {
+          "extractionRule": "dateSequence",
+          "range": "A70",
+          "rawText": "1/6\n5 Şubat 2026\n Cuma\n08:30-10:20",
+          "sheetId": "1",
+          "sheetTitle": "TR"
+        },
+        "message": "The source dates this row 2026-02-05, which falls outside the run it sits in (2027-02-04 to 2027-02-08). Substituting the year is the only reading that fits, so the row was read as 2027-02-05 rather than as written; whatever it publishes carries that date. Reject the revision if the source means what it says.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "detail": null,
+        "evidence": {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A15",
+          "rawText": "2/6\n23 Eylü 2026\nÇarşamba\n08:30-10:20",
+          "sheetId": "1",
+          "sheetTitle": "TR"
+        },
+        "message": "Slot date '23 Eylü 2026 Çarşamba' could not be read as a date (unknownMonthName), so nothing was published from it.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "detail": null,
+        "evidence": {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A18:F18",
+          "rawText": "TÜM GRUPLAR\n7.10.2026\nÇarşamba\n10:30-12:20",
+          "sheetId": "1",
+          "sheetTitle": "TR"
+        },
+        "message": "Slot date 'TÜM GRUPLAR 7.10.2026 Çarşamba' could not be read as a date (unrecognizedDateFormat), so nothing was published from it.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "detail": null,
+        "evidence": {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A60",
+          "rawText": "2/4\n18 Aralık 20256\nCuma\n08:30-10:20",
+          "sheetId": "1",
+          "sheetTitle": "TR"
+        },
+        "message": "Slot date '18 Aralık 20256 Cuma' could not be read as a date (unrecognizedDateFormat), so nothing was published from it.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "detail": null,
+        "evidence": {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A82",
+          "rawText": "1/2\n23 Mart 2027\n Pazartesi\n08:30-10:20",
+          "sheetId": "1",
+          "sheetTitle": "TR"
+        },
+        "message": "Slot states '23 Mart 2027 Pazartesi', but 2027-03-23 is not a 'Pazartesi'. The cell contradicts itself, so nothing was published from it; correcting either part would be a guess.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "detail": null,
+        "evidence": {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A83",
+          "rawText": "1/4\n29 Mart 2027\nÇarşamba\n8:30-10:20",
+          "sheetId": "1",
+          "sheetTitle": "TR"
+        },
+        "message": "Slot states '29 Mart 2027 Çarşamba', but 2027-03-29 is not a 'Çarşamba'. The cell contradicts itself, so nothing was published from it; correcting either part would be a guess.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "detail": null,
+        "evidence": {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A84",
+          "rawText": "1/5\n29 Mart 2027 \nSalı\n10.30-12.20",
+          "sheetId": "1",
+          "sheetTitle": "TR"
+        },
+        "message": "Slot states '29 Mart 2027 Salı', but 2027-03-29 is not a 'Salı'. The cell contradicts itself, so nothing was published from it; correcting either part would be a guess.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "rowsIgnored",
+        "detail": null,
+        "evidence": {
+          "extractionRule": "verticalCorridor.slotCell",
+          "range": "A88",
+          "rawText": "2/1\n5 Nisan 2027\n Perşembe\n10.30-12.20",
+          "sheetId": "1",
+          "sheetTitle": "TR"
+        },
+        "message": "Slot states '5 Nisan 2027 Perşembe', but 2027-04-05 is not a 'Perşembe'. The cell contradicts itself, so nothing was published from it; correcting either part would be a guess.",
+        "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "worksheetWithoutSlotTable",
+        "detail": null,
+        "evidence": {
+          "extractionRule": "verticalCorridor.headerRow",
+          "range": "A1",
+          "rawText": null,
+          "sheetId": "2",
+          "sheetTitle": "İNG"
+        },
+        "message": "Worksheet 'İNG' has no recognizable header row and was not parsed.",
+        "severity": "information"
+      }
+    ]
+  },
+  "subject": "parseResponse"
+}

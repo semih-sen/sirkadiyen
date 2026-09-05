@@ -155,27 +155,22 @@ CASES = (
         _UNNARROWED,
         "parse/g2-en-practice.json",
     ),
-    # Both semesters, because the same programme is written as one 60-row table
-    # in autumn and as seven tables in spring, and only spring uses subgroups.
+    # The 2026-2027 workbook, one table for the whole year (ADR-147). Student
+    # Affairs moved this calendar off Word: the corner cell reads `Uygulama yeri`,
+    # each practice states its own room in its header cell, and the file carries a
+    # `TÜM GRUPLAR` divider merged across every column, hand-typed years a year or
+    # decades out, and a `Telafi (Tüm Gruplar)` makeup — all of which this case
+    # pins. Most dated rows still state no groups, as the document is filled in
+    # over the year. The English sheet is present but empty.
     (
         "grade2_vertical_corridor_v1",
-        "real/g2-vertical-autumn.snapshot.json",
+        "real/g2-vertical.snapshot.json",
         2,
         "turkish",
-        _Y2025,
+        _Y2026,
         _ALONE,
         _UNNARROWED,
-        "parse/g2-vertical-autumn.json",
-    ),
-    (
-        "grade2_vertical_corridor_v1",
-        "real/g2-vertical-spring.snapshot.json",
-        2,
-        "turkish",
-        _Y2025,
-        _ALONE,
-        _UNNARROWED,
-        "parse/g2-vertical-spring.json",
+        "parse/g2-vertical.json",
     ),
     # Both semesters again, because the autumn document writes most of its days
     # without a merge and the spring one carries a date whose year is a year out.

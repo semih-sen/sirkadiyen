@@ -40,9 +40,10 @@ _IMPLEMENTATIONS: dict[tuple[str, str], ParserImplementation] = {
     # previous academic year.
     ("grade2_practice_v1", "1.4.0"): parse_practice_slot_snapshot,
     # The skill-practice calendar the annual and practice profiles both defer to.
-    # It is published as a Word document and reaches the parser on the same
-    # normalized snapshot contract as a workbook (ADR-076, ADR-077).
-    ("grade2_vertical_corridor_v1", "1.2.0"): parse_vertical_corridor_snapshot,
+    # Published as a Word document through 2025-2026 and as a workbook from
+    # 2026-2027; both reach the parser on the same normalized snapshot contract,
+    # and 1.3.0 reads the workbook layout (ADR-076, ADR-077, ADR-147).
+    ("grade2_vertical_corridor_v1", "1.3.0"): parse_vertical_corridor_snapshot,
     # The two anatomy group lists are one document per semester with one layout,
     # so they share an implementation the way the Grade 2 annual profile serves
     # both languages. The profiles stay separate because the sources are

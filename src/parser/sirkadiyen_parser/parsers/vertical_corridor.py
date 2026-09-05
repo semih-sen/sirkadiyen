@@ -5,27 +5,39 @@ writes these sessions as a bare ``UYGULAMA`` placeholder (ADR-071) and the
 practice table marks them with a bare ``*`` whose groups its own note says are
 "ayrı bir tablo ile duyurulacaktır" (ADR-074). This is that other table.
 
-Its layout is the transpose of the practice table and the same orientation as
-:mod:`sirkadiyen_parser.parsers.practice`: a **row is a dated slot** and a
-**column is one of the five skill practices**. What differs from both is that the
-whole slot — a label, a date, a weekday and a time range — is written as separate
-lines of a single cell in the first column, the way the practice table writes its
-column headers. So the two Grade 2 rotation sources share their cell-level rules
-(:mod:`sirkadiyen_parser.parsers.cohort_rotation`) and differ in the axis they
-walk.
+For 2026-2027 Student Affairs stopped publishing it as a Word document and began
+publishing it as a workbook (ADR-147). The reading did not change shape — a
+**row is a dated slot** and a **column is one of the five skill practices** — but
+three details of the layout did, and this reader follows the workbook:
 
-Three things about the document decide how it is read:
+- The corner cell of the header row now reads ``Uygulama yeri`` rather than
+  ``Uygulama adı``, and the skill practices start in the very next column: the
+  Word layout's separate place column is gone.
+- Each practice's room is written **inside** its header cell, on a line of its
+  own below the title and the instructor, instead of once for the whole table in
+  a place-statement row.
+- The header cell separates its title, instructor and room with line breaks
+  rather than wrapping the instructor in brackets.
+
+Everything below the header is unchanged from the Word source and is read by the
+rules the two Grade 2 rotation sources share
+(:mod:`sirkadiyen_parser.parsers.cohort_rotation`): a whole slot — an optional
+label, a date, a weekday and a time range — is written as separate lines of the
+first cell, and the group cells beside it name the lettered cohorts that attend.
+
+Three things about the document still decide how it is read:
 
 - **It is filled in over time.** Student Affairs edits it during the year, so most
   dated rows state no groups yet. A row with no group cells publishes nothing and
   is not an error; a row with group cells that cannot be dated is.
 - **It carries a second programme's cohorts.** The English cohorts ``İ1``-``İ3``
-  and the separately published ``EK-1``-``EK-3`` lists appear in the same grid as
-  the Turkish ``A``-``H``. They are counted and named, never published under a
+  and the separately published ``EK-1``-``EK-3`` lists may appear in the same grid
+  as the Turkish ``A``-``H``. They are counted and named, never published under a
   source whose context states another programme.
-- **Its hand-typed dates go wrong the same way the practice table's do.** Every
-  date whose year is a year out also contradicts the weekday typed beside it, and
-  that contradiction is what refuses it.
+- **Its hand-typed dates go wrong the same way the practice table's do.** A date
+  whose year is a year out contradicts the weekday typed beside it, and that
+  contradiction is what refuses it; a run of dates repairs a mistyped year from
+  its neighbours (ADR-139).
 """
 
 import re
@@ -53,7 +65,7 @@ from sirkadiyen_parser.identity import build_identity_components, content_hash, 
 from sirkadiyen_parser.normalization.courses import course_identity, normalize_course_title
 from sirkadiyen_parser.normalization.date_sequence import DateSequence, DateSequenceEntry
 from sirkadiyen_parser.normalization.dates import NumericDateOrder, resolve_date_text
-from sirkadiyen_parser.normalization.grid import WorksheetGrid
+from sirkadiyen_parser.normalization.grid import WorksheetGrid, cell_display_text
 from sirkadiyen_parser.normalization.groups import GroupExpression
 from sirkadiyen_parser.normalization.instructors import starts_with_academic_title
 from sirkadiyen_parser.normalization.text import comparison_key, normalize_text, text_lines
@@ -77,26 +89,35 @@ from sirkadiyen_parser.parsers.date_repair import (
     report_date_corrections,
     report_date_run,
 )
-from sirkadiyen_parser.parsers.practice import split_trailing_note
 from sirkadiyen_parser.profiles import ParserProfileDefinition
 
 SLOT_COLUMN = 0
-PLACE_COLUMN = 1
-FIRST_SUBJECT_COLUMN = 2
+#: The skill practices begin in the column immediately after the slot column. The
+#: Word layout's separate place column (ADR-071) is gone: each practice states
+#: its own room inside its header cell.
+FIRST_SUBJECT_COLUMN = 1
 
-#: The first two cells of the row that names the skill practices across the
-#: table. The place header is abbreviated in the autumn document.
-SLOT_HEADER_ALIASES = frozenset({"uygulama adi", "practice name"})
-PLACE_HEADER_ALIASES = frozenset({"uyg yeri", "uygulama yeri", "practice place", "place"})
+#: The first cell of the row that names the skill practices across the table. The
+#: workbook writes ``Uygulama yeri`` where the Word document wrote ``Uygulama
+#: adı``; both wordings are accepted so a revert does not silently drop the table.
+SLOT_HEADER_ALIASES = frozenset(
+    {"uygulama yeri", "uygulama adi", "practice name", "practice place"}
+)
 
-#: The row below the header, which states where the practices are held. It reuses
-#: the place wording in the first column, so it is recognized by that.
-PLACE_STATEMENT_ALIASES = frozenset({"uygulama yeri", "uyg yeri", "practice place"})
-
-#: A place that names a future announcement rather than a room.
-DEFERRED_PLACE_KEYS = frozenset({"yayinlanacak", "announced"})
+#: A room line that names a future announcement or points at another programme's
+#: schedule rather than a room. ``Amfi programına bakınız`` sends the reader to
+#: the weekly amphitheatre program, exactly the instruction the annual reader
+#: drops from its locations (ADR-133), so it is not published as a place here.
+DEFERRED_PLACE_ANNOUNCEMENT_KEYS = frozenset({"yayinlanacak", "announced", "duyurulacak"})
+DEFERRED_PLACE_REFERENCE_KEYS = frozenset({"bakiniz", "see"})
 
 EXAM_KEYS = frozenset({"sinav", "exam"})
+
+#: A makeup marker written beside the audience (``Telafi (Tüm Gruplar)``). It says
+#: nothing about who attends, so it is stripped before the audience is read; the
+#: session it marks is still a vertical-corridor practice, as no other type exists
+#: for a makeup of one.
+MAKEUP_KEYS = frozenset({"telafi", "makeup"})
 
 #: The slot label opening the first cell of a dated row. It is a session number
 #: within its own series, or the same ``*`` the practice table uses to mark a
@@ -142,7 +163,6 @@ METRIC_WORKSHEETS_SELECTED = "worksheets.selected"
 METRIC_WORKSHEETS_IGNORED_NO_TABLE = "worksheets.ignored.noSlotTable"
 METRIC_ROWS_SCANNED = "rows.scanned"
 METRIC_ROWS_HEADER = "rows.headerRow"
-METRIC_ROWS_PLACE_STATEMENT = "rows.placeStatement"
 METRIC_ROWS_SLOT = "rows.slot"
 METRIC_SLOTS_REFUSED_PREFIX = "slots.ignored."
 METRIC_SUBJECTS_DETECTED = "subjects.detected"
@@ -155,18 +175,23 @@ METRIC_PLACE_DEFERRED = "place.deferredToAnnouncement"
 RULE_HEADER = "verticalCorridor.headerRow"
 RULE_SUBJECT_HEADER = "verticalCorridor.subjectHeader"
 RULE_SLOT_CELL = "verticalCorridor.slotCell"
-RULE_PLACE_CELL = "verticalCorridor.placeCell"
 RULE_GROUP_CELL = "verticalCorridor.groupCell"
 RULE_ROW = "verticalCorridor.row"
 
 
 @dataclass(frozen=True, slots=True)
 class _Subject:
-    """One skill practice, read from a column of the header row."""
+    """One skill practice, read from a column of the header row.
+
+    ``place`` is the room the header cell states for this practice, already
+    resolved: ``None`` means the cell stated none or deferred it to another
+    programme's schedule.
+    """
 
     column: int
     display_title: str
     instructor: str | None
+    place: str | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -175,8 +200,6 @@ class _Table:
 
     header_row: int
     subjects: tuple[_Subject, ...]
-    place: str | None = None
-    deferred_place: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -273,10 +296,10 @@ def _parse_worksheet(
 ) -> bool:
     """Walk a worksheet once, classifying every row. Returns whether it parsed.
 
-    The document is split across several Word tables, each of which repeats the
-    header row, so a header does not end the worksheet: it replaces the table in
-    force. Every row is classified exactly once, so ``rows.scanned`` equals the
-    worksheet's row count.
+    A header does not end the worksheet: it replaces the table in force, because
+    the source may repeat the header to open a fresh table lower down. Every row
+    is classified exactly once, so ``rows.scanned`` equals the worksheet's row
+    count.
     """
     table: _Table | None = None
     parsed_any = False
@@ -305,11 +328,6 @@ def _parse_worksheet(
             diagnostics.increment(METRIC_ROWS_HEADER)
             table = _read_table(grid, row_index, diagnostics)
             parsed_any = True
-            continue
-
-        if table is not None and _is_place_statement_row(grid, row_index):
-            diagnostics.increment(METRIC_ROWS_PLACE_STATEMENT)
-            table = _read_place_statement(grid, row_index, table, diagnostics)
             continue
 
         slot = _read_slot_row(
@@ -343,10 +361,9 @@ def _parse_worksheet(
 def _is_header_row(grid: WorksheetGrid, row_index: int) -> bool:
     """Whether a row names the skill practices across the table.
 
-    Recognized by the first column and by naming at least one practice. The
-    place header beside it is *not* required: one of the seven tables of the
-    spring document leaves that cell empty, and requiring it dropped that whole
-    table — eleven dated rows — into "no table in force".
+    Recognized by the first cell and by naming at least one practice in the very
+    next column onward. A first cell alone is not enough: the corner wording is
+    reused elsewhere, and a header without practices names nothing to read.
     """
     if comparison_key(grid.text(row_index, SLOT_COLUMN)) not in SLOT_HEADER_ALIASES:
         return False
@@ -357,88 +374,61 @@ def _is_header_row(grid: WorksheetGrid, row_index: int) -> bool:
     )
 
 
-def _is_place_statement_row(grid: WorksheetGrid, row_index: int) -> bool:
-    return comparison_key(grid.text(row_index, SLOT_COLUMN)) in PLACE_STATEMENT_ALIASES and bool(
-        grid.text(row_index, PLACE_COLUMN)
-    )
-
-
 def _read_table(grid: WorksheetGrid, row_index: int, diagnostics: ParseDiagnostics) -> _Table:
-    subjects = tuple(_read_subjects(grid, row_index))
+    subjects = tuple(_read_subjects(grid, row_index, diagnostics))
     diagnostics.increment(METRIC_SUBJECTS_DETECTED, len(subjects))
     return _Table(header_row=row_index, subjects=subjects)
 
 
-def _read_subjects(grid: WorksheetGrid, header_row: int) -> Iterator[_Subject]:
+def _read_subjects(
+    grid: WorksheetGrid,
+    header_row: int,
+    diagnostics: ParseDiagnostics,
+) -> Iterator[_Subject]:
+    """Read one practice per header column: its title, instructor and room.
+
+    The workbook writes the three on separate lines. The first line is the
+    title; the instructor is the line that opens with an academic title; every
+    other line is the room. A room that points at an announcement or another
+    programme's schedule is not published (ADR-133).
+    """
     for column in range(FIRST_SUBJECT_COLUMN, grid.worksheet.column_count):
         resolved = grid.resolve(header_row, column)
-        lines = text_lines(resolved.display_text or "")
+        lines = list(text_lines(resolved.display_text or ""))
         if not lines:
             continue
 
-        # A header cell wraps its practice over several lines and usually ends
-        # with a parenthesised instructor on its own line, so the lines are
-        # rejoined before the trailing note is separated. A note that does not
-        # name an instructor stays in the title rather than being discarded —
-        # which is what happens to the columns whose closing bracket is missing.
-        joined = " ".join(lines)
-        without_note, note = split_trailing_note(joined)
-        if note is None:
-            without_note, note = _split_unclosed_note(joined)
-        if note is not None and starts_with_academic_title(note):
-            title_text, instructor = without_note, note
-        else:
-            title_text, instructor = joined, None
+        instructor: str | None = None
+        place_lines: list[str] = []
+        for line in lines[1:]:
+            if instructor is None and starts_with_academic_title(line):
+                instructor = line
+            else:
+                place_lines.append(line)
 
-        title = normalize_course_title(title_text)
+        title = normalize_course_title(lines[0])
         if not title.display_title:
             continue
+
+        place = " ".join(place_lines).strip() or None
+        if place is not None and _is_deferred_place(place):
+            diagnostics.increment(METRIC_PLACE_DEFERRED)
+            place = None
 
         yield _Subject(
             column=column,
             display_title=title.display_title,
             instructor=instructor,
+            place=place,
         )
 
 
-def _split_unclosed_note(text: str) -> tuple[str, str | None]:
-    """Separate a trailing parenthetical whose closing bracket is missing.
-
-    Four of the seven spring tables write ``OKSİJEN (Doç. Dr. Bengüsu MİRASOĞLU``
-    and never close the bracket, while the first table writes the same column
-    with the bracket closed. Without this the same practice reaches students'
-    calendars under two titles, one of them ending mid-bracket.
-
-    Only the caller's academic-title test makes it safe, and that test is applied
-    to the result: text after a stray bracket that does not name an instructor is
-    left in the title rather than thrown away.
-    """
-    opened = text.count("(")
-    if opened != 1 or ")" in text:
-        return text, None
-
-    head, _, tail = text.partition("(")
-    return head.strip(), tail.strip() or None
-
-
-def _read_place_statement(
-    grid: WorksheetGrid,
-    row_index: int,
-    table: _Table,
-    diagnostics: ParseDiagnostics,
-) -> _Table:
-    """Read the room the table states once for all of its practices."""
-    place = normalize_text(grid.text(row_index, PLACE_COLUMN))
-    deferred = any(word.startswith(key) for word in _words(place) for key in DEFERRED_PLACE_KEYS)
-    if deferred:
-        diagnostics.increment(METRIC_PLACE_DEFERRED)
-
-    return _Table(
-        header_row=table.header_row,
-        subjects=table.subjects,
-        place=None if deferred else place or None,
-        deferred_place=deferred,
-    )
+def _is_deferred_place(place: str) -> bool:
+    """Whether a room line defers to an announcement or another schedule."""
+    words = _words(place)
+    return any(
+        word.startswith(key) for word in words for key in DEFERRED_PLACE_ANNOUNCEMENT_KEYS
+    ) or any(word in DEFERRED_PLACE_REFERENCE_KEYS for word in words)
 
 
 def _worksheet_dates(
@@ -493,7 +483,7 @@ def _read_slot_row(
     """
     slot_text = grid.text(row_index, SLOT_COLUMN)
     stated_groups = table is not None and any(
-        grid.text(row_index, subject.column) for subject in table.subjects
+        _group_text(grid, row_index, subject.column) for subject in table.subjects
     )
 
     if not slot_text and not stated_groups:
@@ -632,7 +622,7 @@ def _row_evidence(grid: WorksheetGrid, row_index: int) -> SourceEvidence:
         row_index,
         SLOT_COLUMN,
         row_index + 1,
-        max(grid.worksheet.column_count, FIRST_SUBJECT_COLUMN),
+        max(grid.worksheet.column_count, FIRST_SUBJECT_COLUMN + 1),
         extraction_rule=RULE_ROW,
     )
 
@@ -647,7 +637,7 @@ def _parse_cell(
     diagnostics: ParseDiagnostics,
     accumulator: _Accumulator,
 ) -> None:
-    text = normalize_text(grid.text(slot.row_index, subject.column))
+    text = _group_text(grid, slot.row_index, subject.column)
     if not text:
         return
 
@@ -707,21 +697,38 @@ def _parse_cell(
     )
 
 
+def _group_text(grid: WorksheetGrid, row_index: int, column: int) -> str:
+    """Return the audience a group cell states, ignoring merge inheritance.
+
+    A group cell names the cohorts of one practice, so only a value stored at
+    the cell itself counts. A banner merged across the whole row — the workbook's
+    ``TÜM GRUPLAR`` divider spans every practice column — would otherwise be read
+    as the same audience for all five and refuse the row five times over.
+    """
+    return normalize_text(cell_display_text(grid.raw_cell(row_index, column)) or "")
+
+
 def _audience_text(text: str) -> str:
     """Strip what a cell says about the session from what it says about who attends.
 
     An examination cell names its cohorts with hyphens between them
-    (``A-B-C-D SINAV``). The hyphens are rewritten only when every part is one of
-    the eight letters this source states, so ``EK-1`` and any numeric range keep
-    their hyphen and are refused rather than split into cohorts.
+    (``A-B-C-D SINAV``) and a makeup marks the audience with ``Telafi``. Neither
+    the exam nor the makeup word, nor the brackets a makeup wraps ``Tüm Gruplar``
+    in, name an audience, so they are removed first. The hyphens are rewritten
+    only when every remaining part is one of the eight letters this source states,
+    so ``EK-1`` and any numeric range keep their hyphen and are refused rather
+    than split into cohorts.
     """
-    without_exam = " ".join(
-        word for word in re.split(r"(\s+)", text) if comparison_key(word) not in EXAM_KEYS
-    ).strip()
+    without_markers = " ".join(
+        word
+        for word in re.split(r"\s+", text)
+        if comparison_key(word.strip("()")) not in EXAM_KEYS | MAKEUP_KEYS
+    )
+    without_parentheses = " ".join(without_markers.replace("(", " ").replace(")", " ").split())
     return (
-        without_exam.replace("-", "+")
-        if _HYPHENATED_COHORTS_PATTERN.match(without_exam)
-        else without_exam
+        without_parentheses.replace("-", "+")
+        if _HYPHENATED_COHORTS_PATTERN.match(without_parentheses)
+        else without_parentheses
     )
 
 
@@ -781,10 +788,11 @@ def _build_candidate(
         end_local_time=slot.end,
         time_zone_id=context.time_zone_id,
         instructor=subject.instructor,
-        location=table.place,
+        location=subject.place,
         # This document states no curriculum block and no academic department.
-        # It is one programme from end to end, and reading a practice name as a
-        # department would be an inference the cell does not support (ADR-047).
+        # It is one programme from end to end, and reading a practice name or the
+        # department a room sits in as the lesson's department would be an
+        # inference the cell does not support (ADR-047).
         curriculum_block=None,
         departments=[],
         stable_identity=stable_identity(identity_components),
@@ -803,7 +811,7 @@ def _build_candidate(
                 "endLocalTime": slot.end.isoformat(),
                 "timeZoneId": context.time_zone_id,
                 "instructor": subject.instructor,
-                "location": table.place,
+                "location": subject.place,
                 "curriculumBlock": None,
                 "departments": None,
                 "audience": audience_key,

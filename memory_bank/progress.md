@@ -1613,3 +1613,25 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
   anahtarla bağlı ve diff'ler ADR-060 replay'inin silme yetkisi; dolayısıyla saklama politikası
   "kayıtları sil" değil, "diff'i de sil" demek ve en eski replay imlecinden daha yeni hiçbir diff
   silinemez. Bu, kendi ADR'sini hak eden bir tasarım kararı; bu oturumda yapılmadı.
+## Dönem 2 dikey koridor parser'ı XLSX'e taşındı (2026-09-05, ADR-147)
+
+- **Ne değişti:** `grade2_vertical_corridor_v1` DOCX düzeninden 2026-2027 workbook düzenine
+  yeniden yazıldı; profil 1.2.0 → **1.3.0**. Köşe hücresi `Uygulama yeri`, ayrı yer sütunu yok,
+  her uygulama odasını başlık hücresinin 3. satırında yazıyor. Eski reader dosyayı reddediyordu.
+- **Files changed:** `parsers/vertical_corridor.py` (yeniden yazıldı), `parsers/__init__.py`
+  (1.3.0 kaydı), `profiles.py` (1.3.0), `tests/test_parsers_vertical_corridor.py` (yeni düzene
+  göre yeniden yazıldı), `tests/test_golden_parse.py` (iki DOCX case → tek XLSX case),
+  `tests/test_real_snapshot_contracts.py` (yeni fikstür kaydı). Eklendi:
+  `tests/fixtures/real/g2-vertical.snapshot.json`, `tests/golden/parse/g2-vertical.json`,
+  `sheets/donem-2-tr/xlsx/2026-2027 Dönem 2 Beceri Uygulama Takvimi.xlsx` + `SOURCE_NOTES.md`.
+  Silindi: `tests/golden/parse/g2-vertical-autumn.json`, `…/g2-vertical-spring.json` (parse-golden'lar
+  emekli; snapshot fikstürleri sözleşme testinde kalıyor).
+- **Davranış:** `G2-VERTICAL` 21 aday yayınlıyor; 107 tarihli satırın çoğu grupsuz ve sessiz.
+  Yeni: merge edilmiş `TÜM GRUPLAR` banner'ı beş uygulamaya audience diye okunmuyor (grup hücresi
+  merge-genişletmeden okunuyor); `Telafi (Tüm Gruplar)` tüm sınıfa çözülüyor. Sayısal tarih sırası
+  undeclared kaldı (ADR-051). Amfi'ye işaret eden oda yayınlanmıyor (ADR-133).
+- **Tests executed:** parser paketi **600 test geçti**; ruff + mypy temiz. Golden `SIRKADIYEN_UPDATE_GOLDEN=1`
+  ile üretildi ve elle gözden geçirildi (21 aday, 10 dürüst uyarı).
+- **Not done / not verified:** İngilizce dikey koridor kaynağı henüz yok (`İNG` sayfası boş);
+  dolunca ayrı katalog girdisi + kohort deklarasyonu gerekecek. .NET tarafı bu değişiklikten
+  etkilenmiyor (parser Python'da, sözleşme aynı); C# derlemesi çalıştırılmadı çünkü değişiklik yok.
