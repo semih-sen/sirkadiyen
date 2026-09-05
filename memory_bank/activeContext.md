@@ -94,6 +94,34 @@ revision can be rejected** and **a terminally failed diff can be retried**, both
 reason-required `SuperAdmin` routes, with the failed-dispatch queue made enumerable by
 `GET /api/diffs?dispatchState=Failed`.
 
+## Latest implementation session (2026-09-05, follow-up: the annual pato/mikro placeholder is deferred)
+
+**Fixed a double-booking the new source exposed** (ADR-146). After ADR-145 landed, a Grade 3 student
+saw two things on each micro/pathology afternoon: the precise group-scoped event from the dedicated
+source, and the whole-class `Uygulama (Patoloji / Mikrobiyoloji)` / `Practice (Pathology / Microbiology)`
+placeholder the **annual** workbooks still published to everyone. Worse, on any date only two of the four
+groups are in the program at all, so the placeholder put a practical on two groups' calendars who were
+not attending one — the "every group's afternoon" the user reported.
+
+- **`grade3_yearly_v1` → 1.5.0.** Added `patoloji mikrobiyoloji` and `pathology microbiology` to its
+  `group_rotation_subjects`, so the placeholder is excluded from the whole-class program exactly as the
+  `Öğretim üyesi Uygulama` rotation already was (ADR-073), deferring the afternoon to the dedicated
+  `grade3_micropathology_practice_v1` source. Two consecutive words, so ordinary lectures that merely
+  mention pathology (`4-Paratiroid patolojileri`, `fizyopatolojisi`, `… mikrobiyolojisi`) stay published.
+- **Accounting is clean.** `G3-TR-A-ANNUAL` 1119 → 1074 candidates (−45), `outOfScopeGroupRotation`
+  64 → 109; B, English, and the two companion-variant goldens move the same way. Every dropped row is in
+  the metric, nothing silent. Config pins the three Grade 3 annual sources to 1.5.0; the parser engine
+  version is untouched.
+- **No other layer changed.** The audience resolver (ADR-109) already withholds a group-scoped event from
+  a student who has not declared `microPathologyGroup`; schema, roster and frontend are untouched. A
+  student who has not declared their group now sees neither the placeholder nor a group event — the
+  ADR-073 trade (a missing afternoon over one the student must not attend).
+- **Open risk carried in the ADR:** the two `… / Clinical Research` three-way rows (2027-04-15, -20) are
+  excluded too, so on those two dates the groups doing clinical research lose their block. Two days, in
+  the metric.
+- **Verification:** 601 parser tests (a new annual exclusion case), ruff + mypy clean; the 44 `.NET`
+  schedule-source catalog tests pass against the bumped config.
+
 ## Latest implementation session (2026-09-05, Dönem-3 microbiology/pathology program)
 
 **A new Grade 3 source, a cross-program cohort, and a merging roster landed end to end** (ADR-145),

@@ -240,15 +240,26 @@ _PROFILES = (
     # written for each half instead of twice, in two wordings (ADR-110).
     # 1.2.0 publishes the department a bedside or patient-practice title states for
     # the half of the class the row is addressed to (ADR-113).
+    # 1.5.0 declares the microbiology/pathology afternoon a group rotation too. The
+    # annual writes it as one whole-class placeholder — `Uygulama (Patoloji /
+    # Mikrobiyoloji)` / `Practice (Pathology / Microbiology)` — but the dedicated
+    # `grade3_micropathology_practice_v1` source names which of the four groups
+    # attends microbiology and which attends pathology on each date, so the
+    # placeholder is deferred to it rather than shown to a whole class that is in
+    # fact split four ways (ADR-146).
     ParserProfileDefinition(
         "grade3_yearly_v1",
         # 1.3.0 takes the room from the weekly amphitheatre program (ADR-133),
         # which it reads alongside the bedside companion it already had.
-        "1.4.0",
+        "1.5.0",
         "annual",
         _UNDECLARED,
         ("curriculumGroup",),
-        group_rotation_subjects=("ogretim uyesi uygulama",),
+        group_rotation_subjects=(
+            "ogretim uyesi uygulama",
+            "patoloji mikrobiyoloji",
+            "pathology microbiology",
+        ),
         term_column_may_be_unlabelled=True,
         # The bedside document says what each `Hasta Başı` session is about, and
         # only this workbook says when it is, so the topic is read from there and

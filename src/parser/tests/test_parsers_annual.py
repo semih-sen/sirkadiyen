@@ -99,7 +99,11 @@ GRADE_3_PROFILE = ParserProfileDefinition(
     "annual",
     NumericDateOrder.UNDECLARED,
     ("curriculumGroup",),
-    group_rotation_subjects=("ogretim uyesi uygulama",),
+    group_rotation_subjects=(
+        "ogretim uyesi uygulama",
+        "patoloji mikrobiyoloji",
+        "pathology microbiology",
+    ),
     term_column_may_be_unlabelled=True,
 )
 
@@ -923,6 +927,40 @@ def test_a_rotation_is_excluded_outright_by_a_profile_that_declares_no_fallback(
     assert METRIC_GROUP_ROTATION_FALLBACK_DAYS not in metrics(response)
 
 
+def test_the_microbiology_pathology_placeholder_is_left_to_its_dedicated_source() -> None:
+    # The Grade 3 annual writes the microbiology/pathology afternoon as one
+    # whole-class placeholder, but the class is in fact split four ways and the
+    # dedicated practice source names which group attends which track on each date,
+    # so the placeholder is deferred rather than shown to everyone (ADR-146). Both
+    # the Turkish and the English wording are declared, and the surrounding lecture
+    # that merely mentions pathology is untouched.
+    response = parse(
+        [
+            worksheet(
+                [
+                    *lesson_row(
+                        1, term="Dönem 3A Grubu", title="Uygulama (Patoloji / Mikrobiyoloji)"
+                    ),
+                    *lesson_row(
+                        2, term="Dönem 3A Grubu", title="Practice (Pathology / Microbiology)"
+                    ),
+                    *lesson_row(3, term="Dönem 3A Grubu", title="4-Paratiroid patolojileri"),
+                ],
+                title="DÖNEM 3",
+                headers=UNLABELLED_TERM_HEADERS,
+            )
+        ],
+        class_year=3,
+        profile=GRADE_3_PROFILE,
+    )
+
+    assert [candidate.display_title for candidate in response.candidates] == [
+        "4-Paratiroid patolojileri"
+    ]
+    assert metrics(response)[METRIC_ROWS_OUT_OF_SCOPE_GROUP_ROTATION] == 2
+    assert METRIC_GROUP_ROTATION_FALLBACK_DAYS not in metrics(response)
+
+
 def test_a_group_rotation_subject_is_only_excluded_where_the_profile_declares_it() -> None:
     # Grade 1 declares no rotation subject, so the same title stays published
     # there. The exclusion is a property of the source family, not of the word.
@@ -1020,7 +1058,7 @@ def one_candidate(response: ParseSnapshotResponse) -> CanonicalScheduleCandidate
 
 
 def test_the_grade3_profile_is_the_annual_implementation() -> None:
-    profile = get_profile("grade3_yearly_v1", "1.4.0")
+    profile = get_profile("grade3_yearly_v1", "1.5.0")
 
     assert profile is not None
     assert get_parser(profile.name, profile.version) is parse_annual_snapshot

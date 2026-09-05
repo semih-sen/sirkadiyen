@@ -144,6 +144,9 @@
   ADR-098's closure), and the student-roster module extended to merge complementary same-cohort
   lists, scope a shared file by student-number prefix, and address an unheadered column by letter
   (ADR-145)
+- [x] The Grade 3 annual microbiology/pathology afternoon deferred to that dedicated source:
+  `grade3_yearly_v1` 1.5.0 declares `patoloji mikrobiyoloji`/`pathology microbiology` a group rotation,
+  so the whole-class placeholder is no longer published beside the group-scoped events (ADR-146)
 - [ ] Third-year faculty-practice room lookup (`grade3_faculty_locations_v1` declared, unimplemented)
 - [x] Weekly amphitheatre enrichment (`weekly_amphitheatre_v1` reads it, the three annual
   profiles take rooms from it as an ADR-102 companion, ADR-133)

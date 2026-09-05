@@ -9051,3 +9051,73 @@ into a broken lookup for the entire third year.
   skipped by both roster entries, so such a student would look up as `NotFound` and onboard by hand;
   and the instructor abbreviation map is committed knowledge that a future roster of pathology staff
   changes would have to be revised against.
+
+---
+
+## ADR-146: The Grade 3 annual microbiology/pathology afternoon is a group rotation deferred to its own source
+
+**Status:** Accepted and implemented
+**Date:** 2026-09-05
+**Implements:** `grade3_yearly_v1` 1.5.0 (`G3-TR-A-ANNUAL`, `G3-TR-B-ANNUAL`, `G3-EN-ANNUAL`)
+**Relates to:** ADR-073 (a stated group rotation is not a whole-class lesson; `group_rotation_subjects`),
+ADR-145 (the dedicated `grade3_micropathology_practice_v1` source this defers to), ADR-058/ADR-109
+(the audience resolver withholds a cohort-scoped record from a student who has not declared its
+dimension)
+
+### Context
+
+ADR-145 added the dedicated Dönem-3 microbiology/pathology practice source: it names, for each of the
+43 practice afternoons, which one of the four groups (`A1`/`A2`/`B1`/`B2`) attends microbiology and
+which attends pathology, and publishes each as a `microPathologyGroup`-scoped event.
+
+But the Grade 3 **annual** workbooks already write that same afternoon as one whole-class placeholder —
+`Uygulama (Patoloji / Mikrobiyoloji)` in the Turkish workbooks (45 rows each) and
+`Practice (Pathology / Microbiology)` in the English one (43 rows, plus one stray Turkish spelling and
+two three-way `… / Clinical Research` variants) — with no audience at all, so it published to the
+whole class. A student who declared their group therefore saw **both**: the precise event for their
+group from the new source, and the vague all-class block from the annual program, stacked on the same
+14:30–16:20 slot. Worse, on any given date only two of the four groups are in the micro/pathology
+program at all — the other two are elsewhere that afternoon — so the all-class block was not merely
+redundant for them, it was **wrong**: it put a microbiology/pathology practical on the calendar of two
+groups who were not attending one. This is the calendar the user reported, showing every group's
+afternoon rather than the student's own.
+
+### Decision
+
+Declare the microbiology/pathology afternoon a **group rotation** on `grade3_yearly_v1`, exactly as
+ADR-073 already does for the faculty `Öğretim üyesi Uygulama` rotation the same profile defers. Add two
+tokens to its `group_rotation_subjects` — `patoloji mikrobiyoloji` and `pathology microbiology` — so a
+row whose title names pathology immediately followed by microbiology (in either language, in any of the
+committed wordings) is excluded from the whole-class program and counted as
+`rows.ignored.outOfScopeGroupRotation`. The dedicated source owns the real, group-scoped lesson.
+
+The tokens are two consecutive words rather than one, for the same reason ADR-073 gives: the annual
+workbooks are full of ordinary lectures that name pathology or microbiology on their own
+(`4-Paratiroid patolojileri`, `transplantasyon patolojisi`, `… mikrobiyolojisi`,
+`fizyopatolojisi`). Requiring the two words adjacent matches the placeholder and only the placeholder —
+verified against all five committed Grade 3 annual goldens, where the tokens select exactly the 45/45/46
+placeholder rows and nothing else.
+
+The profile goes to **1.5.0** (a behavioural change to what it publishes); the catalog pins the three
+Grade 3 annual sources to it. The parser engine version does not move — no shared primitive changed —
+so no other profile's stored snapshots are reparsed.
+
+No change was needed to the audience resolver, the schema, the roster, or the frontend: this is
+entirely a matter of which source publishes the afternoon, and the resolver (ADR-109) already withholds
+the group-scoped event from a student who has not declared `microPathologyGroup`.
+
+### Consequences
+
+- Each Grade 3 annual program drops its placeholder rows and publishes only its real lessons:
+  `G3-TR-A-ANNUAL` 1119 → 1074 candidates (−45), `outOfScopeGroupRotation` 64 → 109; the B and English
+  and companion-variant goldens move by the same construction. Every dropped row is accounted for in the
+  metrics — nothing is silently discarded (AI_GUIDELINE §9).
+- A student now sees their own group's microbiology and pathology practicals (from the dedicated source)
+  and no all-class placeholder. A student who has not yet declared their group sees neither — the
+  deliberate ADR-073 trade: a missing afternoon is a lesser failure than one the student must not attend.
+- **Open risk:** the two `Practice (Pathology / Microbiology / Clinical Research)` rows (2027-04-15 and
+  2027-04-20) are excluded too, because pathology and microbiology are adjacent in them. On those two
+  dates the dedicated source covers the pathology and microbiology groups but not whichever groups were
+  doing clinical research, so those groups lose that afternoon's block. It is two days for part of the
+  class, visible in the exclusion metric; correcting it would mean modelling clinical research as its own
+  rotation, which the source does not state.
