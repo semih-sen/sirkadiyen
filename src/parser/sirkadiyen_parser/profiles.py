@@ -294,6 +294,21 @@ _PROFILES = (
         "facultyPracticeLocations",
         _UNDECLARED,
     ),
+    # The Dönem-3 microbiology/pathology practice program: one Word document with
+    # two side-by-side tracks (Mikrobiyoloji and Tıbbi Patoloji) rotating the four
+    # microPathologyGroup cohorts A1/A2/B1/B2 through subject blocks. It writes
+    # `06.10.2026` and proves the order itself with the days above twelve it also
+    # writes (`13.10.2026`), so it declares day-first (ADR-075's pattern). It is
+    # catalogued once per program, Turkish and English, from the same file: the
+    # document states the group but not the language, so each program's source
+    # stamps its own (ADR-145).
+    ParserProfileDefinition(
+        "grade3_micropathology_practice_v1",
+        "1.0.0",
+        "micropathologyPractice",
+        NumericDateOrder.DAY_FIRST,
+        ("microPathologyGroup",),
+    ),
     ParserProfileDefinition(
         "weekly_amphitheatre_v1", _PROFILE_VERSION, "amphitheatre", _UNDECLARED
     ),

@@ -75,11 +75,64 @@ public sealed class StudentRosterLookupServiceTests
     }
 
     [Fact]
+    public async Task TwoComplementaryListsOfOneCohortAreMergedIntoOneSuggestionAsync()
+    {
+        // A Grade 3 Turkish student is on both lists: the curriculum-group list and
+        // the microbiology/pathology group list. They state different dimensions of
+        // one cohort, so the lookup unions them rather than refusing the pair
+        // (ADR-145). The faculty-practice cohort neither states, so the student
+        // still answers it.
+        StudentRosterLookupService service = Service(
+            Grade3TurkishReading(Entry("0101240001", "BİR", "ÖĞRENCİ", ("curriculumGroup", "3-A"))),
+            Grade3TurkishMicroPathoReading(
+                Entry("0101240001", "BİR", "ÖĞRENCİ", ("microPathologyGroup", "A1"))));
+
+        StudentRosterLookupResult result = await service.LookUpAsync(
+            "0101240001",
+            CancellationToken.None);
+
+        Assert.Equal(StudentRosterLookupOutcome.Matched, result.Outcome);
+        Assert.Equal(
+            new Dictionary<string, string>
+            {
+                ["curriculumGroup"] = "3-A",
+                ["microPathologyGroup"] = "A1",
+            },
+            result.SuggestedSelectors);
+        Assert.Equal(["facultyPracticeGroup"], result.DimensionsRequiringInput);
+    }
+
+    [Fact]
+    public async Task TheEnglishMicroPathologyListOpensGradeThreeEnglishOnboardingAsync()
+    {
+        // Grade 3 English states no cohort of its own (ADR-098), but the
+        // microbiology/pathology list divides it into A1/A2/B1/B2, which is what
+        // opened the program (ADR-145). The identity-only list and the group list
+        // merge into a complete suggestion.
+        StudentRosterLookupService service = Service(
+            Grade3EnglishReading(Entry("0102240001", "ZEY*****", "SEY***")),
+            Grade3EnglishMicroPathoReading(
+                Entry("0102240001", "ZEY*****", "SEY***", ("microPathologyGroup", "B1"))));
+
+        StudentRosterLookupResult result = await service.LookUpAsync(
+            "0102240001",
+            CancellationToken.None);
+
+        Assert.Equal(StudentRosterLookupOutcome.Matched, result.Outcome);
+        Assert.Equal(ProgramLanguage.English, result.ProgramLanguage);
+        Assert.Equal(
+            new Dictionary<string, string> { ["microPathologyGroup"] = "B1" },
+            result.SuggestedSelectors);
+        Assert.Empty(result.DimensionsRequiringInput);
+    }
+
+    [Fact]
     public async Task AProgramTheSchemaDoesNotDeclareConfirmsIdentityAndSuggestsNothingAsync()
     {
         // Grade 2 English is deliberately closed until its audience paths are
-        // parser-complete (ADR-084), and Grade 3 English declares no selector at
-        // all (ADR-098). A list existing does not open a program.
+        // parser-complete (ADR-084). A list existing does not open a program; only
+        // the schema does. (Grade 3 English used to be such a case but now onboards
+        // on its microbiology/pathology group, ADR-145.)
         StudentRosterLookupService service = Service(new StudentRosterReading
         {
             RosterId = "G2-EN-ROSTER",
@@ -248,6 +301,38 @@ public sealed class StudentRosterLookupServiceTests
             AcademicYear = CurrentSupportedProfileSchema.AcademicYear,
             ClassYear = 3,
             ProgramLanguage = ProgramLanguage.Turkish,
+            Entries = entries,
+        };
+
+    private static StudentRosterReading Grade3TurkishMicroPathoReading(
+        params StudentRosterEntry[] entries) =>
+        new()
+        {
+            RosterId = "G3-TR-MICROPATHO-ROSTER",
+            AcademicYear = CurrentSupportedProfileSchema.AcademicYear,
+            ClassYear = 3,
+            ProgramLanguage = ProgramLanguage.Turkish,
+            Entries = entries,
+        };
+
+    private static StudentRosterReading Grade3EnglishReading(params StudentRosterEntry[] entries) =>
+        new()
+        {
+            RosterId = "G3-EN-ROSTER",
+            AcademicYear = CurrentSupportedProfileSchema.AcademicYear,
+            ClassYear = 3,
+            ProgramLanguage = ProgramLanguage.English,
+            Entries = entries,
+        };
+
+    private static StudentRosterReading Grade3EnglishMicroPathoReading(
+        params StudentRosterEntry[] entries) =>
+        new()
+        {
+            RosterId = "G3-EN-MICROPATHO-ROSTER",
+            AcademicYear = CurrentSupportedProfileSchema.AcademicYear,
+            ClassYear = 3,
+            ProgramLanguage = ProgramLanguage.English,
             Entries = entries,
         };
 

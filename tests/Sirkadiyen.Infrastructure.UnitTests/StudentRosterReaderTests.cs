@@ -54,6 +54,44 @@ public sealed class StudentRosterReaderTests
     }
 
     [Fact]
+    public void TheSharedListReadsOnlyItsOwnProgramsRowsAndGroupsThemByMergedRun()
+    {
+        // One file holds both programs, keyed only by the microbiology/pathology
+        // group in an unheadered column D, so this roster addresses D by letter and
+        // claims only the 0101 rows via its prefix (ADR-145). The 0102 row is another
+        // program's and is skipped silently, not refused.
+        NormalizedSpreadsheetSnapshot snapshot = Snapshot(
+            headers: ["Öğrenci No", "Ad", "Soyad", ""],
+            rows:
+            [
+                ["0101250001", "BİR", "ÖĞRENCİ", "A1"],
+                ["0102250002", "TWO", "STUDENT", ""],
+                ["0101250003", "ÜÇ", "ÖĞRENCİ", ""],
+                ["0101250004", "DÖRT", "ÖĞRENCİ", "B2"],
+            ],
+            merged:
+            [
+                Merge(startRow: 1, endRowExclusive: 4, column: 3),
+            ]);
+
+        StudentRosterReading turkish = reader.Read(MicroPatho(ProgramLanguage.Turkish, "0101"), snapshot);
+
+        Assert.Empty(turkish.RefusedRows);
+        Assert.Equal(
+            ["0101250001", "0101250003", "0101250004"],
+            turkish.Entries.Select(entry => entry.StudentNumber));
+        Assert.Equal(
+            ["A1", "A1", "B2"],
+            turkish.Entries.Select(entry => entry.Selectors["microPathologyGroup"]));
+
+        StudentRosterReading english = reader.Read(MicroPatho(ProgramLanguage.English, "0102"), snapshot);
+
+        StudentRosterEntry only = Assert.Single(english.Entries);
+        Assert.Equal("0102250002", only.StudentNumber);
+        Assert.Equal("A1", only.Selectors["microPathologyGroup"]);
+    }
+
+    [Fact]
     public void AGapNoMergedRangeCoversIsNotFilledFromTheRowAbove()
     {
         // Carrying the value down would look identical for a merged run and read a
@@ -392,6 +430,44 @@ public sealed class StudentRosterReaderTests
                     {
                         ["A GRUBU"] = "3-A",
                         ["B GRUBU"] = "3-B",
+                    },
+                },
+            ],
+        },
+    };
+
+    private static StudentRosterDefinition MicroPatho(ProgramLanguage language, string prefix) => new()
+    {
+        RosterId = $"G3-{(language == ProgramLanguage.Turkish ? "TR" : "EN")}-MICROPATHO-ROSTER",
+        DisplayName = "Grade 3 microbiology/pathology",
+        Transport = ScheduleSourceTransport.GoogleDriveFile,
+        DocumentFormat = ScheduleDocumentFormat.Xlsx,
+        SourceUri = new Uri("https://drive.google.com/file/d/z/view"),
+        ExternalId = "z",
+        AcademicYear = "2026-2027",
+        ClassYear = 3,
+        ProgramLanguage = language,
+        StudentNumberProgramPrefix = prefix,
+        Layout = new StudentRosterLayout
+        {
+            WorksheetTitle = "Sayfa1",
+            HeaderRow = 1,
+            StudentNumberHeader = "Öğrenci No",
+            GivenNameHeader = "Ad",
+            FamilyNameHeader = "Soyad",
+            DimensionColumns =
+            [
+                new StudentRosterDimensionColumn
+                {
+                    ColumnLetter = "D",
+                    Dimension = "microPathologyGroup",
+                    StatedOncePerMergedRun = true,
+                    ValueMap = new Dictionary<string, string>(StringComparer.Ordinal)
+                    {
+                        ["A1"] = "A1",
+                        ["A2"] = "A2",
+                        ["B1"] = "B1",
+                        ["B2"] = "B2",
                     },
                 },
             ],

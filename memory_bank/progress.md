@@ -137,6 +137,13 @@
 - [x] Third-year Turkish B bedside (same profile)
 - [x] Third-year Turkish B faculty practice (same profile)
 - [x] Third-year English annual (same profile; its program states no A/B division, ADR-098)
+- [x] Third-year microbiology/pathology practice (`grade3_micropathology_practice_v1`, one Drive
+  DOCX catalogued once per program, two crossed tracks, `microPathologyGroup` A1/A2/B1/B2 spanning
+  both programs, instructor abbreviations resolved to Tıbbi Patoloji öğretim üyeleri, ADR-145)
+- [x] Grade 3 English opened for onboarding on `microPathologyGroup` (schema 1.5, supersedes
+  ADR-098's closure), and the student-roster module extended to merge complementary same-cohort
+  lists, scope a shared file by student-number prefix, and address an unheadered column by letter
+  (ADR-145)
 - [ ] Third-year faculty-practice room lookup (`grade3_faculty_locations_v1` declared, unimplemented)
 - [x] Weekly amphitheatre enrichment (`weekly_amphitheatre_v1` reads it, the three annual
   profiles take rooms from it as an ADR-102 companion, ADR-133)

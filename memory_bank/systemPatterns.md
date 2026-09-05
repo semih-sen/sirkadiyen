@@ -763,6 +763,26 @@ another field of the same row (the number's faculty and program-language digits 
 checked against the selected program). A rule that a check constraint cannot express
 without the row's other fields belongs in the validator, not the database.
 
+A cohort dimension may span more than one program. The Grade 3
+`microPathologyGroup` (A1/A2/B1/B2) divides the Turkish and English third year by
+the same practical grouping, and its source is one document that states the group
+but not the language (ADR-145). It is still modelled as one selector declared by
+each program and one source per program, because audience resolution matches on
+program-language equality: the schedule row never states the language, the student
+number does, so each program gets its own source that stamps its own language.
+
+Student rosters (ADR-085) suggest these selectors and generalize the same way. A
+roster reads a document into a student→selectors suggestion and never decides a
+profile is complete. When one shared file enrols more than one program, a
+`studentNumberProgramPrefix` scopes each program's roster to its own rows, and an
+unheadered column is addressed by letter. A student legitimately appears on two
+*complementary* lists of one cohort — the curriculum-group list and the
+microbiology/pathology group list both hold every Grade 3 student — so the lookup
+**merges** what each states when their `(year, class, language)` agree and their
+dimensions are disjoint. Only a number two rows of one list claim, or lists for
+different cohorts claim, stays ambiguous: that is the guess ADR-085 forbids, and
+merging complementary lists is not one.
+
 ## 23. Adaptive polling interval pattern
 
 Polling intervals are selected in `Europe/Istanbul` and remain configuration,

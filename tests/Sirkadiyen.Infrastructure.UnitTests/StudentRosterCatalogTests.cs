@@ -12,15 +12,89 @@ namespace Sirkadiyen.Infrastructure.UnitTests;
 public sealed class StudentRosterCatalogTests
 {
     [Fact]
-    public async Task TheCommittedCatalogDescribesTheFourPublishedListsAsync()
+    public async Task TheCommittedCatalogDescribesTheSixPublishedListsAsync()
     {
         StudentRosterCatalog catalog = await LoadAsync();
 
         Assert.Equal("1.0", catalog.CatalogVersion);
         Assert.Equal(
-            ["G2-EN-ROSTER", "G2-TR-ROSTER", "G3-EN-ROSTER", "G3-TR-ROSTER"],
+            [
+                "G2-EN-ROSTER",
+                "G2-TR-ROSTER",
+                "G3-EN-MICROPATHO-ROSTER",
+                "G3-EN-ROSTER",
+                "G3-TR-MICROPATHO-ROSTER",
+                "G3-TR-ROSTER",
+            ],
             catalog.Rosters.Select(roster => roster.RosterId).Order(StringComparer.Ordinal));
         Assert.All(catalog.Rosters, roster => Assert.Equal("2026-2027", roster.AcademicYear));
+    }
+
+    [Fact]
+    public async Task TheMicroPathologyListAddressesItsUnheaderedGroupColumnByLetterAsync()
+    {
+        StudentRosterCatalog catalog = await LoadAsync();
+        StudentRosterDefinition roster = Assert.Single(
+            catalog.Rosters,
+            candidate => candidate.RosterId == "G3-TR-MICROPATHO-ROSTER");
+
+        Assert.Equal("0101", roster.StudentNumberProgramPrefix);
+        StudentRosterDimensionColumn group = Assert.Single(roster.Layout.DimensionColumns);
+        Assert.Equal("microPathologyGroup", group.Dimension);
+        Assert.Equal("D", group.ColumnLetter);
+        Assert.Null(group.Header);
+        Assert.True(group.StatedOncePerMergedRun);
+        Assert.Equal(["A1", "A2", "B1", "B2"], group.ValueMap.Keys.Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
+    public void TwoRostersMayShareACohortWhenTheirDimensionsAreDisjoint()
+    {
+        // The curriculum-group list and the microbiology/pathology group list both
+        // hold every Grade 3 student and state different dimensions, so they merge
+        // rather than conflict (ADR-145).
+        StudentRosterCatalog catalog = new StudentRosterCatalogLoader().Parse(
+            TwoCohortRosters(
+                firstDimension: "curriculumGroup",
+                secondDimension: "microPathologyGroup"));
+
+        Assert.Equal(2, catalog.Rosters.Count);
+    }
+
+    [Fact]
+    public void TwoRostersOfOneCohortStatingTheSameDimensionAreRefused()
+    {
+        StudentRosterCatalogValidationException exception =
+            Assert.Throws<StudentRosterCatalogValidationException>(
+                () => new StudentRosterCatalogLoader().Parse(
+                    TwoCohortRosters(
+                        firstDimension: "microPathologyGroup",
+                        secondDimension: "microPathologyGroup")));
+
+        Assert.Contains("microPathologyGroup", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ADimensionColumnAddressedByBothHeaderAndLetterIsRefused()
+    {
+        Assert.Throws<StudentRosterCatalogValidationException>(
+            () => new StudentRosterCatalogLoader().Parse(
+                Document(
+                    """
+                    "transport": "googleSheets",
+                    "documentFormat": "googleSheet",
+                    "sourceUri": "https://docs.google.com/spreadsheets/d/x/edit",
+                    "externalId": "x",
+                    "sheetGid": 1,
+                    """,
+                    dimensionColumns: """
+                    {
+                      "header": "GRUP",
+                      "columnLetter": "D",
+                      "dimension": "practiceGroup",
+                      "valueMap": { "A": "A" }
+                    }
+                    """)));
     }
 
     [Fact]
@@ -167,6 +241,46 @@ public sealed class StudentRosterCatalogTests
                     { "header": "GRUP", "dimension": "practiceGroup", "valueMap": {} }
                     """)));
     }
+
+    private static string TwoCohortRosters(string firstDimension, string secondDimension) =>
+        $$"""
+        {
+          "catalogVersion": "1.0",
+          "rosters": [
+            {{CohortRoster("ROSTER-ONE", firstDimension, "C")}},
+            {{CohortRoster("ROSTER-TWO", secondDimension, "D")}}
+          ]
+        }
+        """;
+
+    private static string CohortRoster(string rosterId, string dimension, string columnLetter) =>
+        $$"""
+        {
+          "rosterId": "{{rosterId}}",
+          "displayName": "Test",
+          "transport": "googleDriveFile",
+          "documentFormat": "xlsx",
+          "sourceUri": "https://drive.google.com/file/d/x/view",
+          "externalId": "x",
+          "academicYear": "2026-2027",
+          "classYear": 3,
+          "programLanguage": "turkish",
+          "layout": {
+            "worksheetTitle": "Sayfa1",
+            "headerRow": 1,
+            "studentNumberHeader": "Öğrenci No",
+            "givenNameHeader": "Ad",
+            "familyNameHeader": "Soyad",
+            "dimensionColumns": [
+              {
+                "columnLetter": "{{columnLetter}}",
+                "dimension": "{{dimension}}",
+                "valueMap": { "A1": "A1" }
+              }
+            ]
+          }
+        }
+        """;
 
     private static async Task<StudentRosterCatalog> LoadAsync() =>
         await new StudentRosterCatalogLoader().LoadAsync(

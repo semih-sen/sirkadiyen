@@ -320,6 +320,31 @@ CASES = (
         _UNNARROWED,
         "parse/g3-tr-b-bedside.json",
     ),
+    # The microbiology/pathology practice document, catalogued for both programs
+    # from one file. The two cases parse the same snapshot and must differ only in
+    # the program language stamped on every candidate — which is what makes the
+    # same A1 session reach a Turkish and an English student on their own program's
+    # source (ADR-145).
+    (
+        "grade3_micropathology_practice_v1",
+        "real/g3-tr-micropatho.snapshot.json",
+        3,
+        "turkish",
+        _Y2026,
+        _ALONE,
+        _UNNARROWED,
+        "parse/g3-tr-micropatho.json",
+    ),
+    (
+        "grade3_micropathology_practice_v1",
+        "real/g3-en-micropatho.snapshot.json",
+        3,
+        "english",
+        _Y2026,
+        _ALONE,
+        _UNNARROWED,
+        "parse/g3-en-micropatho.json",
+    ),
 )
 
 CASE_FIELDS = (

@@ -151,7 +151,73 @@
         "familyNameHeader": "Soyad",
         "dimensionColumns": []
       },
-      "notes": "96 students, and the only list of the four that states no group at all. That is a statement rather than an omission: the Grade 3 English program states no A/B division, which is exactly why it declares no selector and is absent from the supported profile schema (ADR-098). A lookup here confirms identity and suggests nothing. Its header is written 'OgrenciNo' without Turkish letters or a space, unlike the other three. No malformed numbers."
+      "notes": "96 students. It states no curriculum group, because the Grade 3 English program has no A/B division of its own (ADR-098); it still confirms identity, and it now merges with the microbiology/pathology list below, which does state an English student's practice group. Its header is written 'OgrenciNo' without Turkish letters or a space, unlike the other three. No malformed numbers."
+    },
+    {
+      "rosterId": "G3-TR-MICROPATHO-ROSTER",
+      "displayName": "Dönem 3 Türkçe Mikrobiyoloji-Patoloji grup listesi",
+      "transport": "googleDriveFile",
+      "documentFormat": "xlsx",
+      "sourceUri": "https://drive.google.com/file/d/1GMjvjXkkgFKl7hh3yzzEqJXE6VLuLKJY/view",
+      "externalId": "1GMjvjXkkgFKl7hh3yzzEqJXE6VLuLKJY",
+      "academicYear": "2026-2027",
+      "classYear": 3,
+      "programLanguage": "turkish",
+      "studentNumberProgramPrefix": "0101",
+      "layout": {
+        "worksheetTitle": "Sayfa1",
+        "headerRow": 1,
+        "studentNumberHeader": "Öğrenci No",
+        "givenNameHeader": "Ad",
+        "familyNameHeader": "Soyad",
+        "dimensionColumns": [
+          {
+            "columnLetter": "D",
+            "dimension": "microPathologyGroup",
+            "statedOncePerMergedRun": true,
+            "valueMap": {
+              "A1": "A1",
+              "A2": "A2",
+              "B1": "B1",
+              "B2": "B2"
+            }
+          }
+        ]
+      },
+      "notes": "426 students in one file covering both programs — the Turkish (0101…) and English (0102…) Grade 3 students — split into four microbiology/pathology practice groups A1/A2/B1/B2 in four merged runs of column D (rows 2-107, 108-213, 214-319, 320-427). The group column has no header, so it is addressed by letter. This Turkish entry claims only the 0101 rows via studentNumberProgramPrefix; the English entry below claims the 0102 rows from the same file (ADR-145). It complements G3-TR-ROSTER, which states the curriculum group, so a Grade 3 Turkish student is on both lists and the lookup merges them. One number begins '97' rather than the faculty code and is not this program's, so it is skipped by both program entries. Two numbers are stored numerically and have lost a leading zero, restored on read."
+    },
+    {
+      "rosterId": "G3-EN-MICROPATHO-ROSTER",
+      "displayName": "Dönem 3 İngilizce Mikrobiyoloji-Patoloji grup listesi",
+      "transport": "googleDriveFile",
+      "documentFormat": "xlsx",
+      "sourceUri": "https://drive.google.com/file/d/1GMjvjXkkgFKl7hh3yzzEqJXE6VLuLKJY/view",
+      "externalId": "1GMjvjXkkgFKl7hh3yzzEqJXE6VLuLKJY",
+      "academicYear": "2026-2027",
+      "classYear": 3,
+      "programLanguage": "english",
+      "studentNumberProgramPrefix": "0102",
+      "layout": {
+        "worksheetTitle": "Sayfa1",
+        "headerRow": 1,
+        "studentNumberHeader": "Öğrenci No",
+        "givenNameHeader": "Ad",
+        "familyNameHeader": "Soyad",
+        "dimensionColumns": [
+          {
+            "columnLetter": "D",
+            "dimension": "microPathologyGroup",
+            "statedOncePerMergedRun": true,
+            "valueMap": {
+              "A1": "A1",
+              "A2": "A2",
+              "B1": "B1",
+              "B2": "B2"
+            }
+          }
+        ]
+      },
+      "notes": "The English half of the shared microbiology/pathology group list (ADR-145): the same file as the Turkish entry above, claiming only the 0102 rows. It is what makes Grade 3 English onboardable — the only list of the program that states a cohort — and it merges with G3-EN-ROSTER, which confirms identity but states no group. 96 English students across the same four A1/A2/B1/B2 groups."
     }
   ]
 }

@@ -108,7 +108,8 @@ public sealed class StudentProfileValidatorTests
             3,
             ProgramLanguage.Turkish,
             ("curriculumGroup", "3-A"),
-            ("facultyPracticeGroup", "A5"));
+            ("facultyPracticeGroup", "A5"),
+            ("microPathologyGroup", "A1"));
 
         Assert.True(result.IsValid);
         Assert.Empty(result.Errors);
@@ -130,7 +131,8 @@ public sealed class StudentProfileValidatorTests
             3,
             ProgramLanguage.Turkish,
             ("curriculumGroup", "3-A"),
-            ("facultyPracticeGroup", "B5"));
+            ("facultyPracticeGroup", "B5"),
+            ("microPathologyGroup", "A1"));
 
         StudentProfileValidationError error = Assert.Single(result.Errors);
         Assert.Equal(StudentProfileValidationErrorCode.UnsupportedValue, error.Code);
@@ -138,11 +140,28 @@ public sealed class StudentProfileValidatorTests
     }
 
     /// <summary>
-    /// The Grade 3 English program states no A/B division, so nothing can be
-    /// onboarded for it yet (ADR-098).
+    /// The Grade 3 English program now onboards on its microbiology/pathology group,
+    /// the only cohort it declares (ADR-145 supersedes ADR-098).
     /// </summary>
     [Fact]
-    public void GradeThreeEnglishHasNoConfirmedProfileYet()
+    public void AConfirmedGradeThreeEnglishCohortIsValid()
+    {
+        StudentProfileValidationResult result = ValidateWith(
+            3,
+            ProgramLanguage.English,
+            "0102240048",
+            ("microPathologyGroup", "B1"));
+
+        Assert.True(result.IsValid);
+        Assert.Empty(result.Errors);
+    }
+
+    /// <summary>
+    /// The one dimension Grade 3 English declares is required, so a profile that
+    /// omits it is reported rather than accepted as program-wide (ADR-145).
+    /// </summary>
+    [Fact]
+    public void AGradeThreeEnglishProfileWithoutItsGroupIsRejected()
     {
         StudentProfileValidationResult result = ValidateWith(
             3,
@@ -150,7 +169,8 @@ public sealed class StudentProfileValidatorTests
             "0102240048");
 
         StudentProfileValidationError error = Assert.Single(result.Errors);
-        Assert.Equal(StudentProfileValidationErrorCode.UnsupportedProgram, error.Code);
+        Assert.Equal(StudentProfileValidationErrorCode.MissingRequiredSelector, error.Code);
+        Assert.Equal("microPathologyGroup", error.Key);
     }
 
     [Fact]

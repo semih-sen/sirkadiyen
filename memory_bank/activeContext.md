@@ -94,6 +94,50 @@ revision can be rejected** and **a terminally failed diff can be retried**, both
 reason-required `SuperAdmin` routes, with the failed-dispatch queue made enumerable by
 `GET /api/diffs?dispatchState=Failed`.
 
+## Latest implementation session (2026-09-05, Dönem-3 microbiology/pathology program)
+
+**A new Grade 3 source, a cross-program cohort, and a merging roster landed end to end** (ADR-145),
+from the parser through the schema, catalog, roster module, audience and onboarding UI.
+
+- **`grade3_micropathology_practice_v1` (1.0.0)** reads one Word document holding both the
+  Mikrobiyoloji and Tıbbi Patoloji practicals for the whole third year. The two tracks run
+  side by side and **crossed**, so each cell is the whole statement of its own group and subject and
+  the block headers are never consulted. 84 candidates per program. The group (`microPathologyGroup`
+  A1/A2/B1/B2) is the audience, so an unknown group is refused; an unknown subject or instructor
+  abbreviation is kept **verbatim with a warning** rather than dropped (the user's decision — losing
+  a label loses nothing the group protects). Pathology instructors are emitted as `Full Name (ABBR)`
+  — names resolved from the İstanbul Tıp Fakültesi Tıbbi Patoloji academic-staff directory, the
+  abbreviation kept beside them — so both reach the calendar description. Default 14.30-16.20 is read
+  from the header; two 25.05.2027 rows carry an inline time override.
+- **A new `microPathologyGroup` selector** (independent, required) was added to Grade 3 Turkish, and
+  **Grade 3 English was opened** with that one dimension — superseding ADR-098's closure now that a
+  committed fixture confirms an English cohort (ADR-048). Schema 1.5. **Existing Grade 3 Turkish
+  profiles on 1.4 are now incomplete** and re-complete via `/profile`; nothing on their calendar
+  changes until they add the group (open risk, below).
+- **One Drive document, two program-scoped sources.** The schedule row never states the language —
+  the student number does — so `G3-TR-MICROPATHO-PRACTICE` and `G3-EN-MICROPATHO-PRACTICE` fetch the
+  same file and each stamps its own program language, the anatomy pattern applied to a Drive file.
+  The audience resolver needed no change: it already matches selectors generically, gated first by
+  the program dimensions that keep the two A1 sessions apart.
+- **The roster model gained a program-prefix filter, letter-addressed columns, and a merge.** The
+  student list holds both programs in one unheadered-group file, and it overlaps every Grade 3
+  student already on the curriculum-group roster. So a roster may claim only its prefix's rows
+  (`0101`/`0102`), address a column by letter, and — the important change — two rosters may share a
+  cohort when their dimensions are disjoint, in which case the lookup **merges** their suggestions
+  instead of returning `Ambiguous`. A number twice in one list, or across cohorts, stays ambiguous
+  (ADR-085 preserved; the existing G2/G3 shared number is unaffected).
+- **Tests/build:** 596 Python parser tests (two golden fixtures + a unit suite), `.NET` Infrastructure
+  832 / Api 11 / Contracts 6 green, Release build 0 warnings, 98 frontend tests (new: the
+  now-onboardable Grade 3 English dimension), typecheck + production build clean. The `.NET` Persistence
+  suite needs Docker (CI). No live calendar write was exercised — the audience path is proven by the
+  resolver unit tests and golden fixtures, not end to end.
+- **Open risks:** existing Grade 3 Turkish profiles need to add `microPathologyGroup`; the malformed
+  `9701…` number belongs to neither prefix and would look up as `NotFound`; the instructor
+  abbreviation map is committed knowledge to revise if the pathology staff list changes. The
+  ENDOFLINE `dotnet format` flags on the touched files are the repo-wide `autocrlf` working-tree
+  artifact (`git ls-files --eol` shows `i/lf w/crlf` on untouched files too); the committed index is
+  LF-clean.
+
 ## Latest implementation session (2026-09-01, outbound operator alerts over Telegram)
 
 **ADR-143 built the measurement and explicitly declined to build the channel** ("a panel view or an

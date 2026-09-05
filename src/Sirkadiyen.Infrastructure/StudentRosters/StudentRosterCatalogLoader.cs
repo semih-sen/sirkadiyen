@@ -170,7 +170,7 @@ public sealed class StudentRosterCatalogLoader : IStudentRosterCatalogSerializer
         HashSet<string> dimensions = new(StringComparer.Ordinal);
         foreach (StudentRosterDimensionColumn column in layout.DimensionColumns)
         {
-            Require(column.Header, nameof(column.Header));
+            ValidateColumnAddress(roster, column);
             Require(column.Dimension, nameof(column.Dimension));
 
             if (!dimensions.Add(column.Dimension))
@@ -203,22 +203,71 @@ public sealed class StudentRosterCatalogLoader : IStudentRosterCatalogSerializer
     }
 
     /// <summary>
-    /// Two lists for one cohort and year would make every lookup in it ambiguous,
-    /// which is a configuration mistake rather than the data conflict ADR-085
-    /// asks the lookup to report.
+    /// Two lists for one cohort are allowed only when they state disjoint dimensions,
+    /// so a lookup can merge them; two that state the same dimension are refused
+    /// (ADR-085, extended by ADR-145).
     /// </summary>
+    /// <remarks>
+    /// A single list per cohort was the original rule, because two lists both stating
+    /// a student's cohort would make every lookup ambiguous. The microbiology/pathology
+    /// list breaks that assumption for a good reason: it is a second, complementary list
+    /// for the Grade 3 class, stating only the practice group the existing curriculum-group
+    /// list does not. A student legitimately appears on both, and the lookup unions what each
+    /// states rather than refusing the pair. What it may not do is guess between two lists that
+    /// both claim the same dimension, so that is what stays refused here — the configuration
+    /// mistake this rule was really guarding against.
+    /// </remarks>
     private static void ValidateOneRosterPerCohort(StudentRosterCatalog catalog)
     {
         IEnumerable<IGrouping<(string, int, ProgramLanguage), StudentRosterDefinition>> cohorts =
             catalog.Rosters.GroupBy(static roster =>
                 (roster.AcademicYear, roster.ClassYear, roster.ProgramLanguage));
 
-        foreach (var cohort in cohorts.Where(static group => group.Count() > 1))
+        foreach (var cohort in cohorts)
         {
-            string ids = string.Join(", ", cohort.Select(static roster => roster.RosterId));
+            Dictionary<string, string> ownerByDimension = new(StringComparer.Ordinal);
+            foreach (StudentRosterDefinition roster in cohort)
+            {
+                foreach (StudentRosterDimensionColumn column in roster.Layout.DimensionColumns)
+                {
+                    if (ownerByDimension.TryGetValue(column.Dimension, out string? existing))
+                    {
+                        throw new InvalidDataException(
+                            $"Rosters '{existing}' and '{roster.RosterId}' both state dimension "
+                            + $"'{column.Dimension}' for class year {cohort.Key.Item2} "
+                            + $"{cohort.Key.Item3} in {cohort.Key.Item1}; a lookup could not choose "
+                            + "between them.");
+                    }
+
+                    ownerByDimension[column.Dimension] = roster.RosterId;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Requires a dimension column to be addressed by exactly one of a header or a
+    /// column letter (ADR-145).
+    /// </summary>
+    private static void ValidateColumnAddress(
+        StudentRosterDefinition roster,
+        StudentRosterDimensionColumn column)
+    {
+        bool hasHeader = !string.IsNullOrWhiteSpace(column.Header);
+        bool hasLetter = !string.IsNullOrWhiteSpace(column.ColumnLetter);
+
+        if (hasHeader == hasLetter)
+        {
             throw new InvalidDataException(
-                $"Rosters {ids} all state class year {cohort.Key.Item2} "
-                + $"{cohort.Key.Item3} for {cohort.Key.Item1}.");
+                $"Roster '{roster.RosterId}' must address dimension '{column.Dimension}' by exactly "
+                + "one of a header or a column letter.");
+        }
+
+        if (hasLetter && !column.ColumnLetter!.All(char.IsAsciiLetter))
+        {
+            throw new InvalidDataException(
+                $"Roster '{roster.RosterId}' states column letter '{column.ColumnLetter}' for "
+                + $"dimension '{column.Dimension}', which is not spreadsheet column letters.");
         }
     }
 

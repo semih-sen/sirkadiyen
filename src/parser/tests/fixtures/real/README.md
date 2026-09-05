@@ -38,7 +38,7 @@ dotnet run --project tools/Sirkadiyen.SnapshotTool -- `
 
 ## Converted from Word documents
 
-Six sources are published as DOCX and are converted onto the same contract
+Eight sources are published as DOCX and are converted onto the same contract
 (ADR-076): a Word table becomes a worksheet, a run of paragraphs between tables
 becomes a single-column worksheet, and `Table n` / `Text n` titles are assigned
 by the converter because Word names nothing. Every value is text and no cell
@@ -53,12 +53,19 @@ times from text alone.
 | `g2-vertical-spring.snapshot.json` | `G2-VERTICAL-SPRING` | the same table split across seven Word tables, one of which leaves the place header empty. Carries subgroups (`B2`), two-cohort runs (`CD`), examinations (`A-B-C-D SINAV`), the English programme's cohorts and the separately published `EK-n` lists |
 | `g3-tr-a-bedside.snapshot.json` | `G3-TR-A-BEDSIDE` | nine worksheets: `Text 1` is the topic catalogue (177 paragraphs, sectioned by department), `Table 1`-`Table 4` are one-cell Word artifacts holding a topic that Word happened to wrap in a table, and `Table 5` is the schedule — `Tarih / A Grubu / ⟨spacer⟩ / Tarih / A Grubu`, autumn on the left and spring on the right. Dates are dotted text and one carries leading spaces |
 | `g3-tr-b-bedside.snapshot.json` | `G3-TR-B-BEDSIDE` | the same document for the B group in two worksheets: the catalogue and one four-column schedule table with **no spacer column** and upper-case headers, so a reader must pair its date and topic columns by header rather than by position |
+| `g3-tr-micropatho.snapshot.json` | `G3-TR-MICROPATHO-PRACTICE` | one `Table 1` worksheet, the Dönem-3 microbiology/pathology practice calendar. Two side-by-side tracks (Mikrobiyoloji col E, Tıbbi Patoloji col F) run down one date column (D), crossed so each cell states its own group and subject. Cells are `A1- (KL 1)`, pathology adding an instructor pair `(BB-GÜ)`; 84 candidates over the four `microPathologyGroup` cohorts, two carrying an inline `(13.30-15.20)` override on 25.05.2027 (ADR-145) |
+| `g3-en-micropatho.snapshot.json` | `G3-EN-MICROPATHO-PRACTICE` | the **same file** converted under the English source identity. The document never states the program language — the student number does — so each program has its own source, and the two snapshots differ only in the id they carry and the language their parse stamps on every candidate (ADR-145) |
 
-All six are in `config/schedule-sources.json`, so all six regenerate through
+All eight are in `config/schedule-sources.json`, so all eight regenerate through
 the ordinary `--source-id` form above. The anatomy pair is catalogued under the
 `administrativeUpload` transport (ADR-079): the document has no URL, so the
 entry names itself with a URN and an administrator uploads the file each
 semester through `POST /api/sources/{sourceId}/document` (ADR-080).
+
+The microbiology/pathology pair is one Drive document catalogued twice, once per
+program (ADR-145), the same way the anatomy pair is: one file, two source
+identities, and each snapshot differs only in the id and program language it
+carries.
 
 Each anatomy document is catalogued twice, once per program, and one upload
 serves both. These fixtures cover only the Turkish source: the English

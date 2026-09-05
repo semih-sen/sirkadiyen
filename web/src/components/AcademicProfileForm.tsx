@@ -23,6 +23,7 @@ export const DIMENSION_LABELS: Record<string, string> = {
   anatomyGroup: 'Anatomi grubu',
   curriculumGroup: 'Müfredat grubu',
   facultyPracticeGroup: 'Öğretim üyesi uygulama grubu',
+  microPathologyGroup: 'Mikrobiyoloji-Patoloji uygulama grubu',
 };
 
 /**

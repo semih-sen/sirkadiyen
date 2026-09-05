@@ -47,6 +47,25 @@ public sealed record StudentRosterDefinition
 
     public required ProgramLanguage ProgramLanguage { get; init; }
 
+    /// <summary>
+    /// A digit prefix that scopes a shared document to one program's rows, when it
+    /// enrols more than one program's students in one file.
+    /// </summary>
+    /// <remarks>
+    /// The microbiology/pathology student list holds both the Turkish (<c>0101…</c>)
+    /// and the English (<c>0102…</c>) Grade 3 students in one document, keyed only by
+    /// the practice group, because that grouping spans both programs. The document
+    /// never states which program a row belongs to — the student number does — so
+    /// the same file is catalogued once per program, and each roster claims only the
+    /// rows whose number starts with its prefix (ADR-145). A row of the other program
+    /// is skipped silently: it is not this list's to state, not a row it refuses.
+    /// <para>
+    /// A roster with no prefix claims every row, which is what every single-program
+    /// list does and stays doing.
+    /// </para>
+    /// </remarks>
+    public string? StudentNumberProgramPrefix { get; init; }
+
     public required StudentRosterLayout Layout { get; init; }
 
     public string? Notes { get; init; }
@@ -88,7 +107,23 @@ public sealed record StudentRosterLayout
 /// <summary>One column of a roster that states a profile selector.</summary>
 public sealed record StudentRosterDimensionColumn
 {
-    public required string Header { get; init; }
+    /// <summary>
+    /// The header text this column is addressed by, when it has one.
+    /// </summary>
+    /// <remarks>
+    /// Most lists label every column, so a header is the ordinary way to find one
+    /// and survives a column reorder. Exactly one of <see cref="Header"/> and
+    /// <see cref="ColumnLetter"/> is set: the microbiology/pathology list writes its
+    /// group into an unheadered column, so that one is addressed by letter instead
+    /// (ADR-145).
+    /// </remarks>
+    public string? Header { get; init; }
+
+    /// <summary>
+    /// The spreadsheet column letter this column sits at, for a column the document
+    /// leaves without a header.
+    /// </summary>
+    public string? ColumnLetter { get; init; }
 
     /// <summary>The supported-profile dimension key this column states.</summary>
     public required string Dimension { get; init; }

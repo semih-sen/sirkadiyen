@@ -68,7 +68,15 @@ public sealed class StudentRosterReader
 
         for (int rowIndex = headerRowIndex + 1; rowIndex < worksheet.RowCount; rowIndex++)
         {
-            ReadRow(worksheet, cells, resolved, rowIndex, entries, refused, warnings);
+            ReadRow(
+                worksheet,
+                cells,
+                resolved,
+                definition.StudentNumberProgramPrefix,
+                rowIndex,
+                entries,
+                refused,
+                warnings);
         }
 
         FlagDuplicates(entries, warnings);
@@ -89,6 +97,7 @@ public sealed class StudentRosterReader
         NormalizedWorksheet worksheet,
         IReadOnlyDictionary<(int Row, int Column), NormalizedCell> cells,
         ResolvedColumns resolved,
+        string? programPrefix,
         int rowIndex,
         List<StudentRosterEntry> entries,
         List<StudentRosterRefusedRow> refused,
@@ -121,6 +130,16 @@ public sealed class StudentRosterReader
                 out StudentRosterRefusedRow? refusal))
         {
             refused.Add(refusal!);
+            return;
+        }
+
+        if (programPrefix is { Length: > 0 } prefix
+            && !studentNumber.StartsWith(prefix, StringComparison.Ordinal))
+        {
+            // A shared document holds another program's students too. A row whose
+            // number is not this program's is not this list's to state — a sibling
+            // roster claims it — so it is skipped silently rather than refused
+            // (ADR-145).
             return;
         }
 
@@ -318,9 +337,15 @@ public sealed class StudentRosterReader
         List<ResolvedDimension> dimensions = [];
         foreach (StudentRosterDimensionColumn column in layout.DimensionColumns)
         {
-            if (Find(column.Header) is { } index)
+            // A column the document leaves without a header is addressed by its
+            // letter instead; every other column is found by its header text so it
+            // survives a reorder (ADR-145).
+            int? index = column.ColumnLetter is { Length: > 0 } letter
+                ? ColumnIndexOf(letter)
+                : Find(column.Header!);
+            if (index is { } resolvedIndex)
             {
-                dimensions.Add(new ResolvedDimension(column, index));
+                dimensions.Add(new ResolvedDimension(column, resolvedIndex));
             }
         }
 
@@ -420,6 +445,18 @@ public sealed class StudentRosterReader
         return string.Join(' ', value.Split(
             (char[]?)null,
             StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+    }
+
+    /// <summary>The zero-based column index of a spreadsheet column letter.</summary>
+    private static int ColumnIndexOf(string letter)
+    {
+        int index = 0;
+        foreach (char character in letter.Trim().ToUpperInvariant())
+        {
+            index = (index * 26) + (character - 'A' + 1);
+        }
+
+        return index - 1;
     }
 
     private static string A1(int rowIndex, int columnIndex)

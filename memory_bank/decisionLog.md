@@ -8966,3 +8966,88 @@ Six choices are deliberate:
   wire rather than only the response.
 - Only the worker alerts. The API detects nothing on its own that the worker does not, and giving
   it the token as well would double every message.
+## ADR-145: The Dönem-3 microbiology/pathology program, a cross-program cohort, and a merging roster
+
+**Status:** Accepted and implemented
+**Date:** 2026-09-05
+**Relates to:** ADR-017 (facts the document cannot state travel as source context), ADR-048 (only a
+cohort a committed fixture confirms is onboardable), ADR-055/ADR-027 (the server-owned supported
+profile schema), ADR-072/ADR-086/ADR-088 (calendar presentation of instructor and department),
+ADR-076 (a Word document is converted onto the snapshot contract), ADR-083 (Drive acquisition),
+ADR-085 (a roster suggests, never decides, and a number two lists claim is not chosen between),
+ADR-098 (**superseded in part**: Grade 3 English is no longer closed), ADR-110 (per-source
+authoritative audience), ADR-130 (a cohort alphabet is bounded per programme)
+
+### Context
+
+The faculty published one Dönem-3 practical program covering **both** the microbiology and the
+pathology practicals for the whole third year, and a companion student list that splits every
+Grade 3 student — Turkish and English together — into four practice groups `A1`/`A2`/`B1`/`B2`. The
+schedule is a single Word table with two side-by-side tracks (Mikrobiyoloji, Tıbbi Patoloji) that
+run *crossed*: on one date microbiology teaches Kan-Lenfoid to B1 while pathology teaches Hareket to
+A1. Each pathology cell also names the two supervising öğretim üyeleri as an abbreviation pair
+(`BB-GÜ`), and the student list writes its group into an **unheadered** column, mixing `0101…`
+(Turkish) and `0102…` (English) numbers under one grouping the document never labels by program.
+
+Three things made this more than another parser profile. The group is a **new cohort dimension** the
+schema had no equivalent of — distinct from `curriculumGroup` (3-A/3-B) and from `facultyPracticeGroup`
+(A1-A8/B1-B8), because it is a four-way split spanning both programs. The audience is **cross-program**
+while `CalendarAudienceResolver` matches on program-language equality and the schedule row never
+states the language. And the student list **overlaps** every Grade 3 student already on the existing
+curriculum-group roster, which ADR-085's "a number on two lists is ambiguous" rule would have turned
+into a broken lookup for the entire third year.
+
+### Decision
+
+- **A new `microPathologyGroup` selector (`A1`/`A2`/`B1`/`B2`), independent and required, added to
+  Grade 3 Turkish and declared as the *only* dimension of a newly-opened Grade 3 English program.**
+  Schema version 1.5. This supersedes ADR-098's closure of Grade 3 English on its own terms: that
+  program stated no division of its own, and now a committed fixture states one for it (ADR-048), so
+  it becomes onboardable — on that one group only; its annual lessons still name no cohort and reach
+  every English Grade 3 student.
+- **One document, two program-scoped sources** (`G3-TR-MICROPATHO-PRACTICE`,
+  `G3-EN-MICROPATHO-PRACTICE`), both Drive-fetched from the same `externalId`, each stamping its own
+  program language (ADR-017). The parser is program-agnostic; the source context is what makes the
+  same A1 session reach a Turkish A1 student and an English A1 student on their own program's source.
+  This is the anatomy pattern (one file, two program sources) applied to a Drive file rather than an
+  upload, so no `sharedDocumentGroup` is involved.
+- **`grade3_micropathology_practice_v1` reads each cell as the whole statement.** The crossed tracks
+  mean the block headers are never consulted for a cell's group or subject. The group is the
+  audience, so a cell whose group is not one of the four is refused rather than published to a guess;
+  a subject or instructor abbreviation the profile does not recognize is kept **verbatim** with a
+  warning instead of dropped — losing a label loses nothing the group value protects. Instructors are
+  emitted as `Full Name (ABBR)` so the calendar description carries both the name resolved from the
+  İstanbul Tıp Fakültesi academic-staff directory and the abbreviation the printed program uses. The
+  default 14.30-16.20 hour is read from the document's own header, and an inline `(HH.MM-HH.MM)` in a
+  date cell overrides it; no time is invented (ADR-046).
+- **The roster model gains two capabilities and one relaxed rule (ADR-085 extended).** A dimension
+  column may be addressed by **letter** when the document leaves it unheadered. A roster may carry a
+  **`studentNumberProgramPrefix`** so one shared file yields a clean per-program list, silently
+  skipping the other program's rows. And two rosters may share a cohort **when their stated
+  dimensions are disjoint**: the lookup then **merges** what each states (curriculum group + practice
+  group) into one suggestion, instead of refusing the pair. A number on two rows of *one* list, or on
+  lists for *different* cohorts, stays ambiguous — that is the mistake ADR-085 was really guarding
+  against, and the existing G2/G3 shared number is unaffected.
+
+### Consequences
+
+- **Existing Grade 3 Turkish profiles written under schema 1.4 are now incomplete** — they predate
+  `microPathologyGroup`, which is required. They stay identifiable by their schema version and
+  re-complete through the existing `/profile` edit surface; nothing about their calendar changes until
+  the student adds the group. This is the ordinary schema-evolution shape, recorded rather than
+  hidden.
+- **The audience resolver needed no change**: it already groups selectors by dimension generically,
+  so the new key flows through, gated first by the program dimensions that keep the Turkish and
+  English A1 sessions apart.
+- **The `~96 English students on the shared list` are now served**, which is the whole point of
+  opening Grade 3 English; before this they could not onboard at all.
+- **Verification:** 596 Python parser tests (golden fixtures for both program snapshots + a unit
+  suite), `.NET` Infrastructure 832 / Api 11 / Contracts 6 with the Release build at 0 warnings, and
+  98 frontend tests including the newly-onboardable Grade 3 English dimension. The Persistence
+  integration suite needs Docker and runs in CI. No live calendar write was exercised — that needs
+  the worker and a Google credential — so the audience path is proven by the resolver unit tests and
+  the golden fixtures rather than end to end.
+- **Still open:** the malformed `9701…` number on the list belongs to neither program prefix and is
+  skipped by both roster entries, so such a student would look up as `NotFound` and onboard by hand;
+  and the instructor abbreviation map is committed knowledge that a future roster of pathology staff
+  changes would have to be revised against.

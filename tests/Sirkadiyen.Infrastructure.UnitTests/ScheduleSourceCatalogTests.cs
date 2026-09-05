@@ -16,11 +16,25 @@ public sealed class ScheduleSourceCatalogTests
             .LoadAsync(path, CancellationToken.None);
 
         Assert.Equal("1.0", catalog.CatalogVersion);
-        Assert.Equal(23, catalog.Sources.Count);
+        Assert.Equal(25, catalog.Sources.Count);
         Assert.Equal(8, catalog.Sources.Count(
             source => source.Transport == ScheduleSourceTransport.GoogleSheets));
-        Assert.Equal(11, catalog.Sources.Count(
+
+        // Up from 11: the microbiology/pathology practice document is one Drive DOCX
+        // catalogued once per program (ADR-145).
+        Assert.Equal(13, catalog.Sources.Count(
             source => source.Transport == ScheduleSourceTransport.GoogleDriveFile));
+        foreach (string sourceId in new[] { "G3-TR-MICROPATHO-PRACTICE", "G3-EN-MICROPATHO-PRACTICE" })
+        {
+            ScheduleSourceDefinition microPatho = Assert.Single(
+                catalog.Sources,
+                source => source.SourceId == sourceId);
+            Assert.Equal("grade3_micropathology_practice_v1", microPatho.ParserProfile);
+            Assert.Equal("1IOx-_LE8ESpTCT8qH09DI66TPtyQW9es", microPatho.ExternalId);
+            Assert.Equal(
+                ["A1", "A2", "B1", "B2"],
+                microPatho.SupportedAudienceSelectors!["microPathologyGroup"]);
+        }
 
         // No source uses the HTTP transport any more. `SHARED-AMPHI` was the only
         // one, and it was configured against a dated CDN file name that had to be
@@ -158,7 +172,7 @@ public sealed class ScheduleSourceCatalogTests
         Assert.Equal("2026-2027", grade3TurkishAnnual.AcademicYear);
         Assert.Equal(3, grade3TurkishAnnual.ClassYear);
 
-        Assert.Equal(8, catalog.Sources.Count(source => source.ClassYear == 3));
+        Assert.Equal(10, catalog.Sources.Count(source => source.ClassYear == 3));
         Assert.All(
             catalog.Sources.Where(source => source.ClassYear == 3),
             source => Assert.Equal("2026-2027", source.AcademicYear));

@@ -19,7 +19,7 @@ public sealed class CurrentSupportedProfileSchemaTests
     public void SchemaCarriesTheCurrentYearAndVersion()
     {
         Assert.Equal("2026-2027", Schema.AcademicYear);
-        Assert.Equal("1.4", Schema.SchemaVersion);
+        Assert.Equal("1.5", Schema.SchemaVersion);
         Assert.NotEmpty(Schema.Programs);
     }
 
@@ -92,8 +92,9 @@ public sealed class CurrentSupportedProfileSchemaTests
     }
 
     /// <summary>
-    /// Grade 3 Turkish declares its curriculum group and the faculty-practice
-    /// cohort that depends on it (ADR-099).
+    /// Grade 3 Turkish declares its curriculum group, the faculty-practice cohort
+    /// that depends on it (ADR-099), and the independent microbiology/pathology
+    /// group (ADR-145).
     /// </summary>
     [Fact]
     public void GradeThreeTurkishDeclaresItsCurriculumGroupAndRotationCohort()
@@ -102,7 +103,7 @@ public sealed class CurrentSupportedProfileSchemaTests
             Schema.FindProgram(3, ProgramLanguage.Turkish));
 
         Assert.Equal(
-            ["curriculumGroup", "facultyPracticeGroup"],
+            ["curriculumGroup", "facultyPracticeGroup", "microPathologyGroup"],
             program.Dimensions.Select(dimension => dimension.Key));
         Assert.All(program.Dimensions, dimension => Assert.True(dimension.Required));
 
@@ -118,16 +119,34 @@ public sealed class CurrentSupportedProfileSchemaTests
         Assert.Equal(
             ["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8"],
             cohort.AllowedValuesFor("3-B"));
+
+        // The microbiology/pathology group is one a student belongs to in its own
+        // right, stated by a single list covering both programs, so it is
+        // independent of the curriculum group and its four values are flat.
+        SupportedProfileDimension microPathology = Assert.IsType<SupportedProfileDimension>(
+            program.FindDimension("microPathologyGroup"));
+        Assert.False(microPathology.IsDependent);
+        Assert.Equal(["A1", "A2", "B1", "B2"], microPathology.Values);
     }
 
     /// <summary>
-    /// The Grade 3 English program has no cohort to declare, so it is absent
-    /// rather than present and empty (ADR-098).
+    /// The Grade 3 English program was closed because its annual program states no
+    /// division (ADR-098), but the microbiology/pathology practice document divides
+    /// it into the same A1/A2/B1/B2 cohorts, so it now onboards with that one
+    /// selector (ADR-145 supersedes the closure).
     /// </summary>
     [Fact]
-    public void GradeThreeEnglishIsAbsentBecauseItStatesNoDivision()
+    public void GradeThreeEnglishDeclaresOnlyItsMicroPathologyGroup()
     {
-        Assert.Null(Schema.FindProgram(3, ProgramLanguage.English));
+        SupportedProfileProgram program = Assert.IsType<SupportedProfileProgram>(
+            Schema.FindProgram(3, ProgramLanguage.English));
+
+        Assert.Equal("2026-2027", program.AcademicYear);
+        SupportedProfileDimension microPathology = Assert.Single(program.Dimensions);
+        Assert.Equal("microPathologyGroup", microPathology.Key);
+        Assert.True(microPathology.Required);
+        Assert.False(microPathology.IsDependent);
+        Assert.Equal(["A1", "A2", "B1", "B2"], microPathology.Values);
     }
 
     [Fact]
@@ -301,14 +320,15 @@ public sealed class CurrentSupportedProfileSchemaTests
     [Fact]
     public void ACohortTheSchemaDeclaresNoProgramForIsNeverReported()
     {
-        // Grade 2 and Grade 3 English have catalog sources and deliberately no onboarding
-        // (ADR-084, ADR-098). Nobody is stamped with anything, so nobody can be stamped wrong.
+        // Grade 2 English has catalog sources and deliberately no onboarding (ADR-084). Nobody is
+        // stamped with anything, so nobody can be stamped wrong. (Grade 3 English is no longer such
+        // a cohort — it onboards as of ADR-145 — so Grade 2 English is the example now.)
         List<CohortPublishedYear> catalog =
         [
             new()
             {
                 AcademicYear = "2099-2100",
-                ClassYear = 3,
+                ClassYear = 2,
                 ProgramLanguage = ProgramLanguage.English,
             },
         ];

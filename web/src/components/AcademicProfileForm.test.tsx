@@ -35,6 +35,14 @@ const options = {
       programLanguage: 'Turkish',
       dimensions: [{ key: 'curriculumGroup', required: true, values: ['A', 'B'] }],
     },
+    {
+      academicYear: '2026-2027',
+      classYear: 3,
+      programLanguage: 'English',
+      dimensions: [
+        { key: 'microPathologyGroup', required: true, values: ['A1', 'A2', 'B1', 'B2'] },
+      ],
+    },
   ],
 };
 
@@ -92,6 +100,21 @@ describe('AcademicProfileForm', () => {
     );
 
     expect(await screen.findByText(/2026-2027 akademik yılı/)).toBeInTheDocument();
+  });
+
+  it('renders the microbiology/pathology group for the now-onboardable Grade 3 English program', async () => {
+    // Grade 3 English used to have no cohort at all (ADR-098); it now onboards on
+    // its microPathologyGroup, an independent four-value selector, and the label
+    // must be Turkish rather than the raw contract key (ADR-145).
+    render(<AcademicProfileForm submitLabel="Kaydet" busyLabel="Kaydediliyor…" onSaved={() => {}} />);
+
+    await userEvent.selectOptions(await screen.findByLabelText('Sınıf'), '3');
+    await userEvent.selectOptions(screen.getByLabelText('Program dili'), 'English');
+
+    const group = screen.getByLabelText(/Mikrobiyoloji-Patoloji uygulama grubu/);
+    expect(group).toBeInTheDocument();
+    await userEvent.selectOptions(group, 'B1');
+    expect(group).toHaveValue('B1');
   });
 
   it('clears a dependent selector when its parent changes', async () => {

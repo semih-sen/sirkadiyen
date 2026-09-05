@@ -578,6 +578,54 @@
       "fixturePath": "sheets/donem-3-en-A/2026-2027 Dönem 3 A İngilizce Tıp Ders Programı.xlsx"
     },
     {
+      "sourceId": "G3-TR-MICROPATHO-PRACTICE",
+      "displayName": "Dönem 3 Türkçe Mikrobiyoloji-Patoloji uygulama programı",
+      "transport": "googleDriveFile",
+      "documentFormat": "docx",
+      "sourceUri": "https://drive.google.com/file/d/1IOx-_LE8ESpTCT8qH09DI66TPtyQW9es/view",
+      "externalId": "1IOx-_LE8ESpTCT8qH09DI66TPtyQW9es",
+      "parserProfile": "grade3_micropathology_practice_v1",
+      "parserProfileVersion": "1.0.0",
+      "academicYear": "2026-2027",
+      "classYear": 3,
+      "programLanguage": "turkish",
+      "timeZoneId": "Europe/Istanbul",
+      "supportedAudienceSelectors": {
+        "microPathologyGroup": [
+          "A1",
+          "A2",
+          "B1",
+          "B2"
+        ]
+      },
+      "fixturePath": "sheets/donem-3/2026-2027 Dönem 3 Mikrobiyoloji-Patoloji Uygulama Programı.docx",
+      "notes": "One Drive document holds the whole Dönem-3 microbiology/pathology practical calendar for both programs; it states the microPathologyGroup (A1/A2/B1/B2) but never the program language, which the student number does, so it is catalogued once per program and this Turkish source stamps Turkish on every candidate (ADR-145). The same externalId is fetched by the English entry below; each produces its own snapshot. Two tracks run side by side, crossed, so each cell is authoritative for its own group and subject; pathology cells name their two öğretim üyeleri as an abbreviation pair written into the event description."
+    },
+    {
+      "sourceId": "G3-EN-MICROPATHO-PRACTICE",
+      "displayName": "Dönem 3 İngilizce Mikrobiyoloji-Patoloji uygulama programı",
+      "transport": "googleDriveFile",
+      "documentFormat": "docx",
+      "sourceUri": "https://drive.google.com/file/d/1IOx-_LE8ESpTCT8qH09DI66TPtyQW9es/view",
+      "externalId": "1IOx-_LE8ESpTCT8qH09DI66TPtyQW9es",
+      "parserProfile": "grade3_micropathology_practice_v1",
+      "parserProfileVersion": "1.0.0",
+      "academicYear": "2026-2027",
+      "classYear": 3,
+      "programLanguage": "english",
+      "timeZoneId": "Europe/Istanbul",
+      "supportedAudienceSelectors": {
+        "microPathologyGroup": [
+          "A1",
+          "A2",
+          "B1",
+          "B2"
+        ]
+      },
+      "fixturePath": "sheets/donem-3/2026-2027 Dönem 3 Mikrobiyoloji-Patoloji Uygulama Programı.docx",
+      "notes": "The English half of the shared Dönem-3 microbiology/pathology document (ADR-145). It converts the same file as G3-TR-MICROPATHO-PRACTICE and differs only in the source identity and the program language it stamps, so an English A1 student receives the same session a Turkish A1 student does, resolved on their own program's source. Grade 3 English became an onboardable program with this selector (ADR-145, superseding ADR-098's closure)."
+    },
+    {
       "sourceId": "SHARED-AMPHI",
       "displayName": "Haftalık amfi programı",
       "transport": "googleSheets",

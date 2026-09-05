@@ -1,0 +1,292 @@
+{
+  "fixture": "real/g3-en-micropatho.snapshot.json",
+  "parserEngineVersion": "0.4.0",
+  "payload": {
+    "candidateCount": 84,
+    "candidateDigests": [
+      "1!R6C5|2026-10-06|14:30-16:20|practice|id:bc9235fe59dd313f|content:40360ad1c9bc4c96|Mikrobiyoloji Uygulama - Hareket",
+      "1!R7C5|2026-10-08|14:30-16:20|practice|id:42669e193aec8465|content:57400c2cb3a05208|Mikrobiyoloji Uygulama - Hareket",
+      "1!R8C5|2026-10-13|14:30-16:20|practice|id:19ed1dddea0c7acf|content:505c5f7a5508cc58|Mikrobiyoloji Uygulama - Kan-Lenfoid 1",
+      "1!R8C6|2026-10-13|14:30-16:20|practice|id:24f4151cb7d91a1a|content:cfd0612f6a94bbc3|Tıbbi Patoloji Uygulama - Hareket",
+      "1!R9C5|2026-10-15|14:30-16:20|practice|id:53248edc147d0a73|content:820e12d02ba7001d|Mikrobiyoloji Uygulama - Kan-Lenfoid 1",
+      "1!R9C6|2026-10-15|14:30-16:20|practice|id:9183b7f865b346e4|content:d924bc4a2b8d4fc8|Tıbbi Patoloji Uygulama - Hareket",
+      "1!R10C5|2026-10-20|14:30-16:20|practice|id:62c5f881a3af34d7|content:1850716497f99b66|Mikrobiyoloji Uygulama - Kan-Lenfoid 2",
+      "1!R10C6|2026-10-20|14:30-16:20|practice|id:b4073b9cd6fb6b5b|content:cf1a0b8a9ac40010|Tıbbi Patoloji Uygulama - Kan-Lenfoid",
+      "1!R11C5|2026-10-22|14:30-16:20|practice|id:e74f35f536a171af|content:3894b178edcb1e15|Mikrobiyoloji Uygulama - Kan-Lenfoid 2",
+      "1!R11C6|2026-10-22|14:30-16:20|practice|id:1bd145fd15ecb067|content:3e15177246343d98|Tıbbi Patoloji Uygulama - Kan-Lenfoid",
+      "1!R13C5|2026-10-27|14:30-16:20|practice|id:aa96625fc10c9a79|content:cb51314c14594357|Mikrobiyoloji Uygulama - Kan-Lenfoid 1",
+      "1!R14C5|2026-10-30|14:30-16:20|practice|id:fc6b5326629cadf2|content:fe6f520de3aedecb|Mikrobiyoloji Uygulama - Kan-Lenfoid 1",
+      "1!R15C5|2026-11-03|14:30-16:20|practice|id:23b5ded12ae42009|content:19cdcb247d4fb7d0|Mikrobiyoloji Uygulama - Kan-Lenfoid 2",
+      "1!R15C6|2026-11-03|14:30-16:20|practice|id:3c28ed694e2165ac|content:41e7d644749fee54|Tıbbi Patoloji Uygulama - Kan-Lenfoid",
+      "1!R16C5|2026-11-05|14:30-16:20|practice|id:0038d4fb8b18c9a7|content:ec076a87dcc90238|Mikrobiyoloji Uygulama - Kan-Lenfoid 2",
+      "1!R16C6|2026-11-05|14:30-16:20|practice|id:7eed79773e3fd024|content:6ce68be2ae2c7bd4|Tıbbi Patoloji Uygulama - Kan-Lenfoid",
+      "1!R17C5|2026-11-10|14:30-16:20|practice|id:324e7d5e62e56256|content:ce8e69a0f668806e|Mikrobiyoloji Uygulama - Hareket",
+      "1!R17C6|2026-11-10|14:30-16:20|practice|id:f2761308d3a520d8|content:dc0a155e63343a8e|Tıbbi Patoloji Uygulama - Hareket",
+      "1!R18C5|2026-11-12|14:30-16:20|practice|id:84bd1944e0803cb8|content:ab0eaac56105d6d3|Mikrobiyoloji Uygulama - Hareket",
+      "1!R18C6|2026-11-12|14:30-16:20|practice|id:c830090100ccec9b|content:cbc5368a1189c37b|Tıbbi Patoloji Uygulama - Hareket",
+      "1!R20C5|2026-11-24|14:30-16:20|practice|id:aa55b1b0450be049|content:9ff34397c9be1652|Mikrobiyoloji Uygulama - Solunum 1",
+      "1!R20C6|2026-11-24|14:30-16:20|practice|id:ba29a9cc35b7a5c3|content:54ba3510d4f45b47|Tıbbi Patoloji Uygulama - Dolaşım",
+      "1!R21C5|2026-11-26|14:30-16:20|practice|id:a6ed5fe1d459841a|content:1ccb9fb139e31d19|Mikrobiyoloji Uygulama - Solunum 1",
+      "1!R21C6|2026-11-26|14:30-16:20|practice|id:6be9bb17d907d678|content:53b7de42b05e3c78|Tıbbi Patoloji Uygulama - Dolaşım",
+      "1!R22C5|2026-12-01|14:30-16:20|practice|id:d025a2a57aba8d43|content:ce514bcd5034264c|Mikrobiyoloji Uygulama - Solunum 2",
+      "1!R22C6|2026-12-01|14:30-16:20|practice|id:b6e93e4340edc92e|content:70f679ee41e6ce0f|Tıbbi Patoloji Uygulama - Solunum",
+      "1!R23C5|2026-12-03|14:30-16:20|practice|id:d3d010fcdb96291f|content:faf7c6b5e5da6d16|Mikrobiyoloji Uygulama - Solunum 2",
+      "1!R23C6|2026-12-03|14:30-16:20|practice|id:9590cc4220c52bfd|content:7e684294c6a93346|Tıbbi Patoloji Uygulama - Solunum",
+      "1!R27C5|2026-12-08|14:30-16:20|practice|id:0e72d09659202965|content:5bc66614acec4aaf|Mikrobiyoloji Uygulama - Solunum 1",
+      "1!R27C6|2026-12-08|14:30-16:20|practice|id:5f59f1880a6fe7bd|content:1cf0023d25296aeb|Tıbbi Patoloji Uygulama - Solunum",
+      "1!R28C5|2026-12-10|14:30-16:20|practice|id:91f50523a10ea50a|content:f5b6c7f973002f55|Mikrobiyoloji Uygulama - Solunum 1",
+      "1!R28C6|2026-12-10|14:30-16:20|practice|id:0ef9dc06f7a015cb|content:803d26f0ecf754e7|Tıbbi Patoloji Uygulama - Solunum",
+      "1!R29C5|2026-12-15|14:30-16:20|practice|id:75f8a08cd49cb704|content:42ca4765d87c6bd3|Mikrobiyoloji Uygulama - Solunum 2",
+      "1!R29C6|2026-12-15|14:30-16:20|practice|id:b5b1b553fd65d8d7|content:0649205d2055a494|Tıbbi Patoloji Uygulama - Dolaşım",
+      "1!R30C5|2026-12-17|14:30-16:20|practice|id:c0c265257cb6a137|content:8476b02d435e2581|Mikrobiyoloji Uygulama - Solunum 2",
+      "1!R30C6|2026-12-17|14:30-16:20|practice|id:24d563b000fc72e2|content:979c391352617d8a|Tıbbi Patoloji Uygulama - Dolaşım",
+      "1!R37C5|2027-02-09|14:30-16:20|practice|id:4c8f713ec44fa2f8|content:b98f7341ceb9c500|Mikrobiyoloji Uygulama - Sindirim 1",
+      "1!R37C6|2027-02-09|14:30-16:20|practice|id:5a5d4dbbdf997b5c|content:6b25d02a37ae698a|Tıbbi Patoloji Uygulama - Endokrin-Metabolizma",
+      "1!R38C5|2027-02-11|14:30-16:20|practice|id:aaf9644846f1ab94|content:8970662c80b16bb7|Mikrobiyoloji Uygulama - Sindirim 1",
+      "1!R38C6|2027-02-11|14:30-16:20|practice|id:001b9831a3c030c2|content:1213f791956cc20d|Tıbbi Patoloji Uygulama - Endokrin-Metabolizma",
+      "1!R39C5|2027-02-16|14:30-16:20|practice|id:328c07d16bd6ac0d|content:1cd17a59cf128c08|Mikrobiyoloji Uygulama - Sindirim 2",
+      "1!R39C6|2027-02-16|14:30-16:20|practice|id:13c43a973da53da5|content:e440722406471ac1|Tıbbi Patoloji Uygulama - Sindirim",
+      "1!R40C5|2027-02-18|14:30-16:20|practice|id:06b3b938ac8890c9|content:7b9b8d47fb71b72a|Mikrobiyoloji Uygulama - Sindirim 2",
+      "1!R40C6|2027-02-18|14:30-16:20|practice|id:af8479a1d8791b84|content:9876246f6fe4a1fd|Tıbbi Patoloji Uygulama - Sindirim",
+      "1!R42C5|2027-02-23|14:30-16:20|practice|id:e915b47eef40f813|content:b732e61b0795e3bc|Mikrobiyoloji Uygulama - Sindirim 1",
+      "1!R42C6|2027-02-23|14:30-16:20|practice|id:7cf2a893a52f7a5f|content:98481ab1dd7295b7|Tıbbi Patoloji Uygulama - Endokrin-Metabolizma",
+      "1!R43C5|2027-02-25|14:30-16:20|practice|id:2ff74ce918f4909e|content:1eaecdae5bcd07b7|Mikrobiyoloji Uygulama - Sindirim 1",
+      "1!R43C6|2027-02-25|14:30-16:20|practice|id:e6c61e4ab1d5e34b|content:38314e0bce570ddd|Tıbbi Patoloji Uygulama - Endokrin-Metabolizma",
+      "1!R44C5|2027-03-02|14:30-16:20|practice|id:1879b679c1a429b9|content:cea14868fa209c74|Mikrobiyoloji Uygulama - Sindirim 2",
+      "1!R44C6|2027-03-02|14:30-16:20|practice|id:2bc8bf51194b22d3|content:e23b951d2a0993af|Tıbbi Patoloji Uygulama - Sindirim",
+      "1!R45C5|2027-03-04|14:30-16:20|practice|id:9aa06abb2e8046f7|content:934d28b0ac55746d|Mikrobiyoloji Uygulama - Sindirim 2",
+      "1!R45C6|2027-03-04|14:30-16:20|practice|id:98174f7b1059d503|content:8348e57173203d6e|Tıbbi Patoloji Uygulama - Sindirim",
+      "1!R48C5|2027-04-01|14:30-16:20|practice|id:d8f4a9023819190e|content:1f79ff337cb0b66f|Mikrobiyoloji Uygulama - Ürogenital 1",
+      "1!R48C6|2027-04-01|14:30-16:20|practice|id:ecb3b226ea8392f8|content:879dd7d921fc523d|Tıbbi Patoloji Uygulama - Ürogenital 1",
+      "1!R49C5|2027-04-06|14:30-16:20|practice|id:cc3c9cfa169ee3b1|content:e5374ef1cef3456c|Mikrobiyoloji Uygulama - Ürogenital 1",
+      "1!R49C6|2027-04-06|14:30-16:20|practice|id:e6f01097d80551a3|content:2df08f21dfa1547e|Tıbbi Patoloji Uygulama - Ürogenital 1",
+      "1!R50C5|2027-04-08|14:30-16:20|practice|id:28136e093e8ee24e|content:5c837de2338a39f6|Mikrobiyoloji Uygulama - Sindirim 1",
+      "1!R50C6|2027-04-08|14:30-16:20|practice|id:7b84ae6c5a527d37|content:8e9ed17e7f4e7d93|Tıbbi Patoloji Uygulama - Sindirim 1",
+      "1!R51C5|2027-04-13|14:30-16:20|practice|id:0124b66b05e271ab|content:7e10ec9c3b365617|Mikrobiyoloji Uygulama - Sindirim 1",
+      "1!R51C6|2027-04-13|14:30-16:20|practice|id:d71724c0af335988|content:1bce4a664819c800|Tıbbi Patoloji Uygulama - Sindirim 1",
+      "1!R52C5|2027-04-15|14:30-16:20|practice|id:2d84cb2ee745914f|content:658515ccac7b1ed1|Mikrobiyoloji Uygulama - Ürogenital 2",
+      "1!R52C6|2027-04-15|14:30-16:20|practice|id:e08c18b47536fdf9|content:02c0c4b664b69890|Tıbbi Patoloji Uygulama - Ürogenital 2",
+      "1!R53C5|2027-04-20|14:30-16:20|practice|id:cf35380dc9bebae7|content:f3070246d4f26236|Mikrobiyoloji Uygulama - Ürogenital 2",
+      "1!R53C6|2027-04-20|14:30-16:20|practice|id:a706797e94eccb76|content:08c3b2fee5351ec4|Tıbbi Patoloji Uygulama - Ürogenital 2",
+      "1!R54C5|2027-04-22|14:30-16:20|practice|id:e0d2ce0c2c1c6f3e|content:bd3fa5858281b765|Mikrobiyoloji Uygulama - Sindirim 2",
+      "1!R54C6|2027-04-22|14:30-16:20|practice|id:4ed8c217aa19b9c8|content:10740d82b17b047c|Tıbbi Patoloji Uygulama - Sindirim 2",
+      "1!R55C5|2027-04-27|14:30-16:20|practice|id:0b6eaf6de80a7809|content:9061600c353d8c24|Mikrobiyoloji Uygulama - Sindirim 2",
+      "1!R55C6|2027-04-27|14:30-16:20|practice|id:c77762a99f1b25f6|content:7bd609add4d3991b|Tıbbi Patoloji Uygulama - Sindirim 2",
+      "1!R57C5|2027-04-29|14:30-16:20|practice|id:2dcc48ccadf54486|content:5b4ecaa2b1420bfe|Mikrobiyoloji Uygulama - Ürogenital 1",
+      "1!R57C6|2027-04-29|14:30-16:20|practice|id:71919ac3cbda1e0a|content:b462b848442026a8|Tıbbi Patoloji Uygulama - Ürogenital 1",
+      "1!R58C5|2027-05-04|14:30-16:20|practice|id:d4e58f1e814363a1|content:8d519491150655ec|Mikrobiyoloji Uygulama - Ürogenital 1",
+      "1!R58C6|2027-05-04|14:30-16:20|practice|id:4741c2738db6570c|content:ff60d18b0266e75c|Tıbbi Patoloji Uygulama - Ürogenital 1",
+      "1!R59C5|2027-05-06|14:30-16:20|practice|id:267f3386657e1d2a|content:fbd1027dad4c73d0|Mikrobiyoloji Uygulama - Sindirim 1",
+      "1!R59C6|2027-05-06|14:30-16:20|practice|id:ed8cc9bc1c4183c5|content:4b27259c9bf5e2f1|Tıbbi Patoloji Uygulama - Sindirim 1",
+      "1!R60C5|2027-05-11|14:30-16:20|practice|id:44501f019853a536|content:e20c4107270cb395|Mikrobiyoloji Uygulama - Sindirim 1",
+      "1!R60C6|2027-05-11|14:30-16:20|practice|id:679a8840b4556c75|content:2b599794705aab5d|Tıbbi Patoloji Uygulama - Sindirim 1",
+      "1!R61C5|2027-05-13|14:30-16:20|practice|id:1a76d3d74b6cf387|content:85f4bf91925e82c9|Mikrobiyoloji Uygulama - Ürogenital 2",
+      "1!R61C6|2027-05-13|14:30-16:20|practice|id:16fc2c88e983a216|content:694b2a902b96ee01|Tıbbi Patoloji Uygulama - Ürogenital 2",
+      "1!R62C5|2027-05-20|14:30-16:20|practice|id:75d0a59825d6e729|content:59c477cf95843fa6|Mikrobiyoloji Uygulama - Ürogenital 2",
+      "1!R62C6|2027-05-20|14:30-16:20|practice|id:9baa63492a4b001f|content:cece59e6cd9f90d1|Tıbbi Patoloji Uygulama - Ürogenital 2",
+      "1!R63C5|2027-05-25|13:30-15:20|practice|id:05b8eede6f94ef7f|content:f3a4d9b23493f2c2|Mikrobiyoloji Uygulama - Sindirim 2",
+      "1!R63C6|2027-05-25|13:30-15:20|practice|id:8aaea6f0cd30f175|content:d8de94f605498bc9|Tıbbi Patoloji Uygulama - Sindirim 2",
+      "1!R64C5|2027-05-25|15:30-17:20|practice|id:d8dea2332f6c803e|content:ea019b0665f30762|Mikrobiyoloji Uygulama - Sindirim 2",
+      "1!R64C6|2027-05-25|15:30-17:20|practice|id:af311b660962d837|content:1d1e2ecc4cb252a2|Tıbbi Patoloji Uygulama - Sindirim 2"
+    ],
+    "confidenceIndicators": [],
+    "firstCandidate": {
+      "academicYear": "2026-2027",
+      "audience": {
+        "scope": "selectedGroups",
+        "selectors": [
+          {
+            "dimension": "microPathologyGroup",
+            "value": "A1"
+          }
+        ]
+      },
+      "candidateId": "1!R6C5",
+      "classYear": 3,
+      "confidence": 1.0,
+      "contentHash": "sha256:40360ad1c9bc4c96ee9a81063d6c15e4c0dd544d3dd49473529c5028a1832972",
+      "curriculumBlock": null,
+      "departments": [
+        "Mikrobiyoloji"
+      ],
+      "displayTitle": "Mikrobiyoloji Uygulama - Hareket",
+      "endLocalTime": "16:20:00",
+      "eventType": "practice",
+      "evidence": [
+        {
+          "extractionRule": "microPathology.cell",
+          "range": "E6",
+          "rawText": "A1- (H)",
+          "sheetId": "1",
+          "sheetTitle": "Table 1"
+        }
+      ],
+      "identityComponents": [
+        {
+          "name": "academicYear",
+          "value": "2026-2027"
+        },
+        {
+          "name": "classYear",
+          "value": "3"
+        },
+        {
+          "name": "programLanguage",
+          "value": "english"
+        },
+        {
+          "name": "localDate",
+          "value": "2026-10-06"
+        },
+        {
+          "name": "startLocalTime",
+          "value": "14:30:00"
+        },
+        {
+          "name": "courseIdentity",
+          "value": "mikrobiyoloji-uygulama-hareket"
+        },
+        {
+          "name": "audience",
+          "value": "microPathologyGroup:A1"
+        }
+      ],
+      "instructor": null,
+      "isAllDay": false,
+      "localDate": "2026-10-06",
+      "location": null,
+      "normalizedCourseIdentity": "mikrobiyoloji-uygulama-hareket",
+      "notes": null,
+      "programLanguage": "english",
+      "stableIdentity": "sha256:bc9235fe59dd313fff33197ae2614444e47ef52ac645f74c577545cde18a6973",
+      "startLocalTime": "14:30:00",
+      "status": "scheduled",
+      "timeZoneId": "Europe/Istanbul"
+    },
+    "lastCandidate": {
+      "academicYear": "2026-2027",
+      "audience": {
+        "scope": "selectedGroups",
+        "selectors": [
+          {
+            "dimension": "microPathologyGroup",
+            "value": "A2"
+          }
+        ]
+      },
+      "candidateId": "1!R64C6",
+      "classYear": 3,
+      "confidence": 1.0,
+      "contentHash": "sha256:1d1e2ecc4cb252a2f4d5f242e387f2e033f5e6c359652ee319890584ae4ef8d8",
+      "curriculumBlock": null,
+      "departments": [
+        "Tıbbi Patoloji"
+      ],
+      "displayTitle": "Tıbbi Patoloji Uygulama - Sindirim 2",
+      "endLocalTime": "17:20:00",
+      "eventType": "practice",
+      "evidence": [
+        {
+          "extractionRule": "microPathology.cell",
+          "range": "F64",
+          "rawText": "A2- (SND 2) (ŞÖS-BYE)",
+          "sheetId": "1",
+          "sheetTitle": "Table 1"
+        }
+      ],
+      "identityComponents": [
+        {
+          "name": "academicYear",
+          "value": "2026-2027"
+        },
+        {
+          "name": "classYear",
+          "value": "3"
+        },
+        {
+          "name": "programLanguage",
+          "value": "english"
+        },
+        {
+          "name": "localDate",
+          "value": "2027-05-25"
+        },
+        {
+          "name": "startLocalTime",
+          "value": "15:30:00"
+        },
+        {
+          "name": "courseIdentity",
+          "value": "tibbi-patoloji-uygulama-sindirim-2"
+        },
+        {
+          "name": "audience",
+          "value": "microPathologyGroup:A2"
+        }
+      ],
+      "instructor": "Şule Öztürk Sarı (ŞÖS), Begüm Yeni Erdem (BYE)",
+      "isAllDay": false,
+      "localDate": "2027-05-25",
+      "location": null,
+      "normalizedCourseIdentity": "tibbi-patoloji-uygulama-sindirim-2",
+      "notes": null,
+      "programLanguage": "english",
+      "stableIdentity": "sha256:af311b660962d8374573425eb14b339895835c30d59b2745ce2135841607e3dc",
+      "startLocalTime": "15:30:00",
+      "status": "scheduled",
+      "timeZoneId": "Europe/Istanbul"
+    },
+    "metrics": [
+      {
+        "name": "audience.dimension.microPathologyGroup",
+        "unit": null,
+        "value": 84.0
+      },
+      {
+        "name": "candidates.emitted",
+        "unit": null,
+        "value": 84.0
+      },
+      {
+        "name": "candidates.track.Mikrobiyoloji",
+        "unit": null,
+        "value": 44.0
+      },
+      {
+        "name": "candidates.track.Tıbbi Patoloji",
+        "unit": null,
+        "value": 40.0
+      },
+      {
+        "name": "cells.scanned",
+        "unit": null,
+        "value": 84.0
+      },
+      {
+        "name": "rows.dated",
+        "unit": null,
+        "value": 44.0
+      },
+      {
+        "name": "rows.scanned",
+        "unit": null,
+        "value": 64.0
+      },
+      {
+        "name": "worksheets.scanned",
+        "unit": null,
+        "value": 1.0
+      }
+    ],
+    "parserProfile": {
+      "name": "grade3_micropathology_practice_v1",
+      "version": "1.0.0"
+    },
+    "responseDigest": "sha256:feb3b15445041a95f494210a845b520d25f84944ed329a3cca902c1627408fd5",
+    "snapshotId": "fixture:sha256:c5089e50da19cec3ee33bfef7b456d592b24e527cc547d913b852f1173d02750",
+    "sourceId": "G3-EN-MICROPATHO-PRACTICE",
+    "status": "completed",
+    "warnings": []
+  },
+  "subject": "parseResponse"
+}

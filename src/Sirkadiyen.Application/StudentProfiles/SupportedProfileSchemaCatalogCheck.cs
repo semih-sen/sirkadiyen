@@ -28,10 +28,11 @@ public static class SupportedProfileSchemaCatalogCheck
     /// Every cohort whose sources state a year the schema does not stamp on its students.
     /// </summary>
     /// <remarks>
-    /// A cohort the schema declares no program for is not a divergence: Grade 2 English and
-    /// Grade 3 English have catalog sources and deliberately no onboarding, for reasons their own
-    /// ADRs record (ADR-084, ADR-098). Silence about them is correct; nobody is stamped with
-    /// anything, so nobody can be stamped with the wrong thing.
+    /// A cohort the schema declares no program for is not a divergence: Grade 2 English has catalog
+    /// sources and deliberately no onboarding, for the reason its own ADR records (ADR-084).
+    /// Silence about it is correct; nobody is stamped with anything, so nobody can be stamped with
+    /// the wrong thing. (Grade 3 English was such a cohort under ADR-098; it now onboards on its
+    /// microbiology/pathology group as of ADR-145.)
     /// </remarks>
     public static IReadOnlyList<AcademicYearDivergence> FindDivergences(
         SupportedProfileSchema schema,

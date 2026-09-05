@@ -54,11 +54,30 @@ public sealed class StudentRosterLookupService(
             };
         }
 
-        if (matches.Count > 1)
+        if (matches.Count == 1)
         {
-            // Two rows claim one student. Choosing between them is exactly what
-            // ADR-085 forbids, and the published lists already contain a case:
-            // one number is on both the Grade 2 and the Grade 3 Turkish list.
+            return Suggest(number, matches[0].Reading, matches[0].Entry, unreadable);
+        }
+
+        // More than one row states this number. Two cases hide here and only one is
+        // ambiguous. A number on two rows of one list, or on lists for different
+        // cohorts, cannot be resolved and stays ambiguous (ADR-085): the Grade 2 and
+        // Grade 3 Turkish lists share such a number. But a number on two complementary
+        // lists of one cohort — the curriculum-group list and the microbiology/pathology
+        // group list both hold every Grade 3 student — is not a conflict; the two are
+        // merged into one suggestion (ADR-145).
+        bool sameListTwice = matches
+            .GroupBy(match => match.Reading.RosterId, StringComparer.Ordinal)
+            .Any(group => group.Count() > 1);
+
+        bool multipleCohorts = matches
+            .Select(match =>
+                (match.Reading.AcademicYear, match.Reading.ClassYear, match.Reading.ProgramLanguage))
+            .Distinct()
+            .Count() > 1;
+
+        if (sameListTwice || multipleCohorts || !TryMerge(matches, out StudentRosterEntry merged))
+        {
             return new StudentRosterLookupResult
             {
                 Outcome = StudentRosterLookupOutcome.Ambiguous,
@@ -69,9 +88,61 @@ public sealed class StudentRosterLookupService(
             };
         }
 
-        (StudentRosterReading reading, StudentRosterEntry entry) = matches[0];
-        return Suggest(number, reading, entry, unreadable);
+        // The representative list is the one that states the most, so the reported
+        // roster id names the list that carried the cohort's selectors.
+        StudentRosterReading representative = matches
+            .OrderByDescending(match => match.Entry.Selectors.Count)
+            .ThenBy(match => match.Reading.RosterId, StringComparer.Ordinal)
+            .First()
+            .Reading;
+
+        return Suggest(number, representative, merged, unreadable);
     }
+
+    /// <summary>
+    /// Unions what several complementary lists of one cohort state about a student,
+    /// or reports that two of them disagree on a value (ADR-145).
+    /// </summary>
+    private static bool TryMerge(
+        IReadOnlyList<(StudentRosterReading Reading, StudentRosterEntry Entry)> matches,
+        out StudentRosterEntry merged)
+    {
+        merged = default!;
+        Dictionary<string, string> selectors = new(StringComparer.Ordinal);
+        foreach ((_, StudentRosterEntry entry) in matches)
+        {
+            foreach ((string dimension, string value) in entry.Selectors)
+            {
+                if (selectors.TryGetValue(dimension, out string? existing)
+                    && !string.Equals(existing, value, StringComparison.Ordinal))
+                {
+                    // The catalog forbids two lists of one cohort stating the same
+                    // dimension, so this is a defence against a value that slipped
+                    // through rather than an expected case.
+                    return false;
+                }
+
+                selectors[dimension] = value;
+            }
+        }
+
+        (_, StudentRosterEntry first) = matches[0];
+        merged = first with
+        {
+            GivenName = FirstNonEmpty(matches, static entry => entry.GivenName),
+            FamilyName = FirstNonEmpty(matches, static entry => entry.FamilyName),
+            Selectors = selectors,
+        };
+        return true;
+    }
+
+    private static string FirstNonEmpty(
+        IReadOnlyList<(StudentRosterReading Reading, StudentRosterEntry Entry)> matches,
+        Func<StudentRosterEntry, string> select) =>
+        matches
+            .Select(match => select(match.Entry))
+            .FirstOrDefault(static value => !string.IsNullOrEmpty(value))
+        ?? string.Empty;
 
     private StudentRosterLookupResult Suggest(
         string number,

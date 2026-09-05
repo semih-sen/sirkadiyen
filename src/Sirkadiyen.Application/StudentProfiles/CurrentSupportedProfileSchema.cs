@@ -15,9 +15,12 @@ namespace Sirkadiyen.Application.StudentProfiles;
 /// practice is now evidenced, but that program stays absent until its annual
 /// group-labelled rows and shared vertical-corridor sessions have safe audience
 /// handling (ADR-084); adding it sooner would expose an incomplete or over-broad
-/// calendar as complete. The Grade 3 English program is absent for the reason
-/// its parser records: that program states no A/B division at all, so it has no
-/// selector to declare and nothing to onboard beyond class year (ADR-098).
+/// calendar as complete. The Grade 3 English program was absent for the reason its
+/// annual parser records — that program states no A/B division at all (ADR-098) —
+/// but it is now onboardable: the microbiology/pathology practice document divides
+/// both programs into the same A1/A2/B1/B2 cohorts, an English selector confirmed
+/// by a committed fixture, so Grade 3 English declares that one group (ADR-145
+/// supersedes the closure).
 /// </para>
 /// <para>
 /// A program states the academic year its own sources were captured for,
@@ -52,13 +55,15 @@ public static class CurrentSupportedProfileSchema
     /// Bumped to 1.1 when Grade 2 Turkish was added (ADR-079), to 1.2 when
     /// Grade 3 Turkish arrived and each program began stating its own academic
     /// year (ADR-103), to 1.3 when Grade 2 Turkish rolled over to 2026-2027
-    /// (ADR-115), and to 1.4 when Grade 1 Turkish and English rolled over with
-    /// their own sources (ADR-131). It is recorded on every stored profile, so a
-    /// profile written under an earlier version stays identifiable — and, for a
-    /// Grade 1 profile still on 1.3, identifiable as one stamped before the
-    /// rollover and therefore due for it.
+    /// (ADR-115), to 1.4 when Grade 1 Turkish and English rolled over with their
+    /// own sources (ADR-131), and to 1.5 when the microbiology/pathology practice
+    /// program added the <c>microPathologyGroup</c> dimension to Grade 3 Turkish
+    /// and opened Grade 3 English (ADR-145). It is recorded on every stored
+    /// profile, so a profile written under an earlier version stays identifiable —
+    /// and a Grade 3 Turkish profile still on 1.4 is identifiable as one written
+    /// before the new dimension existed and therefore missing it.
     /// </summary>
-    public const string SchemaVersion = "1.4";
+    public const string SchemaVersion = "1.5";
 
     public static SupportedProfileSchema Create() => new()
     {
@@ -70,6 +75,7 @@ public static class CurrentSupportedProfileSchema
             Grade1English(),
             Grade2Turkish(),
             Grade3Turkish(),
+            Grade3English(),
         ],
     };
 
@@ -213,7 +219,49 @@ public static class CurrentSupportedProfileSchema
                     ["3-B"] = [.. EightCohorts("B")],
                 },
             },
+            MicroPathologyGroup(),
         ],
+    };
+
+    /// <summary>
+    /// Grade 3 English: the microbiology/pathology practice cohort, and nothing
+    /// else.
+    /// </summary>
+    /// <remarks>
+    /// The English annual program states no A/B division (ADR-098), which is why
+    /// this program had no schema entry at all. The microbiology/pathology practice
+    /// document is the first source to divide the English class — into the same
+    /// A1/A2/B1/B2 cohorts it divides the Turkish class into — so the program now
+    /// declares exactly that one selector and opens for onboarding (ADR-145). A
+    /// student who declares it receives their microbiology and pathology practicals;
+    /// the English annual lessons, which name no cohort, reach every English Grade 3
+    /// student regardless of it.
+    /// </remarks>
+    private static SupportedProfileProgram Grade3English() => new()
+    {
+        AcademicYear = AcademicYear,
+        ClassYear = 3,
+        ProgramLanguage = ProgramLanguage.English,
+        Dimensions = [MicroPathologyGroup()],
+    };
+
+    /// <summary>
+    /// The four microbiology/pathology practice cohorts the whole Grade 3 class is
+    /// split into, in both programs (ADR-145).
+    /// </summary>
+    /// <remarks>
+    /// It is independent of the curriculum group and the faculty-practice cohort: a
+    /// student's A1/A2/B1/B2 assignment is stated by a single list covering both
+    /// programs and does not follow from either other dimension, so it is a flat set
+    /// of four values rather than a subdivision of anything. Required, because every
+    /// Grade 3 student attends these practicals and a student who declared nothing
+    /// would receive none of them.
+    /// </remarks>
+    private static SupportedProfileDimension MicroPathologyGroup() => new()
+    {
+        Key = "microPathologyGroup",
+        Required = true,
+        Values = ["A1", "A2", "B1", "B2"],
     };
 
     /// <summary>The eight faculty-practice cohorts of one curriculum group.</summary>

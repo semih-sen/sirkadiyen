@@ -14,6 +14,9 @@ from sirkadiyen_parser.parsers.anatomy import parse_anatomy_snapshot
 from sirkadiyen_parser.parsers.annual import parse_annual_snapshot
 from sirkadiyen_parser.parsers.bedside import parse_bedside_snapshot
 from sirkadiyen_parser.parsers.faculty_practice import parse_faculty_practice_snapshot
+from sirkadiyen_parser.parsers.micropathology_practice import (
+    parse_micropathology_practice_snapshot,
+)
 from sirkadiyen_parser.parsers.practice import parse_practice_snapshot
 from sirkadiyen_parser.parsers.practice_slots import parse_practice_slot_snapshot
 from sirkadiyen_parser.parsers.vertical_corridor import parse_vertical_corridor_snapshot
@@ -66,6 +69,11 @@ _IMPLEMENTATIONS: dict[tuple[str, str], ParserImplementation] = {
     # profiles read it as a companion and put the room on the event a student
     # already has (ADR-133).
     ("weekly_amphitheatre_v1", "1.1.0"): parse_amphitheatre_snapshot,
+    # The Dönem-3 microbiology/pathology practice document, published once and
+    # catalogued for both programs. One implementation serves the Turkish and the
+    # English source: they convert the same file and differ only in the program
+    # language their source context stamps on every candidate (ADR-145).
+    ("grade3_micropathology_practice_v1", "1.0.0"): parse_micropathology_practice_snapshot,
 }
 
 

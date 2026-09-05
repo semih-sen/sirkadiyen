@@ -183,4 +183,79 @@ public sealed class CalendarAudienceResolverTests
 
         Assert.False(CalendarAudienceResolver.Applies(record, profile));
     }
+
+    /// <summary>
+    /// The microbiology/pathology program divides both languages into the same
+    /// A1/A2/B1/B2 groups, published as one source per program. A student receives
+    /// the session only from their own program's source, so the program dimensions
+    /// gate it before the group does (ADR-145).
+    /// </summary>
+    [Theory]
+    [InlineData(ProgramLanguage.Turkish)]
+    [InlineData(ProgramLanguage.English)]
+    public void AMicroPathologyLessonAppliesToItsGroupInItsOwnProgram(
+        ProgramLanguage programLanguage)
+    {
+        StudentProfileView profile = CalendarTestData.Profile(
+            classYear: 3,
+            programLanguage: programLanguage,
+            academicYear: "2026-2027",
+            selectors: new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["microPathologyGroup"] = "A1",
+            });
+        CanonicalScheduleRecord record = CalendarTestData.Record(
+            classYear: 3,
+            programLanguage: programLanguage,
+            academicYear: "2026-2027",
+            scope: AudienceScope.SelectedGroups,
+            selectors: [("microPathologyGroup", "A1")]);
+
+        Assert.True(CalendarAudienceResolver.Applies(record, profile));
+    }
+
+    [Fact]
+    public void AMicroPathologyLessonDoesNotCrossProgramLanguages()
+    {
+        // The Turkish and English sources convert the same document, so the Turkish
+        // source's A1 record must not reach an English A1 student — the program
+        // language, stamped from the source, is what keeps them apart.
+        StudentProfileView english = CalendarTestData.Profile(
+            classYear: 3,
+            programLanguage: ProgramLanguage.English,
+            academicYear: "2026-2027",
+            selectors: new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["microPathologyGroup"] = "A1",
+            });
+        CanonicalScheduleRecord turkishRecord = CalendarTestData.Record(
+            classYear: 3,
+            programLanguage: ProgramLanguage.Turkish,
+            academicYear: "2026-2027",
+            scope: AudienceScope.SelectedGroups,
+            selectors: [("microPathologyGroup", "A1")]);
+
+        Assert.False(CalendarAudienceResolver.Applies(turkishRecord, english));
+    }
+
+    [Fact]
+    public void AMicroPathologyLessonDoesNotApplyToAStudentInAnotherGroup()
+    {
+        StudentProfileView profile = CalendarTestData.Profile(
+            classYear: 3,
+            programLanguage: ProgramLanguage.Turkish,
+            academicYear: "2026-2027",
+            selectors: new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["microPathologyGroup"] = "B2",
+            });
+        CanonicalScheduleRecord record = CalendarTestData.Record(
+            classYear: 3,
+            programLanguage: ProgramLanguage.Turkish,
+            academicYear: "2026-2027",
+            scope: AudienceScope.SelectedGroups,
+            selectors: [("microPathologyGroup", "A1")]);
+
+        Assert.False(CalendarAudienceResolver.Applies(record, profile));
+    }
 }
