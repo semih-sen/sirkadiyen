@@ -9287,3 +9287,67 @@ Diagnosing ADR-148 was slow because no surface showed *why* anything failed. Two
 - The `RevisionFindingView` read contract is unchanged; only the failure surfaces gained detail.
 - `ExceptionSummary` reports exception text only, never a stack trace, keeping alerts within the
   logging rules (AI_GUIDELINE §15).
+
+## ADR-150: The cafeteria menu is a standing subscription delivered by a lightweight pipeline outside the schedule
+
+**Status:** Accepted
+**Date:** 2026-09-06
+
+### Context
+
+Students asked for the faculty cafeteria's daily lunch on their calendar. The faculty exposes a
+trivial JSON API — `GET sks.istanbul.edu.tr/meals-by-date?date=YYYY-MM-DD&category=lunch` →
+`{success, meal, category}` — but with three constraints that shape the design:
+
+- Menus are published **monthly**: a future month cannot be fetched until the faculty publishes it.
+- Already-published menus are **edited** (a dish swapped, a day cancelled).
+- `success:false` is **indistinguishable** across weekend, holiday, and not-yet-published, so an
+  empty answer cannot be read as a deletion.
+
+The question posed was whether to poll each day once or to snapshot and re-poll with a diff.
+
+### Decision
+
+- **Re-poll a rolling forward window (`[today, today+35d]`) on a cadence, hash each day, and diff** —
+  never "poll once". A one-shot import cannot see a future month at all, and cannot catch a
+  correction. The rolling window discovers a newly published month with no special-case logic: days
+  slide into it and flip from empty to published on their own. This is the schedule pipeline's
+  `snapshot → hash → diff → idempotent write` discipline, applied per day.
+- **A withdrawal needs several consecutive confirmed misses (default 3), never one**, and a
+  transport failure is not a miss at all (`MealMenuAcquisitionService` skips a date whose fetch
+  threw). An outage therefore cannot mass-withdraw a month of menus — the same conservatism ADR-137
+  applies to a source that briefly cannot be read.
+- **The menu is not schedule truth, so it lives outside the schedule pipeline** — no parser, no
+  `ScheduleRevision`, no validation thresholds, no canonical lesson, no academic diff. It is a new
+  `Meals` module modeled on announcements (ADR-107): idempotent writes on a deterministic event id
+  namespaced `meal:lunch:{date}`, a `sirkadiyenKind = "meal"` marker so inventory and verification
+  ignore it (`ManagedCalendarEventFactory.IsNonScheduleKind`), a per-subscriber delivery ledger, the
+  operational-freeze gate, and a per-cycle Calendar budget. Delivery runs last in the fenced Calendar
+  stage, after the schedule and announcements.
+- **Unlike an announcement, the menu is a standing subscription, not a frozen campaign.** Delivery is
+  a *convergence* (like `ProfileResyncTask`): each pass reconciles the ledger against the current
+  enabled subscriptions × published in-window days, writing what is owed and removing what is not.
+  The preference is therefore **live and reversible** — enabling backfills the whole known window,
+  disabling removes the written copies — which was the product decision for this session.
+- **Lunch is a timed 12:30–13:00 event** (this session's decision), Europe/Istanbul, the dishes in
+  the description, with its own calendar label colour. **One central menu** for all users, because
+  the API takes no campus parameter.
+- **Consent is captured at onboarding but does not gate `Active`.** `OnboardingStateService` is
+  unchanged; the toggle is an optional preference (`MealMenuSubscription`), default off (opt-in).
+- **Acquisition is a poll (outside the fence); delivery is a calendar mutation (inside the fence).**
+  Acquisition tolerates a lost race between instances via the unique `(LocalDate, Category)` index
+  rather than a lock, because re-fetching next cycle is cheap; delivery is single-writer under the
+  shared advisory lease, so its convergence needs no such recovery. The whole pipeline is disabled by
+  default (`SIRKADIYEN_MEALS__ENABLED`) so a deployment that has not opted in makes no external calls.
+
+### Consequences
+
+- New `Meals` domain (`MealMenuDay`, `MealCalendarDelivery`, `MealMenuSubscription`), application
+  services (`MealMenuAcquisitionService`, `MealDeliveryService`, `MealSubscriptionService`,
+  `MealEventFactory`), a typed `IMealMenuApiClient`, three EF-mapped tables (migration
+  `AddCafeteriaMenus`), two worker tasks, and a `GET`/`PUT /api/meals/subscription` endpoint pair.
+- `MealMenuSubscription` is deliberately meal-specific rather than a generic preferences aggregate
+  (AI_GUIDELINE §4); it can generalize when a second preference exists.
+- Follow-ups recorded in `activeContext.md`: the frontend consent/settings toggle, persistence store
+  tests against a live database, and (if instances multiply) a DB-backed acquisition gate instead of
+  the per-instance interval.

@@ -8,6 +8,7 @@ import { getSyncStatus, startSync, ApiError } from '@/lib/api';
 import { ROUTES } from '@/lib/onboarding';
 import { AuthShell, Banner, Brand, Stepper } from '@/components/ui';
 import { GoogleCalendarAppLinks } from '@/components/GoogleCalendarAppLinks';
+import { MealMenuCard } from '@/components/MealMenuCard';
 import type { CalendarSyncStatusResponse, GoogleCalendarInitialSyncState } from '@/lib/types';
 
 // The worker pipeline (plan §4.2). The backend exposes one authoritative state
@@ -185,6 +186,12 @@ function InitialSync() {
           <h3 style={{ fontSize: 15 }}>Bu arada: Google Takvim uygulamasını kur</h3>
           <GoogleCalendarAppLinks variant="plain" />
         </section>
+      </div>
+
+      {/* İsteğe bağlı ve tamamen tersine çevrilebilir; onboarding'i tıkamaz. Sonradan
+          panelden de açıp kapatılabilir (ADR-150). */}
+      <div style={{ marginTop: 20 }}>
+        <MealMenuCard />
       </div>
 
       {!completed && (

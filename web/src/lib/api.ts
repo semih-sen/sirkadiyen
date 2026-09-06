@@ -17,6 +17,7 @@ import type {
   DepartmentColorView,
   LicenseRevocationResult,
   GoogleCalendarConnectionView,
+  MealSubscriptionView,
   OnboardingSnapshot,
   ApproveRevisionResponse,
   CohortRepairPlan,
@@ -341,6 +342,22 @@ export async function deleteOwnAccount(confirmEmail: string): Promise<AccountDel
 
 export function getOnboarding(): Promise<OnboardingSnapshot> {
   return request<OnboardingSnapshot>('/api/onboarding');
+}
+
+// ---- Cafeteria menu (ADR-150) ---------------------------------------------
+// The lunch menu is an optional, reversible preference. Turning it on backfills the
+// currently-known window; turning it off removes the written events. The worker
+// converges the calendar on its next pass; the endpoint only records the choice.
+
+export function getMealSubscription(): Promise<MealSubscriptionView> {
+  return request<MealSubscriptionView>('/api/meals/subscription');
+}
+
+export function setMealSubscription(enabled: boolean): Promise<MealSubscriptionView> {
+  return request<MealSubscriptionView>('/api/meals/subscription', {
+    method: 'PUT',
+    body: { enabled },
+  });
 }
 
 // ---- Licensing ------------------------------------------------------------

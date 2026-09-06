@@ -6,6 +6,7 @@ using Sirkadiyen.Api.Finance;
 using Sirkadiyen.Api.GoogleCalendar;
 using Sirkadiyen.Api.Identity;
 using Sirkadiyen.Api.Licensing;
+using Sirkadiyen.Api.Meals;
 using Sirkadiyen.Api.Onboarding;
 using Sirkadiyen.Api.Operations;
 using Sirkadiyen.Api.Scheduling.Access;
@@ -44,6 +45,7 @@ internal static class ApiEndpointRouteBuilderExtensions
         app.MapScheduleEndpoints();
         app.MapDepartmentColorEndpoints();
         app.MapOnboardingEndpoints();
+        app.MapMealEndpoints();
         app.MapRevisionEndpoints();
         app.MapSourceDocumentEndpoints();
         app.MapDiffEndpoints();

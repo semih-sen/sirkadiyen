@@ -1746,3 +1746,11 @@ export interface ManagedCalendarRebuildResult {
   /** Ledger rows discarded — also the number of lessons the next sync will write again. */
   discardedMappings: number;
 }
+
+// ---- Cafeteria menu (ADR-150) ---------------------------------------------
+
+/** The current user's cafeteria lunch-menu preference. */
+export interface MealSubscriptionView {
+  /** Whether the lunch menu is written to the user's calendar. */
+  enabled: boolean;
+}

@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Sirkadiyen.Application.Announcements;
 using Sirkadiyen.Application.GoogleCalendar;
+using Sirkadiyen.Application.Meals;
 using Sirkadiyen.Application.Notifications;
 using Sirkadiyen.Application.Operations;
 using Sirkadiyen.Application.StudentProfiles;
@@ -34,6 +35,50 @@ internal sealed class WorkerOptionsFactory(
 
     public string? DataProtectionKeyRingPath =>
         configuration["SIRKADIYEN_DATAPROTECTION:KEY_RING_PATH"];
+
+    public Uri MealMenuBaseUrl => new(
+        configuration["SIRKADIYEN_MEALS:BASE_URL"] is { Length: > 0 } url
+            ? url
+            : "https://sks.istanbul.edu.tr/");
+
+    public TimeSpan MealMenuTimeout => ConfigurationValueParser.Duration(
+        configuration["SIRKADIYEN_MEALS:TIMEOUT"],
+        TimeSpan.FromSeconds(30));
+
+    /// <summary>
+    /// The cafeteria-menu options (ADR-150). Disabled by default so a deployment that has not opted
+    /// in makes no external calls; every value has a working default so enabling it needs only
+    /// <c>SIRKADIYEN_MEALS__ENABLED=true</c>.
+    /// </summary>
+    public MealMenuOptions CreateMealMenuOptions() => Validate(new MealMenuOptions
+    {
+        Enabled = ConfigurationValueParser.Bool(configuration["SIRKADIYEN_MEALS:ENABLED"], false),
+        WindowDays = ConfigurationValueParser.Integer(
+            configuration["SIRKADIYEN_MEALS:WINDOW_DAYS"], 35),
+        WithdrawalMissThreshold = ConfigurationValueParser.Integer(
+            configuration["SIRKADIYEN_MEALS:WITHDRAWAL_MISS_THRESHOLD"], 3),
+        PollInterval = ConfigurationValueParser.Duration(
+            configuration["SIRKADIYEN_MEALS:POLL_INTERVAL"], TimeSpan.FromHours(12)),
+        DeliveryInterval = ConfigurationValueParser.Duration(
+            configuration["SIRKADIYEN_MEALS:DELIVERY_INTERVAL"], TimeSpan.FromMinutes(2)),
+        TimeZoneId = configuration["SIRKADIYEN_MEALS:TIME_ZONE_ID"]
+            is { Length: > 0 } zone ? zone : "Europe/Istanbul",
+        StartLocalTime = ConfigurationValueParser.Time(
+            configuration["SIRKADIYEN_MEALS:START_LOCAL_TIME"], new TimeOnly(12, 30)),
+        EndLocalTime = ConfigurationValueParser.Time(
+            configuration["SIRKADIYEN_MEALS:END_LOCAL_TIME"], new TimeOnly(13, 0)),
+        Location = configuration["SIRKADIYEN_MEALS:LOCATION"] is { Length: > 0 } location
+            ? location
+            : null,
+        ReminderMinutesBefore = configuration["SIRKADIYEN_MEALS:REMINDER_MINUTES"]
+            is { Length: > 0 } reminder
+                ? ConfigurationValueParser.Integer(reminder, 0)
+                : null,
+        MaxWritesPerCycle = ConfigurationValueParser.Integer(
+            configuration["SIRKADIYEN_MEALS:MAX_WRITES_PER_CYCLE"], 500),
+        MaxRemovalsPerCycle = ConfigurationValueParser.Integer(
+            configuration["SIRKADIYEN_MEALS:MAX_REMOVALS_PER_CYCLE"], 500),
+    }, static options => options.Validate());
 
     public GoogleSourceAccessOptions CreateGoogleSourceAccessOptions() => new()
     {

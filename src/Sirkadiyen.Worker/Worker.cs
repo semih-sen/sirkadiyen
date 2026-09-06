@@ -5,6 +5,7 @@ using Sirkadiyen.Infrastructure.Scheduling.Sources;
 using Sirkadiyen.Worker.Calendars;
 using Sirkadiyen.Worker.Configuration;
 using Sirkadiyen.Worker.Health;
+using Sirkadiyen.Worker.Meals;
 using Sirkadiyen.Worker.Scheduling;
 using Sirkadiyen.Worker.Sources;
 
@@ -18,6 +19,7 @@ internal sealed class Worker(
     WorkerHeartbeatTask heartbeat,
     SnapshotRetentionTask snapshotRetention,
     PipelineStallWatchTask stallWatch,
+    MealMenuAcquisitionTask mealAcquisition,
     WorkerOptions options,
     AdaptivePollingIntervalPolicy intervalPolicy,
     TimeProvider timeProvider,
@@ -61,6 +63,12 @@ internal sealed class Worker(
             healthState.MarkActivity("draining-manual-polls");
             await manualSourcePoll.RunAsync(cancellationToken);
 
+            // Menu acquisition is a poll, so it lives here beside the schedule poll and outside the
+            // Calendar fence (ADR-150). It self-gates to its own interval; a change tells the fenced
+            // stage below to converge menu calendars this cycle instead of waiting.
+            healthState.MarkActivity("acquiring-meal-menu");
+            bool mealMenuChanged = await mealAcquisition.RunAsync(cancellationToken);
+
             if (pollScheduleSources)
             {
                 await sourcePipeline.RunAsync(cancellationToken);
@@ -68,7 +76,7 @@ internal sealed class Worker(
                 nextSourcePollAt = intervalSelectedAt + intervalPolicy.GetInterval(intervalSelectedAt);
             }
 
-            bool calendarCatchUpRequired = await RunCalendarWorkAsync(cancellationToken);
+            bool calendarCatchUpRequired = await RunCalendarWorkAsync(mealMenuChanged, cancellationToken);
 
             if (pollScheduleSources)
             {
@@ -100,14 +108,16 @@ internal sealed class Worker(
         }
     }
 
-    private async Task<bool> RunCalendarWorkAsync(CancellationToken cancellationToken)
+    private async Task<bool> RunCalendarWorkAsync(
+        bool mealMenuChanged,
+        CancellationToken cancellationToken)
     {
-        // Initial sync, dispatch, replay, resync, announcements and inventory now all run inside one
-        // shared cross-instance advisory lease (ADR-122), so only one worker performs calendar work at
-        // a time. Initial sync used to run here unfenced, which let two instances race on a user's
-        // non-idempotent calendar creation.
+        // Initial sync, dispatch, replay, resync, announcements, meal delivery and inventory now all
+        // run inside one shared cross-instance advisory lease (ADR-122), so only one worker performs
+        // calendar work at a time. Initial sync used to run here unfenced, which let two instances
+        // race on a user's non-idempotent calendar creation.
         healthState.MarkActivity("calendar-maintenance");
-        return await calendarMaintenance.RunAsync(cancellationToken);
+        return await calendarMaintenance.RunAsync(mealMenuChanged, cancellationToken);
     }
 
     private void LogNextCycle(

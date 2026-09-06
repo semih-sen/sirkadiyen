@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Sirkadiyen.Application.GoogleCalendar;
+using Sirkadiyen.Worker.Meals;
 
 namespace Sirkadiyen.Worker.Calendars;
 
@@ -12,10 +13,15 @@ internal sealed class FencedCalendarMaintenanceTask(
     ProfileAcademicYearDriftTask academicYearDrift,
     ProfileResyncTask profileResync,
     AnnouncementDispatchTask announcements,
+    MealDeliveryTask meals,
     CalendarInventoryTask inventory,
     ILogger<FencedCalendarMaintenanceTask> logger)
 {
-    public async Task<bool> RunAsync(CancellationToken cancellationToken)
+    /// <param name="mealMenuChanged">
+    /// Whether this cycle's acquisition changed the menu, so the meal convergence runs now instead
+    /// of waiting for its interval.
+    /// </param>
+    public async Task<bool> RunAsync(bool mealMenuChanged, CancellationToken cancellationToken)
     {
         try
         {
@@ -58,6 +64,11 @@ internal sealed class FencedCalendarMaintenanceTask(
             // runs afterwards and ignores announcement events, so it reports neither them nor a
             // conflict about them.
             catchUpRequired |= await announcements.RunAsync(cancellationToken);
+
+            // Last of the write stages, for the same reason as announcements: the cafeteria menu is
+            // the product speaking, not schedule truth, so it yields the Calendar budget to
+            // everything above it (ADR-150). Inventory, which runs next, ignores its events too.
+            catchUpRequired |= await meals.RunAsync(mealMenuChanged, cancellationToken);
 
             await inventory.RunAsync(cancellationToken);
             return catchUpRequired;

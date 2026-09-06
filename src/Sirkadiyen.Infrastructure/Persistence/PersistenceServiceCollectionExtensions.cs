@@ -8,6 +8,7 @@ using Sirkadiyen.Application.Finance;
 using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Identity;
 using Sirkadiyen.Application.Licensing;
+using Sirkadiyen.Application.Meals;
 using Sirkadiyen.Application.Operations;
 using Sirkadiyen.Application.Scheduling.Access;
 using Sirkadiyen.Application.Scheduling.Diffing;
@@ -25,6 +26,7 @@ using Sirkadiyen.Infrastructure.Persistence.Finance.Stores;
 using Sirkadiyen.Infrastructure.Persistence.GoogleCalendar.Stores;
 using Sirkadiyen.Infrastructure.Persistence.Identity.Stores;
 using Sirkadiyen.Infrastructure.Persistence.Licensing.Stores;
+using Sirkadiyen.Infrastructure.Persistence.Meals.Stores;
 using Sirkadiyen.Infrastructure.Persistence.Operations.Stores;
 using Sirkadiyen.Infrastructure.Persistence.Scheduling.Stores;
 using Sirkadiyen.Infrastructure.Persistence.StudentProfiles.Stores;
@@ -119,6 +121,9 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IFinanceDistributionStore, FinanceDistributionStore>();
         services.AddScoped<IAnnouncementStore, AnnouncementStore>();
         services.AddScoped<IAnnouncementAudienceReadStore, AnnouncementAudienceReadStore>();
+        services.AddScoped<IMealMenuStore, MealMenuStore>();
+        services.AddScoped<IMealDeliveryStore, MealDeliveryStore>();
+        services.AddScoped<IMealSubscriptionStore, MealSubscriptionStore>();
 
         return services;
     }

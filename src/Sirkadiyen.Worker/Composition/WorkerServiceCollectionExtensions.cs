@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Sirkadiyen.Application.Announcements;
 using Sirkadiyen.Application.GoogleCalendar;
+using Sirkadiyen.Application.Meals;
 using Sirkadiyen.Application.StudentProfiles;
 using Sirkadiyen.Application.Auditing;
 using Sirkadiyen.Application.Operations;
@@ -14,6 +15,7 @@ using Sirkadiyen.Application.Scheduling.Publication;
 using Sirkadiyen.Application.Scheduling.Sources;
 using Sirkadiyen.Domain.Scheduling.Diffing;
 using Sirkadiyen.Infrastructure.Google;
+using Sirkadiyen.Infrastructure.Meals;
 using Sirkadiyen.Infrastructure.Notifications;
 using Sirkadiyen.Infrastructure.Persistence;
 using Sirkadiyen.Infrastructure.Scheduling.Ingestion;
@@ -23,6 +25,7 @@ using Sirkadiyen.Infrastructure.Security;
 using Sirkadiyen.Worker.Calendars;
 using Sirkadiyen.Worker.Configuration;
 using Sirkadiyen.Worker.Health;
+using Sirkadiyen.Worker.Meals;
 using Sirkadiyen.Worker.Sources;
 
 namespace Sirkadiyen.Worker.Composition;
@@ -94,6 +97,17 @@ internal static class WorkerServiceCollectionExtensions
         services.AddScoped<CalendarReconciliationService>();
         services.AddScoped<CalendarInventoryReconciliationService>();
         services.AddScoped<AnnouncementDispatchService>();
+
+        // The cafeteria menu (ADR-150): its options, the client that reads the faculty API, the
+        // acquisition and convergence services, and the two worker tasks that drive them.
+        MealMenuOptions mealMenuOptions = options.CreateMealMenuOptions();
+        services.AddSingleton(mealMenuOptions);
+        services.AddSirkadiyenMealMenuClient(options.MealMenuBaseUrl, options.MealMenuTimeout);
+        services.AddScoped<MealMenuAcquisitionService>();
+        services.AddScoped<MealDeliveryService>();
+        services.AddSingleton<MealMenuAcquisitionTask>();
+        services.AddSingleton<MealDeliveryTask>();
+
         services.AddSingleton<GoogleSheetsServiceFactory>();
         services.AddSingleton<SheetsService>(provider =>
             provider.GetRequiredService<GoogleSheetsServiceFactory>().Create(googleOptions));

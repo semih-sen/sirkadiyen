@@ -11,6 +11,7 @@ import { Banner, StudentTopbar } from '@/components/ui';
 import { DepartmentColorEditor } from '@/components/DepartmentColorEditor';
 import { DeleteAccountCard } from '@/components/DeleteAccountCard';
 import { GoogleCalendarAppLinks } from '@/components/GoogleCalendarAppLinks';
+import { MealMenuCard } from '@/components/MealMenuCard';
 import { formatDateTime, statusBadge } from '@/components/AdminData';
 import type { CalendarSyncProgressResponse, LicenseStatusResponse, StudentProfileView, UserScheduleChangeView, UserScheduleEventView } from '@/lib/types';
 
@@ -127,6 +128,7 @@ function Dashboard() {
           <section className="card card-content"><h3 style={{ fontSize: 15 }}>Akademik profil</h3>{errors.profile ? <p className="error">{errors.profile}</p> : profile ? <div style={{ marginTop: 10 }}><div className="summary-row"><span className="muted">Dönem</span><strong>{profile.classYear}</strong></div><div className="summary-row"><span className="muted">Program dili</span><strong>{PROGRAM_LABELS[profile.programLanguage] ?? profile.programLanguage}</strong></div>{Object.entries(profile.selectors).map(([key, value]) => <div className="summary-row" key={key}><span className="muted">{SELECTOR_LABELS[key] ?? key}</span><strong>{value}</strong></div>)}<p style={{ marginTop: 14 }}><Link className="btn btn-secondary btn-sm" href="/profile">Profili düzenle<span aria-hidden="true">→</span></Link></p></div> : <p className="loading-note">Yükleniyor…</p>}</section>
         </div>
         <div className="dash-cell dash-cell--app"><GoogleCalendarAppLinks /></div>
+        <div className="dash-cell dash-cell--meals"><MealMenuCard /></div>
         <div className="dash-cell dash-cell--license">
           <section className="card card-content"><h3 style={{ fontSize: 15 }}>Lisans erişimi</h3>{errors.license ? <p className="error">{errors.license}</p> : license ? <div style={{ marginTop: 10 }}><span className={`badge ${statusBadge(license.state)}`}>{license.state === 'Active' ? 'Aktif' : license.state === 'Suspended' ? 'Askıda' : 'Etkin değil'}</span><div className="summary-row"><span className="muted">Etkinleştirme</span><strong>{formatDateTime(license.activatedAtUtc)}</strong></div>{license.revokedAtUtc && <div className="summary-row"><span className="muted">İptal</span><strong>{formatDateTime(license.revokedAtUtc)}</strong></div>}<p className="muted" style={{ fontSize: 12, marginTop: 8 }}>Lisans tek kullanımlık hesap aktivasyonudur; abonelik süresi değildir.</p></div> : <p className="loading-note">Yükleniyor…</p>}</section>
         </div>

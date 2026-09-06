@@ -1635,3 +1635,39 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
 - **Not done / not verified:** İngilizce dikey koridor kaynağı henüz yok (`İNG` sayfası boş);
   dolunca ayrı katalog girdisi + kohort deklarasyonu gerekecek. .NET tarafı bu değişiklikten
   etkilenmiyor (parser Python'da, sözleşme aynı); C# derlemesi çalıştırılmadı çünkü değişiklik yok.
+
+## Cafeteria (yemekhane) lunch menu — ADR-150 (2026-09-06)
+
+- **What changed:** Added a whole new `Meals` feature — the faculty cafeteria lunch menu on student
+  calendars — modeled on announcements (ADR-107) rather than the schedule pipeline. Answered the
+  design question decisively: **re-poll a rolling 35-day window + per-day hash + diff**, never
+  "poll once" (a future month can't be fetched before publication, and published menus get edited).
+- **Files changed (backend):** new `src/Sirkadiyen.Domain/Meals/*` (`MealMenuDay`,
+  `MealCalendarDelivery`, `MealMenuSubscription`, `MealEnums`); new `src/Sirkadiyen.Application/Meals/*`
+  (`MealMenuAcquisitionService`, `MealDeliveryService`, `MealSubscriptionService`, `MealEventFactory`,
+  `MealCategoryCatalog`, `MealMenuText`, `MealMenuOptions`, three store interfaces, API-client
+  interface); `ManagedCalendarEventFactory` gained `MealKind` + `IsNonScheduleKind`, used by
+  `CalendarInventoryReconciliationService` and `CalendarVerificationComparer` so menu events are
+  ignored by inventory/verification. New `src/Sirkadiyen.Infrastructure/Meals/SksMealMenuApiClient`
+  + DI; three EF configs + stores under `Persistence/Meals`; migration `AddCafeteriaMenus`
+  (3 tables, unique + query indexes, skip-reason check constraint). Worker: `MealMenuAcquisitionTask`
+  (poll, outside the fence, self-gated ~12h) and `MealDeliveryTask` (convergence, inside the fence,
+  after announcements), wired through `Worker.cs` and `FencedCalendarMaintenanceTask`; options via
+  `WorkerOptionsFactory.CreateMealMenuOptions` + `SIRKADIYEN_MEALS__*` in `.env.example` (disabled by
+  default). API: `GET`/`PUT /api/meals/subscription` (`MealEndpoints`), `MealSubscriptionService`
+  registered.
+- **Files changed (frontend):** `MealSubscriptionView` type; `getMealSubscription`/`setMealSubscription`
+  in `lib/api.ts`; new reversible `MealMenuCard` component placed on the dashboard and offered on the
+  onboarding sync page (optional, non-blocking).
+- **Behaviour:** lunch is a timed **12:30–13:00** Europe/Istanbul event; **one central menu** (API
+  has no campus param); the preference is **live/reversible** (enable backfills the window, disable
+  removes the events). A day is only **withdrawn after 3 consecutive confirmed misses**, and a
+  transport failure is never a miss, so an outage can't mass-delete menus. Consent is captured at
+  onboarding but does **not** gate `Active`.
+- **Tests executed:** 22 new backend unit tests (domain, text/hash, event id disjointness,
+  acquisition, delivery) — all pass; 4 new `MealMenuCard` frontend tests — pass. `dotnet build`
+  clean across the solution; `npm run typecheck` clean.
+- **Not done / follow-ups:** persistence store tests against a live Postgres (the convergence queries
+  in `MealDeliveryStore` are only exercised by fakes so far); a DB-backed acquisition gate if worker
+  instances multiply (today it self-gates in memory + tolerates the unique-index race); `next lint`
+  and `npm run build` were not re-run this session.

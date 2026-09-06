@@ -11,6 +11,7 @@ using Sirkadiyen.Application.Finance;
 using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Identity;
 using Sirkadiyen.Application.Licensing;
+using Sirkadiyen.Application.Meals;
 using Sirkadiyen.Application.Onboarding;
 using Sirkadiyen.Application.Scheduling.Diffing;
 using Sirkadiyen.Application.Scheduling.Ingestion;
@@ -134,6 +135,7 @@ internal static class ApiServiceCollectionExtensions
         services.AddScoped<AuditEventRecorder>();
         services.AddScoped<CalendarAuthorizationService>();
         services.AddScoped<OnboardingStateService>();
+        services.AddScoped<MealSubscriptionService>();
         services.AddScoped<SirkadiyenCookieAuthenticationEvents>();
         services
             .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

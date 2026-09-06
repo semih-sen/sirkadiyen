@@ -56,12 +56,13 @@ public static class CalendarVerificationComparer
             new(StringComparer.Ordinal);
         foreach (ManagedCalendarEventSnapshot calendarEvent in actualEvents)
         {
-            // An administrator-authored announcement is Sirkadiyen-managed but is not schedule truth
-            // (ADR-107); the verification has nothing to say about it, exactly as inventory skips it.
+            // An announcement or a cafeteria menu is Sirkadiyen-managed but is not schedule truth
+            // (ADR-107, ADR-150); the verification has nothing to say about it, exactly as inventory
+            // skips it.
             if (calendarEvent.PrivateProperties.TryGetValue(
                     ManagedCalendarEventFactory.KindKey,
                     out string? kind)
-                && string.Equals(kind, ManagedCalendarEventFactory.AnnouncementKind, StringComparison.Ordinal))
+                && ManagedCalendarEventFactory.IsNonScheduleKind(kind))
             {
                 continue;
             }

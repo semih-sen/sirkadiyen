@@ -28,6 +28,11 @@ internal static class ConfigurationValueParser
             ? fallback
             : int.Parse(value, CultureInfo.InvariantCulture);
 
+    public static bool Bool(string? value, bool fallback) =>
+        string.IsNullOrWhiteSpace(value)
+            ? fallback
+            : bool.Parse(value);
+
     public static TimeSpan Duration(string? value, TimeSpan fallback) =>
         string.IsNullOrWhiteSpace(value)
             ? fallback

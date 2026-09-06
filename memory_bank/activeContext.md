@@ -3854,3 +3854,25 @@ Hiçbir yüzey *neden* olduğunu göstermiyordu.
   (`/srv/sirkadiyen/shared/config/schedule-sources.json`) admin panelindeki "Kaynak kataloğu"
   düzenleyicisinden ya da deploy ile senkron edilmeli. Ayrıca yeni Drive dosyasının erişilebilir
   (çöpte değil) ve paylaşımının doğru olduğu, ilk poll'da teyit edilmeli.
+
+## Latest implementation session (2026-09-06, cafeteria menu — ADR-150)
+
+The faculty cafeteria **lunch menu** now reaches student calendars, as a new `Meals` feature kept
+deliberately outside the schedule pipeline (it is the product speaking, not schedule truth — the
+ADR-107 boundary). Acquisition re-polls a rolling 35-day window and diffs per day; delivery is a
+convergence inside the shared Calendar fence, after announcements. The preference is live and
+reversible (`MealMenuSubscription`), captured at onboarding without gating `Active`, and also
+toggleable from the dashboard. Lunch is a timed 12:30–13:00 Europe/Istanbul event; one central menu;
+a day is withdrawn only after three confirmed misses and never on a transport failure. The whole
+pipeline is disabled by default (`SIRKADIYEN_MEALS__ENABLED`).
+
+- **Open risks / follow-ups:**
+  - No persistence store tests yet: `MealDeliveryStore`'s convergence queries (`ReconcileOwedAsync`,
+    `ListWriteTargetsAsync`, `ListRemovalTargetsAsync`) are covered only by service-level fakes. They
+    should get `Sirkadiyen.Persistence.Tests` coverage against a real Postgres before heavy use.
+  - Acquisition self-gates per worker instance in memory and leans on the unique
+    `(LocalDate, Category)` index to absorb a race between instances; if instances multiply, move the
+    gate to a DB-backed "last acquired" row so only one instance polls per interval.
+  - `next lint` and `npm run build` were not re-run this session (typecheck and the new component
+    test pass); run them before shipping the frontend.
+  - The migration `AddCafeteriaMenus` has not been applied to any live database yet.

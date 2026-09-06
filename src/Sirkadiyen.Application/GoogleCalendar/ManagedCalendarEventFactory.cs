@@ -24,6 +24,18 @@ public static class ManagedCalendarEventFactory
     /// <summary>The <see cref="KindKey"/> value of an administrator-authored announcement.</summary>
     public const string AnnouncementKind = "announcement";
 
+    /// <summary>The <see cref="KindKey"/> value of a cafeteria menu event (ADR-150).</summary>
+    public const string MealKind = "meal";
+
+    /// <summary>
+    /// Whether a <see cref="KindKey"/> value marks a managed event that is Sirkadiyen's but is not
+    /// schedule truth — an announcement or a menu (ADR-107, ADR-150). Inventory and verification use
+    /// it to leave such events alone rather than reporting them as unexpected marked events.
+    /// </summary>
+    public static bool IsNonScheduleKind(string? kind) =>
+        string.Equals(kind, AnnouncementKind, StringComparison.Ordinal)
+        || string.Equals(kind, MealKind, StringComparison.Ordinal);
+
     // RFC 4648 base32hex alphabet, lowercase. Every symbol is in Google Calendar's allowed
     // event-id set (a-v and 0-9), so a hash encoded with it is always a valid id.
     private const string Base32HexAlphabet = "0123456789abcdefghijklmnopqrstuv";

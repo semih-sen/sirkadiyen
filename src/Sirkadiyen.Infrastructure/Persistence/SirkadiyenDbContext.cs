@@ -5,6 +5,7 @@ using Sirkadiyen.Domain.Finance;
 using Sirkadiyen.Domain.GoogleCalendar;
 using Sirkadiyen.Domain.Identity;
 using Sirkadiyen.Domain.Licensing;
+using Sirkadiyen.Domain.Meals;
 using Sirkadiyen.Domain.Observability;
 using Sirkadiyen.Domain.Operations;
 using Sirkadiyen.Domain.Scheduling.Diffing;
@@ -125,6 +126,12 @@ public sealed class SirkadiyenDbContext(DbContextOptions<SirkadiyenDbContext> op
 
     public DbSet<StudentRosterCatalogRevision> StudentRosterCatalogRevisions =>
         Set<StudentRosterCatalogRevision>();
+
+    public DbSet<MealMenuDay> MealMenuDays => Set<MealMenuDay>();
+
+    public DbSet<MealCalendarDelivery> MealCalendarDeliveries => Set<MealCalendarDelivery>();
+
+    public DbSet<MealMenuSubscription> MealMenuSubscriptions => Set<MealMenuSubscription>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
