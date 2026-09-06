@@ -108,6 +108,34 @@ public sealed class MealEventFactoryTests
         Assert.True(ManagedCalendarEventFactory.IsNonScheduleKind(
             calendarEvent.PrivateProperties[ManagedCalendarEventFactory.KindKey]));
     }
+
+    [Fact]
+    public void AColourPickedInTheFacultyPaletteWinsOverTheCatalogueDefault()
+    {
+        MealMenuDayContent day = new()
+        {
+            LocalDate = Date,
+            Category = MealCategory.Lunch,
+            MealText = "Çorba",
+            ContentVersion = 1,
+        };
+        Dictionary<string, string> palette = new(StringComparer.Ordinal)
+        {
+            [CalendarPresentationColorCatalog.MealLunchKey] = "#123456",
+        };
+
+        ManagedCalendarEvent painted = MealEventFactory.ToManagedEvent(
+            Guid.CreateVersion7(), day, Presentation, palette);
+        Assert.Equal("#123456", painted.Label.BackgroundColor);
+
+        // Without a palette (or a missing key) it falls back to the catalogue default, and that
+        // default matches the palette's own system default so nothing shifts colour on first sight.
+        ManagedCalendarEvent fallback = MealEventFactory.ToManagedEvent(
+            Guid.CreateVersion7(), day, Presentation);
+        Assert.Equal(
+            MealCategoryCatalog.Get(MealCategory.Lunch).BackgroundColor,
+            fallback.Label.BackgroundColor);
+    }
 }
 
 /// <summary>The menu-day change-detection and conservative-withdrawal rules (ADR-150).</summary>

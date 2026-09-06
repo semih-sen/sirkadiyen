@@ -153,6 +153,7 @@ public sealed class MealDeliveryServiceTests
             new FakeTokenProtector(),
             new FakeConnectionHealthWriter(),
             new FakeFreezeStore(Frozen),
+            TestDepartmentColors.Create(),
             new MealMenuOptions { TimeZoneId = "Europe/Istanbul" },
             new FixedTimeProvider(Now));
     }

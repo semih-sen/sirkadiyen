@@ -9351,3 +9351,12 @@ The question posed was whether to poll each day once or to snapshot and re-poll 
 - Follow-ups recorded in `activeContext.md`: the frontend consent/settings toggle, persistence store
   tests against a live database, and (if instances multiply) a DB-backed acquisition gate instead of
   the per-instance interval.
+
+**Amendment (2026-09-06):** the menu colour joins the faculty calendar palette (ADR-072) rather than
+staying a fixed catalogue colour. `meal:lunch` is now a `CalendarPresentationColorCatalog` category —
+so it appears in the `DepartmentColorEditor` for both the student (per-user override) and the admin
+(default), and `MealDeliveryService` resolves each viewer's effective colour and passes it to
+`MealEventFactory`, exactly as the schedule fan-out paints lessons. The colour key equals the event's
+label key, so a picked colour is the one the menu carries. A colour change applies to menu days
+written or patched afterwards (a content change repaints; toggling the menu off and on forces an
+immediate repaint) — the same forward-applying behaviour lesson colours have.

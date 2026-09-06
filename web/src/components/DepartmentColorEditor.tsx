@@ -16,6 +16,22 @@ function contrastColor(hex: string): string {
   return (rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000 > 150 ? '#173332' : '#ffffff';
 }
 
+// The sample chip shown in each category card's colour preview. Keyed by the server-owned colour
+// key so a new category (e.g. the cafeteria menu, ADR-150) reads correctly instead of falling into
+// the integrated-session default. Anything unmapped shows its own name and no time.
+function categoryPreview(key: string, name: string): { title: string; meta: string } {
+  switch (key) {
+    case 'practice':
+      return { title: 'UYGULAMA - FİZYOLOJİ', meta: '10.30 · Ders' };
+    case 'integrated-session':
+      return { title: 'Entegre oturum', meta: '10.30 · Ders' };
+    case 'meal:lunch':
+      return { title: '🍽️ Öğle Yemeği', meta: '12.30 · Yemekhane' };
+    default:
+      return { title: name, meta: '' };
+  }
+}
+
 export function DepartmentColorEditor({ mode, collapsible = false }: { mode: 'admin' | 'user'; collapsible?: boolean }) {
   const [items, setItems] = useState<DepartmentColorView[]>([]);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -157,7 +173,7 @@ export function DepartmentColorEditor({ mode, collapsible = false }: { mode: 'ad
                   <article className="department-color-card category-color-card" key={item.key}>
                     <div className="department-color-preview" style={{ background: color, color: contrastColor(color) }}>
                       <span className="department-calendar-date">18</span>
-                      <span><strong>{item.key === 'practice' ? 'UYGULAMA - FİZYOLOJİ' : 'Entegre oturum'}</strong><small>10.30 · Ders</small></span>
+                      {(() => { const preview = categoryPreview(item.key, item.name); return <span><strong>{preview.title}</strong><small>{preview.meta}</small></span>; })()}
                     </div>
                     <div className="department-color-body">
                       <div className="department-color-name"><div><h3>{item.name}</h3><span>{item.description}</span></div><span className={`color-origin ${customized ? 'custom' : ''}`}>{customized ? 'Özel' : 'Varsayılan'}</span></div>

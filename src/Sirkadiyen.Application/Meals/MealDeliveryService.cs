@@ -21,6 +21,7 @@ public sealed class MealDeliveryService(
     ICalendarTokenProtector tokenProtector,
     ICalendarConnectionHealthWriter connectionStore,
     IOperationalFreezeStore freezeStore,
+    DepartmentColorService departmentColors,
     MealMenuOptions options,
     TimeProvider timeProvider)
 {
@@ -114,6 +115,12 @@ public sealed class MealDeliveryService(
         {
             RefreshToken = tokenProtector.Unprotect(target.ProtectedRefreshToken!),
         };
+
+        // The viewer's effective palette, so a colour picked in the faculty palette (ADR-072) is the
+        // one the menu carries. Resolved per user and cached within the pass, exactly as the schedule
+        // fan-out resolves lesson colours.
+        IReadOnlyDictionary<string, string> colors = await DepartmentColorPaletteResolver.GetAsync(
+            departmentColors, target.UserId, cancellationToken);
         ManagedCalendarEvent calendarEvent = MealEventFactory.ToManagedEvent(
             target.UserId,
             new MealMenuDayContent
@@ -123,7 +130,8 @@ public sealed class MealDeliveryService(
                 MealText = target.MealText,
                 ContentVersion = target.ContentVersion,
             },
-            presentation);
+            presentation,
+            colors);
 
         try
         {

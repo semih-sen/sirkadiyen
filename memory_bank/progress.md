@@ -1671,3 +1671,17 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
   in `MealDeliveryStore` are only exercised by fakes so far); a DB-backed acquisition gate if worker
   instances multiply (today it self-gates in memory + tolerates the unique-index race); `next lint`
   and `npm run build` were not re-run this session.
+
+### Meal colour in the faculty palette (ADR-150 amendment, 2026-09-06)
+
+- Made the cafeteria menu recolourable through the existing faculty palette instead of the fixed
+  green. Added `meal:lunch` to `CalendarPresentationColorCatalog` (so it shows in `DepartmentColorEditor`
+  for user and admin), `MealEventFactory.ToManagedEvent` now takes the effective-colours dict and
+  resolves the label colour from it (catalogue default as fallback), and `MealDeliveryService` fetches
+  each viewer's palette via `DepartmentColorPaletteResolver` and passes it — mirroring the lesson
+  fan-out. Frontend: the category card's preview chip is now key-aware (`categoryPreview`) so the meal
+  card reads "🍽️ Öğle Yemeği · 12.30 · Yemekhane" rather than the integrated-session default.
+- **Tests:** +1 factory colour test (palette wins, catalogue fallback); 932 backend unit tests pass;
+  frontend typecheck + the 3 `DepartmentColorEditor` tests pass. `dotnet build` clean.
+- **Note:** a colour change applies to menu days written/patched afterwards (content change repaints;
+  toggle off→on forces an immediate repaint) — same forward-applying behaviour as lesson colours.

@@ -22,16 +22,24 @@ public static class MealEventFactory
     public static string DeterministicEventId(Guid userId, DateOnly localDate, MealCategory category) =>
         ManagedCalendarEventFactory.DeterministicEventId(userId, EventIdentity(localDate, category));
 
+    /// <param name="categoryColors">
+    /// The viewer's effective calendar palette (ADR-072), keyed by colour key. When it carries the
+    /// meal category's key the menu takes that colour — so a colour picked in the faculty palette
+    /// wins over the catalogue default. Null (or a missing key) falls back to the catalogue colour.
+    /// </param>
     public static ManagedCalendarEvent ToManagedEvent(
         Guid userId,
         MealMenuDayContent day,
-        MealEventPresentation presentation)
+        MealEventPresentation presentation,
+        IReadOnlyDictionary<string, string>? categoryColors = null)
     {
         ArgumentNullException.ThrowIfNull(day);
         ArgumentNullException.ThrowIfNull(presentation);
         presentation.Validate();
 
         MealCategoryPresentation category = MealCategoryCatalog.Get(day.Category);
+        string backgroundColor =
+            categoryColors?.GetValueOrDefault(category.Key) ?? category.BackgroundColor;
 
         // The kind marker is what lets calendar inventory tell a menu apart from a lesson. Without
         // it, a level-triggered scan comparing calendars against published schedule truth would
@@ -55,7 +63,7 @@ public static class MealEventFactory
             {
                 Id = CalendarLabelId.For(category.Key),
                 Name = category.Name,
-                BackgroundColor = category.BackgroundColor,
+                BackgroundColor = backgroundColor,
             },
             TimeZoneId = presentation.TimeZoneId,
             IsAllDay = false,
