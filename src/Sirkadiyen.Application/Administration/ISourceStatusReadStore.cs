@@ -56,6 +56,18 @@ public sealed record SourceStatusListItem
 
     public int? LatestParseErrorCount { get; init; }
 
+    /// <summary>
+    /// Why the latest parse run failed, when its status is <see cref="ParseRunStatus.Failed"/>.
+    /// </summary>
+    /// <remarks>
+    /// A failed run stores no parser response, so it carries no warnings and its warning/error counts
+    /// are both zero. Without this the screen shows a red "Failed" badge with "0 / 0" beside it and no
+    /// way to tell a transport timeout apart from a rejected candidate. The reason is the exception the
+    /// poll recorded on the run; it is not a warning list, and it is the only place the cause of a
+    /// failed parse is visible.
+    /// </remarks>
+    public string? LatestParseFailureReason { get; init; }
+
     public Guid? LatestRevisionId { get; init; }
 
     public RevisionState? LatestRevisionState { get; init; }

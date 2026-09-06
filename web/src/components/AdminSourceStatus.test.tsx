@@ -56,6 +56,44 @@ describe('AdminSourceWorkspace', () => {
     expect(await screen.findByText(/is in the trash/)).toBeInTheDocument();
   });
 
+  it('shows why the latest parse run failed, inline and in the detail', async () => {
+    // A failed run stores no parser response, so the warning list below is empty and the
+    // warning/error counts are both zero. Without the reason the row is a red "Failed" badge next to
+    // "0 / 0" and nothing that says what to fix.
+    const reason =
+      "InvalidDataException: Candidate 'S1!R4C3' contradicts its configured source context.";
+    const failed = {
+      ...summary,
+      sourceId: 'G1-TR-PRACTICE',
+      displayName: 'Dönem 1 Türkçe uygulama programı',
+      latestParseRunStatus: 'Failed',
+      latestParseWarningCount: 0,
+      latestParseErrorCount: 0,
+      latestParseRunAtUtc: '2026-09-06T12:15:00Z',
+      latestParseFailureReason: reason,
+    };
+    api.listAdminSources.mockResolvedValue([failed]);
+    api.getAdminSource.mockResolvedValue({
+      summary: failed,
+      parserProfile: 'grade1_practice_v1',
+      parserProfileVersion: '1.2.0',
+      latestParseWarnings: [],
+      recentSnapshots: [],
+    });
+
+    const user = userEvent.setup();
+    render(<AdminSourceWorkspace />);
+
+    // Inline in the table (truncated preview), and in full inside the detail drawer.
+    expect(await screen.findAllByText(new RegExp('contradicts its configured source context'))).not.toHaveLength(0);
+    await user.click(screen.getByText('Dönem 1 Türkçe uygulama programı'));
+    expect(await screen.findByText('Parse başarısız oldu.')).toBeInTheDocument();
+    // The reason shows both inline in the row and in the drawer, so more than one node carries it.
+    expect(
+      screen.getAllByText(new RegExp(reason.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))),
+    ).not.toHaveLength(0);
+  });
+
   it('shows persisted parser warning details without exposing a parse action', async () => {
     const user = userEvent.setup();
     render(<AdminSourceWorkspace />);

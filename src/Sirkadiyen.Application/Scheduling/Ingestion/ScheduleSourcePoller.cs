@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Sirkadiyen.Application.Common;
 using Sirkadiyen.Application.Operations;
 using Sirkadiyen.Application.Scheduling.Parsing;
 using Sirkadiyen.Application.Scheduling.Publication;
@@ -507,12 +508,11 @@ public sealed class ScheduleSourcePoller(
             AuxiliarySnapshots = auxiliarySnapshots,
         };
 
-    private static string FormatFailure(Exception exception)
-    {
-        const int maximumLength = 1900;
-        string failure = $"{exception.GetType().Name}: {exception.Message}";
-        return failure.Length <= maximumLength ? failure : failure[..maximumLength];
-    }
+    private static string FormatFailure(Exception exception) =>
+        // The whole chain, not just the outer message: a parse persisted through EF fails with a
+        // DbUpdateException whose own message names no cause, and the PostgresException it wraps is
+        // the only thing that says which column or constraint the candidate violated.
+        ExceptionSummary.Describe(exception);
 
     /// <summary>
     /// Records on the result how this cycle chose its document, for a source that

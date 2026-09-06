@@ -439,6 +439,8 @@ export interface SourceStatusListItem {
   latestParseRunAtUtc?: string | null;
   latestParseWarningCount?: number | null;
   latestParseErrorCount?: number | null;
+  /** Why the latest parse run failed; set only when latestParseRunStatus is 'Failed'. */
+  latestParseFailureReason?: string | null;
   latestRevisionId?: string | null;
   latestRevisionState?: RevisionState | null;
   latestRevisionAtUtc?: string | null;

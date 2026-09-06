@@ -108,7 +108,16 @@ function SourceStatus() {
                       </small>
                     )}
                   </td>
-                  <td><span className={`badge ${statusBadge(item.latestParseRunStatus ?? 'unknown')}`}>{item.latestParseRunStatus ?? 'Veri yok'}</span></td>
+                  <td>
+                    <span className={`badge ${statusBadge(item.latestParseRunStatus ?? 'unknown')}`}>{item.latestParseRunStatus ?? 'Veri yok'}</span>
+                    {/* A failed run stores no warnings, so the reason has to sit next to the badge;
+                        the full text is in the detail drawer. */}
+                    {item.latestParseRunStatus === 'Failed' && item.latestParseFailureReason && (
+                      <small className="source-failure-reason mono" style={{ display: 'block', marginTop: 4 }}>
+                        {truncateReason(item.latestParseFailureReason)}
+                      </small>
+                    )}
+                  </td>
                   <td>{item.latestParseWarningCount ?? 0} / {item.latestParseErrorCount ?? 0}</td>
                   <td><span className={`badge ${statusBadge(item.latestRevisionState ?? 'unknown')}`}>{item.latestRevisionState ?? 'Veri yok'}</span></td>
                 </tr>
@@ -153,6 +162,22 @@ function SourceDetail({
           <span className="muted">
             Aşağıdaki parse, revizyon ve snapshot bilgileri bu son başarılı okumaya ait; bu kaynak
             o tarihten beri yeni bir program yayımlamıyor.
+          </span>
+        </Banner>
+      )}
+
+      {/* A failed parse stores no response, so it produces no warning rows below; its cause lives
+          only on the run itself and has to be shown on its own. */}
+      {detail.summary.latestParseRunStatus === 'Failed' && detail.summary.latestParseFailureReason && (
+        <Banner tone="danger">
+          <strong>Parse başarısız oldu.</strong>{' '}
+          {detail.summary.latestParseRunAtUtc && (
+            <>Son deneme: {formatDateTime(detail.summary.latestParseRunAtUtc)}.</>
+          )}
+          <p className="mono source-failure-reason">{detail.summary.latestParseFailureReason}</p>
+          <span className="muted">
+            Başarısız koşu bir parser yanıtı saklamaz; bu yüzden aşağıda uyarı listelenmez.
+            Öğrencilerin takviminde son başarılı revizyon duruyor.
           </span>
         </Banner>
       )}
@@ -343,6 +368,15 @@ function ParserWarning({ warning }: { warning: ParserWarningView }) {
  * "4 gündür" is the sentence that makes this actionable; a timestamp alone reads as just another
  * date on a screen already full of them, which is how four days of failure went unnoticed.
  */
+/**
+ * A one-line preview of a parse failure for the table cell, where the full exception would blow the
+ * row height apart. The whole reason is still shown, untrimmed, in the detail drawer.
+ */
+function truncateReason(reason: string): string {
+  const firstLine = reason.split('\n', 1)[0].trim();
+  return firstLine.length > 120 ? `${firstLine.slice(0, 119)}…` : firstLine;
+}
+
 function describeFailingSince(failedAtUtc: string): string {
   const failedAt = new Date(failedAtUtc);
   if (Number.isNaN(failedAt.getTime())) return 'Bir süredir';

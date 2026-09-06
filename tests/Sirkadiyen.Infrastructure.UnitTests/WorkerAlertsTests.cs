@@ -74,6 +74,23 @@ public sealed class WorkerAlertsTests
     }
 
     [Fact]
+    public void AFailedValidationSurfacesTheInnerCauseNotTheGenericWrapper()
+    {
+        // The exact fault flooding the channel: a DbUpdateException whose own message names no cause.
+        // The detail an operator reads has to carry the inner exception, or every alert says only
+        // "See the inner exception for details" and nothing to act on.
+        var failure = new InvalidOperationException(
+            "An error occurred while saving the entity changes. See the inner exception for details.",
+            new InvalidOperationException(
+                "23505: duplicate key value violates unique constraint \"ix_records_identity\""));
+
+        OperatorAlert alert = WorkerAlerts.RevisionValidationFailed(Guid.CreateVersion7(), failure);
+
+        string detail = alert.Fields.Single(field => field.Label == "Ayrıntı").Value;
+        Assert.Contains("duplicate key value violates unique constraint", detail);
+    }
+
+    [Fact]
     public void AnOrdinaryDiffReportsTheCountsAsInformation()
     {
         OperatorAlert alert = WorkerAlerts.DiffCalculated(Diff(ScheduleDiffChange.Created, 12));

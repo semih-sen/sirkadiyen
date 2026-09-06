@@ -1,4 +1,5 @@
 using System.Globalization;
+using Sirkadiyen.Application.Common;
 using Sirkadiyen.Application.Notifications;
 using Sirkadiyen.Application.Operations;
 using Sirkadiyen.Domain.Scheduling.Diffing;
@@ -100,7 +101,7 @@ internal static class WorkerAlerts
             [
                 SourceField(sourceId),
                 new OperatorAlertField("Hata", failure.GetType().Name),
-                new OperatorAlertField("Ayrıntı", failure.Message),
+                new OperatorAlertField("Ayrıntı", ExceptionSummary.Describe(failure)),
             ],
         };
     }
@@ -156,7 +157,9 @@ internal static class WorkerAlerts
             [
                 new OperatorAlertField("Revizyon", revisionId.ToString()),
                 new OperatorAlertField("Hata", failure?.GetType().Name ?? "bilinmiyor"),
-                new OperatorAlertField("Ayrıntı", failure?.Message ?? "-"),
+                new OperatorAlertField(
+                    "Ayrıntı",
+                    failure is null ? "-" : ExceptionSummary.Describe(failure)),
             ],
         };
 
@@ -251,7 +254,7 @@ internal static class WorkerAlerts
             [
                 new OperatorAlertField("Aşama", stage),
                 new OperatorAlertField("Hata", failure.GetType().Name),
-                new OperatorAlertField("Ayrıntı", failure.Message),
+                new OperatorAlertField("Ayrıntı", ExceptionSummary.Describe(failure)),
             ],
         };
     }

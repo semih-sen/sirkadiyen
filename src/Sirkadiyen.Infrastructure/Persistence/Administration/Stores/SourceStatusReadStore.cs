@@ -113,6 +113,7 @@ public sealed class SourceStatusReadStore(SirkadiyenDbContext dbContext) : ISour
                     run.CompletedAtUtc,
                     run.WarningCount,
                     run.ErrorCount,
+                    run.FailureReason,
                 })
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -144,6 +145,7 @@ public sealed class SourceStatusReadStore(SirkadiyenDbContext dbContext) : ISour
             LatestParseRunAtUtc = latestRun?.CompletedAtUtc ?? latestRun?.StartedAtUtc,
             LatestParseWarningCount = latestRun?.WarningCount,
             LatestParseErrorCount = latestRun?.ErrorCount,
+            LatestParseFailureReason = latestRun?.FailureReason,
             LatestRevisionId = latestRevision?.Id,
             LatestRevisionState = latestRevision?.State,
             LatestRevisionAtUtc = latestRevision?.CreatedAtUtc,
