@@ -164,15 +164,15 @@
       "notes": "The committed 2025-2026 fixture states eight practice cohorts A-H and no subgroup values. It is also the only committed source that writes a numeric date, which is why this profile declares dayFirst (ADR-075)."
     },
     {
-      "sourceId": "G2-VERTICAL-SPRING",
-      "displayName": "Dönem 2 dikey koridor beceri uygulamaları bahar",
+      "sourceId": "G2-VERTICAL",
+      "displayName": "Dönem 2 dikey koridor beceri uygulamaları",
       "transport": "googleDriveFile",
-      "documentFormat": "docx",
-      "sourceUri": "https://drive.google.com/file/d/1ItUSpg1uDHLiqokyVFLEMHdGT0reLZeQ/view",
-      "externalId": "1ItUSpg1uDHLiqokyVFLEMHdGT0reLZeQ",
+      "documentFormat": "xlsx",
+      "sourceUri": "https://drive.google.com/file/d/1-EigEZue7FVRoRxx0J_FXcZxypVbozVD/view",
+      "externalId": "1-EigEZue7FVRoRxx0J_FXcZxypVbozVD",
       "parserProfile": "grade2_vertical_corridor_v1",
-      "parserProfileVersion": "1.2.0",
-      "academicYear": "2025-2026",
+      "parserProfileVersion": "1.3.0",
+      "academicYear": "2026-2027",
       "classYear": 2,
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
@@ -206,54 +206,8 @@
           "H2"
         ]
       },
-      "fixturePath": "sheets/donem-2-tr/Dönem 2 Beceri Uyg BAHAR Takvim 26.01.2025.docx",
-      "notes": "Same lettered cohorts as G2-TR-PRACTICE, whose '*' cells this document answers (ADR-077). The spring document states every group and fourteen of the sixteen subgroups; the remaining two sit in rows refused for a wrong year. Student Affairs edits this document during the year, so it must be re-acquired rather than converted once. The English cohorts it also carries are counted and not published under a Turkish source."
-    },
-    {
-      "sourceId": "G2-VERTICAL-AUTUMN",
-      "displayName": "Dönem 2 dikey koridor beceri uygulamaları güz",
-      "transport": "googleDriveFile",
-      "documentFormat": "docx",
-      "sourceUri": "https://drive.google.com/file/d/1VyDtK-p2qtTkT2H6KUQ-5_k4MuZzkZqe/view",
-      "externalId": "1VyDtK-p2qtTkT2H6KUQ-5_k4MuZzkZqe",
-      "parserProfile": "grade2_vertical_corridor_v1",
-      "parserProfileVersion": "1.2.0",
-      "academicYear": "2025-2026",
-      "classYear": 2,
-      "programLanguage": "turkish",
-      "timeZoneId": "Europe/Istanbul",
-      "supportedAudienceSelectors": {
-        "practiceGroup": [
-          "A",
-          "B",
-          "C",
-          "D",
-          "E",
-          "F",
-          "G",
-          "H"
-        ],
-        "practiceSubgroup": [
-          "A1",
-          "A2",
-          "B1",
-          "B2",
-          "C1",
-          "C2",
-          "D1",
-          "D2",
-          "E1",
-          "E2",
-          "F1",
-          "F2",
-          "G1",
-          "G2",
-          "H1",
-          "H2"
-        ]
-      },
-      "fixturePath": "sheets/donem-2-tr/Dönem 2 Beceri uygulama takvimi güz.docx",
-      "notes": "As G2-VERTICAL-SPRING. The autumn document has not used a subgroup yet, but the cohort scheme belongs to the programme rather than to the file, and Student Affairs adds rows to it all year, so both dimensions are declared."
+      "fixturePath": "sheets/donem-2-tr/xlsx/2026-2027 Dönem 2 Beceri Uygulama Takvimi.xlsx",
+      "notes": "The 2026-2027 vertical-corridor workbook, a single xlsx with a TR and an (empty) İNG sheet. It replaces the retired 2025-2026 G2-VERTICAL-SPRING and G2-VERTICAL-AUTUMN docx sources, whose Drive files were trashed; profile 1.3.0 reads the new 'Uygulama yeri' corner layout where each practice states its own room (ADR-147). Same lettered cohorts as G2-TR-PRACTICE, whose '*' cells this document answers (ADR-077). Student Affairs fills it in over the year, so it must be re-acquired each cycle. English cohorts on the İNG sheet are counted and not published under a Turkish source."
     },
     {
       "sourceId": "G2-ANATOMY-AUTUMN",

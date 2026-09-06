@@ -23,7 +23,11 @@ internal sealed class RevisionValidationFindingConfiguration
             .IsRequired();
 
         builder.Property(finding => finding.Message).HasMaxLength(2000).IsRequired();
-        builder.Property(finding => finding.Detail).HasColumnType("jsonb").IsRequired();
+
+        // Nullable, not required: a finding with no machine-readable evidence stores SQL NULL.
+        // jsonb has no empty value, so the alternative — an empty string — is rejected as invalid
+        // JSON (22P02) and cannot be the default here.
+        builder.Property(finding => finding.Detail).HasColumnType("jsonb");
 
         // A finding is meaningless without its revision, and a revision's
         // findings are the audit trail for why it was held, so they are deleted

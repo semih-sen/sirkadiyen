@@ -9204,3 +9204,86 @@ same shared primitives on real content.
 - **Open risk:** the English (`İNG`) track is present but empty, so no English vertical-corridor
   source is published yet; when it is filled in it will need its own catalogue entry and a check
   that its cohorts are declared (ADR-048), not read under the Turkish context.
+
+---
+
+## ADR-148: A validation finding's `Detail` is nullable jsonb, never an empty string
+
+**Status:** Accepted
+**Date:** 2026-09-06
+
+### Context
+
+`RevisionValidationFinding.Detail` holds machine-readable JSON evidence for a finding, and its
+column is `jsonb`. The domain defaulted a finding with no evidence to `Detail = string.Empty`. Every
+finding except `EmptyRevision` passes a JSON `detail:`; `EmptyRevision` states its whole case in the
+message and passes none, so it stored `""`. PostgreSQL rejects `""` as invalid JSON (`SQLSTATE
+22P02: invalid input syntax for type json`), so persisting that finding threw `DbUpdateException`.
+
+The generic EF message ("An error occurred while saving the entity changes. See the inner exception
+for details.") was the only text surfaced, so the cause was invisible for weeks (see ADR-149). The
+failure had two faces:
+
+- Every **empty revision** — a companion source such as `G3-TR-A-BEDSIDE` whose empty revision is
+  the expected, permanent outcome (ADR-102) — could not persist its `EmptyRevision` finding, so the
+  revision stayed stranded in `Parsed` and was retried and re-failed every cycle. 25 revisions were
+  stuck this way, the oldest since 2026-08-19.
+- Any source that **parsed to zero candidates** hit the same finding during the poller's inline
+  validation; the throw propagated and marked the *parse run* `Failed`, which is why the affected
+  practice source showed `Failed` on the source-status panel with no stored warnings.
+
+### Decision
+
+Store SQL `NULL`, not `""`, when a finding carries no detail. `Detail` becomes `string?`; the domain
+sets it to `null` for null/whitespace input; the EF column is nullable `jsonb`
+(`MakeRevisionValidationFindingDetailNullable`). The read projection coalesces `Detail ?? ""` so the
+`RevisionFindingView` read contract and the admin UI are unchanged.
+
+### Consequences
+
+- Empty revisions validate and persist their `EmptyRevision` finding, resolving to `Rejected` (a
+  companion's expected terminal state), so they leave the `Parsed` backlog and stop re-alerting.
+- Sources that parse to zero candidates no longer fail the *parse* run on a validation-save error.
+- The migration only widens nullability; no data backfill is needed, because a `""` value could
+  never have been written to the `jsonb` column in the first place.
+- Regression coverage: `ScheduleRevisionValidatorTests` asserts the `EmptyRevision` finding's detail
+  is `null`; `ScheduleRevisionValidationStoreTests.AnEmptyRevisionFindingWithNoDetailPersistsAsNull`
+  proves the round-trip against PostgreSQL.
+
+---
+
+## ADR-149: Failure alerts and the source panel surface the whole exception chain and the parse failure reason
+
+**Status:** Accepted
+**Date:** 2026-09-06
+
+### Context
+
+Diagnosing ADR-148 was slow because no surface showed *why* anything failed. Two gaps:
+
+- Every failure string was built from `exception.Message` alone. For a `DbUpdateException` that is
+  always the generic "See the inner exception for details."; the real cause (`Npgsql.PostgresException`
+  with its SQLSTATE) lives in `InnerException` and was dropped in the Telegram alerts
+  (`WorkerAlerts.SourcePollFailed` / `RevisionValidationFailed` / `StageFailed`) and in the parse
+  run's stored `FailureReason` (`ScheduleSourcePoller.FormatFailure`).
+- The source-status read model (`SourceStatusReadStore`) never projected the parse run's
+  `FailureReason`, so a `Failed` parse showed a red badge with `0 / 0` warnings and no cause. A
+  failed run stores no parser response, so the detail drawer's warning list was empty too.
+
+### Decision
+
+- Add `ExceptionSummary.Describe`, which joins each distinct `TypeName: message` down the
+  `InnerException` chain (capped, de-duplicated, no stack trace), and use it in `FormatFailure` and
+  the three `WorkerAlerts` exception fields.
+- Project the latest parse run's `FailureReason` as `SourceStatusListItem.LatestParseFailureReason`
+  and render it on the status panel — a truncated line beside the `Failed` badge and the full text in
+  the detail drawer.
+
+### Consequences
+
+- The Telegram validation alert now reads `... -> PostgresException: 22P02: invalid input syntax for
+  type json`, and the panel showed the parse failures were `422 unsupportedParserProfile` — the two
+  observations that located ADR-148 and the parser deployment drift (see activeContext).
+- The `RevisionFindingView` read contract is unchanged; only the failure surfaces gained detail.
+- `ExceptionSummary` reports exception text only, never a stack trace, keeping alerts within the
+  logging rules (AI_GUIDELINE §15).

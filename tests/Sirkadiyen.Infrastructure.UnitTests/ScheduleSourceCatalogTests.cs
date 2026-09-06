@@ -16,13 +16,15 @@ public sealed class ScheduleSourceCatalogTests
             .LoadAsync(path, CancellationToken.None);
 
         Assert.Equal("1.0", catalog.CatalogVersion);
-        Assert.Equal(25, catalog.Sources.Count);
+        Assert.Equal(24, catalog.Sources.Count);
         Assert.Equal(8, catalog.Sources.Count(
             source => source.Transport == ScheduleSourceTransport.GoogleSheets));
 
-        // Up from 11: the microbiology/pathology practice document is one Drive DOCX
-        // catalogued once per program (ADR-145).
-        Assert.Equal(13, catalog.Sources.Count(
+        // Down from 13: the two 2025-2026 vertical-corridor DOCX sources
+        // (G2-VERTICAL-SPRING/AUTUMN) were retired for the single 2026-2027 XLSX
+        // workbook G2-VERTICAL (ADR-147). Still counts the microbiology/pathology
+        // practice document catalogued once per program (ADR-145).
+        Assert.Equal(12, catalog.Sources.Count(
             source => source.Transport == ScheduleSourceTransport.GoogleDriveFile));
         foreach (string sourceId in new[] { "G3-TR-MICROPATHO-PRACTICE", "G3-EN-MICROPATHO-PRACTICE" })
         {
@@ -136,10 +138,20 @@ public sealed class ScheduleSourceCatalogTests
             grade2EnglishPractice.SupportedAudienceSelectors!["practiceGroup"]);
         Assert.Equal("1.4.0", grade2EnglishPractice.ParserProfileVersion);
 
+        // The 2026-2027 vertical corridor is a single XLSX workbook (profile 1.3.0),
+        // replacing the retired spring/autumn DOCX split whose Drive files were
+        // trashed (ADR-147).
         ScheduleSourceDefinition vertical = Assert.Single(
             catalog.Sources,
-            source => source.SourceId == "G2-VERTICAL-SPRING");
-        Assert.Equal(ScheduleDocumentFormat.Docx, vertical.DocumentFormat);
+            source => source.SourceId == "G2-VERTICAL");
+        Assert.Equal(ScheduleSourceTransport.GoogleDriveFile, vertical.Transport);
+        Assert.Equal(ScheduleDocumentFormat.Xlsx, vertical.DocumentFormat);
+        Assert.Equal("grade2_vertical_corridor_v1", vertical.ParserProfile);
+        Assert.Equal("1.3.0", vertical.ParserProfileVersion);
+        Assert.Equal("2026-2027", vertical.AcademicYear);
+        Assert.DoesNotContain(
+            catalog.Sources,
+            source => source.SourceId is "G2-VERTICAL-SPRING" or "G2-VERTICAL-AUTUMN");
 
         // The anatomy documents are handed out rather than published, so they
         // name themselves instead of claiming a location they do not have.

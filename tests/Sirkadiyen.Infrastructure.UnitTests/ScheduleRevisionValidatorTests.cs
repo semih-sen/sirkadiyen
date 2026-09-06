@@ -33,7 +33,12 @@ public sealed class ScheduleRevisionValidatorTests
         RevisionValidationResult result = Validate([]);
 
         Assert.Equal(RevisionState.Rejected, result.Outcome);
-        Assert.Equal(RevisionValidationRule.EmptyRevision, result.Findings.Single().Rule);
+        RevisionValidationFinding finding = result.Findings.Single();
+        Assert.Equal(RevisionValidationRule.EmptyRevision, finding.Rule);
+
+        // It carries no machine-readable evidence, so its detail is null rather than the empty
+        // string that PostgreSQL rejects from a jsonb column (22P02).
+        Assert.Null(finding.Detail);
     }
 
     [Fact]
@@ -274,6 +279,7 @@ public sealed class ScheduleRevisionValidatorTests
         RevisionValidationFinding finding = Assert.Single(
             result.Findings,
             candidate => candidate.Rule is RevisionValidationRule.UnknownAudienceSelector);
+        Assert.NotNull(finding.Detail);
         Assert.Contains("practiceSubgroup:D3", finding.Detail, StringComparison.Ordinal);
     }
 
@@ -591,6 +597,7 @@ public sealed class ScheduleRevisionValidatorTests
         Assert.Equal(RevisionState.ReviewRequired, result.Outcome);
 
         // The readings reach the screen, because accepting one is the only way out of this state.
+        Assert.NotNull(finding.Detail);
         Assert.Contains("2027-05-20", finding.Detail, StringComparison.Ordinal);
         Assert.Contains("A248", finding.Detail, StringComparison.Ordinal);
     }

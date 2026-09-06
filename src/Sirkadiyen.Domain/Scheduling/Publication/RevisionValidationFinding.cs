@@ -18,7 +18,6 @@ public sealed class RevisionValidationFinding
     {
         // Materialization constructor.
         Message = string.Empty;
-        Detail = string.Empty;
     }
 
     public RevisionValidationFinding(
@@ -38,7 +37,12 @@ public sealed class RevisionValidationFinding
         Rule = rule;
         Severity = severity;
         Message = message;
-        Detail = detail ?? string.Empty;
+
+        // The column is jsonb, and PostgreSQL rejects an empty string as invalid JSON (22P02). A
+        // finding with no machine-readable evidence — an empty revision states its whole case in the
+        // message — therefore has to store SQL NULL, not "". Storing "" is what stranded every empty
+        // revision in Parsed and failed the inline validation of every source that parsed to nothing.
+        Detail = string.IsNullOrWhiteSpace(detail) ? null : detail;
         AffectedRecordCount = affectedRecordCount;
         CreatedAtUtc = createdAtUtc;
     }
@@ -53,8 +57,10 @@ public sealed class RevisionValidationFinding
 
     public string Message { get; private set; }
 
-    /// <summary>Machine-readable JSON evidence for the finding, or empty.</summary>
-    public string Detail { get; private set; }
+    /// <summary>Machine-readable JSON evidence for the finding, or <see langword="null"/> when the
+    /// finding carries none. Never the empty string: the storage column is jsonb, which has no empty
+    /// value.</summary>
+    public string? Detail { get; private set; }
 
     public int AffectedRecordCount { get; private set; }
 

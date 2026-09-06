@@ -93,7 +93,9 @@ public sealed class ScheduleRevisionReadStore(SirkadiyenDbContext dbContext)
                 Message = finding.Message,
                 AffectedRecordCount = finding.AffectedRecordCount,
                 CreatedAtUtc = finding.CreatedAtUtc,
-                Detail = finding.Detail,
+                // A finding with no evidence stores SQL NULL; the read contract keeps its
+                // non-null string, so no-evidence reads back as the empty string it always did.
+                Detail = finding.Detail ?? string.Empty,
             })
             .ToListAsync(cancellationToken);
 

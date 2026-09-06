@@ -82,7 +82,39 @@ public sealed class ScheduleRevisionValidationStoreTests(PostgresFixture fixture
         Assert.Equal(RevisionValidationRule.LowConfidenceRecord, finding.Rule);
         Assert.Equal(ValidationSeverity.Error, finding.Severity);
         Assert.Equal(1, finding.AffectedRecordCount);
+        Assert.NotNull(finding.Detail);
         Assert.Contains("candidate-1", finding.Detail, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task AnEmptyRevisionFindingWithNoDetailPersistsAsNull()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+
+        // The exact fault that stranded every empty revision in Parsed and failed the inline
+        // validation of every source that parsed to nothing: the EmptyRevision finding carries no
+        // machine-readable detail, and persisting an empty string into the jsonb Detail column is
+        // rejected by PostgreSQL as invalid JSON (22P02). It must store SQL NULL and save cleanly.
+        (_, ScheduleRevision revision) = await AddRevisionAsync(context, []);
+
+        ScheduleRevisionValidationStore store = new(context);
+        RevisionValidationInput input = (await store.LoadAsync(revision.Id, Token))!;
+        Assert.Empty(input.Records);
+
+        RevisionValidationResult result =
+            new ScheduleRevisionValidator(new RevisionValidationOptions()).Validate(input, Now);
+        await store.ApplyAsync(revision.Id, result, Now, Token);
+
+        context.ChangeTracker.Clear();
+        ScheduleRevision stored = await context.ScheduleRevisions.SingleAsync(
+            candidate => candidate.Id == revision.Id,
+            Token);
+        Assert.Equal(RevisionState.Rejected, stored.State);
+
+        RevisionValidationFinding finding = Assert.Single(await FindingsAsync(context, revision.Id));
+        Assert.Equal(RevisionValidationRule.EmptyRevision, finding.Rule);
+        Assert.Null(finding.Detail);
     }
 
     [Fact]

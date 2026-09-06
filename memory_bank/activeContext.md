@@ -3813,3 +3813,44 @@ kaynağın saklı snapshot'larını sürüm değiştiği için yeniden parse ede
 **Açık risk.** İngilizce (`İNG`) track boş; İngilizce dikey koridor kaynağı henüz yok. Dolunca
 kendi katalog girdisi ve kohortlarının Türkçe context altında değil, ADR-048 uyarınca deklare
 edilmesi gerekir.
+
+## Boru hattı doğrulama tıkanması ve hata görünürlüğü (2026-09-06, ADR-148, ADR-149)
+
+**Belirti.** Panelde G1-EN-PRACTICE, G1-TR-PRACTICE, G2-TR-PRACTICE parse `Failed` (sebep yok, `0/0`);
+Telegram'da 25 revizyon "doğrulanamıyor" (`DbUpdateException`, en eski 2026-08-19 `G3-TR-A-BEDSIDE`).
+Hiçbir yüzey *neden* olduğunu göstermiyordu.
+
+**Teşhis — iki ayrı kök neden.**
+- **(A) 22P02 / kod (ADR-148).** `RevisionValidationFinding.Detail` `jsonb`; detaysız `EmptyRevision`
+  bulgusu `""` saklıyordu, PostgreSQL boş string'i geçersiz JSON sayar (`22P02`). Boş revizyon üreten
+  companion kaynaklar `Parsed`'ta takılıyor; 0 aday üreten kaynağın inline doğrulaması parse run'ı
+  `Failed` yapıyordu.
+- **(B) 422 / deploy sapması.** Canlı parser, kataloğun istediği `grade1_practice_v1 1.2.0`'ı
+  tanımıyordu (`422 unsupportedParserProfile`). Repo HEAD sürümü içeriyor → parser'ı HEAD'den yeniden
+  deploy etmek çözer (kod hatası değil).
+
+**Yapılanlar.**
+- (A) `Detail` nullable `jsonb`, boş → SQL `NULL`; migration `MakeRevisionValidationFindingDetailNullable`;
+  okuma sözleşmesi `?? ""` ile korundu. Regresyon: validator + Postgres round-trip testleri.
+- Görünürlük (ADR-149): `ExceptionSummary.Describe` inner-exception zincirini açıyor
+  (`FormatFailure` + `WorkerAlerts`), ve `SourceStatusListItem.LatestParseFailureReason` panelde
+  gösteriliyor. Bu iki yüzey A ve B'yi teşhis ettirdi.
+- Doğrulama: .NET 909 birim testi + web 3/3 geçti; tüm çözüm 0 uyarı/hata.
+
+**Açık işler / riskler.**
+- **(A) fixi henüz canlı DEĞİL.** İlk deploy sadece görünürlük değişikliklerini taşıdı; nullable-jsonb
+  fixi + migration commit'lenip yeniden deploy edilmeli (deploy sırası: migrations → parser → worker).
+  Deploy sonrası `RevisionValidationTask` 25 revizyonu yeniden dener; boş companion revizyonları doğru
+  şekilde `Rejected` olur.
+- **(B)** parser artefaktının HEAD'den kurulduğu doğrulanmalı; 422 sürerse katalog parser'da olmayan
+  bir sürüme işaret ediyordur.
+- **Dönem-2 dikey koridor kataloğu güncellendi (çözüldü).** Eski **G2-VERTICAL-SPRING** ve
+  **G2-VERTICAL-AUTUMN** (profil 1.2.0, çöp kutusundaki 2025-2026 docx dosyaları) tek bir
+  **G2-VERTICAL** kaynağıyla değiştirildi: `googleDriveFile` + `xlsx`, profil
+  `grade2_vertical_corridor_v1 1.3.0`, 2026-2027, externalId `1-EigEZue7FVRoRxx0J_FXcZxypVbozVD`
+  (`config/schedule-sources.json`; `ScheduleSourceCatalogTests` güncellendi — 24 kaynak). Kaynak
+  kaldırma yalnızca polling'i durdurur, yayınlanmış dersleri/takvimi silmez (planlayıcı uyarısı
+  `sources-removed`). **Açık:** bu, repo'daki version-controlled dosyada; canlı katalog
+  (`/srv/sirkadiyen/shared/config/schedule-sources.json`) admin panelindeki "Kaynak kataloğu"
+  düzenleyicisinden ya da deploy ile senkron edilmeli. Ayrıca yeni Drive dosyasının erişilebilir
+  (çöpte değil) ve paylaşımının doğru olduğu, ilk poll'da teyit edilmeli.
