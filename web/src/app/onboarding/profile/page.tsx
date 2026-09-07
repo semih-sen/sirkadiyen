@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { OnboardingGate } from '@/components/OnboardingGate';
 import { useSession } from '@/components/SessionProvider';
 import { AcademicProfileForm } from '@/components/AcademicProfileForm';
+import { MealMenuCard } from '@/components/MealMenuCard';
 import { routeForOnboardingState } from '@/lib/onboarding';
 import { AuthShell, Brand, Stepper } from '@/components/ui';
 
@@ -28,6 +29,11 @@ function ProfileStep() {
           router.replace(routeForOnboardingState(me?.onboardingState ?? result.onboarding.state));
         }}
       />
+
+      {/* İsteğe bağlı ve tamamen tersine çevrilebilir; onboarding'i tıkamaz (ADR-150). */}
+      <div style={{ marginTop: 20 }}>
+        <MealMenuCard />
+      </div>
     </AuthShell>
   );
 }
