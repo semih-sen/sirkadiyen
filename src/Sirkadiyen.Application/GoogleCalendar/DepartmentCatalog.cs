@@ -34,8 +34,12 @@ public static partial class DepartmentCatalog
         D("fiziksel-tip-ve-rehabilitasyon", "Fiziksel Tıp ve Rehabilitasyon", DepartmentDivision.Internal, null, "physical medicine and rehabilitation", "ftr"),
         D("gogus-hastaliklari", "Göğüs Hastalıkları", DepartmentDivision.Internal, null, "chest diseases", "pulmonology", "respiratory medicine"),
         D("halk-sagligi", "Halk Sağlığı", DepartmentDivision.Internal, null, "public health"),
-        D("ic-hastaliklari", "İç Hastalıkları", DepartmentDivision.Internal, null, "internal medicine", "dahiliye", "İç H."),
-        D("infeksiyon-hastaliklari-ve-klinik-mikrobiyoloji", "İnfeksiyon Hastalıkları ve Klinik Mikrobiyoloji", DepartmentDivision.Internal, null, "infectious diseases and clinical microbiology", "enfeksiyon hastaliklari ve klinik mikrobiyoloji", "infectious diseases"),
+        // "İÇ HASTALIKLARI AD.(ROMATOLOJİ )" and the like are how student affairs writes
+        // an internal-medicine session run by its rheumatology division; it is not a
+        // separate department, so the subdivision-in-parentheses variants fold in here.
+        D("ic-hastaliklari", "İç Hastalıkları", DepartmentDivision.Internal, null, "internal medicine", "dahiliye", "İç H.", "iç hastalıkları (romatoloji)", "iç hastalıkları ad (romatoloji)", "iç hastalıkları romatoloji"),
+        // Student affairs sometimes drops "Klinik" from the name; keep the shortened forms as aliases.
+        D("infeksiyon-hastaliklari-ve-klinik-mikrobiyoloji", "İnfeksiyon Hastalıkları ve Klinik Mikrobiyoloji", DepartmentDivision.Internal, null, "infectious diseases and clinical microbiology", "enfeksiyon hastaliklari ve klinik mikrobiyoloji", "infectious diseases", "enfeksiyon hastalıkları ve mikrobiyoloji", "infeksiyon hastalıkları ve mikrobiyoloji"),
         D("kardiyoloji", "Kardiyoloji", DepartmentDivision.Internal, null, "cardiology"),
         D("noroloji", "Nöroloji", DepartmentDivision.Internal, null, "neurology"),
         D("nukleer-tip", "Nükleer Tıp", DepartmentDivision.Internal, null, "nuclear medicine"),
@@ -56,7 +60,10 @@ public static partial class DepartmentCatalog
         D("genel-cerrahi", "Genel Cerrahi", DepartmentDivision.Surgical, null, "general surgery"),
         D("gogus-cerrahisi", "Göğüs Cerrahisi", DepartmentDivision.Surgical, null, "thoracic surgery", "chest surgery"),
         D("goz-hastaliklari", "Göz Hastalıkları", DepartmentDivision.Surgical, null, "ophthalmology", "goz"),
-        D("kadin-hastaliklari-ve-dogum", "Kadın Hastalıkları ve Doğum", DepartmentDivision.Surgical, null, "obstetrics and gynecology", "obstetrics and gynaecology", "kadin dogum"),
+        // Student affairs has entered this one at least three ways: the canonical name,
+        // "KADIN HASTALIKARI VE DOĞUM" (missing an l), and "KADIN HASTALIKLARI VE HASTALIKLARI"
+        // (second word mistyped). All three must land on the same colour.
+        D("kadin-hastaliklari-ve-dogum", "Kadın Hastalıkları ve Doğum", DepartmentDivision.Surgical, null, "obstetrics and gynecology", "obstetrics and gynaecology", "kadin dogum", "kadın hastalıkarı ve doğum", "kadın hastalıkları ve hastalıkları"),
         D("kalp-ve-damar-cerrahisi", "Kalp ve Damar Cerrahisi", DepartmentDivision.Surgical, null, "cardiovascular surgery", "cardiac and vascular surgery", "kvc"),
         D("kulak-burun-bogaz-hastaliklari", "Kulak Burun Boğaz Hastalıkları", DepartmentDivision.Surgical, null, "otorhinolaryngology", "ear nose and throat", "kulak burun bogaz", "kbb", "ent"),
         D("ortopedi-ve-travmatoloji", "Ortopedi ve Travmatoloji", DepartmentDivision.Surgical, null, "orthopedics and traumatology", "orthopaedics and traumatology", "ortopedi"),
