@@ -99,6 +99,21 @@ CASES = (
         _UNNARROWED,
         "parse/g1-tr-practice.json",
     ),
+    # The Turkish practice table with its annual companion (ADR-154). This case
+    # proves the deferral is safe both ways: the amphitheatre physiology the annual
+    # states on 2027-04-28 drops, but the one the annual is silent on
+    # (2026-05-21, `Tüm Gruplar (Amfide)`) is still published — a whole-class
+    # session the annual does not restate must never be lost.
+    (
+        "grade1_practice_v1",
+        "real/g1-tr-practice.snapshot.json",
+        1,
+        "turkish",
+        _Y2026,
+        ("real/g1-tr-annual.snapshot.json",),
+        _UNNARROWED,
+        "parse/g1-tr-practice-with-annual.json",
+    ),
     # The English practice table was catalogued from the start and had no fixture
     # until now, so nothing proved what it published. It turned out to publish a
     # cohort value no student holds (ADR-130); this case is what would have
@@ -144,6 +159,21 @@ CASES = (
         _ALONE,
         _UNNARROWED,
         "parse/g2-tr-practice.json",
+    ),
+    # The Turkish practice table again, with its annual program attached as the
+    # companion that owns whole-class amphitheatre sessions (ADR-154). Its golden
+    # must differ from the plain case only by the three `TÜM GRUPLAR` physiology
+    # cells the annual states in full — they drop here so the student is not
+    # booked into the same session twice — and in nothing else.
+    (
+        "grade2_practice_v1",
+        "real/g2-tr-practice.snapshot.json",
+        2,
+        "turkish",
+        _Y2025,
+        ("real/g2-tr-annual.snapshot.json",),
+        _UNNARROWED,
+        "parse/g2-tr-practice-with-annual.json",
     ),
     (
         "grade2_practice_v1",
@@ -208,6 +238,23 @@ CASES = (
         ("real/g2-tr-annual.snapshot.json",),
         _UNNARROWED,
         "parse/g2-anatomy-autumn-with-annual.json",
+    ),
+    # The 2026-2027 autumn document an administrator actually uploaded. Unlike the
+    # committed 2025-2026 fixture it names no month — it writes each date as
+    # `03.09.2026` — and profile 1.3.0 refused every teaching day whose day and
+    # month were both twelve or lower, publishing only half of them and leaving
+    # the rest to the annual whole-class fallback. This case is the real input
+    # that failure was found on: 1.4.0 declares the day-first order and it now
+    # publishes all 30 teaching days (ADR-153).
+    (
+        "grade2_anatomy_autumn_v1",
+        "real/g2-anatomy-autumn-2026.snapshot.json",
+        2,
+        "turkish",
+        _Y2026,
+        _ALONE,
+        _UNNARROWED,
+        "parse/g2-anatomy-autumn-2026.json",
     ),
     # Grade 3, both curriculum groups, each with the bedside document its own
     # annual names as a companion. These are the cases where a practice topic

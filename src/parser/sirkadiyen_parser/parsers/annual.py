@@ -1004,6 +1004,75 @@ def read_dissection_titles(
     return titles
 
 
+#: The folded tokens that mark an annual row as a whole-class amphitheatre
+#: session, the kind a practice program restates and a student then sees twice
+#: (ADR-154). The faculty writes one of three things, and the operator confirmed
+#: all three mean the same: the class attends together in the amphitheatre —
+#: `TÜM GRUPLAR` / all groups, `Amfide` / in the amphitheatre, and `... ile
+#: ortak` / held jointly with the other-language programme.
+_AMPHITHEATRE_TITLE_TOKENS = ("tum gruplar", "amfi", "ortak")
+
+
+def read_whole_class_amphitheatre_slots(
+    snapshot: NormalizedSpreadsheetSnapshot,
+    *,
+    numeric_order: NumericDateOrder,
+) -> set[tuple[date, time]]:
+    """The date and start time of every whole-class amphitheatre session the
+    annual program states in full (ADR-154).
+
+    A practice held in the amphitheatre appears in both documents: the practice
+    program lists it as a `TÜM GRUPLAR` slot, and the annual program states it in
+    full with the room the amphitheatre program supplies (ADR-133). Publishing
+    both puts two events on the student's calendar for one session. The annual
+    copy is the one to keep — it carries the room — so the practice profile reads
+    this set and drops only the slots the annual actually states, never one the
+    annual is silent on (which would lose the session).
+
+    Keyed by ``(date, start time)`` because that is the only thing the two
+    documents are guaranteed to agree on: the practice program titles the session
+    by its subject column (`Fizyoloji`) and the annual by its own wording
+    (`FİZYOLOJİ 1. UYGULAMASI (TÜM GRUPLAR Amfide yapılacak)`), so a title match is
+    impossible, but a whole-class session occupies the whole class at one instant
+    and nothing else can share that slot.
+
+    The date is read from the cell serial for the reason ADR-152 gives, and a
+    snapshot that is not an annual program exposes no annual header and yields
+    nothing, so any companion may be offered (ADR-102).
+    """
+    slots: set[tuple[date, time]] = set()
+    for worksheet in snapshot.worksheets:
+        grid = WorksheetGrid(worksheet)
+        columns = _detect_columns(grid, term_column_may_be_unlabelled=True)
+        if columns is None:
+            continue
+
+        header_row, mapping = columns
+        date_column = mapping[ROLE_DATE]
+        title_column = mapping[ROLE_TITLE]
+        start_column = mapping[ROLE_START_TIME]
+        for row_index in range(header_row + 1, grid.worksheet.row_count):
+            raw_title = grid.resolve(row_index, title_column).display_text
+            if raw_title is None:
+                continue
+            folded = comparison_key(raw_title)
+            if not any(token in folded for token in _AMPHITHEATRE_TITLE_TOKENS):
+                continue
+
+            resolved_date = resolve_cell_date(
+                grid.resolve(row_index, date_column).cell,
+                numeric_order=numeric_order,
+            )
+            if resolved_date.value is None:
+                continue
+            resolved_time = resolve_cell_time(grid.resolve(row_index, start_column).cell)
+            if resolved_time.value is None:
+                continue
+            slots.add((resolved_date.value, resolved_time.value))
+
+    return slots
+
+
 def _bedside_topic(
     topics: Mapping[tuple[str, date], str],
     audience: ScheduleAudienceCandidate,

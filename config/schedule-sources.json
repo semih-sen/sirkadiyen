@@ -28,7 +28,10 @@
       "sourceUri": "https://drive.google.com/file/d/1fdYXS38zxnWCoWYsFDca3bPHa0PXzKJV/view",
       "externalId": "1fdYXS38zxnWCoWYsFDca3bPHa0PXzKJV",
       "parserProfile": "grade1_practice_v1",
-      "parserProfileVersion": "1.2.0",
+      "parserProfileVersion": "1.3.0",
+      "companionSourceIds": [
+        "G1-TR-ANNUAL"
+      ],
       "academicYear": "2026-2027",
       "classYear": 1,
       "programLanguage": "turkish",
@@ -93,7 +96,10 @@
       "sourceUri": "https://drive.google.com/file/d/17rceoa2F3sG6YERhr_-uEGO-PR_3MA1S/view",
       "externalId": "17rceoa2F3sG6YERhr_-uEGO-PR_3MA1S",
       "parserProfile": "grade1_practice_v1",
-      "parserProfileVersion": "1.2.0",
+      "parserProfileVersion": "1.3.0",
+      "companionSourceIds": [
+        "G1-EN-ANNUAL"
+      ],
       "academicYear": "2026-2027",
       "classYear": 1,
       "programLanguage": "english",
@@ -143,7 +149,10 @@
       "externalId": "1SezCE6ZoHcNScL7Z1epqJQ9Q8B6GMFeO0ykp16Jr0rw",
       "sheetGid": 1779555249,
       "parserProfile": "grade2_practice_v1",
-      "parserProfileVersion": "1.4.0",
+      "parserProfileVersion": "1.5.0",
+      "companionSourceIds": [
+        "G2-TR-ANNUAL"
+      ],
       "academicYear": "2026-2027",
       "classYear": 2,
       "programLanguage": "turkish",
@@ -216,7 +225,7 @@
       "documentFormat": "docx",
       "sourceUri": "urn:sirkadiyen:upload:G2-ANATOMY-AUTUMN",
       "parserProfile": "grade2_anatomy_autumn_v1",
-      "parserProfileVersion": "1.3.0",
+      "parserProfileVersion": "1.4.0",
       "academicYear": "2026-2027",
       "classYear": 2,
       "programLanguage": "turkish",
@@ -242,7 +251,7 @@
       "documentFormat": "docx",
       "sourceUri": "urn:sirkadiyen:upload:G2-ANATOMY-AUTUMN-EN",
       "parserProfile": "grade2_anatomy_autumn_v1",
-      "parserProfileVersion": "1.3.0",
+      "parserProfileVersion": "1.4.0",
       "academicYear": "2026-2027",
       "classYear": 2,
       "programLanguage": "english",
@@ -268,7 +277,7 @@
       "documentFormat": "docx",
       "sourceUri": "urn:sirkadiyen:upload:G2-ANATOMY-SPRING",
       "parserProfile": "grade2_anatomy_spring_v1",
-      "parserProfileVersion": "1.3.0",
+      "parserProfileVersion": "1.4.0",
       "academicYear": "2026-2027",
       "classYear": 2,
       "programLanguage": "turkish",
@@ -294,7 +303,7 @@
       "documentFormat": "docx",
       "sourceUri": "urn:sirkadiyen:upload:G2-ANATOMY-SPRING-EN",
       "parserProfile": "grade2_anatomy_spring_v1",
-      "parserProfileVersion": "1.3.0",
+      "parserProfileVersion": "1.4.0",
       "academicYear": "2026-2027",
       "classYear": 2,
       "programLanguage": "english",
@@ -341,7 +350,10 @@
       "externalId": "1SjEJVjfrmDqrCp2HWnsiz_eIlHO7xC5oELQWRqrKbzk",
       "sheetGid": 689406514,
       "parserProfile": "grade2_practice_v1",
-      "parserProfileVersion": "1.4.0",
+      "parserProfileVersion": "1.5.0",
+      "companionSourceIds": [
+        "G2-EN-ANNUAL"
+      ],
       "academicYear": "2026-2027",
       "classYear": 2,
       "programLanguage": "english",

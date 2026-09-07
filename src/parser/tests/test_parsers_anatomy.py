@@ -31,9 +31,9 @@ from sirkadiyen_parser.profiles import ParserProfileDefinition, get_profile
 
 PROFILE = ParserProfileDefinition(
     "grade2_anatomy_autumn_v1",
-    "1.3.0",
+    "1.4.0",
     "anatomy",
-    NumericDateOrder.UNDECLARED,
+    NumericDateOrder.DAY_FIRST,
     ("anatomyGroup",),
     ("Diseksiyon",),
     dissection_title_companion=True,
@@ -282,12 +282,13 @@ def test_a_date_the_annual_does_not_number_falls_back_to_the_marker() -> None:
 
 @pytest.mark.parametrize("name", ("grade2_anatomy_autumn_v1", "grade2_anatomy_spring_v1"))
 def test_both_semesters_are_registered_against_one_implementation(name: str) -> None:
-    profile = get_profile(name, "1.3.0")
+    profile = get_profile(name, "1.4.0")
 
     assert profile is not None
     assert profile.dissection_title_companion
-    assert get_parser(name, "1.3.0") is parse_anatomy_snapshot
-    assert (name, "1.3.0") in implemented_profiles()
+    assert profile.numeric_date_order is NumericDateOrder.DAY_FIRST
+    assert get_parser(name, "1.4.0") is parse_anatomy_snapshot
+    assert (name, "1.4.0") in implemented_profiles()
 
 
 def test_the_test_profile_matches_the_registered_one() -> None:
@@ -317,6 +318,37 @@ def test_a_merged_day_publishes_one_session_per_group() -> None:
     # the same as any date written with a month name.
     assert {candidate.confidence for candidate in response.candidates} == {0.9}
     assert {indicator.reason for indicator in response.confidence_indicators} == {"monthNameDate"}
+
+
+def test_an_ambiguous_numeric_date_is_read_day_first() -> None:
+    # The 2026-2027 document an administrator uploaded writes its dates as
+    # `03.09.2026` rather than naming the month. Where the day and month are both
+    # twelve or lower the cell has two readings, and an undeclared order refused
+    # it — dropping half the teaching days back to the annual whole-class fallback
+    # (ADR-153). The profile now declares day-first, so `03.09.2026` is 3 September.
+    cells, merged = merged_day(0, "03.09.2026", ("1", "2", "3"))
+
+    response = parse([worksheet(cells, merged_ranges=[merged])])
+
+    assert response.status is ParserResultStatus.COMPLETED
+    assert {candidate.local_date.isoformat() for candidate in response.candidates} == {
+        "2026-09-03"
+    }
+    assert len(response.candidates) == 3
+
+
+def test_an_unambiguous_numeric_date_agrees_with_the_declared_order() -> None:
+    # `15.09.2026` has only one reading — a day cannot be the fifteenth month —
+    # and it is the evidence the day-first declaration is read off: the document's
+    # own unambiguous dates fix its order (ADR-051, ADR-153).
+    cells, merged = merged_day(0, "15.09.2026", ("1", "2", "3"))
+
+    response = parse([worksheet(cells, merged_ranges=[merged])])
+
+    assert response.status is ParserResultStatus.COMPLETED
+    assert {candidate.local_date.isoformat() for candidate in response.candidates} == {
+        "2026-09-15"
+    }
 
 
 def test_a_day_whose_date_sits_in_the_middle_row_publishes_all_three_hours() -> None:

@@ -29,7 +29,7 @@ ParserImplementation = Callable[
 
 _IMPLEMENTATIONS: dict[tuple[str, str], ParserImplementation] = {
     ("grade1_yearly_v1", "1.8.0"): parse_annual_snapshot,
-    ("grade1_practice_v1", "1.2.0"): parse_practice_snapshot,
+    ("grade1_practice_v1", "1.3.0"): parse_practice_snapshot,
     # The Grade 2 annual workbooks are the same row-oriented layout as Grade 1 in
     # both languages, so they share the implementation and differ only in what the
     # profile definition declares (ADR-073).
@@ -38,7 +38,7 @@ _IMPLEMENTATIONS: dict[tuple[str, str], ParserImplementation] = {
     # the Grade 1 one, so it has its own implementation (ADR-074). Only the
     # Turkish source is registered: the committed English fixture is from the
     # previous academic year.
-    ("grade2_practice_v1", "1.4.0"): parse_practice_slot_snapshot,
+    ("grade2_practice_v1", "1.5.0"): parse_practice_slot_snapshot,
     # The skill-practice calendar the annual and practice profiles both defer to.
     # Published as a Word document through 2025-2026 and as a workbook from
     # 2026-2027; both reach the parser on the same normalized snapshot contract,
@@ -49,9 +49,11 @@ _IMPLEMENTATIONS: dict[tuple[str, str], ParserImplementation] = {
     # both languages. The profiles stay separate because the sources are
     # separate: each states its own semester's dates (ADR-078). 1.3.0 takes each
     # dissection's numbered title from the annual program supplied as a companion,
-    # the only document that numbers them `DİSEKSİYON (N/M)` (ADR-152).
-    ("grade2_anatomy_autumn_v1", "1.3.0"): parse_anatomy_snapshot,
-    ("grade2_anatomy_spring_v1", "1.3.0"): parse_anatomy_snapshot,
+    # the only document that numbers them `DİSEKSİYON (N/M)` (ADR-152). 1.4.0
+    # declares the day-first numeric date order the uploaded 2026-2027 document
+    # writes, which 1.3.0 refused on every ambiguous cell (ADR-153).
+    ("grade2_anatomy_autumn_v1", "1.4.0"): parse_anatomy_snapshot,
+    ("grade2_anatomy_spring_v1", "1.4.0"): parse_anatomy_snapshot,
     # The Grade 3 annual workbooks are the same row-oriented layout again, in both
     # languages and for both curriculum groups. What they add is an audience: the
     # class is split in two, so the profile declares `curriculumGroup` and the

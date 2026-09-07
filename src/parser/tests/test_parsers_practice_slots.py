@@ -33,11 +33,12 @@ from sirkadiyen_parser.profiles import ParserProfileDefinition, get_profile
 
 PROFILE = ParserProfileDefinition(
     "grade2_practice_v1",
-    "1.4.0",
+    "1.5.0",
     "practice",
     NumericDateOrder.DAY_FIRST,
     ("practiceGroup",),
     group_rotation_subjects=("anatomi", "anatomy", "diseksiyon", "dissection"),
+    amphitheatre_practice_companion=True,
 )
 
 HEADING = "KAN LENFOİD 1"
@@ -150,8 +151,122 @@ def parse(
     return parse_practice_slot_snapshot(request, profile)
 
 
+def annual_companion(
+    date_text: str = "8 Ekim 2025",
+    start: str = "08:30",
+    end: str = "10:20",
+    title: str = "FİZYOLOJİ 1. UYGULAMASI (TÜM GRUPLAR Amfide yapılacak)",
+) -> dict[str, Any]:
+    """A minimal annual program stating one whole-class amphitheatre session.
+
+    It carries the five roles the annual header detector requires, so the
+    amphitheatre-slot reader finds its date and start-time columns exactly as it
+    does in the real workbook (ADR-154).
+    """
+    cells = [
+        *row_cells(0, ["Dönem", "TARİH", "Başlama Saati", "Bitiş Saati", "KONU"]),
+        *row_cells(1, ["Dönem 2", date_text, start, end, title]),
+    ]
+    return {
+        "sheetId": "annual",
+        "title": "DÖNEM 2",
+        "index": 0,
+        "rowCount": 2,
+        "columnCount": 5,
+        "mergedRanges": [],
+        "cells": cells,
+    }
+
+
+def parse_with_companion(
+    worksheets: list[dict[str, Any]],
+    companion: dict[str, Any],
+    *,
+    profile: ParserProfileDefinition = PROFILE,
+) -> ParseSnapshotResponse:
+    request = ParseSnapshotRequest.model_validate(
+        {
+            "contractVersion": "1.0",
+            "correlationId": "unit-test",
+            "parserProfile": {"name": profile.name, "version": profile.version},
+            "sourceContext": {
+                "academicYear": "2025-2026",
+                "classYear": 2,
+                "programLanguage": "turkish",
+                "timeZoneId": "Europe/Istanbul",
+            },
+            "snapshot": {
+                "contractVersion": "1.0",
+                "sourceId": "TEST-SOURCE",
+                "snapshotId": "test-snapshot",
+                "spreadsheetId": "test-spreadsheet",
+                "acquiredAtUtc": "2026-07-25T09:00:00Z",
+                "contentHash": "sha256:test",
+                "contentHashAlgorithm": "SHA-256",
+                "worksheets": worksheets,
+            },
+            "auxiliarySnapshots": [
+                {
+                    "contractVersion": "1.0",
+                    "sourceId": "TEST-ANNUAL",
+                    "snapshotId": "annual-snapshot",
+                    "spreadsheetId": "annual-spreadsheet",
+                    "acquiredAtUtc": "2026-07-25T09:00:00Z",
+                    "contentHash": "sha256:annual",
+                    "contentHashAlgorithm": "SHA-256",
+                    "worksheets": [companion],
+                }
+            ],
+        }
+    )
+    return parse_practice_slot_snapshot(request, profile)
+
+
+#: A whole-class amphitheatre practice as this source writes it: the cell states
+#: its own audience, date and time (`TÜM GRUPLAR` on the first line).
+AMPHITHEATRE_CELL = "TÜM GRUPLAR\n8 Ekim 2025\n08:30-10:20"
+
+
 def metrics(response: ParseSnapshotResponse) -> dict[str, float]:
     return {metric.name: metric.value for metric in response.metrics}
+
+
+def test_a_whole_class_amphitheatre_practice_the_annual_states_is_not_published_here() -> None:
+    # The annual program states this session in full and publishes it with its
+    # room, so publishing it here too would put it on the calendar twice (ADR-154).
+    worksheets = build(subject_rows=[["Fizyoloji", "AMFİ", AMPHITHEATRE_CELL]])
+
+    response = parse_with_companion(worksheets, annual_companion())
+
+    assert response.status is ParserResultStatus.COMPLETED
+    assert response.candidates == []
+    assert metrics(response)["cells.ignored.amphitheatreInAnnual"] == 1
+
+
+def test_a_whole_class_practice_the_annual_is_silent_on_is_still_published() -> None:
+    # The deferral must never lose a session: when the annual states no session at
+    # the cell's date and time, the whole-class cell is published as before.
+    worksheets = build(subject_rows=[["Fizyoloji", "AMFİ", AMPHITHEATRE_CELL]])
+
+    response = parse_with_companion(worksheets, annual_companion(start="13:30", end="15:20"))
+
+    assert response.status is ParserResultStatus.COMPLETED
+    assert len(response.candidates) == 1
+    candidate = response.candidates[0]
+    assert candidate.local_date.isoformat() == "2025-10-08"
+    assert candidate.start_local_time == time(8, 30)
+    assert candidate.audience.scope is AudienceScope.ALL_STUDENTS_IN_PROGRAM
+
+
+def test_without_a_companion_a_whole_class_practice_is_published() -> None:
+    # A profile given no annual snapshot behaves exactly as before companions
+    # existed (ADR-102): the whole-class session is published here.
+    worksheets = build(subject_rows=[["Fizyoloji", "AMFİ", AMPHITHEATRE_CELL]])
+
+    response = parse(worksheets)
+
+    assert len(response.candidates) == 1
+    assert response.candidates[0].audience.scope is AudienceScope.ALL_STUDENTS_IN_PROGRAM
 
 
 def test_the_registered_profile_is_the_slot_column_implementation() -> None:

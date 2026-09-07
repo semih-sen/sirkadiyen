@@ -128,7 +128,10 @@ public sealed class ScheduleSourceCatalogTests
         Assert.Equal(
             ["A", "B", "C", "D", "E", "F", "G", "H"],
             grade2TurkishPractice.SupportedAudienceSelectors!["practiceGroup"]);
-        Assert.Equal("1.4.0", grade2TurkishPractice.ParserProfileVersion);
+        Assert.Equal("1.5.0", grade2TurkishPractice.ParserProfileVersion);
+        // The practice source reads its annual as a companion so a whole-class
+        // amphitheatre session is not published by both documents (ADR-154).
+        Assert.Contains("G2-TR-ANNUAL", grade2TurkishPractice.CompanionSourceIds!);
 
         ScheduleSourceDefinition grade2EnglishPractice = Assert.Single(
             catalog.Sources,
@@ -136,7 +139,8 @@ public sealed class ScheduleSourceCatalogTests
         Assert.Equal(
             ["İ1", "İ2"],
             grade2EnglishPractice.SupportedAudienceSelectors!["practiceGroup"]);
-        Assert.Equal("1.4.0", grade2EnglishPractice.ParserProfileVersion);
+        Assert.Equal("1.5.0", grade2EnglishPractice.ParserProfileVersion);
+        Assert.Contains("G2-EN-ANNUAL", grade2EnglishPractice.CompanionSourceIds!);
 
         // The 2026-2027 vertical corridor is a single XLSX workbook (profile 1.3.0),
         // replacing the retired spring/autumn DOCX split whose Drive files were

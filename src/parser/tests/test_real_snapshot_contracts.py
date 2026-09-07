@@ -54,6 +54,10 @@ def test_real_xlsx_snapshot_matches_inbound_contract(
     ("filename", "source_id", "title", "rows", "columns", "worksheets"),
     (
         ("g2-anatomy-autumn.snapshot.json", "G2-ANATOMY-AUTUMN", "Table 1", 49, 3, 2),
+        # The 2026-2027 autumn document an administrator uploaded (ADR-153). Same
+        # two-table shape as the 2025-2026 one, but each table is 46 rows and the
+        # dates are numeric rather than named.
+        ("g2-anatomy-autumn-2026.snapshot.json", "G2-ANATOMY-AUTUMN", "Table 1", 46, 3, 2),
         ("g2-anatomy-spring.snapshot.json", "G2-ANATOMY-SPRING", "Table 1", 49, 3, 2),
         ("g2-vertical-autumn.snapshot.json", "G2-VERTICAL-AUTUMN", "Table 1", 60, 7, 1),
         ("g2-vertical-spring.snapshot.json", "G2-VERTICAL-SPRING", "Table 1", 10, 7, 7),

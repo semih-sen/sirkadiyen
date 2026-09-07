@@ -1,5 +1,69 @@
 # Active Context
 
+## Latest session (2026-09-07, ADR-154: an amphitheatre practice is published by the annual, not twice)
+
+The operator reported a duplication: practices held in the amphitheatre appear on the calendar twice
+(example: the Grade 2 physiology practice). They are stated in **both** documents — the practice
+program lists a `TÜM GRUPLAR` slot and the annual states the session in full with its amphitheatre room
+(ADR-133). Confirmed against the fixtures: three Grade 2 Turkish duplicates
+(2025-10-08 08:30, 2025-10-23 08:30, 2026-04-17 10:30), all physiology.
+
+The operator's rule: an amphitheatre practice (`TÜM GRUPLAR` / `Amfide` / `... ile ortak`) should come
+from the annual, for the room connection. But the practice document has **no local signal** telling a
+duplicate apart from a practice-only amphitheatre session (`G1-TR` states a `Tüm Gruplar (Amfide)`
+physiology on 2026-05-21 08:30 that its annual never states), so only the annual can decide. Operator
+chose: defer only genuine duplicates, keep the session when the annual is silent; apply to all four
+practice sources.
+
+Fix (ADR-154): a practice profile reads its annual as a companion and drops a whole-class (`covers_all`)
+cell only for the exact `(date, start time)` the annual states such a session. New flag
+`amphitheatre_practice_companion`; `grade1_practice_v1` `1.2.0→1.3.0`, `grade2_practice_v1` `1.4.0→1.5.0`;
+both parsers (`practice.py`, `practice_slots.py`) defer in one `_accept` choke point. Reader
+`read_whole_class_amphitheatre_slots` in `annual.py` collects annual rows whose folded title carries
+`tum gruplar`/`amfi`/`ortak` with a date and start time. Match is on `(date, start)` — a whole-class
+session owns the whole class at one instant, so titles need not agree. Catalog wires each practice
+source to its own annual. No annual, or an annual silent on the slot, keeps the cell (ADR-102): G1-TR's
+2026-05-21 08:30 is kept (annual states 13:30 that day, not 08:30).
+
+Verified: G2-TR practice 167→164 with the annual companion (all three duplicates deferred), G1-TR
+302→301 (the annual-silent one kept). Committed companion goldens `g2-tr-practice-with-annual.json` and
+`g1-tr-practice-with-annual.json`, plus unit tests in both parsers. Tests: 620 parser, 934
+Infrastructure, 11 Api, 6 Contracts — all green; .NET build 0 warnings. **Not yet deployed** (repo
+only); deploying re-parses both practice sources and the diff removes the duplicate events, leaving the
+annual copy with its room.
+
+## Latest session (2026-09-07, ADR-153: Grade 2 anatomy declares a day-first numeric date order)
+
+The operator reported Issue B (some dissection days still show three whole-class slots) **still
+present** after ADR-151/152 and asked for the root cause. The ADR-152 tail had wrongly called it "not
+a bug / converges on its own" — that is now **superseded**.
+
+Root cause found by converting the document the operator actually uploaded for 2026-2027
+(`sheets/2. sınıf uygulama saatleri.docx`) through the production `DocxSnapshotConverter` and parsing
+it: the parser detected all 30 teaching days but **refused 14** with `numericDateOrderNotDeclaredByProfile`.
+The uploaded document writes dates numerically (`03.09.2026`); the committed 2025-2026 fixture named
+the month (`2 Eylül 2025 Salı`) and never exercised the numeric path. Every refused date has day *and*
+month ≤ 12 (ambiguous); every date that parsed has day > 12 (single reading). A refused day publishes
+nothing → the annual whole-class fallback (ADR-126) fills it → three unnumbered slots. It never
+converges because those days were never published, so there was no coverage to supersede the fallback.
+
+Fix (ADR-153): both anatomy profiles declare `numeric_date_order = DAY_FIRST` (`1.3.0 → 1.4.0`; the
+four anatomy catalog pins moved to `1.4.0`). Order read off evidence — the document's own unambiguous
+dates are day-first and `grade2_practice_v1` already reads this faculty day-first (ADR-051/075). The
+uploaded document now parses all 30 days (Sep 3 – Dec 22, every Tue/Thu), 90 candidates, 0 warnings.
+Month-named goldens move by version string only (verified). Committed the real uploaded document as
+fixture `g2-anatomy-autumn-2026.snapshot.json` + golden `g2-anatomy-autumn-2026.json`, plus unit tests
+that `03.09.2026`→3 Sep and `15.09.2026`→15 Sep.
+
+On deploy the 14 missing days publish, enter rotation coverage, the annual re-parses, and the diff
+replaces each three-slot fallback with the single numbered session in place. Lesson: a whole-class
+fallback where a group session belongs means "did the group source actually *publish* that date?",
+not only "are coverage/diff correct?".
+
+Tests: 611 parser (2 numeric-date unit tests, new real fixture + golden, contract entry), 934
+Infrastructure, 11 Api, 6 Contracts — all green; .NET build 0 warnings. **Not yet deployed** (repo
+only); deploying re-parses the anatomy (version bump) and paints the missing days.
+
 ## Latest session (2026-09-07, ADR-152: dissection numbering from the annual companion)
 
 After ADR-151 unstuck publication, the operator restarted the worker and the güz dissections began

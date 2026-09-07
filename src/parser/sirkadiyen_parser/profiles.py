@@ -77,6 +77,20 @@ class ParserProfileDefinition:
     #: identity keeps the plain marker, and only the display title (content) moves.
     dissection_title_companion: bool = False
 
+    #: Whether this practice profile defers its whole-class amphitheatre sessions
+    #: to the annual program supplied as a companion (ADR-154). A practice held in
+    #: the amphitheatre — marked `TÜM GRUPLAR`, `Amfide`, or `... ile ortak` — is
+    #: stated in both documents: the practice program lists it and the annual
+    #: states it in full with the room the amphitheatre program supplies (ADR-133),
+    #: so a student sees the session twice. When this is set, a whole-class
+    #: practice cell is dropped for exactly the dates and start times the annual
+    #: companion states such a session, and the annual copy (with the room) is the
+    #: one that reaches the calendar. A profile that declares it and is given no
+    #: annual snapshot, or a whole-class cell the annual is silent on, keeps
+    #: publishing the cell (ADR-102): the deferral must never lose a session the
+    #: annual does not restate.
+    amphitheatre_practice_companion: bool = False
+
 
 _PROFILE_VERSION = "1.1.0"
 
@@ -129,12 +143,15 @@ _PROFILES = (
     # A-H, the English one states İ1-İ3, and one reader served both without a
     # bound: an `İ1` cell published nothing and an `i1` cell published `I1`,
     # which is a value no student's profile holds. Both now publish `İ1`.
+    # 1.3.0 defers whole-class amphitheatre practices to the annual companion so a
+    # session held in the amphitheatre is not published by both documents (ADR-154).
     ParserProfileDefinition(
         "grade1_practice_v1",
-        "1.2.0",
+        "1.3.0",
         "practice",
         _UNDECLARED,
         ("practiceGroup", "practiceSubgroup"),
+        amphitheatre_practice_companion=True,
     ),
     ParserProfileDefinition(
         "grade1_anatomy_v1",
@@ -196,34 +213,51 @@ _PROFILES = (
     # 1.3.0 carries the engine 0.3.0 cohort-letter fold (ADR-130). Its committed
     # workbook writes the English cohorts in ASCII, so no fixture output moved,
     # but a stored snapshot cannot be proved free of the dotted spelling.
+    # 1.5.0 defers whole-class amphitheatre practices to the annual companion so a
+    # session held in the amphitheatre — written `TÜM GRUPLAR ... Amfide` in this
+    # source and stated in full with its room by the annual — is not published by
+    # both, which put two events on the student's calendar (ADR-154).
     ParserProfileDefinition(
         "grade2_practice_v1",
-        "1.4.0",
+        "1.5.0",
         "practice",
         NumericDateOrder.DAY_FIRST,
         ("practiceGroup",),
         group_rotation_subjects=("anatomi", "anatomy", "diseksiyon", "dissection"),
+        amphitheatre_practice_companion=True,
     ),
     # 1.1.0: engine 0.3.0, as grade2_practice_v1 (ADR-130).
     # 1.3.0 takes each dissection's display title from the annual program's
     # companion rows — the only place the session is numbered `DİSEKSİYON (N/M)`
     # per block — matched by date (ADR-152). Identity is unchanged.
+    # 1.4.0 declares the numeric date order this source writes (ADR-153). The
+    # committed 2025-2026 document names the month in words (`2 Eylül 2025 Salı`),
+    # but the 2026-2027 document an administrator uploaded writes the date as
+    # `03.09.2026`, and 1.3.0 refused every such cell whose day and month are both
+    # twelve or lower — half the teaching days — exactly as ADR-051 requires of an
+    # undeclared order. The order is read off the document rather than off a
+    # convention: its own unambiguous dates (`15.09.2026`, `27.10.2026`, days that
+    # cannot be months) are day-first, and `grade2_practice_v1` already reads this
+    # faculty's numeric dates day-first (ADR-075). A day-name-per-date document is
+    # unaffected, so no committed golden output moves.
     ParserProfileDefinition(
         "grade2_anatomy_autumn_v1",
-        "1.3.0",
+        "1.4.0",
         "anatomy",
-        _UNDECLARED,
+        NumericDateOrder.DAY_FIRST,
         ("anatomyGroup",),
         ("Diseksiyon",),
         dissection_title_companion=True,
     ),
     # 1.1.0: engine 0.3.0, as grade2_practice_v1 (ADR-130). 1.3.0: dissection
     # numbering from the annual companion (ADR-152), as the autumn profile.
+    # 1.4.0: numeric date order declared day-first (ADR-153), as the autumn
+    # profile — the two documents share a writing convention.
     ParserProfileDefinition(
         "grade2_anatomy_spring_v1",
-        "1.3.0",
+        "1.4.0",
         "anatomy",
-        _UNDECLARED,
+        NumericDateOrder.DAY_FIRST,
         ("anatomyGroup",),
         ("Diseksiyon",),
         dissection_title_companion=True,

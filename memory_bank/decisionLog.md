@@ -9479,9 +9479,134 @@ numbers them.
 - The anatomy parse now depends on the annual snapshot being retained (it is, as the current-year
   document). The `companion.dissectionTitles` metric reports how many dates were numbered, so a
   missing or stale annual is visible rather than silent.
-- Investigated as part of the same session and found **not** a bug: the "some dissections came, some
-  did not" state is the annual whole-class fallback (ADR-126) not yet superseded by the anatomy
-  coverage for every date. The rotation-coverage query and the fallback exclusion are correct; the
-  annual re-parses on its next poll after the anatomy publish (coverage is in its parse-run
-  fingerprint) and the semantic diff then removes the stale three-slot events. It converges without
-  code change; deploying ADR-151 plus a forced annual re-poll expedites it.
+- Investigated as part of the same session and — **wrongly** — found not a bug: the "some dissections
+  came, some did not" state was attributed to the annual whole-class fallback (ADR-126) not yet
+  superseded by anatomy coverage, expected to converge on the next annual poll. **This conclusion is
+  superseded by ADR-153.** It was mistaken: the rotation-coverage query and the fallback exclusion are
+  indeed correct, but the anatomy source itself was never publishing half the teaching days — its
+  parser refused every day whose uploaded numeric date (`03.09.2026`) was ambiguous — so there was no
+  coverage to supersede the fallback and it never converges. The visible symptom (three-slot fallback
+  on those days) was the same, which is what made the fallback look like the cause. See ADR-153.
+
+## ADR-153: The Grade 2 anatomy list declares a day-first numeric date order
+
+**Status:** Accepted
+**Date:** 2026-09-07
+**Supersedes:** the "not a bug / converges on its own" conclusion at the end of ADR-152.
+
+### Context
+
+After ADR-151 (publication decoupled from the poll cadence) and ADR-152 (dissection numbering), the
+operator reported that dissections were still arriving for only *some* teaching days: the calendar
+showed single numbered sessions on 15/17/22/24/29 September and the three-slot whole-class fallback
+(ADR-126) on 3/8/10 September, 1 October and every day from mid-November on. It looked like the
+fallback not yet superseded by coverage (the ADR-152 tail), but that state can never persist: if the
+anatomy source published a date, coverage would exclude the fallback on the annual's next parse.
+
+Converting the document an administrator actually uploaded for 2026-2027
+(`sheets/2. sınıf uygulama saatleri.docx`) through the production `DocxSnapshotConverter` and parsing
+it showed the real cause. The parser detected all 30 teaching days but **refused 14 of them**, each
+with `numericDateOrderNotDeclaredByProfile`: `03.09.2026`, `08.09.2026`, `10.09.2026`, `01.10.2026`,
+`06.10.2026`, `08.10.2026`, and the rest. Every refused date has a day *and* a month of twelve or
+lower; every date that parsed (`15.09`, `17.09`, `22.09`, `27.10` …) has a day above twelve. The
+2026-2027 document writes its dates numerically, where the committed 2025-2026 fixture named the month
+in words (`2 Eylül 2025 Salı`) and so never exercised the numeric path.
+
+The `grade2_anatomy_autumn_v1`/`_spring_v1` profiles declared `numeric_date_order = UNDECLARED`, so
+ADR-051 correctly refused every ambiguous cell. A refused day publishes nothing, the annual
+whole-class fallback fills it, and the student sees three unnumbered slots — the reported symptom.
+
+### Decision
+
+- **Both Grade 2 anatomy profiles declare `numeric_date_order = DAY_FIRST`**, bumped `1.3.0 → 1.4.0`;
+  the catalog pins for all four anatomy sources (autumn/spring × TR/EN) move to `1.4.0`. The order is
+  read off evidence, not a writing convention (ADR-051, ADR-075): the document's own unambiguous dates
+  (day 13-31) are day-first, and `grade2_practice_v1` already reads this faculty's numeric dates
+  day-first. With it, the uploaded document parses all 30 days (Sep 3 – Dec 22, every Tue/Thu), zero
+  warnings, 90 candidates.
+- **A month-named document is unaffected.** Numeric order only resolves numeric cells, so the
+  committed 2025-2026 goldens move by their profile-version string alone — verified: the only diff in
+  `g2-anatomy-autumn.json`/`-spring.json`/`-with-annual.json` is `1.3.0 → 1.4.0` and the response
+  digest.
+- **The real uploaded document is committed as a fixture and golden.** `g2-anatomy-autumn-2026.snapshot.json`
+  (produced by the production converter) with golden `g2-anatomy-autumn-2026.json` locks the 30-day
+  result end to end, so a future undeclared-order regression fails a test rather than a student's
+  calendar. Focused unit tests assert an ambiguous `03.09.2026` resolves to 3 September and an
+  unambiguous `15.09.2026` agrees.
+
+### Consequences
+
+- On deployment the anatomy list re-parses (version bump) and the 14 previously-missing days publish
+  for the first time. Their dates then enter the rotation-coverage set, the annual re-parses (coverage
+  is in its fingerprint), and the semantic diff **removes** the three-slot whole-class fallback on
+  those days, replacing it with the single group-specific numbered session — in place, no deletion of
+  identity. This is the convergence ADR-152 expected; it simply could not happen while the days were
+  never published.
+- Issue B is a parser-configuration bug, not a coverage or timing problem. The lesson recorded against
+  ADR-152: a whole-class fallback appearing where a group session belongs is a signal to check whether
+  the group source actually *published* that date, not only whether coverage/diff are correct.
+- The spring profile moves to `DAY_FIRST` on the same evidence though its 2026-2027 document has not
+  been uploaded yet; the two documents share a writing convention and the committed spring fixture
+  (month-named) is unaffected.
+
+## ADR-154: An amphitheatre practice is published by the annual, not twice
+
+**Status:** Accepted
+**Date:** 2026-09-07
+
+### Context
+
+Some practices are held in the amphitheatre for the whole class at once, and the faculty writes them
+into **both** documents. The practice program lists the session as a `TÜM GRUPLAR` slot (all groups),
+and the annual program states it in full — `FİZYOLOJİ 1. UYGULAMASI (TÜM GRUPLAR Amfide yapılacak)` —
+with the room the weekly amphitheatre program supplies (ADR-133). Both are published, so the student
+sees the same session twice on the calendar. The operator's example was the Grade 2 physiology
+amphitheatre practice; in the committed Grade 2 Turkish fixtures there are three
+(2025-10-08 08:30, 2025-10-23 08:30, 2026-04-17 10:30), each duplicated.
+
+The operator's rule: an amphitheatre practice — marked `TÜM GRUPLAR`, `Amfide`, or `... ile ortak`
+(held jointly with the other-language programme) — should reach the calendar from the annual program,
+because that is where the amphitheatre-program room connection lives.
+
+The practice document carries **no local signal** distinguishing a duplicate from a practice-only
+amphitheatre session: `G1-TR-PRACTICE` states a `Tüm Gruplar (Amfide)` physiology on 2026-05-21 08:30
+that the Grade 1 annual does not state at all. Dropping every whole-class practice would lose it. Only
+the annual can say whether a given amphitheatre session is a duplicate.
+
+### Decision
+
+- **A practice profile reads its annual as a companion and drops a whole-class (`covers_all`) cell only
+  for the exact `(date, start time)` the annual states such a session.** New profile flag
+  `amphitheatre_practice_companion`; `grade1_practice_v1` bumped `1.2.0 → 1.3.0` and `grade2_practice_v1`
+  `1.4.0 → 1.5.0`; both practice parsers (`practice.py` rotation-matrix and `practice_slots.py`
+  slot-column) share one choke point in `_accept`. The catalog wires each practice source to its own
+  annual (`G1-TR-PRACTICE` → `G1-TR-ANNUAL`, and the English and Grade 2 pairs likewise), so the `.NET`
+  side ships the annual snapshot as an auxiliary and folds it into the parse-run fingerprint with no
+  code change.
+- **Match on `(date, start time)`, not on title.** The two documents title the session differently
+  (`Fizyoloji` vs `FİZYOLOJİ 1. UYGULAMASI (...)`), so a title match is impossible; but a whole-class
+  session occupies the whole class at one instant and nothing else can share that slot, so the slot is
+  a safe key. The reader `read_whole_class_amphitheatre_slots` (in `annual.py`) collects every annual
+  row whose folded title carries `tum gruplar`, `amfi`, or `ortak` and resolves a date and start time.
+  The set is deliberately broad (it also catches whole-class theory), which is harmless: it only ever
+  removes a practice cell that is itself `covers_all` at that exact slot.
+- **Degrade, never lose a session.** No annual snapshot, or a whole-class cell the annual is silent on,
+  keeps the cell published exactly as before (ADR-102). Confirmed with the operator: a whole-class
+  practice the annual does not restate must still reach the calendar. `G1-TR`'s 2026-05-21 case proves
+  it — the annual states a whole-class session that day at 13:30, not the practice's 08:30, so the
+  practice cell is kept.
+
+### Consequences
+
+- On deployment both practice sources re-parse (version bump) and the duplicate amphitheatre events are
+  removed by the ordinary semantic diff — the annual copy, with its room, is the one that remains. The
+  three Grade 2 Turkish duplicates collapse to one event each (167 → 164 candidates with the annual
+  companion; verified by golden `g2-anatomy`… `g2-tr-practice-with-annual.json`).
+- The practice parse now depends on the annual snapshot being retained (it is, as the current-year
+  document), and re-parses when the annual changes because the companion is in its fingerprint (ADR-102).
+- Applied to all four practice sources for consistency (the parser is shared), though only the Turkish
+  Grade 2 program has students today. English and Grade 1 behave identically where their annuals state
+  the session and safely keep it where they do not.
+- The metric `companion.amphitheatreSlots` reports how many whole-class slots the annual supplied and
+  `cells.ignored.amphitheatreInAnnual` how many practice cells were deferred, so a missing annual or a
+  wiring mistake is visible rather than silent.

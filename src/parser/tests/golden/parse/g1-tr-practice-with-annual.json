@@ -2,7 +2,7 @@
   "fixture": "real/g1-tr-practice.snapshot.json",
   "parserEngineVersion": "0.4.0",
   "payload": {
-    "candidateCount": 302,
+    "candidateCount": 301,
     "candidateDigests": [
       "1!R28C3|2026-10-02|10:30-12:20|practice|id:3eda166f5ce6a68d|content:74938b138c5bb332|Temel Yaşam Desteği",
       "1!R28C4|2026-10-02|10:30-12:20|practice|id:e4de957967bb6288|content:854fadd9bd7437ed|Yaralı Taşıma",
@@ -296,7 +296,6 @@
       "1!R207C6|2027-04-22|10:30-12:20|practice|id:a848c4613009b99a|content:d6128c12b3454ff7|Genel Histoloji Ve Embriyoloji",
       "1!R208C4|2027-04-26|10:30-12:20|practice|id:9db5bcfd8159dff8|content:bbdb1d2484cf7a6f|Biyofizik",
       "1!R209C4|2027-04-27|10:30-12:20|practice|id:50ce390bb37c444d|content:47e5c59c295a8c1c|Biyofizik",
-      "1!R210C5|2027-04-28|10:30-12:20|practice|id:a8fc5cfcd823384c|content:b346697adfd1161f|Fizyoloji",
       "1!R248C4|2026-05-21|08:30-10:20|practice|id:ed84c5546d28a1d2|content:e6f1386d184b5d81|Fizyoloji",
       "1!R249C3|2027-05-24|10:30-12:20|practice|id:342838c3e222fcca|content:c57b77d61567bdee|Genel Histoloji ve Embriyoloji",
       "1!R250C3|2027-05-24|13:30-15:20|practice|id:2afb11ce6bd6d92c|content:228254f94809113c|Genel Histoloji ve Embriyoloji",
@@ -801,17 +800,27 @@
       {
         "name": "candidates.emitted",
         "unit": null,
-        "value": 302.0
+        "value": 301.0
       },
       {
         "name": "candidates.eventType.practice",
         "unit": null,
-        "value": 302.0
+        "value": 301.0
       },
       {
         "name": "cells.ignored",
         "unit": null,
-        "value": 27.0
+        "value": 28.0
+      },
+      {
+        "name": "cells.ignored.amphitheatreInAnnual",
+        "unit": null,
+        "value": 1.0
+      },
+      {
+        "name": "cells.ignored.amphitheatrePracticeStatedByAnnual",
+        "unit": null,
+        "value": 1.0
       },
       {
         "name": "cells.ignored.unresolvedGroupExpression",
@@ -822,6 +831,11 @@
         "name": "cells.scanned",
         "unit": null,
         "value": 1041.0
+      },
+      {
+        "name": "companion.amphitheatreSlots",
+        "unit": null,
+        "value": 24.0
       },
       {
         "name": "dates.outOfSequence.repaired",
@@ -893,7 +907,7 @@
       "name": "grade1_practice_v1",
       "version": "1.3.0"
     },
-    "responseDigest": "sha256:55265609cd92e49e816708cc005040cb99409385e7be3d691325e8840378a9b4",
+    "responseDigest": "sha256:5903e63577c19817f8d88abd1b39a9e3c2c2328a76169c6c8248ef03482fd3ba",
     "snapshotId": "fixture:sha256:deb81b35c552c1975a4dc90d2b658b78b491717446c41d645e858a836415ff60",
     "sourceId": "G1-TR-PRACTICE",
     "status": "completedWithWarnings",
@@ -1021,6 +1035,20 @@
           "sheetTitle": "Sayfa1"
         },
         "message": "Subject 'PDÖ' is deliberately not synchronized, so its cells are counted as ignored rather than published.",
+        "severity": "information"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "detail": null,
+        "evidence": {
+          "extractionRule": "practice.groupCell",
+          "range": "E210",
+          "rawText": "Tüm Gruplar (Amfide yapılacak)",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Whole-class amphitheatre practice on 2027-04-28 at 10:30:00 is stated by the annual program, which publishes it with its room, so it was not published again here.",
         "severity": "information"
       },
       {

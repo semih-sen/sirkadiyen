@@ -157,16 +157,126 @@ def parse(
     return parse_practice_snapshot(request, profile)
 
 
+#: The registered profile, which defers whole-class amphitheatre practices to the
+#: annual companion (ADR-154).
+COMPANION_PROFILE = ParserProfileDefinition(
+    "grade1_practice_v1",
+    "1.3.0",
+    "practice",
+    NumericDateOrder.UNDECLARED,
+    ("practiceGroup", "practiceSubgroup"),
+    amphitheatre_practice_companion=True,
+)
+
+
+def annual_companion(
+    date_text: str = "3 Ekim 2025",
+    start: str = "10:30",
+    end: str = "12:20",
+    title: str = "FİZYOLOJİ UYGULAMA (TÜM GRUPLAR Amfide yapılacak)",
+) -> dict[str, Any]:
+    """A minimal annual program stating one whole-class amphitheatre session."""
+    cells = [
+        text_cell(0, 0, "Dönem"),
+        text_cell(0, 1, "TARİH"),
+        text_cell(0, 2, "Başlama Saati"),
+        text_cell(0, 3, "Bitiş Saati"),
+        text_cell(0, 4, "KONU"),
+        text_cell(1, 0, "Dönem 1"),
+        text_cell(1, 1, date_text),
+        text_cell(1, 2, start),
+        text_cell(1, 3, end),
+        text_cell(1, 4, title),
+    ]
+    return {
+        "sheetId": "annual",
+        "title": "DÖNEM 1",
+        "index": 0,
+        "rowCount": 2,
+        "columnCount": 5,
+        "mergedRanges": [],
+        "cells": cells,
+    }
+
+
+def parse_with_companion(
+    worksheets: list[dict[str, Any]],
+    companion: dict[str, Any],
+    *,
+    profile: ParserProfileDefinition = COMPANION_PROFILE,
+) -> ParseSnapshotResponse:
+    request = ParseSnapshotRequest.model_validate(
+        {
+            "contractVersion": "1.0",
+            "correlationId": "unit-test",
+            "parserProfile": {"name": profile.name, "version": profile.version},
+            "sourceContext": {
+                "academicYear": "2025-2026",
+                "classYear": 1,
+                "programLanguage": "turkish",
+                "timeZoneId": "Europe/Istanbul",
+            },
+            "snapshot": {
+                "contractVersion": "1.0",
+                "sourceId": "TEST-PRACTICE",
+                "snapshotId": "test-snapshot",
+                "spreadsheetId": "test-spreadsheet",
+                "acquiredAtUtc": "2026-07-21T09:00:00Z",
+                "contentHash": "sha256:test",
+                "contentHashAlgorithm": "SHA-256",
+                "worksheets": worksheets,
+            },
+            "auxiliarySnapshots": [
+                {
+                    "contractVersion": "1.0",
+                    "sourceId": "TEST-ANNUAL",
+                    "snapshotId": "annual-snapshot",
+                    "spreadsheetId": "annual-spreadsheet",
+                    "acquiredAtUtc": "2026-07-21T09:00:00Z",
+                    "contentHash": "sha256:annual",
+                    "contentHashAlgorithm": "SHA-256",
+                    "worksheets": [companion],
+                }
+            ],
+        }
+    )
+    return parse_practice_snapshot(request, profile)
+
+
 def metrics(response: ParseSnapshotResponse) -> dict[str, float]:
     return {metric.name: metric.value for metric in response.metrics}
 
 
+def test_a_whole_class_amphitheatre_practice_the_annual_states_is_not_published_here() -> None:
+    # DATE_SERIAL is 2025-10-03; the cell is `TÜM GRUPLAR` at 10:30, which the
+    # annual companion states in full and publishes with its room (ADR-154).
+    worksheets = [block(rows=((DATE_SERIAL, "10:30-12:20", ("TÜM GRUPLAR", "")),))]
+
+    response = parse_with_companion(worksheets, annual_companion())
+
+    assert response.status is ParserResultStatus.COMPLETED
+    assert response.candidates == []
+    assert metrics(response)["cells.ignored.amphitheatreInAnnual"] == 1
+
+
+def test_a_whole_class_practice_the_annual_is_silent_on_is_still_published() -> None:
+    # The annual states a session at a different time, so the cell's slot is not
+    # covered and the whole-class practice is published rather than lost (ADR-154).
+    worksheets = [block(rows=((DATE_SERIAL, "10:30-12:20", ("TÜM GRUPLAR", "")),))]
+
+    response = parse_with_companion(worksheets, annual_companion(start="08:30", end="10:20"))
+
+    assert len(response.candidates) == 1
+    assert response.candidates[0].audience.scope is AudienceScope.ALL_STUDENTS_IN_PROGRAM
+
+
 def test_the_registered_profile_is_the_practice_implementation() -> None:
-    profile = get_profile("grade1_practice_v1", "1.2.0")
+    profile = get_profile("grade1_practice_v1", "1.3.0")
 
     assert profile is not None
+    assert profile.amphitheatre_practice_companion
     assert get_parser(profile.name, profile.version) is parse_practice_snapshot
-    assert ("grade1_practice_v1", "1.2.0") in implemented_profiles()
+    assert ("grade1_practice_v1", "1.3.0") in implemented_profiles()
 
 
 def test_a_cell_becomes_a_candidate_for_the_group_it_names() -> None:

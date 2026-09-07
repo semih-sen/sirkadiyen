@@ -876,9 +876,9 @@
     ],
     "parserProfile": {
       "name": "grade2_anatomy_autumn_v1",
-      "version": "1.3.0"
+      "version": "1.4.0"
     },
-    "responseDigest": "sha256:6e788ccb080717320597e0cf0601630bd7448bd0798ed57113290dcd45c5da69",
+    "responseDigest": "sha256:dac55f76e06fe8ceb71b2964a1f8d4c198a9d0ff29f36fab7c452be9572b6326",
     "snapshotId": "fixture:sha256:732583bb338ce5dd6f7af6210bfb9fed79e521f8d6b8f070bed3cb6f53a7f0b1",
     "sourceId": "G2-ANATOMY-AUTUMN",
     "status": "completed",

@@ -56,6 +56,7 @@ from sirkadiyen_parser.parsers.annual import (
     WARNING_IMPLAUSIBLE_DURATION,
     WARNING_WEEKDAY_MISMATCH,
     encode_all_day,
+    read_whole_class_amphitheatre_slots,
 )
 from sirkadiyen_parser.parsers.date_repair import (
     RULE_DATE_SEQUENCE,
@@ -125,6 +126,9 @@ REASON_UNRESOLVED_GROUP = "unresolvedGroupExpression"
 REASON_UNSUPPORTED_GROUP_VALUE = "unsupportedGroupValueShape"
 REASON_DUPLICATE_IDENTITY = "duplicateStableIdentity"
 REASON_OUT_OF_SCOPE_SUBJECT = "outOfScopeSubject"
+#: A whole-class amphitheatre practice the annual companion also states, dropped
+#: here so it is published once, by the annual, with its room (ADR-154).
+REASON_AMPHITHEATRE_IN_ANNUAL = "amphitheatrePracticeStatedByAnnual"
 
 WARNING_NO_BLOCK = "worksheetWithoutPracticeBlock"
 WARNING_NESTED_TABLE = "nestedScheduleTable"
@@ -144,6 +148,11 @@ METRIC_CELLS_SCANNED = "cells.scanned"
 METRIC_CANDIDATES_EMITTED = "candidates.emitted"
 METRIC_CANDIDATE_EVENT_TYPE_PREFIX = "candidates.eventType."
 METRIC_AUDIENCE_DIMENSION_PREFIX = "audience.dimension."
+#: Whole-class amphitheatre practices dropped because the annual companion states
+#: them and publishes the room (ADR-154).
+METRIC_CELLS_AMPHITHEATRE_IN_ANNUAL = "cells.ignored.amphitheatreInAnnual"
+#: How many whole-class amphitheatre slots the annual companion supplied.
+METRIC_COMPANION_AMPHITHEATRE_SLOTS = "companion.amphitheatreSlots"
 
 RULE_BLOCK_HEADING = "practice.blockHeading"
 RULE_SUBJECT_HEADER = "practice.subjectHeader"
@@ -201,6 +210,37 @@ class _Slot:
 class _Accumulator:
     candidates: list[CanonicalScheduleCandidate] = field(default_factory=list)
     by_identity: dict[str, CanonicalScheduleCandidate] = field(default_factory=dict)
+    #: The (date, start time) of every whole-class amphitheatre session the annual
+    #: companion states, deferred to rather than published twice (ADR-154). Empty
+    #: unless the profile declares the companion and an annual snapshot was given.
+    amphitheatre_slots: frozenset[tuple[date, time]] = frozenset()
+
+
+def _read_amphitheatre_slots(
+    request: ParseSnapshotRequest,
+    profile: ParserProfileDefinition,
+    diagnostics: ParseDiagnostics,
+) -> frozenset[tuple[date, time]]:
+    """The whole-class amphitheatre slots the annual companion states (ADR-154).
+
+    Empty whenever the profile declares no amphitheatre companion or none was
+    supplied, and then every whole-class practice cell is published exactly as it
+    was before companions existed (ADR-102): the deferral only removes a session
+    the annual restates, never one it is silent on. Every auxiliary snapshot is
+    offered; one that is not an annual program yields nothing.
+    """
+    if not profile.amphitheatre_practice_companion or not request.auxiliary_snapshots:
+        return frozenset()
+
+    slots: set[tuple[date, time]] = set()
+    for snapshot in request.auxiliary_snapshots:
+        slots |= read_whole_class_amphitheatre_slots(
+            snapshot,
+            numeric_order=profile.companion_numeric_date_order,
+        )
+
+    diagnostics.set_metric(METRIC_COMPANION_AMPHITHEATRE_SLOTS, len(slots))
+    return frozenset(slots)
 
 
 def parse_practice_snapshot(
@@ -209,7 +249,9 @@ def parse_practice_snapshot(
 ) -> ParseSnapshotResponse:
     """Parse a rotation-matrix practice snapshot into candidate lessons."""
     diagnostics = ParseDiagnostics()
-    accumulator = _Accumulator()
+    accumulator = _Accumulator(
+        amphitheatre_slots=_read_amphitheatre_slots(request, profile, diagnostics)
+    )
 
     diagnostics.set_metric(METRIC_WORKSHEETS_SCANNED, len(request.snapshot.worksheets))
     report_date_corrections(diagnostics=diagnostics, context=request.source_context)
@@ -905,6 +947,26 @@ def _accept(
     diagnostics: ParseDiagnostics,
     accumulator: _Accumulator,
 ) -> None:
+    if expression.covers_all and (candidate.local_date, slot.start) in accumulator.amphitheatre_slots:
+        # The annual companion states this whole-class amphitheatre session in full
+        # and publishes it with the room the amphitheatre program supplies, so
+        # publishing it here as well would show the student the same session twice.
+        # The annual copy is the one kept; a whole-class cell the annual is silent
+        # on is not in the set and is published as before (ADR-154).
+        diagnostics.increment(METRIC_CELLS_AMPHITHEATRE_IN_ANNUAL)
+        diagnostics.record_ignored_cell(
+            REASON_AMPHITHEATRE_IN_ANNUAL,
+            evidence,
+            severity=ParserWarningSeverity.INFORMATION,
+            message=(
+                "Whole-class amphitheatre practice on "
+                f"{candidate.local_date.isoformat()} at {slot.start.isoformat()} is stated "
+                "by the annual program, which publishes it with its room, so it was not "
+                "published again here."
+            ),
+        )
+        return
+
     existing = accumulator.by_identity.get(candidate.stable_identity)
     if existing is not None:
         severity = (

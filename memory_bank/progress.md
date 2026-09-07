@@ -119,17 +119,24 @@
 ## Phase 6: Parser profiles
 
 - [x] First-year Turkish annual
-- [x] First-year Turkish practice
+- [x] First-year Turkish practice (`grade1_practice_v1`; 1.3.0 defers whole-class amphitheatre
+  practices to the annual companion so a session held in the amphitheatre is not published twice,
+  keeping any the annual is silent on, ADR-154)
 - [x] First-year English annual
 - [ ] First-year English practice
 - [ ] First-year anatomy practice
 - [x] Second-year Turkish annual (`grade2_yearly_v1`, ADR-073)
-- [x] Second-year Turkish practice (`grade2_practice_v1`, slot-column layout, ADR-074)
+- [x] Second-year Turkish practice (`grade2_practice_v1`, slot-column layout, ADR-074; 1.5.0 defers
+  whole-class amphitheatre practices to the annual companion, ADR-154)
 - [x] Second-year English annual (same profile, ADR-073)
-- [x] Second-year English practice (`grade2_practice_v1` 1.2.0, ADR-084)
+- [x] Second-year English practice (`grade2_practice_v1` 1.2.0, ADR-084; 1.5.0 amphitheatre deferral, ADR-154)
 - [x] Second-year anatomy autumn (`grade2_anatomy_autumn_v1`, ADR-078; 1.3.0 takes each dissection's
-  `DİSEKSİYON (N/M)` number from the annual program read as a companion, matched by date, ADR-152)
-- [x] Second-year anatomy spring (`grade2_anatomy_spring_v1`, same implementation; 1.3.0 as autumn, ADR-152)
+  `DİSEKSİYON (N/M)` number from the annual program read as a companion, matched by date, ADR-152;
+  1.4.0 declares `numeric_date_order = DAY_FIRST` so the uploaded 2026-2027 document's numeric dates
+  `03.09.2026` parse instead of being refused as ambiguous — the cause of "some dissection days
+  missing", ADR-153; real 2026-2027 doc committed as `g2-anatomy-autumn-2026` fixture + golden)
+- [x] Second-year anatomy spring (`grade2_anatomy_spring_v1`, same implementation; 1.3.0 as autumn,
+  ADR-152; 1.4.0 day-first numeric order as autumn, ADR-153)
 - [x] Second-year vertical corridor (`grade2_vertical_corridor_v1`, ADR-077)
 - [x] Third-year Turkish A annual (`grade3_yearly_v1`, ADR-098/100)
 - [x] Third-year Turkish A bedside (`grade3_bedside_v1`, publishes nothing by design, ADR-100)
