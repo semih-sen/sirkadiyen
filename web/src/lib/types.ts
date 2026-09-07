@@ -990,8 +990,8 @@ export interface RevisionFindingView {
   message: string;
   affectedRecordCount: number;
   createdAtUtc: string;
-  /** JSON evidence string the rule recorded (may be empty). */
-  detail: string;
+  /** JSON evidence string the rule recorded, or null when the finding carries none. */
+  detail?: string | null;
 }
 
 export interface ScheduleRevisionDetail {

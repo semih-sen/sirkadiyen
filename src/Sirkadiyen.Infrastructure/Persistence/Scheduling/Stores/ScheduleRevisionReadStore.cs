@@ -93,9 +93,12 @@ public sealed class ScheduleRevisionReadStore(SirkadiyenDbContext dbContext)
                 Message = finding.Message,
                 AffectedRecordCount = finding.AffectedRecordCount,
                 CreatedAtUtc = finding.CreatedAtUtc,
-                // A finding with no evidence stores SQL NULL; the read contract keeps its
-                // non-null string, so no-evidence reads back as the empty string it always did.
-                Detail = finding.Detail ?? string.Empty,
+                // Projected straight through, with no COALESCE. The column is jsonb, and once it
+                // became nullable a `finding.Detail ?? ""` fallback translated to
+                // `COALESCE(r."Detail", '')` — PostgreSQL casts the '' literal to jsonb, which is
+                // invalid JSON (22P02), and every detail read for a revision with findings 500ed.
+                // The contract carries the null through instead: no evidence reads back as null.
+                Detail = finding.Detail,
             })
             .ToListAsync(cancellationToken);
 

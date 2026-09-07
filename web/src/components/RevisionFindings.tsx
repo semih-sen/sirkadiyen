@@ -173,7 +173,7 @@ export function stateLabel(state: RevisionState | string): string {
  * `[object Object]` and the evidence was, in practice, absent. A table of the object's own keys
  * shows it without the screen having to know each rule's shape.
  */
-function Evidence({ detail }: { detail: string }) {
+function Evidence({ detail }: { detail: string | null | undefined }) {
   let parsed: unknown = null;
   try {
     parsed = detail ? JSON.parse(detail) : null;
@@ -434,7 +434,7 @@ function DateCorrectionAction({
  * finding lists are usually a handful of dates. Grouping them is what turns a list of lessons into
  * the small set of decisions an operator actually has to make.
  */
-function readOutOfYearDates(detail: string): { date: string; count: number }[] {
+function readOutOfYearDates(detail: string | null | undefined): { date: string; count: number }[] {
   try {
     const parsed: unknown = detail ? JSON.parse(detail) : null;
     if (!Array.isArray(parsed)) return [];
@@ -456,7 +456,7 @@ function readOutOfYearDates(detail: string): { date: string; count: number }[] {
 }
 
 /** The anomalies a date-sequence finding carries, or an empty list when its detail is not one. */
-function readAnomalies(detail: string): RevisionDateAnomalyView[] {
+function readAnomalies(detail: string | null | undefined): RevisionDateAnomalyView[] {
   try {
     const parsed: unknown = detail ? JSON.parse(detail) : null;
     if (!Array.isArray(parsed)) return [];

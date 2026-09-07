@@ -130,6 +130,8 @@ public sealed record RevisionFindingView
 
     public required DateTimeOffset CreatedAtUtc { get; init; }
 
-    /// <summary>The JSON evidence the rule recorded, or empty.</summary>
-    public required string Detail { get; init; }
+    /// <summary>The JSON evidence the rule recorded, or <see langword="null"/> when the finding
+    /// carries none. Never the empty string: the storage column is jsonb, which has no empty
+    /// value.</summary>
+    public string? Detail { get; init; }
 }
