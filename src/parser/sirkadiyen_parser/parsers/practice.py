@@ -947,7 +947,8 @@ def _accept(
     diagnostics: ParseDiagnostics,
     accumulator: _Accumulator,
 ) -> None:
-    if expression.covers_all and (candidate.local_date, slot.start) in accumulator.amphitheatre_slots:
+    slot_key = (candidate.local_date, slot.start)
+    if expression.covers_all and slot_key in accumulator.amphitheatre_slots:
         # The annual companion states this whole-class amphitheatre session in full
         # and publishes it with the room the amphitheatre program supplies, so
         # publishing it here as well would show the student the same session twice.
