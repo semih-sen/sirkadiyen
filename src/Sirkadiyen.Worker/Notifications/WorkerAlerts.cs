@@ -220,6 +220,7 @@ internal static class WorkerAlerts
         List<OperatorAlertField> fields = [];
         AddStall(fields, "İnceleme bekleyen revizyon", report.RevisionsAwaitingReview);
         AddStall(fields, "Doğrulanamayan revizyon", report.RevisionsStuckBeforeValidation);
+        AddStall(fields, "Yayınlanamayan revizyon", report.RevisionsStuckAfterValidation);
         AddStall(fields, "Serbest bırakılmayı bekleyen fark", report.DiffsAwaitingRelease);
         AddStall(fields, "Takvime yazılamayan fark", report.FailedDispatches);
         AddStall(fields, "Okunmayı bırakmış kaynak", report.SourcesNotPolled);

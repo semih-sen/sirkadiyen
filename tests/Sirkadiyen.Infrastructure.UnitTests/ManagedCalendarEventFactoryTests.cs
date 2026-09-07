@@ -264,18 +264,37 @@ public sealed class ManagedCalendarEventFactoryTests
     }
 
     [Fact]
-    public void DissectionUsesThePracticeColorAndItsDedicatedTitle()
+    public void DissectionShowsTheAnnualNumberedTitleAndThePracticeColor()
     {
+        // The parser carries the annual program's own numbered title through to the
+        // display title — DİSEKSİYON (N/M), counted within its curriculum block
+        // (ADR-152) — and the presentation uppercases it for a student to read.
         ManagedCalendarEvent dissection = ManagedCalendarEventFactory.ToManagedEvent(
             UserId,
             CalendarTestData.Record(
-                displayTitle: "Anatomi (6)",
+                displayTitle: "DİSEKSİYON (1/13)",
+                eventType: ScheduleEventType.AnatomyPractice,
+                departments: ["ANATOMİ AD."]));
+
+        Assert.Equal("DİSEKSİYON (1/13)", dissection.Summary);
+        Assert.Equal("Uygulamalar", dissection.Label.Name);
+        Assert.Equal("#FF6D00", dissection.Label.BackgroundColor);
+    }
+
+    [Fact]
+    public void DissectionWithoutAnAnnualNumberFallsBackToThePlainMarker()
+    {
+        // No annual companion named this date, so the parser kept the marker title
+        // (ADR-152); uppercasing it still reads DİSEKSİYON.
+        ManagedCalendarEvent dissection = ManagedCalendarEventFactory.ToManagedEvent(
+            UserId,
+            CalendarTestData.Record(
+                displayTitle: "Diseksiyon",
                 eventType: ScheduleEventType.AnatomyPractice,
                 departments: ["ANATOMİ AD."]));
 
         Assert.Equal("DİSEKSİYON", dissection.Summary);
         Assert.Equal("Uygulamalar", dissection.Label.Name);
-        Assert.Equal("#FF6D00", dissection.Label.BackgroundColor);
     }
 
     [Fact]

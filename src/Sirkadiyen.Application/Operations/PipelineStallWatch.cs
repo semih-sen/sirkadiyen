@@ -54,6 +54,14 @@ public sealed class PipelineStallWatch(
                 now - options.UnvalidatedAge,
                 cancellationToken),
 
+            // Validated means a revision passed validation and is waiting only to be
+            // published. Publication runs every cycle and drains all of them (ADR-151),
+            // so one still here is one publication keeps refusing — a scope freeze, or a
+            // revision a newer one already superseded — and nothing else reports it.
+            RevisionsStuckAfterValidation = await store.CountRevisionsStuckAfterValidationAsync(
+                now - options.PublicationAge,
+                cancellationToken),
+
             // Held diffs and failed dispatches both wait for a named operator by
             // design (ADR-042, ADR-097). Neither ever times out on its own.
             DiffsAwaitingRelease = await store.CountDiffsAwaitingReleaseAsync(
@@ -81,6 +89,8 @@ public sealed record PipelineStallReport
 
     public required StalledWork RevisionsStuckBeforeValidation { get; init; }
 
+    public required StalledWork RevisionsStuckAfterValidation { get; init; }
+
     public required StalledWork DiffsAwaitingRelease { get; init; }
 
     public required StalledWork FailedDispatches { get; init; }
@@ -91,6 +101,7 @@ public sealed record PipelineStallReport
     public bool IsStalled =>
         RevisionsAwaitingReview.Count > 0
         || RevisionsStuckBeforeValidation.Count > 0
+        || RevisionsStuckAfterValidation.Count > 0
         || DiffsAwaitingRelease.Count > 0
         || FailedDispatches.Count > 0
         || SourcesNotPolled.Count > 0;
@@ -140,6 +151,13 @@ public sealed class PipelineStallOptions
     /// </summary>
     public TimeSpan UnvalidatedAge { get; set; } = TimeSpan.FromHours(2);
 
+    /// <summary>
+    /// How long a validated revision may sit unpublished. Publication runs every cycle and
+    /// clears these within minutes (ADR-151), so like <see cref="UnvalidatedAge"/> this is
+    /// generous: anything still here is a publication being refused, not a backlog.
+    /// </summary>
+    public TimeSpan PublicationAge { get; set; } = TimeSpan.FromHours(2);
+
     /// <summary>How long a held diff may wait for an operator to release or discard it.</summary>
     public TimeSpan DiffHoldAge { get; set; } = TimeSpan.FromHours(24);
 
@@ -159,6 +177,7 @@ public sealed class PipelineStallOptions
         {
             (nameof(ReviewAge), ReviewAge),
             (nameof(UnvalidatedAge), UnvalidatedAge),
+            (nameof(PublicationAge), PublicationAge),
             (nameof(DiffHoldAge), DiffHoldAge),
             (nameof(PollSilence), PollSilence),
         })

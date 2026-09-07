@@ -266,6 +266,8 @@ internal sealed class WorkerOptionsFactory(
                 configuration["SIRKADIYEN_STALL:REVIEW_HOURS"], 48)),
             UnvalidatedAge = TimeSpan.FromHours(ConfigurationValueParser.Double(
                 configuration["SIRKADIYEN_STALL:UNVALIDATED_HOURS"], 2)),
+            PublicationAge = TimeSpan.FromHours(ConfigurationValueParser.Double(
+                configuration["SIRKADIYEN_STALL:PUBLICATION_HOURS"], 2)),
             DiffHoldAge = TimeSpan.FromHours(ConfigurationValueParser.Double(
                 configuration["SIRKADIYEN_STALL:DIFF_HOLD_HOURS"], 24)),
             PollSilence = TimeSpan.FromHours(ConfigurationValueParser.Double(

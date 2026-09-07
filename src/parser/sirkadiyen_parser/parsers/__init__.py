@@ -47,9 +47,11 @@ _IMPLEMENTATIONS: dict[tuple[str, str], ParserImplementation] = {
     # The two anatomy group lists are one document per semester with one layout,
     # so they share an implementation the way the Grade 2 annual profile serves
     # both languages. The profiles stay separate because the sources are
-    # separate: each states its own semester's dates (ADR-078).
-    ("grade2_anatomy_autumn_v1", "1.2.0"): parse_anatomy_snapshot,
-    ("grade2_anatomy_spring_v1", "1.2.0"): parse_anatomy_snapshot,
+    # separate: each states its own semester's dates (ADR-078). 1.3.0 takes each
+    # dissection's numbered title from the annual program supplied as a companion,
+    # the only document that numbers them `DİSEKSİYON (N/M)` (ADR-152).
+    ("grade2_anatomy_autumn_v1", "1.3.0"): parse_anatomy_snapshot,
+    ("grade2_anatomy_spring_v1", "1.3.0"): parse_anatomy_snapshot,
     # The Grade 3 annual workbooks are the same row-oriented layout again, in both
     # languages and for both curriculum groups. What they add is an audience: the
     # class is split in two, so the profile declares `curriculumGroup` and the

@@ -33,13 +33,16 @@ public sealed class PipelineStallReadStoreTests(PostgresFixture fixture)
         StalledWork unvalidated = await store.CountRevisionsStuckBeforeValidationAsync(
             cutoff,
             Token);
+        StalledWork unpublished = await store.CountRevisionsStuckAfterValidationAsync(
+            cutoff,
+            Token);
         StalledWork held = await store.CountDiffsAwaitingReleaseAsync(cutoff, Token);
         StalledWork failed = await store.CountFailedDispatchesAsync(Token);
         StalledWork unpolled = await store.CountSourcesNotPolledSinceAsync(cutoff, Token);
 
         // Whatever the shared fixture database holds, each read has to answer
         // without throwing, and a zero count must never carry an oldest item.
-        foreach (StalledWork work in new[] { review, unvalidated, held, failed, unpolled })
+        foreach (StalledWork work in new[] { review, unvalidated, unpublished, held, failed, unpolled })
         {
             Assert.True(work.Count >= 0);
             if (work.Count == 0)

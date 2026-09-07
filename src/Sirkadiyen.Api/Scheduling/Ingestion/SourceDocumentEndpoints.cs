@@ -50,8 +50,10 @@ public static class SourceDocumentEndpoints
         IScheduleSourceStore sourceStore,
         CancellationToken cancellationToken)
     {
-        // An upload source is never polling-enabled (ADR-079), so the whole
-        // catalog is read and the transport decides, not the polling flag.
+        // An upload source has nothing to fetch, but it is still polling-enabled: the
+        // worker re-enters it on each poll cycle to parse whatever was last uploaded
+        // (ADR-079, ADR-080). So the whole catalog is read and the transport decides what
+        // accepts an upload, not the polling flag.
         IReadOnlyList<ScheduleSource> catalog = await sourceStore.ListAsync(
             onlyPollingEnabled: false,
             cancellationToken);

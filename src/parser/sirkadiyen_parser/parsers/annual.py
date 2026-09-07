@@ -33,7 +33,10 @@ from sirkadiyen_parser.contracts.parsing import (
     ScheduleEventType,
     SourceEvidence,
 )
-from sirkadiyen_parser.contracts.snapshot import NormalizedWorksheet
+from sirkadiyen_parser.contracts.snapshot import (
+    NormalizedSpreadsheetSnapshot,
+    NormalizedWorksheet,
+)
 from sirkadiyen_parser.diagnostics import ParseDiagnostics
 from sirkadiyen_parser.identity import build_identity_components, content_hash, stable_identity
 from sirkadiyen_parser.normalization.courses import course_identity, normalize_course_title
@@ -940,6 +943,65 @@ def _read_amphitheatre_companion(
     index = AmphitheatreIndex(AmphitheatreDocument(assignments=tuple(assignments)))
     diagnostics.set_metric(METRIC_AMPHITHEATRE_ASSIGNMENTS, len(index))
     return index
+
+
+#: The tokens an annual dissection title starts with, folded for comparison. Both
+#: programmes write the same word: the Turkish `DİSEKSİYON`, the English
+#: `DISSECTION`.
+_DISSECTION_TITLE_TOKENS = ("diseksiyon", "dissection")
+
+
+def read_dissection_titles(
+    snapshot: NormalizedSpreadsheetSnapshot,
+    *,
+    numeric_order: NumericDateOrder,
+) -> dict[date, str]:
+    """Map each dissection date to the annual program's own title for it (ADR-152).
+
+    The annual program is the only document that numbers a dissection —
+    ``DİSEKSİYON (1/13)``, counted within its curriculum block — and it states the
+    same title on all three hours of a session, which this profile otherwise
+    excludes from publication (ADR-073). The anatomy group list states only a
+    date, an hour and a group, and the two documents agree on the date, so the
+    title is keyed by date. A snapshot that is not an annual program exposes no
+    annual header and yields nothing, so any companion may be offered (ADR-102).
+
+    The date is read from the cell rather than its formatted text: the annual
+    workbook holds real date serials, and reading the display text of an
+    ``02.09.2026`` under an undeclared numeric order would refuse an unambiguous
+    value as ambiguous.
+    """
+    titles: dict[date, str] = {}
+    for worksheet in snapshot.worksheets:
+        grid = WorksheetGrid(worksheet)
+        columns = _detect_columns(grid, term_column_may_be_unlabelled=True)
+        if columns is None:
+            continue
+
+        header_row, mapping = columns
+        date_column = mapping[ROLE_DATE]
+        title_column = mapping[ROLE_TITLE]
+        for row_index in range(header_row + 1, grid.worksheet.row_count):
+            raw_title = grid.resolve(row_index, title_column).display_text
+            if raw_title is None:
+                continue
+            raw_title = raw_title.strip()
+            folded = comparison_key(raw_title)
+            if not any(token in folded for token in _DISSECTION_TITLE_TOKENS):
+                continue
+
+            resolved = resolve_cell_date(
+                grid.resolve(row_index, date_column).cell,
+                numeric_order=numeric_order,
+            )
+            if resolved.value is None:
+                continue
+            # First occurrence wins: the three hours of one day state the same
+            # title, and a later day cannot reach a date an earlier one already
+            # claimed.
+            titles.setdefault(resolved.value, raw_title)
+
+    return titles
 
 
 def _bedside_topic(

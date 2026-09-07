@@ -65,6 +65,18 @@ class ParserProfileDefinition:
     #: document it merely enriches from.
     amphitheatre_companion: bool = False
 
+    #: Whether this profile takes each dissection session's display title from the
+    #: annual program supplied as a companion (ADR-152). The anatomy group list
+    #: states only a date, an hour and a group; the annual program is the only
+    #: place the dissection is numbered — ``DİSEKSİYON (1/13)``, counted within its
+    #: curriculum block — and the two documents agree on the date, so the annual
+    #: row on the same date supplies the title. A profile that declares it and is
+    #: given no annual snapshot keeps the plain marker title (ADR-102): the
+    #: numbering only annotates a session this document already fully states, so it
+    #: must never hold that session back. It never changes stable identity — the
+    #: identity keeps the plain marker, and only the display title (content) moves.
+    dissection_title_companion: bool = False
+
 
 _PROFILE_VERSION = "1.1.0"
 
@@ -193,22 +205,28 @@ _PROFILES = (
         group_rotation_subjects=("anatomi", "anatomy", "diseksiyon", "dissection"),
     ),
     # 1.1.0: engine 0.3.0, as grade2_practice_v1 (ADR-130).
+    # 1.3.0 takes each dissection's display title from the annual program's
+    # companion rows — the only place the session is numbered `DİSEKSİYON (N/M)`
+    # per block — matched by date (ADR-152). Identity is unchanged.
     ParserProfileDefinition(
         "grade2_anatomy_autumn_v1",
-        "1.2.0",
+        "1.3.0",
         "anatomy",
         _UNDECLARED,
         ("anatomyGroup",),
         ("Diseksiyon",),
+        dissection_title_companion=True,
     ),
-    # 1.1.0: engine 0.3.0, as grade2_practice_v1 (ADR-130).
+    # 1.1.0: engine 0.3.0, as grade2_practice_v1 (ADR-130). 1.3.0: dissection
+    # numbering from the annual companion (ADR-152), as the autumn profile.
     ParserProfileDefinition(
         "grade2_anatomy_spring_v1",
-        "1.2.0",
+        "1.3.0",
         "anatomy",
         _UNDECLARED,
         ("anatomyGroup",),
         ("Diseksiyon",),
+        dissection_title_companion=True,
     ),
     # The vertical-corridor calendar states the *same* lettered cohorts as the
     # practice table — its `*` cells are the ones this document answers — so it

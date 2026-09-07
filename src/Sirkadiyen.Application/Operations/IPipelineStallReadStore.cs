@@ -22,6 +22,18 @@ public interface IPipelineStallReadStore
         DateTimeOffset cutoffUtc,
         CancellationToken cancellationToken);
 
+    /// <summary>
+    /// Revisions validated before the cutoff that have still not been published.
+    /// </summary>
+    /// <remarks>
+    /// Publication runs every cycle and drains all validated revisions (ADR-151), so one
+    /// still here after the grace period is one publication keeps refusing — a scope freeze,
+    /// or a revision a newer one already superseded — rather than a backlog.
+    /// </remarks>
+    Task<StalledWork> CountRevisionsStuckAfterValidationAsync(
+        DateTimeOffset cutoffUtc,
+        CancellationToken cancellationToken);
+
     /// <summary>Diffs held for an operator since before the cutoff.</summary>
     Task<StalledWork> CountDiffsAwaitingReleaseAsync(
         DateTimeOffset cutoffUtc,

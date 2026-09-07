@@ -127,8 +127,9 @@
 - [x] Second-year Turkish practice (`grade2_practice_v1`, slot-column layout, ADR-074)
 - [x] Second-year English annual (same profile, ADR-073)
 - [x] Second-year English practice (`grade2_practice_v1` 1.2.0, ADR-084)
-- [x] Second-year anatomy autumn (`grade2_anatomy_autumn_v1`, ADR-078)
-- [x] Second-year anatomy spring (`grade2_anatomy_spring_v1`, same implementation)
+- [x] Second-year anatomy autumn (`grade2_anatomy_autumn_v1`, ADR-078; 1.3.0 takes each dissection's
+  `DİSEKSİYON (N/M)` number from the annual program read as a companion, matched by date, ADR-152)
+- [x] Second-year anatomy spring (`grade2_anatomy_spring_v1`, same implementation; 1.3.0 as autumn, ADR-152)
 - [x] Second-year vertical corridor (`grade2_vertical_corridor_v1`, ADR-077)
 - [x] Third-year Turkish A annual (`grade3_yearly_v1`, ADR-098/100)
 - [x] Third-year Turkish A bedside (`grade3_bedside_v1`, publishes nothing by design, ADR-100)
@@ -165,6 +166,10 @@
 - [x] Implement admin revision review
 - [x] Implement audited manual rejection of a quarantined revision (ADR-097)
 - [x] Implement transactional publication
+- [x] Run validation, publication and diffing every worker cycle, decoupled from the adaptive
+  source-poll cadence, so an administratively uploaded revision reaches a calendar in seconds
+  rather than waiting up to a full poll interval; stall watch now also detects a `Validated`
+  revision stuck unpublished (ADR-151)
 - [x] Decide forward-fix policy; no rollback operation (ADR-033)
 - [x] Add validation regression tests
 - [x] Implement bounded snapshot payload retention and cleanup (ADR-044)

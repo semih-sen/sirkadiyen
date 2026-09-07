@@ -39,6 +39,18 @@ public sealed class PipelineStallReadStore(SirkadiyenDbContext dbContext)
                 .Where(revision => revision.CreatedAtUtc < cutoffUtc),
             cancellationToken);
 
+    public Task<StalledWork> CountRevisionsStuckAfterValidationAsync(
+        DateTimeOffset cutoffUtc,
+        CancellationToken cancellationToken) =>
+        SummarizeRevisionsAsync(
+            dbContext.ScheduleRevisions
+                // Validated but not Published. Publication drains every validated revision
+                // each cycle (ADR-151), so one that lingers is one publication refuses:
+                // most often a scope freeze or a revision a newer one superseded.
+                .Where(revision => revision.State == RevisionState.Validated)
+                .Where(revision => revision.CreatedAtUtc < cutoffUtc),
+            cancellationToken);
+
     public Task<StalledWork> CountDiffsAwaitingReleaseAsync(
         DateTimeOffset cutoffUtc,
         CancellationToken cancellationToken) =>

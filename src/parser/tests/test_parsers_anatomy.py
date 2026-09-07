@@ -19,6 +19,7 @@ from sirkadiyen_parser.contracts.parsing import (
     ParseSnapshotResponse,
     ScheduleEventType,
 )
+from sirkadiyen_parser.normalization.courses import course_identity
 from sirkadiyen_parser.normalization.dates import NumericDateOrder
 from sirkadiyen_parser.parsers import get_parser, implemented_profiles
 from sirkadiyen_parser.parsers.anatomy import (
@@ -30,11 +31,12 @@ from sirkadiyen_parser.profiles import ParserProfileDefinition, get_profile
 
 PROFILE = ParserProfileDefinition(
     "grade2_anatomy_autumn_v1",
-    "1.2.0",
+    "1.3.0",
     "anatomy",
     NumericDateOrder.UNDECLARED,
     ("anatomyGroup",),
     ("Diseksiyon",),
+    dissection_title_companion=True,
 )
 
 HOURS = ("13:30-14:20", "14:30-15:20", "15:30-16:20")
@@ -146,17 +148,146 @@ def parse(
     return parse_anatomy_snapshot(request, profile)
 
 
+def annual_companion(
+    date_text: str = "4 Kasım 2025 Salı",
+    title: str = "DİSEKSİYON (1/13)",
+) -> dict[str, Any]:
+    """A minimal annual program stating one numbered dissection row.
+
+    It carries the five roles the annual header detector requires, so the
+    dissection-title reader finds its date and KONU columns exactly as it does in
+    the real workbook (ADR-152).
+    """
+    cells = [
+        *row_cells(0, ["Dönem", "TARİH", "Başlama Saati", "Bitiş Saati", "KONU"]),
+        *row_cells(1, ["Dönem 2", date_text, "13:30", "14:20", title]),
+    ]
+    return {
+        "sheetId": "annual",
+        "title": "DÖNEM 2",
+        "index": 0,
+        "rowCount": 2,
+        "columnCount": 5,
+        "mergedRanges": [],
+        "cells": cells,
+    }
+
+
+def parse_with_companion(
+    worksheets: list[dict[str, Any]],
+    companion: dict[str, Any],
+    *,
+    profile: ParserProfileDefinition = PROFILE,
+) -> ParseSnapshotResponse:
+    request = ParseSnapshotRequest.model_validate(
+        {
+            "contractVersion": "1.0",
+            "correlationId": "unit-test",
+            "parserProfile": {"name": profile.name, "version": profile.version},
+            "sourceContext": {
+                "academicYear": "2025-2026",
+                "classYear": 2,
+                "programLanguage": "turkish",
+                "timeZoneId": "Europe/Istanbul",
+            },
+            "snapshot": {
+                "contractVersion": "1.0",
+                "sourceId": "TEST-SOURCE",
+                "snapshotId": "test-snapshot",
+                "spreadsheetId": "test-document",
+                "acquiredAtUtc": "2026-07-25T09:00:00Z",
+                "contentHash": "sha256:test",
+                "contentHashAlgorithm": "SHA-256",
+                "worksheets": worksheets,
+            },
+            "auxiliarySnapshots": [
+                {
+                    "contractVersion": "1.0",
+                    "sourceId": "G2-TR-ANNUAL",
+                    "snapshotId": "annual-snapshot",
+                    "spreadsheetId": "annual-document",
+                    "acquiredAtUtc": "2026-07-25T09:00:00Z",
+                    "contentHash": "sha256:annual",
+                    "contentHashAlgorithm": "SHA-256",
+                    "worksheets": [companion],
+                }
+            ],
+        }
+    )
+    return parse_anatomy_snapshot(request, profile)
+
+
 def metrics(response: ParseSnapshotResponse) -> dict[str, float]:
     return {metric.name: metric.value for metric in response.metrics}
 
 
+def test_dissection_title_comes_from_the_annual_companion() -> None:
+    cells, merged = merged_day(0, "4 Kasım 2025 Salı", ("1", "2", "3"))
+
+    response = parse_with_companion(
+        [worksheet(cells, merged_ranges=[merged])],
+        annual_companion(),
+    )
+
+    assert response.status is ParserResultStatus.COMPLETED
+    # Every hour of the day takes the annual program's numbered title for its date.
+    assert {candidate.display_title for candidate in response.candidates} == {"DİSEKSİYON (1/13)"}
+    assert metrics(response)["companion.dissectionTitles"] == 1
+
+
+def test_without_a_companion_the_plain_marker_title_is_kept() -> None:
+    cells, merged = merged_day(0, "4 Kasım 2025 Salı", ("1", "2", "3"))
+
+    response = parse([worksheet(cells, merged_ranges=[merged])])
+
+    # No annual snapshot was supplied, so the session keeps the marker title and
+    # nothing is held back (ADR-102).
+    assert {candidate.display_title for candidate in response.candidates} == {"Diseksiyon"}
+
+
+def test_the_annual_title_is_content_not_identity() -> None:
+    cells, merged = merged_day(0, "4 Kasım 2025 Salı", ("1", "2", "3"))
+
+    plain = parse([worksheet(cells, merged_ranges=[merged])])
+    enriched = parse_with_companion(
+        [worksheet(cells, merged_ranges=[merged])],
+        annual_companion(),
+    )
+
+    # The number is a title change, so the same logical session updates in place:
+    # identity is unchanged and only the content hash moves (ADR-152).
+    assert {candidate.stable_identity for candidate in plain.candidates} == {
+        candidate.stable_identity for candidate in enriched.candidates
+    }
+    assert all(
+        candidate.normalized_course_identity == course_identity("Diseksiyon")
+        for candidate in enriched.candidates
+    )
+    assert {candidate.content_hash for candidate in plain.candidates}.isdisjoint(
+        candidate.content_hash for candidate in enriched.candidates
+    )
+
+
+def test_a_date_the_annual_does_not_number_falls_back_to_the_marker() -> None:
+    cells, merged = merged_day(0, "4 Kasım 2025 Salı", ("1", "2", "3"))
+
+    # The companion numbers a different date, so this session finds no title.
+    response = parse_with_companion(
+        [worksheet(cells, merged_ranges=[merged])],
+        annual_companion(date_text="6 Kasım 2025 Perşembe"),
+    )
+
+    assert {candidate.display_title for candidate in response.candidates} == {"Diseksiyon"}
+
+
 @pytest.mark.parametrize("name", ("grade2_anatomy_autumn_v1", "grade2_anatomy_spring_v1"))
 def test_both_semesters_are_registered_against_one_implementation(name: str) -> None:
-    profile = get_profile(name, "1.2.0")
+    profile = get_profile(name, "1.3.0")
 
     assert profile is not None
-    assert get_parser(name, "1.2.0") is parse_anatomy_snapshot
-    assert (name, "1.2.0") in implemented_profiles()
+    assert profile.dissection_title_companion
+    assert get_parser(name, "1.3.0") is parse_anatomy_snapshot
+    assert (name, "1.3.0") in implemented_profiles()
 
 
 def test_the_test_profile_matches_the_registered_one() -> None:

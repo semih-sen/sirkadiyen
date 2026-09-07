@@ -71,10 +71,17 @@ internal sealed class Worker(
 
             if (pollScheduleSources)
             {
-                await sourcePipeline.RunAsync(cancellationToken);
+                await sourcePipeline.PollSourcesAsync(cancellationToken);
                 DateTimeOffset intervalSelectedAt = timeProvider.GetUtcNow();
                 nextSourcePollAt = intervalSelectedAt + intervalPolicy.GetInterval(intervalSelectedAt);
             }
+
+            // Every cycle, not only a poll cycle: validating, publishing and diffing existing
+            // revisions needs no source acquisition, so an administratively uploaded revision
+            // reaches a calendar within the idle-check interval instead of waiting for the next
+            // adaptive source poll (ADR-151). Runs before calendar work so a diff created here is
+            // dispatched in the same cycle's fenced Calendar pass.
+            await sourcePipeline.AdvanceRevisionsAsync(cancellationToken);
 
             bool calendarCatchUpRequired = await RunCalendarWorkAsync(mealMenuChanged, cancellationToken);
 

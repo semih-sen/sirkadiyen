@@ -9360,3 +9360,128 @@ so it appears in the `DepartmentColorEditor` for both the student (per-user over
 label key, so a picked colour is the one the menu carries. A colour change applies to menu days
 written or patched afterwards (a content change repaints; toggling the menu off and on forces an
 immediate repaint) — the same forward-applying behaviour lesson colours have.
+
+## ADR-151: Revision publication and diffing run every worker cycle, decoupled from the source-poll cadence
+
+**Status:** Accepted
+**Date:** 2026-09-07
+
+### Context
+
+A live incident: the fall (güz) Grade 2 anatomy programs were uploaded through the admin panel
+(`G2-ANATOMY-AUTUMN` and its English counterpart), the parse completed with warnings, the revision
+reached `Validated` — and the calendar showed nothing. The vertical-corridor source (`G2-VERTICAL`),
+in the same `Dönem 2 / Turkish` scope, had published minutes earlier and was fine. No freeze was
+active and a single worker was running.
+
+The cause was structural, not a fault. The worker loop (`Worker.RunCyclesAsync`) ran the whole
+`SourceProcessingPipeline` — poll → validate → publish → diff — only inside `if
+(pollScheduleSources)`, i.e. only on an adaptive **source-poll** cycle (weekday-evening interval 25
+min, up to 60 min at weekends). `G2-VERTICAL` is Drive-polled, so it went poll→validate→**publish**
+in one scheduled cycle. The anatomy sources are `administrativeUpload`: the upload stores a snapshot
+and stops (ADR-080), and an operator "Şimdi çek" runs `ManualSourcePollTask` every cycle —
+`ScheduleSourcePoller.PollAsync` parses **and validates** but does **not** publish. Publication
+(`RevisionPublicationTask`, which drains *all* `Validated` revisions source-agnostically) only ran on
+the next scheduled poll cycle. So an uploaded revision sat in `Validated` for up to a full poll
+interval before it could even publish, then still needed diff + dispatch.
+
+Two aggravating facts: there is no operator "publish this validated revision" path (only `approve`
+for a quarantined one, ADR-097), and the stall watch (ADR-143) tracked `Parsed`/`ReviewRequired`/
+`Held`/`Failed` but **not** `Validated` — so a revision stuck one step from live was invisible and
+raised no alert.
+
+### Decision
+
+- **Split `SourceProcessingPipeline` into `PollSourcesAsync` (acquisition only) and
+  `AdvanceRevisionsAsync` (validate → publish → diff).** Only acquisition is genuinely cadenced — it
+  talks to Google on the adaptive interval. Validating, publishing and diffing existing revisions are
+  queue-driven database reads that no-op when their queue is empty and need no source read.
+- **`Worker.RunCyclesAsync` calls `PollSourcesAsync` only on a poll cycle, but `AdvanceRevisionsAsync`
+  every cycle**, before the fenced Calendar work so a diff created this pass dispatches the same
+  cycle. An uploaded (or any) validated revision now reaches a calendar within the idle-check interval
+  (~5 s) instead of waiting for the next adaptive source poll. This mirrors how `ManualSourcePollTask`
+  and Calendar maintenance already run every cycle.
+- **The stall watch gains a `Validated`-stuck detector** (`CountRevisionsStuckAfterValidationAsync`,
+  `PublicationAge` default 2 h, `SIRKADIYEN_STALL__PUBLICATION_HOURS`). Because publication now drains
+  every validated revision each cycle, one still unpublished after the grace period is a publication
+  being *refused* — a scope freeze, or a revision a newer one already superseded — which is exactly
+  the state a human must resolve. It surfaces in `WorkerAlerts.PipelineStalled` as "Yayınlanamayan
+  revizyon".
+- **Corrected the false invariant** in `SourceDocumentEndpoints` claiming an upload source "is never
+  polling-enabled". `ScheduleSource` sets `IsPollingEnabled = true` for every transport and nothing
+  disables it for uploads, so the scheduled poll does re-enter an upload source each cycle
+  (`PollUploadedSourceAsync`, short-circuiting `AlreadyParsed`); ADR-079's intent was never
+  implemented and the comment misled.
+
+### Consequences
+
+- Publishing and diffing no longer inherit the poll interval's latency. The cost is three cheap,
+  usually-empty indexed reads per idle cycle; the stall watch itself stays on the poll cycle (a stall
+  is measured in hours, ADR-143).
+- The publication refusal reasons that previously left a revision silently stuck (`Frozen`,
+  `SupersededByNewerRevision`, `ConcurrentPublication`) now become an operator alert rather than a
+  blind spot.
+- Still deferred: an on-demand "publish this validated revision" operator endpoint — with publication
+  now every cycle, the wait is seconds, so the lever is lower value than it was.
+- No schema change. `SourceProcessingPipeline.RunAsync` is replaced by the two new methods; the
+  `IPipelineStallReadStore` / `PipelineStallReport` / `PipelineStallOptions` additions are the only
+  contract changes.
+
+## ADR-152: A dissection takes its number from the annual program, read as a companion
+
+**Status:** Accepted
+**Date:** 2026-09-07
+
+### Context
+
+The Grade 2 anatomy group list (`G2-ANATOMY-AUTUMN`, uploaded for 2026-2027) states only three
+columns — a date, one of the day's three hours, and the anatomy group `1`/`2`/`3` attending it. It
+carries no lesson title, so the parser titles every session with the fixed marker `Diseksiyon`
+(ADR-078) and the calendar shows an undifferentiated `DİSEKSİYON`. Students cannot tell which
+dissection a session is.
+
+The number the students want exists in exactly one place: the annual program's `KONU` column writes
+`DİSEKSİYON (1/13)`, `DİSEKSİYON (2/13)` … — the ordinal within the current curriculum block and the
+block's total (13 in Dolaşım, 6 in Solunum). The annual states all three hours of a day with that one
+title and this profile already **excludes** those rows, deferring the rotation to the group list
+(ADR-073). So the two documents describe the same sessions and agree on the date; only the annual
+numbers them.
+
+### Decision
+
+- **The anatomy profile reads the annual program as a companion and takes each dissection's display
+  title from the annual row on the same date.** New profile flag `dissection_title_companion`;
+  `grade2_anatomy_autumn_v1`/`grade2_anatomy_spring_v1` bumped to `1.3.0`. The companion is declared
+  in the catalog (`G2-ANATOMY-AUTUMN` → `G2-TR-ANNUAL`, the English pair → `G2-EN-ANNUAL`, spring
+  likewise), so the `.NET` side ships the annual snapshot as an auxiliary with no code change. A
+  shared reader `read_dissection_titles` (in `annual.py`, reusing the annual header/column detection)
+  maps each dissection date to the annual's verbatim `DİSEKSİYON (N/M)`; the date is read from the
+  cell (serial), not its formatted text, so an unambiguous workbook date is never refused as ambiguous.
+- **The number is content, never identity.** Stable identity keeps the plain marker
+  (`course_identity("Diseksiyon")`); only the display title and content hash move. A session that
+  gains a `(1/13)` therefore **updates in place** rather than being deleted and recreated — verified
+  by a golden case (`g2-anatomy-autumn-with-annual.json`): 90 candidates, identical stable identities
+  to the plain case, titles now `DİSEKSİYON (1/13)`…`(11/11)`, 53 dates enriched.
+- **Degrade, never block.** No annual snapshot (or a date the annual does not number) keeps the marker
+  title, exactly as before companions existed (ADR-102). The presentation policy uppercases the
+  display title, so the fallback still reads `DİSEKSİYON`.
+- **Amends ADR-102: a companion may itself declare companions.** The annual reads the weekly
+  amphitheatre for rooms, so making it a companion of the anatomy list hit the old "companion evidence
+  is one level deep" rule. That rule is over-conservative: resolution is not recursive (a parse reads
+  only its own direct companions' snapshots), and a snapshot's content hash is document-driven, so a
+  chain never deepens the fingerprint and even a cycle is self-limiting. The rule is relaxed to refuse
+  only a **direct mutual** companion pair.
+
+### Consequences
+
+- The anatomy list re-parses on deployment (version bump) and repaints existing dissection events in
+  place through the ordinary semantic-diff update path — no duplication, no deletion.
+- The anatomy parse now depends on the annual snapshot being retained (it is, as the current-year
+  document). The `companion.dissectionTitles` metric reports how many dates were numbered, so a
+  missing or stale annual is visible rather than silent.
+- Investigated as part of the same session and found **not** a bug: the "some dissections came, some
+  did not" state is the annual whole-class fallback (ADR-126) not yet superseded by the anatomy
+  coverage for every date. The rotation-coverage query and the fallback exclusion are correct; the
+  annual re-parses on its next poll after the anatomy publish (coverage is in its parse-run
+  fingerprint) and the semantic diff then removes the stale three-slot events. It converges without
+  code change; deploying ADR-151 plus a forced annual re-poll expedites it.

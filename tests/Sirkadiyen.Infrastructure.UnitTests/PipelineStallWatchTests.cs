@@ -45,6 +45,7 @@ public sealed class PipelineStallWatchTests
 
         Assert.Equal(Now.AddHours(-48), store.ReviewCutoff);
         Assert.Equal(Now.AddHours(-2), store.UnvalidatedCutoff);
+        Assert.Equal(Now.AddHours(-2), store.PublicationCutoff);
         Assert.Equal(Now.AddHours(-24), store.DiffHoldCutoff);
         Assert.Equal(Now.AddHours(-12), store.PollSilenceCutoff);
     }
@@ -86,6 +87,33 @@ public sealed class PipelineStallWatchTests
             options.Validate);
     }
 
+    [Fact]
+    public async Task AValidatedRevisionThatNeverPublishedIsReported()
+    {
+        // The blind spot ADR-151 closed: publication runs every cycle and drains all
+        // validated revisions, so one still here is one publication keeps refusing (a
+        // scope freeze, or one a newer revision superseded) and nothing else says so.
+        FakeStallReadStore store = new()
+        {
+            StuckAfterValidation = new StalledWork
+            {
+                Count = 2,
+                OldestSinceUtc = Now.AddHours(-6),
+                OldestSourceId = "G2-ANATOMY-AUTUMN",
+            },
+        };
+
+        PipelineStallReport report = await new PipelineStallWatch(
+            store,
+            new PipelineStallOptions(),
+            Clock()).InspectAsync(CancellationToken.None);
+
+        Assert.True(report.IsStalled);
+        Assert.Equal(2, report.RevisionsStuckAfterValidation.Count);
+        Assert.Equal("G2-ANATOMY-AUTUMN", report.RevisionsStuckAfterValidation.OldestSourceId);
+        Assert.Equal(Now.AddHours(-2), store.PublicationCutoff);
+    }
+
     private static TimeProvider Clock() => new FixedTimeProvider(Now);
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
@@ -97,9 +125,13 @@ public sealed class PipelineStallWatchTests
     {
         public StalledWork AwaitingReview { get; init; } = StalledWork.None;
 
+        public StalledWork StuckAfterValidation { get; init; } = StalledWork.None;
+
         public DateTimeOffset? ReviewCutoff { get; private set; }
 
         public DateTimeOffset? UnvalidatedCutoff { get; private set; }
+
+        public DateTimeOffset? PublicationCutoff { get; private set; }
 
         public DateTimeOffset? DiffHoldCutoff { get; private set; }
 
@@ -119,6 +151,14 @@ public sealed class PipelineStallWatchTests
         {
             UnvalidatedCutoff = cutoffUtc;
             return Task.FromResult(StalledWork.None);
+        }
+
+        public Task<StalledWork> CountRevisionsStuckAfterValidationAsync(
+            DateTimeOffset cutoffUtc,
+            CancellationToken cancellationToken)
+        {
+            PublicationCutoff = cutoffUtc;
+            return Task.FromResult(StuckAfterValidation);
         }
 
         public Task<StalledWork> CountDiffsAwaitingReleaseAsync(

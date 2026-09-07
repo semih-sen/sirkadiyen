@@ -1,5 +1,55 @@
 # Active Context
 
+## Latest session (2026-09-07, ADR-152: dissection numbering from the annual companion)
+
+After ADR-151 unstuck publication, the operator restarted the worker and the güz dissections began
+appearing. Two follow-ups: (1) the anatomy sessions showed a bare `DİSEKSİYON` with no number, and
+(2) some days still showed three whole-class slots instead of the student's one.
+
+Fix (ADR-152): the anatomy group list carries no title, but the annual program's `KONU` numbers each
+dissection `DİSEKSİYON (N/M)` per curriculum block and already defers those rows to the group list
+(ADR-073). The anatomy profile now reads the annual as a **companion** and takes each session's
+display title from the annual row on the same date (`read_dissection_titles` in `annual.py`; profiles
+bumped to `1.3.0`; catalog wires `G2-ANATOMY-*` → the matching annual). The number is **content, not
+identity** — stable identity keeps the plain marker, so events update in place (golden proves 90
+candidates, identical identities, titles `DİSEKSİYON (1/13)`…, 53 dates enriched). Presentation shows
+the enriched title; missing/unmatched → fallback `DİSEKSİYON` (ADR-102 degradation). Amended ADR-102
+to allow a companion that itself declares companions (the annual reads the amphitheatre), since
+resolution is non-recursive and snapshots are document-driven; only a direct mutual pair is refused.
+
+Issue (2) investigated and found **not a bug**: it is the annual whole-class fallback (ADR-126) not
+yet superseded by the anatomy coverage for every date. The mechanism is correct; the annual re-parses
+on its next poll after the anatomy publish and the diff removes the stale three-slot events. Advised
+force-polling `G2-TR-ANNUAL`/`G2-EN-ANNUAL` (with ADR-151 deployed) to expedite.
+
+Tests: 606 parser (new anatomy companion cases + golden `g2-anatomy-autumn-with-annual.json`), 934
+Infrastructure, 11 Api, 6 Contracts — all green; .NET build 0 warnings. **Not yet deployed** (repo
+only); deploying re-parses the anatomy and repaints existing dissection events in place.
+
+## Latest session (2026-09-07, ADR-151: publication decoupled from the poll cadence)
+
+Diagnosed a live incident: the güz Grade 2 anatomy uploads (`G2-ANATOMY-AUTUMN`/`-EN`) reached
+`Validated` but never published, so the calendar showed nothing, while `G2-VERTICAL` (same
+`Dönem 2 / Turkish` scope) had published minutes earlier. Root cause was structural: the worker ran
+`SourceProcessingPipeline` (poll → validate → publish → diff) **only on an adaptive source-poll
+cycle**. An `administrativeUpload` revision is validated promptly by `ManualSourcePollTask`
+(`PollAsync` parses+validates but never publishes), yet publication only ran on the next scheduled
+poll — up to a full interval later.
+
+Fix (ADR-151): split the pipeline into `PollSourcesAsync` (acquisition, poll-cycle-gated) and
+`AdvanceRevisionsAsync` (validate → publish → diff, **every cycle**, before the fenced Calendar
+pass). Added a `Validated`-stuck detector to the stall watch (`CountRevisionsStuckAfterValidationAsync`,
+`PublicationAge`/`SIRKADIYEN_STALL__PUBLICATION_HOURS`, alert line "Yayınlanamayan revizyon") — the
+prior blind spot that let this go unalerted. Fixed the false "upload source is never polling-enabled"
+comment in `SourceDocumentEndpoints`. Build clean (0 warnings); 22 Infrastructure unit tests green
+(stall-watch + alerts + composition); DB-backed `PipelineStallReadStoreTests` extended (self-skips
+without Postgres here).
+
+**Operational note for the live incident:** restarting the worker publishes a stuck-`Validated`
+revision immediately (startup polls at once); "Force ile çek" does **not** publish (it only
+re-validates). Still deferred: an operator "publish this validated revision" endpoint (lower value
+now that publication is every-cycle).
+
 ## Current phase
 
 The identity and activation foundation is implemented: Google ID credentials are

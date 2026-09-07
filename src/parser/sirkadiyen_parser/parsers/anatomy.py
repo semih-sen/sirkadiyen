@@ -21,7 +21,7 @@ states no date, or more than one, publishes nothing.
 """
 
 import re
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, time
 
@@ -58,6 +58,7 @@ from sirkadiyen_parser.parsers.annual import (
     MIN_PLAUSIBLE_DURATION_MINUTES,
     WARNING_IMPLAUSIBLE_DURATION,
     encode_all_day,
+    read_dissection_titles,
 )
 from sirkadiyen_parser.parsers.cohort_rotation import date_refusal
 from sirkadiyen_parser.parsers.date_repair import (
@@ -115,6 +116,10 @@ METRIC_DAYS_REFUSED_PREFIX = "days.ignored."
 METRIC_CANDIDATES_EMITTED = "candidates.emitted"
 METRIC_CANDIDATE_EVENT_TYPE_PREFIX = "candidates.eventType."
 METRIC_AUDIENCE_DIMENSION_PREFIX = "audience.dimension."
+#: How many distinct dissection dates took a numbered title from the annual
+#: companion (ADR-152). Zero when no annual snapshot was supplied, which is the
+#: signal that every session fell back to the plain marker title.
+METRIC_COMPANION_DISSECTION_TITLES = "companion.dissectionTitles"
 
 RULE_DATE_CELL = "anatomy.dateCell"
 RULE_TIME_CELL = "anatomy.timeRangeCell"
@@ -171,6 +176,8 @@ def parse_anatomy_snapshot(
         )
         return _respond(request, profile, diagnostics, accumulator)
 
+    dissection_titles = _read_dissection_titles(request, profile, diagnostics)
+
     selected = 0
     for worksheet in request.snapshot.worksheets:
         grid = WorksheetGrid(worksheet)
@@ -179,6 +186,7 @@ def parse_anatomy_snapshot(
             context=request.source_context,
             profile=profile,
             title=title,
+            dissection_titles=dissection_titles,
             diagnostics=diagnostics,
             accumulator=accumulator,
         ):
@@ -224,6 +232,35 @@ def _respond(
     )
 
 
+def _read_dissection_titles(
+    request: ParseSnapshotRequest,
+    profile: ParserProfileDefinition,
+    diagnostics: ParseDiagnostics,
+) -> dict[date, str]:
+    """The numbered dissection titles the annual companion states, keyed by date.
+
+    Empty whenever the profile declares no dissection-title companion or none was
+    supplied, and then every session keeps the plain marker title exactly as it
+    did before companions existed (ADR-102, ADR-152): the numbering only annotates
+    a session this document already fully states, so it must never hold it back.
+    Every auxiliary snapshot is offered to the reader; one that is not an annual
+    program yields nothing rather than being misread.
+    """
+    if not profile.dissection_title_companion or not request.auxiliary_snapshots:
+        return {}
+
+    titles: dict[date, str] = {}
+    for snapshot in request.auxiliary_snapshots:
+        for local_date, title in read_dissection_titles(
+            snapshot,
+            numeric_order=profile.companion_numeric_date_order,
+        ).items():
+            titles.setdefault(local_date, title)
+
+    diagnostics.set_metric(METRIC_COMPANION_DISSECTION_TITLES, len(titles))
+    return titles
+
+
 def _worksheet_evidence(worksheet: NormalizedWorksheet) -> SourceEvidence:
     return SourceEvidence(
         sheet_id=worksheet.sheet_id,
@@ -240,6 +277,7 @@ def _parse_worksheet(
     context: ParseSourceContext,
     profile: ParserProfileDefinition,
     title: str,
+    dissection_titles: Mapping[date, str],
     diagnostics: ParseDiagnostics,
     accumulator: _Accumulator,
 ) -> bool:
@@ -286,6 +324,7 @@ def _parse_worksheet(
                 day=day,
                 context=context,
                 title=title,
+                dissection_titles=dissection_titles,
                 diagnostics=diagnostics,
                 accumulator=accumulator,
             )
@@ -298,6 +337,7 @@ def _parse_worksheet(
                 day=day,
                 context=context,
                 title=title,
+                dissection_titles=dissection_titles,
                 diagnostics=diagnostics,
                 accumulator=accumulator,
             )
@@ -311,6 +351,7 @@ def _parse_worksheet(
         day=day,
         context=context,
         title=title,
+        dissection_titles=dissection_titles,
         diagnostics=diagnostics,
         accumulator=accumulator,
     )
@@ -415,6 +456,7 @@ def _publish_day(
     day: Sequence[_Row],
     context: ParseSourceContext,
     title: str,
+    dissection_titles: Mapping[date, str],
     diagnostics: ParseDiagnostics,
     accumulator: _Accumulator,
 ) -> None:
@@ -484,6 +526,11 @@ def _publish_day(
     # reports how the source writes its dates, not how many groups attend.
     diagnostics.increment(f"{METRIC_DATE_RULE_PREFIX}{resolution.rule}")
 
+    # The three hours of this day share one dissection: the number the annual
+    # program gives that date is the display title for all of them, and the plain
+    # marker is the fallback when no annual companion named it (ADR-152).
+    display_title = dissection_titles.get(resolution.value, title)
+
     for row in day:
         _publish_row(
             grid=grid,
@@ -493,6 +540,7 @@ def _publish_day(
             date_rule=resolution.rule,
             context=context,
             title=title,
+            display_title=display_title,
             diagnostics=diagnostics,
             accumulator=accumulator,
         )
@@ -532,6 +580,7 @@ def _publish_row(
     date_rule: str,
     context: ParseSourceContext,
     title: str,
+    display_title: str,
     diagnostics: ParseDiagnostics,
     accumulator: _Accumulator,
 ) -> None:
@@ -570,6 +619,7 @@ def _publish_row(
         selectors=selectors,
         context=context,
         title=title,
+        display_title=display_title,
         cell_evidence=evidence,
     )
     _accept(
@@ -610,9 +660,13 @@ def _build_candidate(
     selectors: Sequence[AudienceSelector],
     context: ParseSourceContext,
     title: str,
+    display_title: str,
     cell_evidence: SourceEvidence,
 ) -> CanonicalScheduleCandidate:
     audience_key = "+".join(f"{selector.dimension}:{selector.value}" for selector in selectors)
+    # Identity is built from the stable marker title, never the enriched display
+    # title (ADR-152): the annual numbering is content, so a session that gains a
+    # `(1/13)` title updates in place rather than being deleted and recreated.
     identity_components = build_identity_components(
         (
             ("academicYear", context.academic_year),
@@ -637,7 +691,7 @@ def _build_candidate(
         event_type=ScheduleEventType.ANATOMY_PRACTICE,
         status=CandidateRecordStatus.SCHEDULED,
         normalized_course_identity=course_identity(title),
-        display_title=title,
+        display_title=display_title,
         local_date=local_date,
         start_local_time=row.start,
         end_local_time=row.end,
@@ -655,7 +709,7 @@ def _build_candidate(
                 "academicYear": context.academic_year,
                 "classYear": str(context.class_year),
                 "programLanguage": context.program_language.value,
-                "displayTitle": title,
+                "displayTitle": display_title,
                 "eventType": ScheduleEventType.ANATOMY_PRACTICE.value,
                 "localDate": local_date.isoformat(),
                 # A dissection hour is always timed: a row without a readable

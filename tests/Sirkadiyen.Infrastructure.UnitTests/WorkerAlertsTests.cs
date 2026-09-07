@@ -129,6 +129,7 @@ public sealed class WorkerAlertsTests
                 OldestSourceId = "G3-TR-A",
             },
             RevisionsStuckBeforeValidation = StalledWork.None,
+            RevisionsStuckAfterValidation = StalledWork.None,
             DiffsAwaitingRelease = StalledWork.None,
             FailedDispatches = new StalledWork { Count = 2 },
             SourcesNotPolled = StalledWork.None,

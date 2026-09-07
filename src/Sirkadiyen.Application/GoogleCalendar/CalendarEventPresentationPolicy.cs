@@ -18,7 +18,12 @@ public static partial class CalendarEventPresentationPolicy
         ArgumentNullException.ThrowIfNull(record);
         if (record.EventType is ScheduleEventType.AnatomyPractice)
         {
-            return "DİSEKSİYON";
+            // The anatomy group list states only a date, an hour and a group; the
+            // dissection's number — DİSEKSİYON (1/13), counted within its curriculum
+            // block — comes from the annual program the parser reads as a companion
+            // (ADR-152). When no annual title was matched the display title is the
+            // plain marker, so uppercasing it still yields DİSEKSİYON.
+            return record.DisplayTitle.Trim().ToUpper(new CultureInfo("tr-TR"));
         }
 
         return IsPractice(record.EventType)

@@ -260,10 +260,16 @@ public sealed class ScheduleSourceCatalogLoader : IScheduleSourceCatalogSerializ
     /// from every event forever without a single warning. Catalog load is the
     /// only place the mistake is still visible, so it fails here.
     /// <para>
-    /// A companion that itself declares companions is refused too. Evidence is
-    /// one level deep by construction: resolving a chain would raise questions
-    /// about cycles and about whose fingerprint covers what, and no source needs
-    /// it.
+    /// A companion that itself declares companions is allowed (ADR-152, amending
+    /// ADR-102). Resolution is not recursive: a parse reads only its own direct
+    /// companions' snapshots, never a companion's companions, so a chain never
+    /// deepens the evidence or the fingerprint. And a snapshot's content hash is
+    /// driven by the document, not by parsing, so re-parsing one source can never
+    /// change another's snapshot — which makes even a cycle self-limiting. The
+    /// Grade 2 anatomy list needs exactly this: it reads the annual program for the
+    /// dissection numbering, and the annual reads the weekly amphitheatre for rooms.
+    /// A direct mutual companion pair is still refused, as it is almost certainly a
+    /// mistake and never something a source needs.
     /// </para>
     /// </remarks>
     private static void ValidateCompanionSourceIds(
@@ -303,11 +309,15 @@ public sealed class ScheduleSourceCatalogLoader : IScheduleSourceCatalogSerializ
                         $"Source '{source.SourceId}' names companion '{companionId}' twice.");
                 }
 
-                if (byId[companionId].CompanionSourceIds is { Count: > 0 })
+                // A companion may declare companions of its own (ADR-152): resolution
+                // reads only direct companions, so a chain never deepens. Only a direct
+                // mutual pair — each naming the other — is refused, as a likely mistake.
+                if (byId[companionId].CompanionSourceIds is { } companionCompanions
+                    && companionCompanions.Contains(source.SourceId, StringComparer.Ordinal))
                 {
                     throw new InvalidDataException(
-                        $"Source '{source.SourceId}' names companion '{companionId}', which "
-                        + "declares companions of its own; companion evidence is one level deep.");
+                        $"Source '{source.SourceId}' and companion '{companionId}' name each "
+                        + "other as companions; a companion pair may not be mutual.");
                 }
             }
         }

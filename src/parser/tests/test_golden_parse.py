@@ -194,6 +194,21 @@ CASES = (
         _UNNARROWED,
         "parse/g2-anatomy-spring.json",
     ),
+    # The autumn document again, with its annual program attached as the companion
+    # that numbers each dissection (ADR-152). Its golden must differ from the plain
+    # autumn case in the display titles alone — `DİSEKSİYON (N/M)` in place of the
+    # marker — and in nothing about identity, date or audience, which is what
+    # proves the number is content rather than identity.
+    (
+        "grade2_anatomy_autumn_v1",
+        "real/g2-anatomy-autumn.snapshot.json",
+        2,
+        "turkish",
+        _Y2025,
+        ("real/g2-tr-annual.snapshot.json",),
+        _UNNARROWED,
+        "parse/g2-anatomy-autumn-with-annual.json",
+    ),
     # Grade 3, both curriculum groups, each with the bedside document its own
     # annual names as a companion. These are the cases where a practice topic
     # reaches an event's notes (ADR-100, ADR-102).
