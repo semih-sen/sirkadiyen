@@ -30,10 +30,10 @@ function ProfileStep() {
         }}
       />
 
-      {/* İsteğe bağlı ve tamamen tersine çevrilebilir; onboarding'i tıkamaz (ADR-150). */}
-      <div style={{ marginTop: 20 }}>
-        <MealMenuCard />
-      </div>
+      {/* Profilin bir parçası değil (kendi anahtarıyla ayrıca kaydedilir) ama diğer
+          alanlarla aynı `.field` görünümünde: isteğe bağlı ve tamamen tersine
+          çevrilebilir, onboarding'i tıkamaz (ADR-150). */}
+      <MealMenuCard variant="field" />
     </AuthShell>
   );
 }
