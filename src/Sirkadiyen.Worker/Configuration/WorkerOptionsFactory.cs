@@ -106,14 +106,31 @@ internal sealed class WorkerOptionsFactory(
     public InitialSyncOptions CreateInitialSyncOptions() => Validate(new InitialSyncOptions
     {
         ConnectionBatchSize = ConfigurationValueParser.Integer(
-            configuration["SIRKADIYEN_SYNC:CONNECTION_BATCH_SIZE"], 5),
+            configuration["SIRKADIYEN_SYNC:CONNECTION_BATCH_SIZE"], 8),
         EventsPerConnectionPerCycle = ConfigurationValueParser.Integer(
             configuration["SIRKADIYEN_SYNC:EVENTS_PER_CONNECTION"], 100),
+        UserConcurrency = ConfigurationValueParser.Integer(
+            configuration["SIRKADIYEN_SYNC:USER_CONCURRENCY"], 8),
+        EventWriteConcurrency = ConfigurationValueParser.Integer(
+            configuration["SIRKADIYEN_SYNC:EVENT_WRITE_CONCURRENCY"], 3),
         CalendarSummary = configuration["SIRKADIYEN_SYNC:CALENDAR_SUMMARY"]
             is { Length: > 0 } summary ? summary : "Sirkadiyen",
         CalendarTimeZoneId = configuration["SIRKADIYEN_SYNC:CALENDAR_TIME_ZONE_ID"]
             is { Length: > 0 } zone ? zone : "Europe/Istanbul",
     }, static options => options.Validate());
+
+    /// <summary>
+    /// The ceiling on concurrent Google Calendar calls this worker may hold (ADR-157). Set the
+    /// concurrency to 1 to fall back to the serial behaviour without a redeploy.
+    /// </summary>
+    public GoogleCalendarThrottleOptions CreateCalendarThrottleOptions() =>
+        Validate(new GoogleCalendarThrottleOptions
+        {
+            MaxConcurrentCalls = ConfigurationValueParser.Integer(
+                configuration["SIRKADIYEN_SYNC:MAX_CONCURRENT_CALENDAR_CALLS"], 24),
+            MaxTransientAttempts = ConfigurationValueParser.Integer(
+                configuration["SIRKADIYEN_SYNC:MAX_TRANSIENT_CALENDAR_ATTEMPTS"], 5),
+        }, static options => options.Validate());
 
     public IncrementalSyncOptions CreateIncrementalSyncOptions() =>
         Validate(new IncrementalSyncOptions

@@ -27,23 +27,21 @@ public sealed class InitialCalendarSyncService(
     TimeProvider timeProvider,
     DepartmentColorService departmentColors)
 {
+    /// <summary>
+    /// Runs every pending connection this cycle claims, one after another, in this service's own
+    /// scope. Kept as the single-scope entry point: the worker fans the same two halves out across
+    /// scopes instead (ADR-157), and every test drives synchronization through here.
+    /// </summary>
     public async Task<InitialCalendarSyncRunResult> RunPendingAsync(CancellationToken cancellationToken)
     {
-        // Every calendar-touching job reads the same authoritative switch and fails closed
-        // (ADR-034/043): while frozen, no calendar is created and no event is written.
-        OperationalFreezeSnapshot freeze = await freezeStore.GetAsync(cancellationToken);
-        if (freeze.IsFrozen)
+        InitialCalendarSyncBatch batch = await ListPendingAsync(cancellationToken);
+        if (batch.Frozen)
         {
             return new InitialCalendarSyncRunResult { Frozen = true, Users = [] };
         }
 
-        IReadOnlyList<PendingCalendarSync> pending =
-            await connectionStore.ListPendingInitialSyncAsync(
-                options.ConnectionBatchSize,
-                cancellationToken);
-
         List<InitialCalendarSyncResult> results = [];
-        foreach (PendingCalendarSync connection in pending)
+        foreach (PendingCalendarSync connection in batch.Connections)
         {
             results.Add(await SyncOneAsync(connection, cancellationToken));
         }
@@ -51,10 +49,41 @@ public sealed class InitialCalendarSyncService(
         return new InitialCalendarSyncRunResult { Frozen = false, Users = results };
     }
 
-    private async Task<InitialCalendarSyncResult> SyncOneAsync(
+    /// <summary>
+    /// Reads the freeze and lists the connections this cycle should advance, without touching a
+    /// calendar. Separated from <see cref="SyncOneAsync"/> so the worker can run each connection
+    /// in its own scope and therefore concurrently (ADR-157); the two together are exactly what
+    /// <see cref="RunPendingAsync"/> does sequentially.
+    /// </summary>
+    public async Task<InitialCalendarSyncBatch> ListPendingAsync(CancellationToken cancellationToken)
+    {
+        // Every calendar-touching job reads the same authoritative switch and fails closed
+        // (ADR-034/043): while frozen, no calendar is created and no event is written.
+        OperationalFreezeSnapshot freeze = await freezeStore.GetAsync(cancellationToken);
+        if (freeze.IsFrozen)
+        {
+            return new InitialCalendarSyncBatch { Frozen = true, Connections = [] };
+        }
+
+        IReadOnlyList<PendingCalendarSync> pending =
+            await connectionStore.ListPendingInitialSyncAsync(
+                options.ConnectionBatchSize,
+                cancellationToken);
+
+        return new InitialCalendarSyncBatch { Frozen = false, Connections = pending };
+    }
+
+    /// <summary>
+    /// Advances one connection: creates its calendar if needed and writes this cycle's budget of
+    /// events. Safe to run concurrently with other connections only when each call has its own
+    /// scope, because the stores it writes through are not thread-safe.
+    /// </summary>
+    public async Task<InitialCalendarSyncResult> SyncOneAsync(
         PendingCalendarSync connection,
         CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(connection);
+
         DateTimeOffset now = timeProvider.GetUtcNow();
 
         try
@@ -110,10 +139,10 @@ public sealed class InitialCalendarSyncService(
                     connection.UserId,
                     cancellationToken);
 
+            // The pass is planned before anything is written, because the writes below run
+            // concurrently and a running counter could no longer decide the budget cut-off.
             HashSet<string> handledThisPass = new(StringComparer.Ordinal);
-            int written = 0;
-            bool deferredRemainder = false;
-
+            List<CanonicalScheduleRecord> unwritten = [];
             foreach (CanonicalScheduleRecord record in applicable)
             {
                 if (alreadyWritten.Contains(record.StableIdentity)
@@ -122,15 +151,49 @@ public sealed class InitialCalendarSyncService(
                     continue;
                 }
 
-                if (written >= options.EventsPerConnectionPerCycle)
-                {
-                    deferredRemainder = true;
-                    break;
-                }
-
-                await WriteEventAsync(connection.UserId, calendarId, access, record, now, cancellationToken);
-                written++;
+                unwritten.Add(record);
             }
+
+            bool deferredRemainder = unwritten.Count > options.EventsPerConnectionPerCycle;
+            List<CanonicalScheduleRecord> thisPass = deferredRemainder
+                ? unwritten[..options.EventsPerConnectionPerCycle]
+                : unwritten;
+
+            // Resolved once for the user rather than once per event: the colors are the same for
+            // every event of one calendar, and the service's cache is a plain dictionary that the
+            // concurrent writes below must not race on.
+            IReadOnlyDictionary<string, string> colors =
+                await DepartmentColorPaletteResolver.GetAsync(
+                    departmentColors,
+                    connection.UserId,
+                    cancellationToken);
+
+            // One user's events are written concurrently (ADR-157). Each insert is idempotent on
+            // the deterministic event id, so ordering carries no meaning and a partially written
+            // pass resumes from the ledger exactly as a sequential one did. The ledger writes
+            // themselves are serialized: the mapping store is a scoped DbContext.
+            using SemaphoreSlim ledgerGate = new(1, 1);
+            int written = 0;
+            await Parallel.ForEachAsync(
+                thisPass,
+                new ParallelOptions
+                {
+                    MaxDegreeOfParallelism = options.EventWriteConcurrency,
+                    CancellationToken = cancellationToken,
+                },
+                async (record, token) =>
+                {
+                    await WriteEventAsync(
+                        connection.UserId,
+                        calendarId,
+                        access,
+                        record,
+                        colors,
+                        now,
+                        ledgerGate,
+                        token);
+                    Interlocked.Increment(ref written);
+                });
 
             if (deferredRemainder)
             {
@@ -157,8 +220,11 @@ public sealed class InitialCalendarSyncService(
         {
             throw;
         }
-        catch (GoogleCalendarCredentialException exception)
+        catch (Exception exception)
+            when (Unwrap<GoogleCalendarCredentialException>(exception) is not null)
         {
+            // Concurrent writes surface a revoked grant wrapped in an AggregateException, so the
+            // taxonomy is matched through the wrapper rather than only on the thrown type.
             await connectionStore.MarkNeedsReauthorizationAsync(
                 connection.UserId,
                 now,
@@ -167,7 +233,8 @@ public sealed class InitialCalendarSyncService(
             {
                 UserId = connection.UserId,
                 Outcome = InitialCalendarSyncOutcome.AuthorizationRequired,
-                FailureReason = exception.Message,
+                FailureReason =
+                    Unwrap<GoogleCalendarCredentialException>(exception)!.Message,
             };
         }
         catch (Exception exception)
@@ -239,14 +306,11 @@ public sealed class InitialCalendarSyncService(
         string calendarId,
         CalendarAccess access,
         CanonicalScheduleRecord record,
+        IReadOnlyDictionary<string, string> colors,
         DateTimeOffset now,
+        SemaphoreSlim ledgerGate,
         CancellationToken cancellationToken)
     {
-        IReadOnlyDictionary<string, string> colors =
-            await DepartmentColorPaletteResolver.GetAsync(
-                departmentColors,
-                userId,
-                cancellationToken);
         ManagedCalendarEvent calendarEvent =
             ManagedCalendarEventFactory.ToManagedEvent(userId, record, colors);
 
@@ -264,8 +328,50 @@ public sealed class InitialCalendarSyncService(
             calendarEvent.EventId,
             record.ContentHash,
             now);
-        await mappingStore.AddAsync(mapping, cancellationToken);
+
+        // The Google write above is the concurrent part; this one is not. A scoped DbContext
+        // rejects concurrent use, and the ledger row is milliseconds of work next to the round
+        // trip it records, so serializing it costs the pass nothing.
+        await ledgerGate.WaitAsync(cancellationToken);
+        try
+        {
+            await mappingStore.AddAsync(mapping, cancellationToken);
+        }
+        finally
+        {
+            ledgerGate.Release();
+        }
     }
+
+    /// <summary>
+    /// Finds <typeparamref name="TException"/> in a thrown exception, looking through the
+    /// <see cref="AggregateException"/> a concurrent pass wraps its failures in.
+    /// </summary>
+    private static TException? Unwrap<TException>(Exception exception)
+        where TException : Exception
+    {
+        if (exception is TException match)
+        {
+            return match;
+        }
+
+        return exception is AggregateException aggregate
+            ? aggregate.Flatten().InnerExceptions.OfType<TException>().FirstOrDefault()
+            : null;
+    }
+}
+
+/// <summary>
+/// What one cycle should advance: the connections listed for it, or nothing because the global
+/// operational freeze is active. Carries the ciphertext credential the sync path needs, exactly as
+/// <see cref="PendingCalendarSync"/> always has (ADR-058), and never leaves the backend.
+/// </summary>
+public sealed record InitialCalendarSyncBatch
+{
+    /// <summary>Whether the freeze is active, so no connection may be advanced at all.</summary>
+    public required bool Frozen { get; init; }
+
+    public required IReadOnlyList<PendingCalendarSync> Connections { get; init; }
 }
 
 public sealed record InitialCalendarSyncRunResult

@@ -9744,3 +9744,107 @@ Nothing distinguished the two, because nothing in the catalog said which sources
 - Migration `AddScheduleSourcePublishesSchedule` adds the column with `true` for every existing
   row; the three declarations arrive with the shipped catalog the worker installs at startup
   (ADR-138).
+
+---
+
+## ADR-157: Initial calendar sync writes concurrently, bounded on two axes and one shared ceiling
+
+**Status:** Accepted and implemented
+**Date:** 2026-09-08
+**Implements:** `InitialCalendarSyncService.ListPendingAsync`/`SyncOneAsync` split and the new
+`InitialCalendarSyncBatch`, the per-connection scope fan-out in `InitialCalendarSyncTask`, the
+per-user event fan-out inside `SyncOneAsync`, `InitialSyncOptions.UserConcurrency`/
+`EventWriteConcurrency`, `GoogleCalendarThrottleOptions` and the client's call gate and jittered
+back-off, three concurrency tests
+**Relates to:** ADR-058 (initial sync, the ledger and its idempotency), ADR-122 (the calendar
+fence), ADR-024 (one calendar per user), AI_GUIDELINE §13 (calendar safety), §14 (retry safety)
+
+### Context
+
+Onboarding a cohort exposed the cost of a completely serial pipeline. A student's first load is
+~817 published events and every one of them was a Google insert awaited on its own, so one student
+took eight to ten minutes. Nothing anywhere in calendar synchronization overlapped: users were
+advanced one after another inside `RunPendingAsync`, their events one after another inside
+`SyncOneAsync`, and the whole stage runs under the single advisory fence of ADR-122. Measured
+against a launch of 100-150 activations in an hour, the queue would have taken most of a day to
+drain, and the observed symptom — "a new student cannot start before the previous one finishes" —
+was exactly correct.
+
+Adding a second worker instance would not have helped, because the fence admits one instance and
+the rest yield. The serial loop, not the instance count, was the ceiling.
+
+### Decision
+
+**Concurrency across distinct users is the axis that matters, and it does not reopen ADR-122.**
+That ADR's race was two workers advancing the *same* connection and each creating a calendar for
+it. One worker advancing *different* connections at once never touches that: each connection is
+still listed once, advanced by one task, inside the single fenced instance. The fence stays exactly
+where ADR-122 put it.
+
+- **The fan-out lives in the worker, not the service.** `InitialCalendarSyncService` is split into
+  `ListPendingAsync` (freeze plus the pending projection) and a now-public `SyncOneAsync`.
+  `InitialCalendarSyncTask` lists once, then runs `UserConcurrency` connections at a time, **each in
+  its own DI scope**, because the stores the service writes through are scoped and a `DbContext`
+  rejects concurrent use. `RunPendingAsync` remains as the sequential single-scope composition of
+  the two halves, which is what every test drives.
+- **One user's events are written concurrently at a smaller degree.** These share one student's
+  per-user rate limit, so `EventWriteConcurrency` (3) is deliberately below `UserConcurrency` (8),
+  and `ConnectionBatchSize` was raised to 8 to match — it is the pool the concurrency draws from,
+  and a smaller batch silently caps it. The pass is planned before it is written — a running counter can no longer decide the budget
+  cut-off — and the department palette is resolved once per user instead of once per event, which
+  removes both a per-event query and a race on the colour service's plain-dictionary cache.
+- **The ledger write stays serial within a user.** A `SemaphoreSlim` around
+  `IUserCalendarEventMappingStore.AddAsync` is enough: the row is milliseconds of work next to the
+  round trip it records, so serializing it costs the pass nothing and needs no batching contract.
+- **A project-wide ceiling on calls in flight.** `GoogleCalendarThrottleOptions.MaxConcurrentCalls`
+  gates every call in `GoogleCalendarClient`, held around one attempt and never across a back-off
+  delay. The two fan-out degrees decide how much work exists; this decides how much of it reaches
+  Google, and it is the one number to lower when Google starts rejecting calls.
+- **Back-off gains jitter and one more attempt.** Concurrent writers rejected by the same limit
+  would otherwise retry in step; the delay is now half the exponential ceiling plus a random half of
+  it, over five attempts rather than three, because under concurrency a rate-limit rejection is an
+  expected outcome to ride out rather than a sign that something is wrong.
+- **Every degree is configuration, and 1 is the kill switch.** `SIRKADIYEN_SYNC__USER_CONCURRENCY`,
+  `SIRKADIYEN_SYNC__EVENT_WRITE_CONCURRENCY` and
+  `SIRKADIYEN_SYNC__MAX_CONCURRENT_CALENDAR_CALLS` restore the serial pass without a redeploy.
+
+**The two degrees are set from the project's measured quota, not from taste.** The console reports
+10,000 queries per minute for the project and **600 per end user**, and 14 days of metrics put an
+event insert at ~0.34s average (11,803 calls, 0% errors). A per-user degree of N therefore sustains
+about N × 177 queries per minute for that student: three fits under 600 with room, four would sit
+above it and spend the pass on rate-limit rejections and back-off. The project quota is the one with
+headroom — 8 × 3 = 24 in flight is ~71 queries per second, about 43% of it — so **the load is
+widened through the user degree, never the per-calendar one**. The first draft of this ADR shipped
+6 × 4 from an estimate; reading the actual quota page before launch is what corrected it, and the
+correction is recorded here rather than quietly applied.
+
+### Consequences
+
+- With the shipped defaults (8 × 3, ceiling 24) and the measured 0.34s insert, a student's ~817
+  events take about 1.5 minutes rather than eight to ten, and 150 students drain in roughly half an
+  hour instead of about a day. The gain is a multiple of the in-flight count and nothing else; no
+  round trip got faster.
+- **The exception taxonomy had to survive an `AggregateException`.** A concurrent pass wraps a
+  failed write, so a revoked grant raised by an insert would have been reported as an ordinary
+  retryable failure and the student would never have been asked to authorize again. `SyncOneAsync`
+  now matches `GoogleCalendarCredentialException` through the wrapper, with a regression test.
+- **The test fakes are now called concurrently.** Their `List<T>` recorders were dropping entries
+  under overlap and made the suite intermittently red before they were guarded — a real signal that
+  concurrency had reached them, not test noise.
+- Ordering within a user's pass is now unspecified. Nothing depended on it: each insert is
+  idempotent on its deterministic event id and the ledger decides what remains, so a partially
+  written pass resumes exactly as a serial one did.
+- **Calendar creation is the slowest call in the API**, at ~5.7s average and 8.3s at p99 against
+  ~0.34s for an event insert. It is also the one non-idempotent step (ADR-122). Nothing here changes
+  that, but it means a new student waits about six seconds before their first event exists, which is
+  the shape of the onboarding wait rather than a fault to chase.
+- **An unexplained observation, recorded not diagnosed:** over the same 14 days `Events.Get`,
+  `Events.Patch` and `Events.Update` each ran ~45,000 times against only 11,803 inserts — roughly
+  three quarters of all Calendar traffic, for ten users. Whatever performs that get/patch/update per
+  event is the project's largest quota consumer by far, and it scales with the roster. Initial sync
+  is not it. Worth finding before the user count grows.
+- **Not addressed here (deliberately):** the same serial loops remain in incremental dispatch,
+  profile resync and inventory; the global fence still admits one worker instance, so horizontal
+  scaling needs per-connection claims (`FOR UPDATE SKIP LOCKED`) before a second instance does any
+  calendar work; and no live run has exercised these degrees against real Google quota, which is a
+  ceiling only production can measure.

@@ -1,23 +1,38 @@
+using System.Collections.Concurrent;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Sirkadiyen.Application.GoogleCalendar;
 
 namespace Sirkadiyen.Worker.Calendars;
 
+/// <summary>
+/// Advances the pending initial synchronizations of one cycle, several connections at a time
+/// (ADR-157).
+/// </summary>
+/// <remarks>
+/// The fan-out lives here rather than in the service because each connection needs its own DI
+/// scope: the stores the service writes through are scoped and a <c>DbContext</c> rejects
+/// concurrent use. This is still one worker's work — the whole stage runs inside the shared
+/// calendar fence (ADR-122), so a connection is never advanced by two instances at once.
+/// </remarks>
 internal sealed class InitialCalendarSyncTask(
     IServiceScopeFactory scopeFactory,
+    InitialSyncOptions options,
     ILogger<InitialCalendarSyncTask> logger)
 {
     public async Task<bool> RunAsync(CancellationToken cancellationToken)
     {
         try
         {
-            await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
-            InitialCalendarSyncService sync = scope.ServiceProvider
-                .GetRequiredService<InitialCalendarSyncService>();
-            InitialCalendarSyncRunResult result = await sync.RunPendingAsync(cancellationToken);
+            InitialCalendarSyncBatch batch;
+            await using (AsyncServiceScope listing = scopeFactory.CreateAsyncScope())
+            {
+                batch = await listing.ServiceProvider
+                    .GetRequiredService<InitialCalendarSyncService>()
+                    .ListPendingAsync(cancellationToken);
+            }
 
-            if (result.Frozen)
+            if (batch.Frozen)
             {
                 logger.LogInformation(
                     "Initial calendar synchronization skipped because the global operational "
@@ -25,12 +40,36 @@ internal sealed class InitialCalendarSyncTask(
                 return false;
             }
 
-            foreach (InitialCalendarSyncResult user in result.Users)
+            if (batch.Connections.Count == 0)
+            {
+                return false;
+            }
+
+            ConcurrentBag<InitialCalendarSyncResult> results = [];
+            await Parallel.ForEachAsync(
+                batch.Connections,
+                new ParallelOptions
+                {
+                    MaxDegreeOfParallelism = options.UserConcurrency,
+                    CancellationToken = cancellationToken,
+                },
+                async (connection, token) =>
+                {
+                    // A scope per connection, not per cycle: this is what makes the pass safe to
+                    // run concurrently at all. One connection's failure is already reported as a
+                    // result rather than thrown, so it never abandons the others.
+                    await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
+                    InitialCalendarSyncService sync = scope.ServiceProvider
+                        .GetRequiredService<InitialCalendarSyncService>();
+                    results.Add(await sync.SyncOneAsync(connection, token));
+                });
+
+            foreach (InitialCalendarSyncResult user in results)
             {
                 LogResult(user);
             }
 
-            return result.Users.Any(
+            return results.Any(
                 static user => user.Outcome is InitialCalendarSyncOutcome.InProgress);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

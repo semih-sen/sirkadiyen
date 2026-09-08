@@ -1,5 +1,61 @@
 # Active Context
 
+## Latest session (2026-09-08, ADR-157: initial calendar sync writes concurrently)
+
+Second session of the day, driven by an imminent launch: a WhatsApp announcement to the cohort is
+expected to produce 100-150 activations within an hour. The operator had handed the program to a
+few students that morning and observed initial sync taking eight to ten minutes each, with a new
+student apparently unable to start before the previous one finished.
+
+Read the pipeline before changing it. The diagnosis is that **nothing in calendar synchronization
+overlapped**: users advanced one at a time in `RunPendingAsync`, a user's ~817 events one at a time
+in `SyncOneAsync`, each one an awaited Google insert plus its own `SaveChangesAsync`. At ~0.55s per
+round trip that is the eight to ten minutes exactly, and 150 students would have been most of a day.
+The operator's instinct — a second worker instance — would not have helped: the ADR-122 fence admits
+one instance and the others yield, so the serial loop was the ceiling, not the instance count.
+
+Fix (ADR-157), the first of three planned layers. The key observation is that ADR-122's race was two
+workers on the *same* connection; one worker on *different* connections never touches it, so the
+fence stays exactly where it is. `InitialCalendarSyncService` split into `ListPendingAsync` and a
+public `SyncOneAsync`; `InitialCalendarSyncTask` runs `UserConcurrency` (8) connections at a time,
+**each in its own DI scope**, because the scoped stores reject concurrent use. Within a user,
+`EventWriteConcurrency` (3) events at a time — deliberately smaller, since those share one student's
+per-user rate limit — with the pass planned up front, the palette resolved once per user, and the
+ledger write serialized behind a semaphore. `GoogleCalendarThrottleOptions` adds a project-wide
+ceiling on calls in flight (24) plus jittered back-off over five attempts. Every degree is
+configuration and 1 is the kill switch.
+
+Two things the change forced that are worth remembering. A concurrent pass wraps failures in an
+`AggregateException`, so `GoogleCalendarCredentialException` had to be matched *through* the wrapper
+or a revoked grant would have been reported as an ordinary retryable failure and the student never
+asked to reauthorize. And the test fakes' `List<T>` recorders started dropping entries under overlap
+— an intermittently red suite that was the concurrency reaching them, not test noise; they are
+guarded now.
+
+Tests: 3 new (observed overlap up to the configured degree, concurrency of 1 restoring strictly
+serial writes, revoked grant through the wrapper) plus the fakes made thread-safe. **The .NET SDK is
+available in this environment again**, unlike the previous session: Release build clean with 0
+warnings, full solution suite green, and the infrastructure project run five times to confirm the
+intermittent failure is gone (945 tests).
+
+The degrees were then set from the console rather than from taste. Project quota 10,000 queries per
+minute, **per end user 600**, measured insert latency ~0.34s: a per-user degree of N sustains ~N × 177
+queries/minute for that student, so 4 sat *above* the per-user limit and 3 fits. The first draft's
+6 × 4 became 8 × 3, with `ConnectionBatchSize` raised from 5 to 8 to match — it is the pool the
+concurrency draws from and 5 was silently capping it. 24 in flight is ~43% of the project quota.
+Expected: ~1.5 min per student, ~30 min for 150.
+
+Two things noted from the same metrics and not chased: calendar creation is the slowest call in the
+API (~5.7s avg, 8.3s p99) and is also ADR-122's non-idempotent step, so a new student waits ~6s
+before their first event exists; and `Events.Get`/`Patch`/`Update` each ran ~45,000 times in 14 days
+against 11,803 inserts, roughly three quarters of all Calendar traffic for ten users. Initial sync is
+not the project's biggest quota consumer — whatever does that get/patch/update per event is.
+
+Deliberately not done: incremental dispatch, profile resync and inventory keep their serial loops;
+the fence still admits one worker, so a second instance needs per-connection claims
+(`FOR UPDATE SKIP LOCKED`) first; and no live run has met real Google quota, which only production
+can measure.
+
 ## Latest session (2026-09-08, ADR-156: a companion source's refusal is not a failure)
 
 Follow-up to ADR-155 in the same session. Operator asked why the two Grade 3 bedside sources show

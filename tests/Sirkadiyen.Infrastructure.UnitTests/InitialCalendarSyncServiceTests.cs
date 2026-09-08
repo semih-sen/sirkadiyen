@@ -295,6 +295,98 @@ public sealed class InitialCalendarSyncServiceTests
         Assert.False(connections.Completed);
     }
 
+    [Fact]
+    public async Task OneUsersEventsAreWrittenConcurrentlyUpToTheConfiguredDegree()
+    {
+        ConcurrencyProbe probe = new();
+        FakeCalendarClient client = new() { InsertHook = probe.ObserveAsync };
+
+        InitialCalendarSyncResult result = Single(await Build(
+            new FakeConnectionStore(Pending(calendar: "cal")),
+            Lessons(8),
+            new FakeMappingStore(),
+            client,
+            options: new InitialSyncOptions { EventWriteConcurrency = 4 })
+            .RunPendingAsync(CancellationToken.None));
+
+        Assert.Equal(InitialCalendarSyncOutcome.Completed, result.Outcome);
+        Assert.Equal(8, client.Inserts.Count);
+
+        // Overlap is the point of ADR-157, and the configured degree is the ceiling on it.
+        Assert.InRange(probe.MaxObserved, 2, 4);
+    }
+
+    [Fact]
+    public async Task AWriteConcurrencyOfOneRestoresStrictlySerialWrites()
+    {
+        ConcurrencyProbe probe = new();
+        FakeCalendarClient client = new() { InsertHook = probe.ObserveAsync };
+
+        await Build(
+            new FakeConnectionStore(Pending(calendar: "cal")),
+            Lessons(4),
+            new FakeMappingStore(),
+            client,
+            options: new InitialSyncOptions { EventWriteConcurrency = 1 })
+            .RunPendingAsync(CancellationToken.None);
+
+        // The operational kill switch: one setting returns the pass to what it was before.
+        Assert.Equal(1, probe.MaxObserved);
+        Assert.Equal(4, client.Inserts.Count);
+    }
+
+    [Fact]
+    public async Task ARevokedGrantRaisedByAConcurrentWriteIsStillFlaggedForReauthorization()
+    {
+        FakeConnectionStore connections = new(Pending(calendar: "cal"));
+        FakeCalendarClient client = new(
+            throwOnInsert: new GoogleCalendarCredentialException("revoked"));
+
+        InitialCalendarSyncResult result = Single(await Build(
+            connections,
+            Lessons(8),
+            new FakeMappingStore(),
+            client,
+            options: new InitialSyncOptions { EventWriteConcurrency = 4 })
+            .RunPendingAsync(CancellationToken.None));
+
+        // A concurrent pass reports failures wrapped in an AggregateException; the taxonomy must
+        // survive that wrapper, or a revoked grant would look like an ordinary retryable failure
+        // and the student would never be asked to authorize again.
+        Assert.Equal(InitialCalendarSyncOutcome.AuthorizationRequired, result.Outcome);
+        Assert.Equal("revoked", result.FailureReason);
+        Assert.True(connections.FlaggedForReauthorization);
+        Assert.False(connections.Completed);
+    }
+
+    private static FakeScheduleReadStore Lessons(int count) =>
+        new([.. Enumerable.Range(1, count).Select(
+            index => CalendarTestData.Record(stableIdentity: $"lesson-{index}"))]);
+
+    /// <summary>Records the highest number of inserts that were ever in flight together.</summary>
+    private sealed class ConcurrencyProbe
+    {
+        private int inFlight;
+        private int maxObserved;
+
+        public int MaxObserved => Volatile.Read(ref maxObserved);
+
+        public async Task ObserveAsync()
+        {
+            int current = Interlocked.Increment(ref inFlight);
+            int seen = Volatile.Read(ref maxObserved);
+            while (current > seen
+                && Interlocked.CompareExchange(ref maxObserved, current, seen) != seen)
+            {
+                seen = Volatile.Read(ref maxObserved);
+            }
+
+            // Long enough that concurrent inserts genuinely overlap rather than merely interleave.
+            await Task.Delay(TimeSpan.FromMilliseconds(25));
+            Interlocked.Decrement(ref inFlight);
+        }
+    }
+
     private static InitialCalendarSyncService Build(
         FakeConnectionStore connections,
         FakeScheduleReadStore schedule,
@@ -441,10 +533,17 @@ public sealed class InitialCalendarSyncServiceTests
             CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
+    /// <summary>
+    /// Records what the service asked Google to do. Initial sync writes one user's events
+    /// concurrently (ADR-157), so every recording member is guarded: an unsynchronized
+    /// <see cref="List{T}"/> would drop entries and make the assertions flaky rather than wrong.
+    /// </summary>
     private sealed class FakeCalendarClient(
         CalendarEventInsertOutcome insertOutcome = CalendarEventInsertOutcome.Inserted,
         Exception? throwOnInsert = null) : IUserCalendarClient
     {
+        private readonly Lock recording = new();
+
         public int CalendarsCreated { get; private set; }
 
         public List<(string CalendarId, ManagedCalendarEvent Event)> Inserts { get; } = [];
@@ -459,6 +558,9 @@ public sealed class InitialCalendarSyncServiceTests
 
         public Exception? FindFailure { get; init; }
 
+        /// <summary>Awaited inside every insert, so a test can observe how many overlap.</summary>
+        public Func<Task>? InsertHook { get; init; }
+
         public Task<CalendarContainerDeleteOutcome> DeleteManagedCalendarAsync(
             CalendarAccess access,
             string calendarId,
@@ -471,9 +573,13 @@ public sealed class InitialCalendarSyncServiceTests
             string descriptionMarker,
             CancellationToken cancellationToken)
         {
-            RefreshTokensSeen.Add(access.RefreshToken);
-            MarkersCreated.Add(descriptionMarker);
-            CalendarsCreated++;
+            lock (recording)
+            {
+                RefreshTokensSeen.Add(access.RefreshToken);
+                MarkersCreated.Add(descriptionMarker);
+                CalendarsCreated++;
+            }
+
             return Task.FromResult("created-calendar-id");
         }
 
@@ -482,8 +588,12 @@ public sealed class InitialCalendarSyncServiceTests
             string descriptionMarker,
             CancellationToken cancellationToken)
         {
-            RefreshTokensSeen.Add(access.RefreshToken);
-            MarkersSearched.Add(descriptionMarker);
+            lock (recording)
+            {
+                RefreshTokensSeen.Add(access.RefreshToken);
+                MarkersSearched.Add(descriptionMarker);
+            }
+
             return FindFailure is null
                 ? Task.FromResult<IReadOnlyList<string>>([.. ExistingCalendars])
                 : throw FindFailure;
@@ -500,20 +610,33 @@ public sealed class InitialCalendarSyncServiceTests
             ManagedCalendarEventLabel label,
             CancellationToken cancellationToken) => Task.CompletedTask;
 
-        public Task<CalendarEventInsertOutcome> InsertEventAsync(
+        public async Task<CalendarEventInsertOutcome> InsertEventAsync(
             CalendarAccess access,
             string calendarId,
             ManagedCalendarEvent calendarEvent,
             CancellationToken cancellationToken)
         {
-            RefreshTokensSeen.Add(access.RefreshToken);
+            lock (recording)
+            {
+                RefreshTokensSeen.Add(access.RefreshToken);
+            }
+
+            if (InsertHook is not null)
+            {
+                await InsertHook();
+            }
+
             if (throwOnInsert is not null)
             {
                 throw throwOnInsert;
             }
 
-            Inserts.Add((calendarId, calendarEvent));
-            return Task.FromResult(insertOutcome);
+            lock (recording)
+            {
+                Inserts.Add((calendarId, calendarEvent));
+            }
+
+            return insertOutcome;
         }
 
         public Task<CalendarEventPatchOutcome> PatchEventAsync(
@@ -532,6 +655,7 @@ public sealed class InitialCalendarSyncServiceTests
     private sealed class FakeMappingStore(params string[] existing) : IUserCalendarEventMappingStore
     {
         private readonly HashSet<string> identities = new(existing, StringComparer.Ordinal);
+        private readonly Lock recording = new();
 
         public List<UserCalendarEventMapping> Added { get; } = [];
 
@@ -555,8 +679,15 @@ public sealed class InitialCalendarSyncServiceTests
             UserCalendarEventMapping mapping,
             CancellationToken cancellationToken)
         {
-            Added.Add(mapping);
-            bool added = identities.Add(mapping.StableIdentity);
+            bool added;
+
+            // The service serializes the real ledger for the same reason, so this mirrors it.
+            lock (recording)
+            {
+                Added.Add(mapping);
+                added = identities.Add(mapping.StableIdentity);
+            }
+
             return Task.FromResult(
                 added ? CalendarEventMappingAddOutcome.Added : CalendarEventMappingAddOutcome.AlreadyPresent);
         }

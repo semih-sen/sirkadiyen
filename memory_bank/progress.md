@@ -1756,3 +1756,50 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
 - **Tests executed:** Web `tsc --noEmit` temiz, `vitest run` 22 dosya / 120 test yeşil. Yeni .NET
   testleri: 2 doğrulayıcı, 2 katalog loader, 1 uyarı, 1 persistence assertion.
 - **Not done:** .NET SDK olmadığı için `dotnet build` / `dotnet test` yine çalıştırılamadı.
+
+## 2026-09-08 — ADR-157: ilk takvim senkronizasyonu eşzamanlı yazıyor
+
+- **Sorun:** Takvim senkronizasyonunda hiçbir iş üst üste binmiyordu. Kullanıcılar `RunPendingAsync`
+  içinde teker teker, bir kullanıcının ~817 event'i `SyncOneAsync` içinde teker teker yazılıyordu;
+  her biri beklenen bir Google insert artı kendi `SaveChangesAsync`'i. Tek öğrenci 8-10 dk, 150
+  öğrenci yaklaşık bir gün. İkinci worker instance'ı çare değildi: ADR-122 fence'i tek instance'a
+  izin veriyor, tavan instance sayısı değil seri döngüydü.
+- **Changed (servis):** `InitialCalendarSyncService` ikiye ayrıldı — `ListPendingAsync` (freeze +
+  bekleyen bağlantı projeksiyonu) ve artık public `SyncOneAsync`. `RunPendingAsync` ikisinin seri
+  bileşimi olarak kaldı; tüm testler oradan geçiyor.
+- **Changed (worker):** `InitialCalendarSyncTask` bir kez listeliyor, sonra `UserConcurrency` (6)
+  bağlantıyı **her biri kendi DI scope'unda** aynı anda ilerletiyor. Scope başına ayrım şart:
+  servisin yazdığı store'lar scoped ve `DbContext` eşzamanlı kullanımı reddediyor. ADR-122'nin
+  yarışı *aynı* bağlantıda iki worker'dı; tek worker'ın *farklı* bağlantıları buna dokunmuyor,
+  fence yerinde duruyor.
+- **Changed (kullanıcı içi):** `EventWriteConcurrency` (3) — bilerek daha düşük, çünkü bunlar tek
+  öğrencinin kendi rate limit'ini paylaşıyor. Geçiş yazmadan önce planlanıyor (akan sayaç artık
+  bütçe sınırına karar veremez), palet event başına değil kullanıcı başına çözülüyor, ledger yazımı
+  semafor arkasında seri kalıyor.
+- **Changed (Google istemcisi):** `GoogleCalendarThrottleOptions` — uçuştaki çağrı tavanı (24, tek
+  denemenin etrafında tutulur, backoff boyunca değil) ve jitter'lı backoff, 3 yerine 5 deneme.
+- **Kill switch:** `SIRKADIYEN_SYNC__USER_CONCURRENCY`, `..._EVENT_WRITE_CONCURRENCY`,
+  `..._MAX_CONCURRENT_CALENDAR_CALLS` — 1'e çekmek redeploy'suz seri davranışa döndürüyor.
+- **Değişimin zorladığı iki şey:** Eşzamanlı geçiş hataları `AggregateException` içine sarıyor, bu
+  yüzden `GoogleCalendarCredentialException` sarmalayıcının *içinden* eşleştirilmek zorundaydı —
+  yoksa iptal edilmiş bir izin sıradan bir yeniden denenebilir hata gibi raporlanır ve öğrenciden
+  bir daha yetki istenmezdi. Test fake'lerinin `List<T>` kayıtçıları da örtüşme altında kayıt
+  düşürmeye başladı; test gürültüsü değil, eşzamanlılığın oraya ulaşmasıydı — kilitlendiler.
+- **Dereceler ölçümle belirlendi:** Konsol proje için 10.000 sorgu/dk, **son kullanıcı için 600**
+  diyor; 14 günlük metrikte event insert ortalaması ~0,34 sn (11.803 çağrı, %0 hata). Kullanıcı
+  başına N derece ≈ N × 177 sorgu/dk demek, yani 4 sınırın üstünde kalıyordu, 3 sığıyor. İlk taslak
+  6 × 4 idi, 8 × 3 oldu; `ConnectionBatchSize` 5'ten 8'e çıkarıldı — eşzamanlılığın çektiği havuz o
+  ve 5 sessizce tavan koyuyordu. 24 uçuş = proje kotasının ~%43'ü. Beklenen: öğrenci başına ~1,5 dk,
+  150 öğrenci ~30 dk.
+- **Metrikten not edilen, kovalanmayan iki şey:** Takvim oluşturma API'nin en yavaş çağrısı
+  (~5,7 sn ort., 8,3 sn p99) ve aynı zamanda ADR-122'nin non-idempotent adımı — yeni öğrenci ilk
+  event'i görmeden ~6 sn bekliyor. Ve `Events.Get`/`Patch`/`Update` 14 günde ~45.000'er kez çalışmış,
+  11.803 insert'e karşılık; on kullanıcı için tüm Calendar trafiğinin ~%75'i. Projenin en büyük kota
+  tüketicisi initial sync değil, event başına bu get/patch/update'i yapan şey.
+- **Tests added:** 3 — yapılandırılan dereceye kadar gözlenen örtüşme, eşzamanlılık 1 iken kesin
+  seri yazım, sarmalayıcı içinden gelen iptal edilmiş izin.
+- **Tests executed:** Release derleme 0 uyarı / 0 hata; tüm çözüm testleri yeşil; aralıklı hatanın
+  gittiğini doğrulamak için Infrastructure paketi 5 kez çalıştırıldı (945 test).
+- **Not done (bilerek):** Incremental dispatch, profil resync ve envanter seri döngülerini
+  koruyor; fence hâlâ tek worker'a izin veriyor, ikinci instance için önce bağlantı bazlı claim
+  (`FOR UPDATE SKIP LOCKED`) gerekiyor; bu dereceler gerçek Google kotasıyla henüz sınanmadı.

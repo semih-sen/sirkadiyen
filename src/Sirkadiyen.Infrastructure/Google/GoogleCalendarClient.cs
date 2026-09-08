@@ -33,21 +33,34 @@ public sealed class GoogleCalendarClient : IUserCalendarClient, IDisposable
     /// <summary>The Google library keys its (absent) token store by user; a constant stands in.</summary>
     private const string CredentialUserKey = "sirkadiyen-calendar-user";
 
-    /// <summary>How many times one call retries a transient failure before giving up for this cycle.</summary>
-    private const int MaxTransientAttempts = 3;
-
     private static readonly TimeSpan TransientRetryBaseDelay = TimeSpan.FromSeconds(1);
 
     private readonly GoogleAuthorizationCodeFlow flow;
+    private readonly int maxTransientAttempts;
+
+    /// <summary>
+    /// The project-wide ceiling on Calendar calls in flight (ADR-157), or null when uncapped.
+    /// Held only around one attempt, never across a back-off delay, so a retrying call does not
+    /// occupy a permit while it waits.
+    /// </summary>
+    private readonly SemaphoreSlim? callGate;
     private readonly ConcurrentDictionary<string, CalendarService> services =
         new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<
         CalendarService,
         ConcurrentDictionary<string, CalendarLabelRegistry>> labelRegistries = [];
 
-    public GoogleCalendarClient(GoogleCalendarAuthorizationOptions options)
+    public GoogleCalendarClient(
+        GoogleCalendarAuthorizationOptions options,
+        GoogleCalendarThrottleOptions throttle)
     {
         ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(throttle);
+
+        maxTransientAttempts = throttle.MaxTransientAttempts;
+        callGate = throttle.MaxConcurrentCalls > 0
+            ? new SemaphoreSlim(throttle.MaxConcurrentCalls, throttle.MaxConcurrentCalls)
+            : null;
 
         flow = new GoogleAuthorizationCodeFlow(new GoogleAuthorizationCodeFlow.Initializer
         {
@@ -320,6 +333,7 @@ public sealed class GoogleCalendarClient : IUserCalendarClient, IDisposable
         }
 
         flow.Dispose();
+        callGate?.Dispose();
     }
 
     public Task EnsureEventLabelAsync(
@@ -422,11 +436,11 @@ public sealed class GoogleCalendarClient : IUserCalendarClient, IDisposable
             attempt++;
             try
             {
-                return await action();
+                return await InvokeAsync(action, cancellationToken);
             }
             catch (Exception exception) when (IsTransient(exception))
             {
-                if (attempt >= MaxTransientAttempts)
+                if (attempt >= maxTransientAttempts)
                 {
                     throw new GoogleCalendarTransientException(
                         $"{operation} failed after {attempt} transient attempts.",
@@ -456,8 +470,34 @@ public sealed class GoogleCalendarClient : IUserCalendarClient, IDisposable
         }
     }
 
-    private static TimeSpan BackoffFor(int attempt) =>
-        TransientRetryBaseDelay * Math.Pow(2, attempt - 1);
+    private async Task<T> InvokeAsync<T>(Func<Task<T>> action, CancellationToken cancellationToken)
+    {
+        if (callGate is null)
+        {
+            return await action();
+        }
+
+        await callGate.WaitAsync(cancellationToken);
+        try
+        {
+            return await action();
+        }
+        finally
+        {
+            callGate.Release();
+        }
+    }
+
+    /// <summary>
+    /// Exponential back-off with jitter: half the ceiling plus a random half of it. Concurrent
+    /// writers rejected by the same rate limit would otherwise retry in step and be rejected
+    /// together again (ADR-157).
+    /// </summary>
+    private static TimeSpan BackoffFor(int attempt)
+    {
+        TimeSpan ceiling = TransientRetryBaseDelay * Math.Pow(2, attempt - 1);
+        return ceiling * (0.5 + (Random.Shared.NextDouble() * 0.5));
+    }
 
     private static bool IsTransient(Exception exception) => exception switch
     {

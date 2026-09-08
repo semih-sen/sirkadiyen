@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Sirkadiyen.Application.Notifications;
+using Sirkadiyen.Infrastructure.Google;
 using Sirkadiyen.Infrastructure.Notifications;
 using Sirkadiyen.Worker.Configuration;
 using Xunit;
@@ -23,9 +24,25 @@ public sealed class WorkerOptionsFactoryTests
         Assert.Equal(TimeSpan.FromSeconds(5), worker.CalendarIdleCheckInterval);
         Assert.Equal(Path.Combine(builder.Environment.ContentRootPath,
             "config", "schedule-sources.json"), worker.SourceCatalogPath);
-        Assert.Equal(5, initialSync.ConnectionBatchSize);
+        Assert.Equal(8, initialSync.ConnectionBatchSize);
         Assert.Equal(100, initialSync.EventsPerConnectionPerCycle);
         Assert.Equal("Sirkadiyen", initialSync.CalendarSummary);
+
+        // The batch is the pool the user concurrency draws from, so a batch below it would
+        // silently cap the concurrency at the batch size (ADR-157).
+        Assert.Equal(initialSync.ConnectionBatchSize, initialSync.UserConcurrency);
+
+        // Three, not four: one end user is allowed 600 Calendar queries per minute and an insert
+        // takes ~0.34s, so a fourth concurrent write for the same student sits above that limit.
+        Assert.Equal(3, initialSync.EventWriteConcurrency);
+
+        // The ceiling is the product of the two degrees: it caps the worst case without binding
+        // the normal one.
+        GoogleCalendarThrottleOptions throttle = factory.CreateCalendarThrottleOptions();
+        Assert.Equal(
+            initialSync.UserConcurrency * initialSync.EventWriteConcurrency,
+            throttle.MaxConcurrentCalls);
+        Assert.Equal(5, throttle.MaxTransientAttempts);
         Assert.Equal("Europe/Istanbul", polling.TimeZoneId);
         Assert.Equal(TimeSpan.FromMinutes(15), polling.DaytimeInterval);
 
@@ -46,7 +63,9 @@ public sealed class WorkerOptionsFactoryTests
         HostApplicationBuilder builder = CreateBuilder(new Dictionary<string, string?>
         {
             ["SIRKADIYEN_SYNC:CALENDAR_CATCH_UP_INTERVAL"] = "00:00:07",
-            ["SIRKADIYEN_SYNC:CONNECTION_BATCH_SIZE"] = "8",
+            ["SIRKADIYEN_SYNC:CONNECTION_BATCH_SIZE"] = "9",
+            ["SIRKADIYEN_SYNC:EVENT_WRITE_CONCURRENCY"] = "1",
+            ["SIRKADIYEN_SYNC:MAX_CONCURRENT_CALENDAR_CALLS"] = "1",
             ["SIRKADIYEN_POLLING:DAYTIME_START"] = "06:30",
             ["SIRKADIYEN_VALIDATION:MAXIMUM_DELETION_SHARE"] = "0.25",
             ["SIRKADIYEN_SYNC:PROFILE_RESYNC_OPERATIONS_PER_CONNECTION"] = "40",
@@ -56,7 +75,12 @@ public sealed class WorkerOptionsFactoryTests
 
         Assert.Equal(TimeSpan.FromSeconds(7),
             factory.CreateWorkerOptions().CalendarCatchUpInterval);
-        Assert.Equal(8, factory.CreateInitialSyncOptions().ConnectionBatchSize);
+        Assert.Equal(9, factory.CreateInitialSyncOptions().ConnectionBatchSize);
+
+        // The operational kill switch has to reach both degrees from configuration alone, because
+        // it is what falls back to the serial pass without a redeploy (ADR-157).
+        Assert.Equal(1, factory.CreateInitialSyncOptions().EventWriteConcurrency);
+        Assert.Equal(1, factory.CreateCalendarThrottleOptions().MaxConcurrentCalls);
         Assert.Equal(new TimeOnly(6, 30), factory.CreatePollingOptions().DaytimeStart);
         Assert.Equal(0.25, factory.CreateValidationOptions().MaximumDeletionShare);
         Assert.Equal(

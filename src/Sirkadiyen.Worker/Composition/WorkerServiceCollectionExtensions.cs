@@ -1,4 +1,4 @@
-﻿using Google.Apis.Sheets.v4;
+using Google.Apis.Sheets.v4;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -77,6 +77,7 @@ internal static class WorkerServiceCollectionExtensions
         services.AddSingleton(options.CreateAnnouncementDispatchOptions());
         services.AddSirkadiyenDataProtection(options.DataProtectionKeyRingPath);
         services.AddSingleton<ICalendarTokenProtector, DataProtectionCalendarTokenProtector>();
+        services.AddSingleton(options.CreateCalendarThrottleOptions());
         services.AddSingleton<IUserCalendarClient, GoogleCalendarClient>();
         services.AddScoped<DepartmentColorService>();
         services.AddScoped<InitialCalendarSyncService>();

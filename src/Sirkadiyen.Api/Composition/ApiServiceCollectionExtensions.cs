@@ -168,6 +168,9 @@ internal static class ApiServiceCollectionExtensions
         // Account deletion, shared by the student's own "Hesabımı sil" and the operator's delete
         // (ADR-118). It reaches Google to remove the managed calendar and revoke the grant, so the
         // API host needs the Calendar client the worker also uses; it needs no worker config.
+        // Defaults, not the worker's tuned ceiling: this host reaches Google for one account's
+        // erasure at a time, so it needs the type registered rather than a configured budget.
+        services.AddSingleton(new GoogleCalendarThrottleOptions());
         services.AddSingleton<IUserCalendarClient, GoogleCalendarClient>();
         services.AddScoped<IExternalAccountCleanup, ExternalAccountCleanupService>();
         services.AddScoped<AccountDeletionService>();
