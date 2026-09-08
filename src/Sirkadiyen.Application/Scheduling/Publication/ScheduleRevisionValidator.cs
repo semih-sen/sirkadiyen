@@ -33,6 +33,34 @@ public sealed class ScheduleRevisionValidator(RevisionValidationOptions options)
 
         List<RevisionValidationFinding> findings = [];
 
+        if (input.Records.Count == 0 && !input.Source.PublishesSchedule)
+        {
+            // The source states no schedule of its own and never did: it exists so another
+            // source's parser can read its document (ADR-156). The revision is still refused —
+            // publishing an empty one would delete every event the source owns, and there is
+            // nothing here to publish anyway — but it is the designed outcome of a healthy read,
+            // so it is recorded as information rather than as an error. A rejection that is
+            // always there, beside the ones that mean something, is one nobody reads.
+            findings.Add(Finding(
+                input,
+                RevisionValidationRule.EmptyRevision,
+                ValidationSeverity.Information,
+                "This source publishes no schedule of its own; it is read by another source as "
+                + "supporting evidence. An empty revision is its expected outcome and nothing is "
+                + "missing from any calendar. What the document supplies reaches students through "
+                + "the source that reads it.",
+                atUtc));
+
+            return new RevisionValidationResult
+            {
+                Outcome = RevisionState.Rejected,
+                Findings = findings,
+                StateReason =
+                    "Companion source: it publishes no schedule of its own, so its revision is "
+                    + "empty by design.",
+            };
+        }
+
         if (input.Records.Count == 0)
         {
             // Nothing an administrator could approve would make an empty revision

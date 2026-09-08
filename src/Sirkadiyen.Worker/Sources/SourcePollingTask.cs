@@ -110,7 +110,8 @@ internal sealed class SourcePollingTask(
                         result.SourceId,
                         revisionId,
                         result.RevisionState,
-                        result.ValidationFindingCount),
+                        result.ValidationFindingCount,
+                        source.PublishesSchedule),
                     cancellationToken);
             }
 

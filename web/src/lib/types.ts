@@ -430,6 +430,11 @@ export interface SourceStatusListItem {
   programLanguage: ProgramLanguage;
   transport: ScheduleSourceTransport;
   isPollingEnabled: boolean;
+  /**
+   * Whether the source states a schedule of its own, or only enriches one another source states
+   * (ADR-156). A companion's revision is empty and refused by design, every cycle.
+   */
+  publishesSchedule: boolean;
   lastPolledAtUtc?: string | null;
   lastChangedAtUtc?: string | null;
   /** Set while the source's document cannot be acquired; cleared by the next success (ADR-137). */
@@ -532,6 +537,11 @@ export interface ScheduleSourceCatalogEntry {
   sharedDocumentGroup?: string | null;
   companionSourceIds?: string[] | null;
   groupRotationSourceIds?: string[] | null;
+  /**
+   * Whether the source states a schedule of its own (ADR-156). Absent means yes, which is every
+   * source but the two bedside lists and the weekly amphitheatre program.
+   */
+  publishesSchedule?: boolean;
   fixturePath?: string | null;
   notes?: string | null;
 }

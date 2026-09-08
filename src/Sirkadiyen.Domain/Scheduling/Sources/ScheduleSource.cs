@@ -46,7 +46,8 @@ public sealed class ScheduleSource
         IReadOnlyList<SourceId>? companionSourceIds = null,
         IReadOnlyDictionary<string, IReadOnlyList<string>>? authoritativeAudienceSelectors = null,
         IReadOnlyList<SourceId>? groupRotationSourceIds = null,
-        string? discoveryFolderId = null)
+        string? discoveryFolderId = null,
+        bool publishesSchedule = true)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(displayName);
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceUri);
@@ -105,6 +106,7 @@ public sealed class ScheduleSource
         SharedDocumentGroup = sharedDocumentGroup;
         CompanionSourceIds = companions;
         GroupRotationSourceIds = rotationSources;
+        PublishesSchedule = publishesSchedule;
         IsPollingEnabled = true;
     }
 
@@ -249,6 +251,30 @@ public sealed class ScheduleSource
     /// </para>
     /// </remarks>
     public IReadOnlyList<SourceId> GroupRotationSourceIds { get; private set; } = [];
+
+    /// <summary>
+    /// Whether this source states a schedule of its own, or only enriches one another source
+    /// states (ADR-156).
+    /// </summary>
+    /// <remarks>
+    /// Three documents publish nothing by design: the two Grade 3 bedside lists, which state what
+    /// each session is about while the annual states when it is (ADR-100), and the weekly
+    /// amphitheatre program, which says which room an already-scheduled session uses and never
+    /// that the session exists (ADR-133). Their parser profiles emit no candidates at all, so
+    /// every one of their revisions is empty, and an empty revision is refused — publishing it
+    /// would delete every event the source owns.
+    /// <para>
+    /// That refusal is correct and permanent, which is exactly why it has to be declared. Without
+    /// it a healthy companion carries the same red "Rejected" badge and raises the same operator
+    /// alert as a source whose document really did break, every time it is re-read; a rejection
+    /// that is always there is one nobody reads.
+    /// </para>
+    /// <para>
+    /// It says nothing about whether the source is read: a companion is acquired, parsed, and
+    /// stored as evidence exactly like any other source. Only the empty result is expected.
+    /// </para>
+    /// </remarks>
+    public bool PublishesSchedule { get; private set; } = true;
 
     public bool IsPollingEnabled { get; private set; }
 

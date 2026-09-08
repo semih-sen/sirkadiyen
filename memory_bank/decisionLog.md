@@ -9680,3 +9680,67 @@ Both are the same missing piece, in two places: nothing ever clears a source's p
   success, the flag is only ever as old as the last real failure.
 - `RetiredAtUtc` is listed as row-owned in the ADR-136 coverage guard: it is derived from the
   catalog by the reconciliation, never copied from it.
+## ADR-156: A source that publishes nothing says so, so its refusal stops reading as a failure
+
+**Date:** 2026-09-08
+**Status:** Accepted
+
+### Context
+
+The operator asked why `G3-TR-A-BEDSIDE` and `G3-TR-B-BEDSIDE` show `Rejected` in the panel's
+revision column while their parse is `Completed` and their annual programs are `Published`.
+
+They are correct, and permanently so. Three documents publish nothing by design:
+
+- `grade3_bedside_v1` returns `candidates=[]` on purpose. The annual workbook already states every
+  one of the 92 bedside sessions with a date and a time; the bedside document states only what each
+  session is about, and the annual reads it as a companion to title them (ADR-100, ADR-102).
+- `weekly_amphitheatre_v1` returns `candidates=[]` for a stronger reason: a cell of that document
+  says which room an already-scheduled session uses, never that the session exists (ADR-133). That
+  is `SHARED-AMPHI`, which showed `Rejected` in the same list.
+
+An empty revision is refused because publishing it would delete every event the source owns, which
+is right — but the refusal is then reported exactly like a source whose document broke: a red
+`Rejected` badge on the operational screen and a `Yeni revizyon reddedildi` warning to the operator,
+every time the document changes. A rejection that is always there is one nobody reads, and the one
+that matters is beside it.
+
+Nothing distinguished the two, because nothing in the catalog said which sources publish.
+
+### Decision
+
+- **The catalog declares it.** New optional `publishesSchedule` (default `true`) on a source
+  definition, persisted as `ScheduleSource.PublishesSchedule` and copied by the ADR-136
+  configuration list, so a declaration committed to the repository reaches a running server. Set
+  `false` on exactly `G3-TR-A-BEDSIDE`, `G3-TR-B-BEDSIDE` and `SHARED-AMPHI`.
+- **The loader refuses a source that publishes nothing and is read by nobody.** The declaration is
+  only a design when another source actually consumes the document; otherwise either its reader was
+  never wired up — which is silent, because a companion that is not requested simply never appears
+  — or the declaration is wrong and a real program's empty revisions have just been silenced.
+- **The validator reports the empty revision as information, not as an error.** The outcome stays
+  `Rejected`: there is nothing to publish, and an empty revision must never be published. What
+  changes is the severity, the message ("this source publishes no schedule of its own; it is read
+  by another source") and the state reason. Every other rule still applies to it in full: a
+  companion that does state records is validated like any other source.
+- **The operator alert is downgraded for it.** `WorkerAlerts.RevisionCreated` takes the flag and
+  sends `Info` with its own wording instead of the `Warning` a real rejection raises.
+- **The panel names it.** The revision column shows a neutral "Yayımlamaz · companion" badge in
+  place of `Rejected`, and the detail drawer explains that what the document supplies reaches
+  students through the source that reads it. Only the expected state is relabelled: any other state
+  — a companion that suddenly published, or one held for review — is shown as it is, because that
+  is exactly what an operator must see.
+
+### Consequences
+
+- The three companion sources stop carrying a permanent red badge and stop sending a recurring
+  false alarm, and a `Rejected` on the screen means something again.
+- `G3-FACULTY-LOCATIONS` is deliberately left alone: it is an enrichment document too, but no
+  source declares it as a companion and its profile is not registered in the parser, so it has
+  never produced a revision at all. Declaring it would trip the new validation rule, which is the
+  rule working — the wiring is what is missing there, not the label.
+- The flag is classified high-risk in the catalog plan and in the form editor: declaring that a
+  real program publishes nothing would silence the empty-revision alarm, which is the only thing
+  that says a source stopped stating its schedule.
+- Migration `AddScheduleSourcePublishesSchedule` adds the column with `true` for every existing
+  row; the three declarations arrive with the shipped catalog the worker installs at startup
+  (ADR-138).

@@ -37,13 +37,34 @@ internal static class WorkerAlerts
     /// validated revision publishes itself, one held for review reaches no calendar until somebody
     /// approves it, and a rejected one never will.
     /// </remarks>
+    /// <param name="publishesSchedule">
+    /// Whether the source states a schedule of its own (ADR-156). A companion source's revision is
+    /// empty and refused every time its document changes, which is the design and not an incident,
+    /// so it must not arrive as the same warning a broken document does.
+    /// </param>
     public static OperatorAlert RevisionCreated(
         SourceId sourceId,
         Guid revisionId,
         RevisionState? state,
-        int? findingCount)
+        int? findingCount,
+        bool publishesSchedule = true)
     {
-        (OperatorAlertSeverity severity, string title, string detail) = state switch
+        OperatorAlertSeverity severity;
+        string title;
+        string detail;
+
+        if (state is RevisionState.Rejected && !publishesSchedule)
+        {
+            severity = OperatorAlertSeverity.Info;
+            title = "Companion kaynak yeniden okundu";
+            detail = "Bu kaynak kendi programını yayımlamaz; belgesini başka bir kaynak okur. "
+                + "Boş revizyonun reddedilmesi beklenen sonuçtur ve hiçbir takvimden bir şey "
+                + "eksilmedi.";
+
+            return Alert(sourceId, revisionId, state, findingCount, severity, title, detail);
+        }
+
+        (severity, title, detail) = state switch
         {
             RevisionState.ReviewRequired => (
                 OperatorAlertSeverity.Warning,
@@ -65,7 +86,17 @@ internal static class WorkerAlerts
                 "Revizyon oluştu ama doğrulama tamamlanmadı. Bir sonraki döngü yeniden deneyecek."),
         };
 
-        return new OperatorAlert
+        return Alert(sourceId, revisionId, state, findingCount, severity, title, detail);
+    }
+
+    private static OperatorAlert Alert(
+        SourceId sourceId,
+        Guid revisionId,
+        RevisionState? state,
+        int? findingCount,
+        OperatorAlertSeverity severity,
+        string title,
+        string detail) => new()
         {
             Title = title,
             Severity = severity,
@@ -79,7 +110,6 @@ internal static class WorkerAlerts
                 new OperatorAlertField("Doğrulama bulgusu", Number(findingCount)),
             ],
         };
-    }
 
     /// <summary>A source could not be acquired at all: no snapshot, no parse run, no revision.</summary>
     /// <remarks>

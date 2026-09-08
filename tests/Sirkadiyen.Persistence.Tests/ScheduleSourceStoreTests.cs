@@ -34,6 +34,14 @@ public sealed class ScheduleSourceStoreTests(PostgresFixture fixture)
         Assert.Equal(ProgramLanguage.Turkish, stored.ProgramLanguage);
         Assert.Equal("Europe/Istanbul", stored.TimeZoneId);
         Assert.Equal("grade1_yearly_v1", stored.ParserProfile);
+
+        // Whether a source publishes at all is configuration too, and it decides whether an empty
+        // revision is an alarm (ADR-156).
+        Assert.True(stored.PublishesSchedule);
+        Assert.False(
+            (await context.ScheduleSources.SingleAsync(
+                source => source.SourceId == SourceId.Parse("SHARED-AMPHI"),
+                Token)).PublishesSchedule);
     }
 
     [Fact]

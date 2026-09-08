@@ -31,6 +31,17 @@ public sealed record SourceStatusListItem
 
     public required bool IsPollingEnabled { get; init; }
 
+    /// <summary>
+    /// Whether the source states a schedule of its own, or only enriches one another source states
+    /// (ADR-156).
+    /// </summary>
+    /// <remarks>
+    /// A companion source's revision is empty and refused every cycle its document changes, which
+    /// is correct and permanent. The screen needs to know, or it shows the same red badge it shows
+    /// a source whose document really did break.
+    /// </remarks>
+    public required bool PublishesSchedule { get; init; }
+
     public DateTimeOffset? LastPolledAtUtc { get; init; }
 
     public DateTimeOffset? LastChangedAtUtc { get; init; }

@@ -7,7 +7,7 @@ const api = vi.hoisted(() => ({ listAdminSources: vi.fn(), getAdminSource: vi.fn
 vi.mock('@/lib/api', () => api);
 vi.mock('@/components/SourceDocumentUpload', () => ({ SourceDocumentUpload: () => <div>Yükleme</div> }));
 
-const summary = { sourceId: 'G1-TR', displayName: 'Dönem 1 Türkçe', classYear: 1, programLanguage: 'Turkish', transport: 'GoogleSheets', isPollingEnabled: true, latestParseRunStatus: 'CompletedWithWarnings', latestParseWarningCount: 1, latestParseErrorCount: 0, latestRevisionState: 'Published' };
+const summary = { sourceId: 'G1-TR', displayName: 'Dönem 1 Türkçe', classYear: 1, programLanguage: 'Turkish', transport: 'GoogleSheets', isPollingEnabled: true, publishesSchedule: true, latestParseRunStatus: 'CompletedWithWarnings', latestParseWarningCount: 1, latestParseErrorCount: 0, latestRevisionState: 'Published' };
 
 describe('AdminSourceWorkspace', () => {
   beforeEach(() => {
@@ -165,6 +165,56 @@ describe('AdminSourceWorkspace', () => {
     render(<AdminSourceWorkspace />);
 
     expect(await screen.findByText('3 saattir işlenemiyor')).toBeInTheDocument();
+  });
+
+  it('reads a companion source\'s empty revision as its design, not as a rejection', async () => {
+    // The bedside lists and the weekly amphitheatre program emit no candidates at all: the annual
+    // states when each session is, and these say what it is about or which room it uses. Their
+    // revision is empty and refused every cycle, which is correct — and as a plain red "Rejected"
+    // it is a permanent alarm sitting beside the ones that mean something (ADR-156).
+    const companion = {
+      ...summary,
+      sourceId: 'G3-TR-A-BEDSIDE',
+      displayName: 'Dönem 3 Türkçe A hasta başı uygulama',
+      publishesSchedule: false,
+      latestRevisionState: 'Rejected',
+    };
+    api.listAdminSources.mockResolvedValue([companion]);
+    api.getAdminSource.mockResolvedValue({
+      summary: companion,
+      parserProfile: 'grade3_bedside_v1',
+      parserProfileVersion: '1.1.0',
+      latestParseWarnings: [],
+      recentSnapshots: [],
+    });
+
+    const user = userEvent.setup();
+    render(<AdminSourceWorkspace />);
+
+    expect(await screen.findByText('Yayımlamaz')).toBeInTheDocument();
+    expect(screen.queryByText('Rejected')).toBeNull();
+
+    await user.click(screen.getByText('Dönem 3 Türkçe A hasta başı uygulama'));
+    expect(await screen.findByText('Bu kaynak kendi programını yayımlamaz.')).toBeInTheDocument();
+  });
+
+  it('still shows a companion source\'s state when it is not the expected rejection', async () => {
+    // The label must not become a blindfold: a source declared as publishing nothing that has
+    // suddenly published something is exactly what an operator has to see.
+    api.listAdminSources.mockResolvedValue([
+      {
+        ...summary,
+        sourceId: 'SHARED-AMPHI',
+        displayName: 'Haftalık amfi programı',
+        publishesSchedule: false,
+        latestRevisionState: 'ReviewRequired',
+      },
+    ]);
+
+    render(<AdminSourceWorkspace />);
+
+    expect(await screen.findByText('ReviewRequired')).toBeInTheDocument();
+    expect(screen.queryByText('Yayımlamaz')).toBeNull();
   });
 
   it('shows persisted parser warning details without exposing a parse action', async () => {

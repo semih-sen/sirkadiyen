@@ -204,4 +204,78 @@ public sealed class ScheduleSourceCatalogTests
             Assert.False(string.IsNullOrWhiteSpace(source.ParserProfile));
         });
     }
+
+    /// <summary>
+    /// Exactly the three documents that state no schedule of their own declare it (ADR-156).
+    /// </summary>
+    /// <remarks>
+    /// Their parser profiles emit no candidates at all — `grade3_bedside_v1` and
+    /// `weekly_amphitheatre_v1` both return an empty candidate list on purpose — so every revision
+    /// they produce is empty and refused. Pinned here because the declaration is what stops that
+    /// permanent rejection from reading as an incident, and because adding it to a source that
+    /// does publish would silence the one alarm that says a program stopped stating its schedule.
+    /// </remarks>
+    [Fact]
+    public async Task OnlyTheSourcesThatEnrichAnotherOneDeclareThatTheyPublishNothing()
+    {
+        string path = Path.Combine(AppContext.BaseDirectory, "fixtures", "schedule-sources.json");
+
+        ScheduleSourceCatalog catalog = await new ScheduleSourceCatalogLoader()
+            .LoadAsync(path, CancellationToken.None);
+
+        Assert.Equal(
+            ["G3-TR-A-BEDSIDE", "G3-TR-B-BEDSIDE", "SHARED-AMPHI"],
+            catalog.Sources
+                .Where(source => !source.PublishesSchedule)
+                .Select(source => source.SourceId)
+                .Order(StringComparer.Ordinal));
+
+        // And each of them is actually read by somebody, which is what makes publishing nothing a
+        // design rather than a source that produces nothing at all.
+        foreach (ScheduleSourceDefinition source in catalog.Sources.Where(
+            candidate => !candidate.PublishesSchedule))
+        {
+            Assert.Contains(
+                catalog.Sources,
+                reader => reader.CompanionSourceIds?.Contains(source.SourceId) == true);
+        }
+    }
+
+    [Fact]
+    public void ASourceThatPublishesNothingAndIsReadByNobodyIsRefused()
+    {
+        // The declaration exists to make a permanently empty revision legible. A source nothing
+        // reads produces nothing at all, so this is a mistake in the wiring, not a design — and it
+        // is silent otherwise, because a companion that is never requested simply never appears.
+        string document = """
+            {
+              "catalogVersion": "1.0",
+              "sources": [
+                {
+                  "sourceId": "G9-ORPHAN",
+                  "displayName": "Orphan companion",
+                  "transport": "googleSheets",
+                  "documentFormat": "googleSheet",
+                  "sourceUri": "https://docs.google.com/spreadsheets/d/example",
+                  "externalId": "example",
+                  "sheetGid": 0,
+                  "parserProfile": "grade1_yearly_v1",
+                  "parserProfileVersion": "1.0.0",
+                  "academicYear": "2026-2027",
+                  "classYear": 1,
+                  "programLanguage": "turkish",
+                  "timeZoneId": "Europe/Istanbul",
+                  "publishesSchedule": false
+                }
+              ]
+            }
+            """;
+
+        ScheduleSourceCatalogValidationException failure =
+            Assert.Throws<ScheduleSourceCatalogValidationException>(
+                () => new ScheduleSourceCatalogLoader().Parse(document));
+
+        Assert.Contains("G9-ORPHAN", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("read by nobody", failure.Message, StringComparison.Ordinal);
+    }
 }

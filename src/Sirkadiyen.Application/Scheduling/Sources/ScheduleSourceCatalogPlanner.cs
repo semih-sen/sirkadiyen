@@ -176,6 +176,13 @@ public static class ScheduleSourceCatalogPlanner
             "authoritativeAudienceSelectors",
             Text(before.AuthoritativeAudienceSelectors),
             Text(after.AuthoritativeAudienceSelectors));
+        // High risk like the rest: declaring that a real program publishes nothing would silence
+        // the empty-revision alarm that is the only thing standing between a source that stopped
+        // stating its schedule and nobody noticing (ADR-156).
+        Compare(
+            "publishesSchedule",
+            Text(before.PublishesSchedule),
+            Text(after.PublishesSchedule));
         Compare(
             "groupRotationSourceIds",
             Text(before.GroupRotationSourceIds),
@@ -208,6 +215,8 @@ public static class ScheduleSourceCatalogPlanner
         value?.ToString(CultureInfo.InvariantCulture);
 
     private static string Text(int value) => value.ToString(CultureInfo.InvariantCulture);
+
+    private static string Text(bool value) => value ? "true" : "false";
 
     private static string? Text(IReadOnlyList<string>? values) =>
         values is null ? null : string.Join(", ", values);

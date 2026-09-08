@@ -443,6 +443,7 @@
       "classYear": 3,
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
+      "publishesSchedule": false,
       "fixturePath": "sheets/donem-3-tr-A/2026-2027 Dönem 3 HASTA BAŞI A GRUBU UYGULAMA KONULARI VE TABLOSU.docx"
     },
     {
@@ -458,6 +459,7 @@
       "classYear": 3,
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
+      "publishesSchedule": false,
       "fixturePath": "sheets/donem-3-tr-B/2026-2027 Dönem 3 HASTA BAŞI B GRUBU UYGULAMA KONULARI VE TABLOSU.docx"
     },
     {
@@ -616,6 +618,7 @@
       "classYear": 1,
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
+      "publishesSchedule": false,
       "discoveryFolderId": "1ZkB8GD_niGknZLVD_aGN0oxWm5F_F8G1",
       "fixturePath": "sheets/amfi/31 AĞUSTOS -4 EYLÜL 2026 Amfi programı.xlsx",
       "notes": "Weekly companion, and the only source whose document is republished rather than edited in place (ADR-133). The faculty drops one Google Sheets workbook per week into the Drive folder named by discoveryFolderId, which is linked from ogrenci-istanbultip.istanbul.edu.tr; the folder is the stable address and the file is not. Each poll resolves the folder to the most recently changed workbook in it and acquires that; externalId is the workbook this catalog entry was written against and is what a cycle falls back to when the folder cannot be listed, so it is configuration and is never rewritten by discovery. No worksheet gid is pinned: a gid belongs to one workbook and next week's is a different file. Acquisition reads the whole workbook and every date the parser reports comes from a day title row, because the workbook keeps the previous week as an extra worksheet and its tab titles are unreliable. classYear and programLanguage are nominal - the document covers every class year and both programs, and as a companion it publishes nothing, so its own source context is never used to publish."

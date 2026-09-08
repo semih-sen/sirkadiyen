@@ -107,6 +107,20 @@ public sealed record ScheduleSourceDefinition
     /// </summary>
     public string? DiscoveryFolderId { get; init; }
 
+    /// <summary>
+    /// Whether this source states a schedule of its own, or only enriches one another source
+    /// states (ADR-156). Defaults to <see langword="true"/>, so a source says nothing about it
+    /// unless it is one of the few that publish nothing.
+    /// </summary>
+    /// <remarks>
+    /// The Grade 3 bedside lists and the weekly amphitheatre program are read by their parsers and
+    /// stored as evidence like any other source, but their profiles emit no candidates at all: the
+    /// annual states when each session is, and these say what it is about (ADR-100) or which room
+    /// it uses (ADR-133). Their revisions are therefore always empty and always refused, which is
+    /// correct — and, undeclared, indistinguishable from a source whose document actually broke.
+    /// </remarks>
+    public bool PublishesSchedule { get; init; } = true;
+
     public string? FixturePath { get; init; }
 
     public string? Notes { get; init; }
@@ -135,5 +149,6 @@ public sealed record ScheduleSourceDefinition
         GroupRotationSourceIds
             ?.Select(Domain.Scheduling.Sources.SourceId.Parse)
             .ToArray(),
-        DiscoveryFolderId);
+        DiscoveryFolderId,
+        PublishesSchedule);
 }

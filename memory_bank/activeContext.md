@@ -1,5 +1,34 @@
 # Active Context
 
+## Latest session (2026-09-08, ADR-156: a companion source's refusal is not a failure)
+
+Follow-up to ADR-155 in the same session. Operator asked why the two Grade 3 bedside sources show
+`Rejected` while their parse is `Completed` and the annuals are `Published`.
+
+Not a bug: `grade3_bedside_v1` and `weekly_amphitheatre_v1` both return `candidates=[]` on purpose
+(ADR-100, ADR-133). The annual states when each bedside session is and the bedside document states
+what it is about; the amphitheatre document says which room an already-scheduled session uses. An
+empty revision is refused because publishing it would delete every event the source owns — correct,
+and permanent. The fault was that the refusal looked exactly like a broken document: red `Rejected`
+badge plus a `Yeni revizyon reddedildi` warning, forever, beside the rejections that mean something.
+
+Fix (ADR-156): catalog declares `publishesSchedule` (default true; `false` on `G3-TR-A-BEDSIDE`,
+`G3-TR-B-BEDSIDE`, `SHARED-AMPHI`), persisted and ADR-136-copied. The loader refuses a
+non-publishing source nothing reads. The validator keeps the `Rejected` outcome but records the
+finding as `Information` with its own message and state reason, and applies every other rule
+unchanged. `WorkerAlerts.RevisionCreated` sends `Info` for it. The panel shows "Yayımlamaz ·
+companion" instead — but only for the expected state; any other state shows through.
+
+`G3-FACULTY-LOCATIONS` deliberately left alone: nothing declares it as a companion and its profile
+is not registered in the parser, so it has never produced a revision. Declaring it would (rightly)
+trip the new loader rule.
+
+Migration `20260908112000_AddScheduleSourcePublishesSchedule` (bool column, default true for
+existing rows). Tests: 2 new validator tests, 2 new catalog-loader tests, 1 new alert test, 1
+persistence assertion, 2 new frontend tests; web suite 22 files / 120 tests green, `tsc --noEmit`
+clean. **The .NET solution was still not built or tested — no SDK in this environment.**
+
+
 ## Latest session (2026-09-08, ADR-155: retired sources leave the list; an upload source records its cycle)
 
 Operator report from `/admin/sources` → "Kaynak durumu": (1) `G2-VERTICAL-SPRING` and

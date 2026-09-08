@@ -286,6 +286,11 @@ internal static class ScheduleSourceUpsert
         // simply stop being current the first week the faculty publishes a new
         // workbook.
         [nameof(ScheduleSource.DiscoveryFolderId)] = source.DiscoveryFolderId,
+
+        // Whether the source publishes at all is catalog configuration too, and it decides how an
+        // empty revision is read (ADR-156). Omitted here, a companion declared in the repository
+        // would still raise an alarm on every running server.
+        [nameof(ScheduleSource.PublishesSchedule)] = source.PublishesSchedule,
     };
 }
 

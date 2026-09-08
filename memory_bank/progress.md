@@ -1729,3 +1729,30 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
   Yeni .NET testleri: 3 domain (emeklilik), 3 persistence (Postgres'e bağlı, atlanabilir), 1 Api.
 - **Not done:** Ortamda .NET SDK olmadığı için `dotnet build` / `dotnet test` **çalıştırılamadı**;
   deploy öncesi ikisi de koşulmalı. Tarayıcıda doğrulanmadı, deploy edilmedi.
+### Yayımlamayan kaynağın reddi artık hata gibi görünmüyor (ADR-156, 2026-09-08)
+
+- **Soru/durum:** Panelde `G3-TR-A-BEDSIDE` ve `G3-TR-B-BEDSIDE` revizyon sütununda `Rejected`
+  görünüyordu; parse `Completed`, yıllık programlar `Published`.
+- **Root cause (hata değil, okunabilirlik):** `grade3_bedside_v1` ve `weekly_amphitheatre_v1`
+  bilerek `candidates=[]` döndürüyor (ADR-100, ADR-133). Yıllık program her hasta başı seansının
+  tarih/saatini söylüyor, hasta başı belgesi yalnız konusunu; amfi belgesi de zaten var olan bir
+  seansın odasını. Boş revizyon reddediliyor (yayımlansa kaynağın tüm etkinlikleri silinirdi) — bu
+  doğru ve kalıcı. Sorun, bu reddin bozuk bir belgeyle birebir aynı görünmesiydi: kırmızı
+  `Rejected` rozeti ve her değişiklikte "Yeni revizyon reddedildi" uyarısı.
+- **Changed (katalog + domain):** `publishesSchedule` (varsayılan true) katalog alanı ve
+  `ScheduleSource.PublishesSchedule`; ADR-136 listesine eklendi. `false` olanlar:
+  `G3-TR-A-BEDSIDE`, `G3-TR-B-BEDSIDE`, `SHARED-AMPHI`.
+- **Changed (loader):** Yayımlamadığını beyan eden ama hiçbir kaynağın companion/rotasyon olarak
+  okumadığı kaynak reddediliyor — o durumda ya bağlantı kurulmamıştır ya da beyan yanlıştır.
+- **Changed (doğrulama):** Boş revizyonun sonucu yine `Rejected`, ama bulgu `Information` ve mesajı
+  ile state reason'ı kendine ait. Kaynak bir şey yayımlarsa diğer tüm kurallar aynen işliyor.
+- **Changed (uyarı + panel):** `WorkerAlerts.RevisionCreated` bu durumda `Info` gönderiyor; panel
+  `Rejected` yerine nötr "Yayımlamaz · companion" rozeti gösteriyor, detayda açıklama var. Yalnız
+  beklenen durum etiketleniyor; başka bir durum (ör. `ReviewRequired`) olduğu gibi görünüyor.
+- **Bilerek dokunulmadı:** `G3-FACULTY-LOCATIONS` — zenginleştirme belgesi ama hiçbir kaynak onu
+  companion olarak tanımlamıyor ve profili parser'da kayıtlı değil; işaretlense yeni loader kuralı
+  haklı olarak reddederdi. Eksik olan etiket değil, bağlantı.
+- **Migration:** `20260908112000_AddScheduleSourcePublishesSchedule` (bool, mevcut satırlar true).
+- **Tests executed:** Web `tsc --noEmit` temiz, `vitest run` 22 dosya / 120 test yeşil. Yeni .NET
+  testleri: 2 doğrulayıcı, 2 katalog loader, 1 uyarı, 1 persistence assertion.
+- **Not done:** .NET SDK olmadığı için `dotnet build` / `dotnet test` yine çalıştırılamadı.

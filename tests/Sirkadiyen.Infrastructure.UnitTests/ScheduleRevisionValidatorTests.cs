@@ -42,6 +42,49 @@ public sealed class ScheduleRevisionValidatorTests
     }
 
     [Fact]
+    public void ACompanionSourcesEmptyRevisionIsInformationRatherThanAnError()
+    {
+        // The bedside lists and the weekly amphitheatre program emit no candidates at all, by
+        // design: the annual states when each session is and these say what it is about or which
+        // room it uses (ADR-100, ADR-133). Their revision is empty every cycle and is still
+        // refused — there is nothing to publish, and publishing an empty revision would delete
+        // every event the source owns — but it is a healthy read, and reporting it as an error
+        // puts a permanent rejection beside the ones that mean something (ADR-156).
+        RevisionValidationResult result = Validate(
+            [],
+            source: Source(publishesSchedule: false));
+
+        Assert.Equal(RevisionState.Rejected, result.Outcome);
+
+        RevisionValidationFinding finding = result.Findings.Single();
+        Assert.Equal(RevisionValidationRule.EmptyRevision, finding.Rule);
+        Assert.Equal(ValidationSeverity.Information, finding.Severity);
+        Assert.Contains(
+            "publishes no schedule of its own",
+            finding.Message,
+            StringComparison.Ordinal);
+
+        // The queue row's own sentence says it too, so nothing has to be opened to read it.
+        Assert.Contains("by design", result.StateReason, StringComparison.Ordinal);
+
+        // And a publishing source's empty revision stays the error it was.
+        RevisionValidationResult publishing = Validate([]);
+        Assert.Equal(ValidationSeverity.Error, publishing.Findings.Single().Severity);
+    }
+
+    [Fact]
+    public void ACompanionSourceThatDoesStateRecordsIsValidatedLikeAnyOther()
+    {
+        // The declaration excuses an empty revision; it does not excuse the source from every
+        // other rule if it ever states something.
+        RevisionValidationResult result = Validate(
+            [Record("S1!R2C2")],
+            source: Source(publishesSchedule: false));
+
+        Assert.Equal(RevisionState.Validated, result.Outcome);
+    }
+
+    [Fact]
     public void AnEmptyRevisionSaysWhichOfTheTwoSituationsProducedIt()
     {
         // The rejection reads identically either way, and the operator's next step does not. A
@@ -643,7 +686,8 @@ public sealed class ScheduleRevisionValidatorTests
 
     private static ScheduleSource Source(
         string academicYear = "2025-2026",
-        IReadOnlyDictionary<string, IReadOnlyList<string>>? supported = null) => new(
+        IReadOnlyDictionary<string, IReadOnlyList<string>>? supported = null,
+        bool publishesSchedule = true) => new(
             SourceId.Parse("G1-TR-PRACTICE"),
             "Grade 1 Turkish practice",
             ScheduleSourceTransport.GoogleSheets,
@@ -657,7 +701,8 @@ public sealed class ScheduleRevisionValidatorTests
             "Europe/Istanbul",
             "spreadsheet-1",
             1,
-            supported);
+            supported,
+            publishesSchedule: publishesSchedule);
 
     private static CanonicalScheduleRecord Record(
         string candidateId,

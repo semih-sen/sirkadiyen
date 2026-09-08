@@ -126,7 +126,21 @@ function SourceStatus() {
                     )}
                   </td>
                   <td>{item.latestParseWarningCount ?? 0} / {item.latestParseErrorCount ?? 0}</td>
-                  <td><span className={`badge ${statusBadge(item.latestRevisionState ?? 'unknown')}`}>{item.latestRevisionState ?? 'Veri yok'}</span></td>
+                  <td>
+                    {/* A companion source's revision is empty and refused every cycle, by design.
+                        Shown as the plain "Rejected" every other source's failure carries, it is a
+                        permanent red badge — and a badge that is always red is one nobody reads
+                        (ADR-156). Any other state is shown as it is: a companion that suddenly
+                        published something is exactly what an operator must see. */}
+                    {!item.publishesSchedule && (item.latestRevisionState ?? 'Rejected') === 'Rejected' ? (
+                      <>
+                        <span className="badge badge-neutral">Yayımlamaz</span>
+                        <small className="muted" style={{ display: 'block' }}>companion</small>
+                      </>
+                    ) : (
+                      <span className={`badge ${statusBadge(item.latestRevisionState ?? 'unknown')}`}>{item.latestRevisionState ?? 'Veri yok'}</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -204,6 +218,15 @@ function SourceDetail({
     <DetailDrawer title={detail.summary.displayName} subtitle={detail.summary.sourceId} onClose={onClose}>
       <div className="summary-row"><span className="muted">Taşıma</span><strong>{detail.summary.transport}</strong></div>
       <div className="summary-row"><span className="muted">Parser</span><strong>{detail.parserProfile} · {detail.parserProfileVersion}</strong></div>
+
+      {!detail.summary.publishesSchedule && (
+        <Banner tone="neutral">
+          <strong>Bu kaynak kendi programını yayımlamaz.</strong>{' '}
+          Belgesini başka bir kaynak yardımcı kanıt olarak okur; kendi revizyonu boş olur ve
+          reddedilir. Bu beklenen sonuçtur — hiçbir takvimden bir şey eksilmiyor, belgenin
+          söylediği bilgi onu okuyan kaynağın etkinliklerine yazılıyor.
+        </Banner>
+      )}
 
       {detail.summary.retiredAtUtc && (
         <Banner tone="neutral">

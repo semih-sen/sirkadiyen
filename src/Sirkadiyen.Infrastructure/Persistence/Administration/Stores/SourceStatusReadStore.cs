@@ -137,6 +137,7 @@ public sealed class SourceStatusReadStore(SirkadiyenDbContext dbContext) : ISour
             ProgramLanguage = source.ProgramLanguage,
             Transport = source.Transport,
             IsPollingEnabled = source.IsPollingEnabled,
+            PublishesSchedule = source.PublishesSchedule,
             LastPolledAtUtc = source.LastPolledAtUtc,
             LastChangedAtUtc = source.LastChangedAtUtc,
             LastPollFailureAtUtc = source.LastPollFailureAtUtc,

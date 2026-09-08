@@ -249,6 +249,9 @@ const HIGH_RISK_FIELDS = new Set<keyof ScheduleSourceCatalogEntry>([
   'sharedDocumentGroup',
   'companionSourceIds',
   'groupRotationSourceIds',
+  // Declaring that a real program publishes nothing silences the empty-revision alarm, which is
+  // the only thing that says a source stopped stating its schedule (ADR-156).
+  'publishesSchedule',
 ]);
 
 function SourceFormEditor({
@@ -366,6 +369,7 @@ function SourceFormEditor({
                     />
                     <Field label="Saat dilimi" name="timeZoneId" source={source} onChange={(next) => replace(index, next)} />
                     <Field label="Ortak belge grubu" name="sharedDocumentGroup" source={source} onChange={(next) => replace(index, next)} />
+                    <PublishesScheduleField source={source} onChange={(next) => replace(index, next)} />
                     <Field label="Fixture yolu" name="fixturePath" source={source} onChange={(next) => replace(index, next)} wide />
                   </div>
 
@@ -496,6 +500,46 @@ function Select({
         })}
       >
         {options.map((option) => <option key={option} value={option}>{option}</option>)}
+      </select>
+    </div>
+  );
+}
+
+/**
+ * Whether the source publishes a schedule of its own (ADR-156).
+ *
+ * Written only when it is false: "yes" is the answer for every source but three, and stating it on
+ * all of them would make the next catalog edit show a change on every entry.
+ */
+function PublishesScheduleField({
+  source,
+  onChange,
+}: {
+  source: ScheduleSourceCatalogEntry;
+  onChange: (next: ScheduleSourceCatalogEntry) => void;
+}) {
+  const id = `publishesSchedule-${source.sourceId}`;
+  return (
+    <div className="field">
+      <label htmlFor={id}>
+        Kendi programını yayımlar <span className="badge badge-warning badge-xs">riskli</span>
+      </label>
+      <select
+        id={id}
+        className="text-input"
+        value={source.publishesSchedule === false ? 'false' : 'true'}
+        onChange={(event) => {
+          const next = { ...source };
+          if (event.target.value === 'false') {
+            next.publishesSchedule = false;
+          } else {
+            delete next.publishesSchedule;
+          }
+          onChange(next);
+        }}
+      >
+        <option value="true">Evet — kendi programını yayımlar</option>
+        <option value="false">Hayır — yalnız başka kaynağı zenginleştirir</option>
       </select>
     </div>
   );

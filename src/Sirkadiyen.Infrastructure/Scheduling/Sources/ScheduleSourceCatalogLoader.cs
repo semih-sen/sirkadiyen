@@ -136,6 +136,7 @@ public sealed class ScheduleSourceCatalogLoader : IScheduleSourceCatalogSerializ
         ValidateSharedDocumentGroups(catalog);
         ValidateCompanionSourceIds(catalog, sourceIds);
         ValidateGroupRotationSourceIds(catalog, sourceIds);
+        ValidateNonPublishingSources(catalog);
         ValidateAudienceOwnership(catalog);
     }
 
@@ -343,6 +344,47 @@ public sealed class ScheduleSourceCatalogLoader : IScheduleSourceCatalogSerializ
     /// stays on until this year's list is uploaded.
     /// </para>
     /// </remarks>
+    /// <summary>
+    /// A source that declares it publishes nothing must be read by another source (ADR-156).
+    /// </summary>
+    /// <remarks>
+    /// The declaration exists so that a permanently empty revision reads as the design it is
+    /// rather than as an alarm, and it is only the design when some other source actually consumes
+    /// the document. A source that neither publishes nor is read by anyone publishes nothing to
+    /// nobody: either its reader was never wired up — which is silent, because a companion that is
+    /// not requested simply never appears (ADR-102) — or the declaration is wrong and a real
+    /// program's empty revisions have just been silenced.
+    /// </remarks>
+    private static void ValidateNonPublishingSources(ScheduleSourceCatalog catalog)
+    {
+        HashSet<string> read = new(StringComparer.Ordinal);
+        foreach (ScheduleSourceDefinition source in catalog.Sources)
+        {
+            foreach (string companionId in source.CompanionSourceIds ?? [])
+            {
+                read.Add(companionId);
+            }
+
+            foreach (string ownerId in source.GroupRotationSourceIds ?? [])
+            {
+                read.Add(ownerId);
+            }
+        }
+
+        foreach (ScheduleSourceDefinition source in catalog.Sources)
+        {
+            if (source.PublishesSchedule || read.Contains(source.SourceId))
+            {
+                continue;
+            }
+
+            throw new InvalidDataException(
+                $"Source '{source.SourceId}' declares that it publishes no schedule, but no "
+                + "source reads it as a companion or as a group-rotation owner. A source that "
+                + "publishes nothing and is read by nobody produces nothing at all.");
+        }
+    }
+
     private static void ValidateGroupRotationSourceIds(
         ScheduleSourceCatalog catalog,
         HashSet<string> sourceIds)

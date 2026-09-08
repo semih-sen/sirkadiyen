@@ -48,6 +48,28 @@ public sealed class WorkerAlertsTests
     }
 
     [Fact]
+    public void ACompanionSourcesRefusedRevisionIsInformationRatherThanAWarning()
+    {
+        // A source that publishes no schedule of its own has its revision refused every time its
+        // document changes, by design (ADR-156). Sent as the same warning a broken document
+        // raises, it is a recurring false alarm — and the operator who learns to ignore it is the
+        // one who will ignore the real one.
+        OperatorAlert alert = WorkerAlerts.RevisionCreated(
+            SourceId.Parse("SHARED-AMPHI"),
+            Guid.CreateVersion7(),
+            RevisionState.Rejected,
+            findingCount: 1,
+            publishesSchedule: false);
+
+        Assert.Equal(OperatorAlertSeverity.Info, alert.Severity);
+        Assert.Contains("yayımlamaz", alert.Detail, StringComparison.Ordinal);
+
+        // Everything else about the alert is unchanged, so it is still one announcement per
+        // revision and still names the source and the state.
+        Assert.Contains(alert.Fields, field => field.Value == "Rejected");
+    }
+
+    [Fact]
     public void EachRevisionIsAnnouncedOnceBecauseItsKeyNamesIt()
     {
         Guid revisionId = Guid.CreateVersion7();
