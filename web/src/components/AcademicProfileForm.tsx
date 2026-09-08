@@ -154,6 +154,11 @@ export function AcademicProfileForm({
   const [lookup, setLookup] = useState<StudentRosterLookupResponse | null>(null);
   const [lookingUp, setLookingUp] = useState(false);
   const [lookupError, setLookupError] = useState<string | null>(null);
+  // Student-number-first (ADR-085): the fields below the number stay disabled
+  // until the student has either searched the published lists — whatever the
+  // outcome — or chosen to fill them in without a number. Editing a stored
+  // profile is already past that gate, so `initial` starts it open.
+  const [unlocked, setUnlocked] = useState(initial != null);
   // What the list suggested, kept so a field can say where its value came from
   // and stop saying it once the student changes it.
   const [suggested, setSuggested] = useState<Record<string, string>>({});
@@ -211,6 +216,9 @@ export function AcademicProfileForm({
     try {
       const result = await lookUpStudentRoster(number);
       setLookup(result);
+      // A miss or a conflict still opens the fields — the student fills them in
+      // by hand (ADR-085). Only the prefill is withheld.
+      setUnlocked(true);
 
       if (result.outcome !== 'Matched') {
         // Nothing is filled in from a miss or a conflict. Inventing a class year
@@ -235,6 +243,9 @@ export function AcademicProfileForm({
     } catch (err) {
       setLookingUp(false);
       setLookup(null);
+      // A lookup is a convenience; when it fails the form must still be usable,
+      // so the fields open and the student fills them in by hand.
+      setUnlocked(true);
       setLookupError(
         err instanceof ApiError
           ? err.message
@@ -318,14 +329,25 @@ export function AcademicProfileForm({
           <p className="field-hint">
             Baştaki sıfırlar korunur; fakülte ve program hanesi seçilen programla tutarlı olmalı.
           </p>
-          <button
-            className="btn btn-secondary"
-            type="button"
-            onClick={onLookUp}
-            disabled={lookingUp || studentNumber.trim().length !== 10}
-          >
-            {lookingUp ? 'Aranıyor…' : 'Öğrenci listesinde ara'}
-          </button>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
+            <button
+              className="btn btn-secondary"
+              type="button"
+              onClick={onLookUp}
+              disabled={lookingUp || studentNumber.trim().length !== 10}
+            >
+              {lookingUp ? 'Aranıyor…' : 'Öğrenci listesinde ara'}
+            </button>
+            {!unlocked && (
+              <button
+                className="btn btn-tertiary btn-sm"
+                type="button"
+                onClick={() => setUnlocked(true)}
+              >
+                Numaram yok, elle dolduracağım
+              </button>
+            )}
+          </div>
         </div>
 
         {lookupError && (
@@ -336,12 +358,22 @@ export function AcademicProfileForm({
 
         {lookup && <RosterLookupNotice result={lookup} />}
 
+        {!unlocked && (
+          <p className="field-hint" style={{ marginBottom: 20 }}>
+            Önce numaranı aratıp listede bul. Aşağıdaki alanlar aramadan sonra düzenlenebilir olur;
+            listede bulunamazsan da elle doldurabilirsin.
+          </p>
+        )}
+
+        {/* Everything past the number is disabled until a lookup has run or the
+            student has opted into manual entry (ADR-085). */}
         <div className="field">
           <label htmlFor="classYear">Sınıf</label>
           <select
             id="classYear"
             className="select-input"
             value={classYear}
+            disabled={!unlocked}
             onChange={(event) => {
               setClassYear(event.target.value === '' ? '' : Number(event.target.value));
               setSelectors({});
@@ -364,6 +396,7 @@ export function AcademicProfileForm({
             id="language"
             className="select-input"
             value={language}
+            disabled={!unlocked}
             onChange={(event) => {
               setLanguage(event.target.value as ProgramLanguage | '');
               setSelectors({});
@@ -385,7 +418,8 @@ export function AcademicProfileForm({
 
         {program?.dimensions.map((dimension) => {
           const values = allowedValues(dimension, selectors);
-          const disabled = dimension.dependsOn ? !selectors[dimension.dependsOn] : false;
+          const parentMissing = dimension.dependsOn ? !selectors[dimension.dependsOn] : false;
+          const disabled = !unlocked || parentMissing;
           const current = selectors[dimension.key] ?? '';
           // The mark survives only while the value is still the list's. Once the
           // student edits it, it is theirs and must not keep claiming otherwise.
@@ -405,7 +439,7 @@ export function AcademicProfileForm({
                 required={dimension.required}
                 onChange={(event) => setSelector(dimension.key, event.target.value, program.dimensions)}
               >
-                <option value="">{disabled ? 'Önce üst grubu seç…' : 'Seç…'}</option>
+                <option value="">{parentMissing ? 'Önce üst grubu seç…' : 'Seç…'}</option>
                 {values.map((value) => (
                   <option key={value} value={value}>
                     {value}
@@ -418,7 +452,11 @@ export function AcademicProfileForm({
           );
         })}
 
-        <button className="btn btn-primary btn-block" type="submit" disabled={busy || !program}>
+        <button
+          className="btn btn-primary btn-block"
+          type="submit"
+          disabled={busy || !program || !unlocked}
+        >
           {busy ? busyLabel : submitLabel}
         </button>
       </form>

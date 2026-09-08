@@ -108,6 +108,9 @@ describe('AcademicProfileForm', () => {
     // must be Turkish rather than the raw contract key (ADR-145).
     render(<AcademicProfileForm submitLabel="Kaydet" busyLabel="Kaydediliyor…" onSaved={() => {}} />);
 
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Numaram yok, elle dolduracağım' }),
+    );
     await userEvent.selectOptions(await screen.findByLabelText('Sınıf'), '3');
     await userEvent.selectOptions(screen.getByLabelText('Program dili'), 'English');
 
@@ -198,6 +201,65 @@ describe('AcademicProfileForm roster lookup', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     api.getProfileOptions.mockResolvedValue(options);
+  });
+
+  it('keeps the fields below the number disabled until a lookup has run', async () => {
+    // ADR-085: onboarding is student-number-first. Nothing below the number is
+    // editable until the student has searched the lists (any outcome) or opted
+    // into manual entry.
+    api.lookUpStudentRoster.mockResolvedValue(matched);
+    render(
+      <AcademicProfileForm submitLabel="Kaydet" busyLabel="Kaydediliyor…" onSaved={() => {}} />,
+    );
+
+    expect(await screen.findByLabelText('Sınıf')).toBeDisabled();
+    expect(screen.getByLabelText('Program dili')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Kaydet' })).toBeDisabled();
+
+    await userEvent.type(screen.getByLabelText('Öğrenci numarası'), '0101250001');
+    await userEvent.click(screen.getByRole('button', { name: 'Öğrenci listesinde ara' }));
+
+    expect(await screen.findByLabelText('Sınıf')).toBeEnabled();
+  });
+
+  it('lets a student without a number open the fields by hand', async () => {
+    render(
+      <AcademicProfileForm submitLabel="Kaydet" busyLabel="Kaydediliyor…" onSaved={() => {}} />,
+    );
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Numaram yok, elle dolduracağım' }),
+    );
+
+    expect(await screen.findByLabelText('Sınıf')).toBeEnabled();
+    // The manual-entry escape hatch is spent once used.
+    expect(
+      screen.queryByRole('button', { name: 'Numaram yok, elle dolduracağım' }),
+    ).not.toBeInTheDocument();
+    expect(api.lookUpStudentRoster).not.toHaveBeenCalled();
+  });
+
+  it('opens the fields even when the number is not on any list', async () => {
+    api.lookUpStudentRoster.mockResolvedValue({
+      ...matched,
+      outcome: 'NotFound',
+      givenName: null,
+      familyName: null,
+      classYear: null,
+      programLanguage: null,
+      suggestedSelectors: {},
+      dimensionsRequiringInput: [],
+    });
+    render(
+      <AcademicProfileForm submitLabel="Kaydet" busyLabel="Kaydediliyor…" onSaved={() => {}} />,
+    );
+
+    await userEvent.type(await screen.findByLabelText('Öğrenci numarası'), '0101250001');
+    await userEvent.click(screen.getByRole('button', { name: 'Öğrenci listesinde ara' }));
+
+    expect(await screen.findByText(/bulunamadı/)).toBeInTheDocument();
+    await userEvent.selectOptions(screen.getByLabelText('Sınıf'), '2');
+    expect(screen.getByLabelText('Sınıf')).toHaveValue('2');
   });
 
   it('fills the form from the list and keeps every filled value editable', async () => {

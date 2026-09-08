@@ -572,6 +572,13 @@ textarea.text-input:focus {
   border-color: var(--danger);
   box-shadow: 0 0 0 3px var(--danger-bg);
 }
+.text-input:disabled,
+.select-input:disabled,
+textarea.text-input:disabled {
+  background: var(--surface);
+  color: var(--ink-50);
+  cursor: not-allowed;
+}
 textarea.text-input {
   min-height: 110px;
   resize: vertical;
