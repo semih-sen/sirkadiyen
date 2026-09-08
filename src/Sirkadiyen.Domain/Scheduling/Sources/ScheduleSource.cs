@@ -274,6 +274,19 @@ public sealed class ScheduleSource
     /// <summary>Why that attempt failed, in the words the acquirer used.</summary>
     public string? LastPollFailureReason { get; private set; }
 
+    /// <summary>
+    /// When the catalog stopped declaring this source, if it still does not (ADR-155).
+    /// </summary>
+    /// <remarks>
+    /// A source dropped from the catalog keeps its row, its snapshots, its revisions and every
+    /// calendar event it published: absence from a configuration document is not a publication
+    /// decision (AI_GUIDELINE §13). But it is also not an operational source any more — nothing
+    /// polls it, nothing will ever change it, and the state it stopped in is frozen for good. Kept
+    /// in the operational list beside the sources being worked on, it is a row that can only ever
+    /// be stale, and a stale row that never resolves is how a real one stops being read.
+    /// </remarks>
+    public DateTimeOffset? RetiredAtUtc { get; private set; }
+
     /// <summary>Optimistic concurrency token, backed by the PostgreSQL system column.</summary>
     public uint RowVersion { get; private set; }
 
@@ -308,6 +321,54 @@ public sealed class ScheduleSource
     }
 
     public void SetPollingEnabled(bool enabled) => IsPollingEnabled = enabled;
+
+    /// <summary>
+    /// Marks the source as one the catalog no longer declares, and stops polling it (ADR-155).
+    /// </summary>
+    /// <returns><see langword="true"/> when this call retired the source.</returns>
+    /// <remarks>
+    /// Idempotent, because it is applied from the whole catalog on every worker start: a source
+    /// retired months ago must not have its retirement date rewritten to today, or "since when has
+    /// nobody been reading this" stops being answerable.
+    /// <para>
+    /// The last acquisition failure is cleared with it. Nothing will ever poll this source again,
+    /// so the failure can never be resolved, and left standing it says a source that no longer
+    /// exists is broken.
+    /// </para>
+    /// </remarks>
+    public bool Retire(DateTimeOffset retiredAtUtc)
+    {
+        if (RetiredAtUtc is not null)
+        {
+            return false;
+        }
+
+        RetiredAtUtc = retiredAtUtc;
+        IsPollingEnabled = false;
+        LastPollFailureAtUtc = null;
+        LastPollFailureReason = null;
+        return true;
+    }
+
+    /// <summary>
+    /// Puts a retired source back into service, because the catalog declares it again (ADR-155).
+    /// </summary>
+    /// <returns><see langword="true"/> when this call reinstated the source.</returns>
+    /// <remarks>
+    /// Polling is turned back on because retirement is what turned it off. A source an operator
+    /// disabled deliberately is not retired, so this never overrides that decision.
+    /// </remarks>
+    public bool Reinstate()
+    {
+        if (RetiredAtUtc is null)
+        {
+            return false;
+        }
+
+        RetiredAtUtc = null;
+        IsPollingEnabled = true;
+        return true;
+    }
 }
 
 public enum ScheduleSourceTransport

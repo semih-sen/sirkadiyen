@@ -48,6 +48,17 @@ public sealed record SourceStatusListItem
 
     public string? LastPollFailureReason { get; init; }
 
+    /// <summary>
+    /// When the catalog stopped declaring this source, if it still does not (ADR-155).
+    /// </summary>
+    /// <remarks>
+    /// A retired source is kept whole — row, snapshots, revisions, published events — but it is no
+    /// longer one of the pipeline's working parts, so the screen takes it out of the operational
+    /// list rather than leaving a row that can only ever be stale beside the sources being worked
+    /// on.
+    /// </remarks>
+    public DateTimeOffset? RetiredAtUtc { get; init; }
+
     public ParseRunStatus? LatestParseRunStatus { get; init; }
 
     public DateTimeOffset? LatestParseRunAtUtc { get; init; }

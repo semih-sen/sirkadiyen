@@ -34,6 +34,37 @@ public interface IScheduleSourceStore
         CancellationToken cancellationToken);
 
     /// <summary>
+    /// Applies a whole catalog: upserts every source it declares and retires every persisted
+    /// source it no longer declares (ADR-155).
+    /// </summary>
+    /// <remarks>
+    /// Separate from <see cref="UpsertAsync"/> because it is the one operation that may act on
+    /// rows the caller did not name, so a caller holding only part of the catalog cannot reach it
+    /// by accident. It is applied on every worker start rather than only when the document
+    /// changes: a source dropped by an earlier release must still end up retired on a server that
+    /// has been running since before this existed.
+    /// </remarks>
+    Task<ScheduleSourceCatalogApplication> ApplyCatalogAsync(
+        IReadOnlyCollection<ScheduleSource> sources,
+        DateTimeOffset appliedAtUtc,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Records that a cycle completed for a source whose document is not fetched (ADR-155).
+    /// </summary>
+    /// <remarks>
+    /// An administratively uploaded source acquires nothing during a poll, so the acquisition path
+    /// — the only writer of a successful poll — never runs for it. Its poll time therefore stood
+    /// still at the upload that stored its evidence, and, worse, a single failed cycle stayed on
+    /// the row for good: nothing could ever clear it, so the panel said "belge alınamıyor" about a
+    /// source that was being parsed and published successfully every cycle since.
+    /// </remarks>
+    Task RecordPollCompletedAsync(
+        SourceId sourceId,
+        DateTimeOffset polledAtUtc,
+        CancellationToken cancellationToken);
+
+    /// <summary>
     /// Records that a poll could not acquire the source's document (ADR-137).
     /// </summary>
     /// <remarks>
@@ -46,4 +77,21 @@ public interface IScheduleSourceStore
         DateTimeOffset failedAtUtc,
         string reason,
         CancellationToken cancellationToken);
+}
+
+/// <summary>What applying a whole catalog did to the persisted sources (ADR-155).</summary>
+/// <remarks>
+/// The two lists are reported rather than only counted because they are the log line an operator
+/// reads after a deployment: which sources stopped being configured, and which came back.
+/// </remarks>
+public sealed record ScheduleSourceCatalogApplication
+{
+    /// <summary>Rows the catalog inserted or changed.</summary>
+    public required int RowsChanged { get; init; }
+
+    /// <summary>Sources this application retired, having found no declaration for them.</summary>
+    public required IReadOnlyList<SourceId> Retired { get; init; }
+
+    /// <summary>Retired sources the catalog declares again, now polled once more.</summary>
+    public required IReadOnlyList<SourceId> Reinstated { get; init; }
 }

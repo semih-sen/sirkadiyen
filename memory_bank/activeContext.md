@@ -1,5 +1,41 @@
 # Active Context
 
+## Latest session (2026-09-08, ADR-155: retired sources leave the list; an upload source records its cycle)
+
+Operator report from `/admin/sources` → "Kaynak durumu": (1) `G2-VERTICAL-SPRING` and
+`G2-VERTICAL-AUTUMN` are still listed although the catalog no longer declares them (ADR-147 replaced
+both with `G2-VERTICAL`); (2) the Grade 2 anatomy sources say "18 saattir alınamıyor" although their
+documents are uploaded, their last parse run is `Completed` and their revision `Published`.
+
+One root cause in two places: **nothing clears a source's poll state**. `LastPollFailureAtUtc` is
+cleared only by `RecordPolled`, which only the acquisition path calls — and an `administrativeUpload`
+source acquires nothing during a poll (ADR-079), so a single failed cycle stays on its row forever.
+The screenshot proves the anatomy failure was one event, not a recurring one: a real per-cycle
+failure re-stamps `now` and would read "0 dakikadır". It fits the ADR-153 deploy the evening before
+(anatomy re-parsed under a restarting parser). The same gap froze their `LastPolledAtUtc` at the
+upload, which also made them permanently "overdue" in the admin metrics. And a source dropped from
+the catalog only has its polling turned off (ADR-114, nothing deleted, AI_GUIDELINE §13), which the
+screen cannot tell apart from an operator's temporary pause — so it stays in the operational list
+with every column frozen.
+
+Fix (ADR-155): `ScheduleSource.RetiredAtUtc` + `Retire`/`Reinstate` (idempotent; retiring clears a
+failure nothing can ever resolve). Retirement is reconciled from the **whole** catalog on every
+worker start via the new `IScheduleSourceStore.ApplyCatalogAsync`, and inside the catalog-edit commit
+— reconciling, not reacting, is what repairs a server whose sources were dropped by an old release.
+`UpsertAsync` is unchanged, so only a whole-catalog caller can retire by omission. New
+`RecordPollCompletedAsync`, called by `SourcePollingTask` after a successful cycle of an upload
+source (not a frozen one), writes the poll time and clears the failure with `changed: false`. Panel:
+retired sources move out of the table into a collapsed "Katalogdan çıkarılmış N kaynak" list, are
+excluded from the failure banner, are no longer offered for upload, and an uploaded source's failure
+now reads "işlenemiyor" rather than "alınamıyor".
+
+Migration `20260908102000_AddScheduleSourceRetirement` (one nullable column). Tests: 3 new domain
+tests, 3 new persistence tests (Postgres-gated), 1 new Api test, 3 new frontend tests; web suite 22
+files / 118 tests green and `tsc --noEmit` clean. **The .NET solution was not built or tested this
+session — no SDK in the environment**; the C# changes need `dotnet build` + `dotnet test` before
+deploying. Nothing was deployed.
+
+
 ## Latest session (2026-09-07, ADR-154: an amphitheatre practice is published by the annual, not twice)
 
 The operator reported a duplication: practices held in the amphitheatre appear on the calendar twice

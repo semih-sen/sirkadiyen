@@ -301,7 +301,23 @@ public sealed class AdministrativeDocumentUploadServiceTests
             IReadOnlyCollection<ScheduleSource> incoming,
             CancellationToken cancellationToken) => Task.FromResult(0);
 
-        // An administrative upload never polls, so nothing here records a poll failure.
+        public Task<ScheduleSourceCatalogApplication> ApplyCatalogAsync(
+            IReadOnlyCollection<ScheduleSource> incoming,
+            DateTimeOffset appliedAtUtc,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new ScheduleSourceCatalogApplication
+            {
+                RowsChanged = 0,
+                Retired = [],
+                Reinstated = [],
+            });
+
+        // The upload is the acquisition, so nothing here records a poll of any kind.
+        public Task RecordPollCompletedAsync(
+            SourceId sourceId,
+            DateTimeOffset polledAtUtc,
+            CancellationToken cancellationToken) => Task.CompletedTask;
+
         public Task RecordPollFailureAsync(
             SourceId sourceId,
             DateTimeOffset failedAtUtc,

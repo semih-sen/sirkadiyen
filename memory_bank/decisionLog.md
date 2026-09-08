@@ -9610,3 +9610,73 @@ the annual can say whether a given amphitheatre session is a duplicate.
 - The metric `companion.amphitheatreSlots` reports how many whole-class slots the annual supplied and
   `cells.ignored.amphitheatreInAnnual` how many practice cells were deferred, so a missing annual or a
   wiring mistake is visible rather than silent.
+## ADR-155: A source the catalog drops is retired, and a source that fetches nothing still records its cycle
+
+**Date:** 2026-09-08
+**Status:** Accepted
+
+### Context
+
+The operator reported two things about `/admin/sources` → "Kaynak durumu":
+
+1. `G2-VERTICAL-SPRING` and `G2-VERTICAL-AUTUMN` are still listed although the catalog stopped
+   declaring them (ADR-147 replaced both with the single `G2-VERTICAL` workbook). Their rows read
+   "Polling kapalı" and "1 gündür alınamıyor".
+2. The Grade 2 anatomy sources say "18 saattir alınamıyor" although their documents are uploaded and
+   stored on the server, their latest parse run is `Completed` and their latest revision is
+   `Published`.
+
+Both are the same missing piece, in two places: nothing ever clears a source's poll state.
+
+- A catalog edit or a deployment turns polling **off** for a source the document no longer declares
+  and deliberately deletes nothing (ADR-114, AI_GUIDELINE §13). But "polling off" is also what an
+  operator does temporarily, so the screen cannot tell the two apart, and a dropped source stays in
+  the operational list for good with every column frozen at the day it was dropped.
+- `LastPollFailureAtUtc` is cleared only by `ScheduleSource.RecordPolled`, which is called only by
+  the snapshot store's acquisition path (ADR-137). An `administrativeUpload` source acquires nothing
+  during a poll — it continues from the evidence the upload stored (ADR-079) — so that path never
+  runs for it. One failed cycle (the anatomy sources were being re-parsed under the ADR-153 deploy
+  when the parser restarted) therefore stayed on the row forever. The screenshot proves it was a
+  single event and not a recurring failure: a failure is re-stamped with `now` every time it
+  happens, so a source failing each cycle reads "0 dakikadır", never "18 saattir".
+- The same gap froze those sources' `LastPolledAtUtc` at their upload, which also made them
+  permanently "overdue" in the admin metrics.
+
+### Decision
+
+- **A source the catalog no longer declares is *retired*, not merely unpolled.** New nullable
+  `ScheduleSource.RetiredAtUtc`; `Retire` stops polling, records the date once (idempotent, so the
+  answer to "since when" is not rewritten on every start) and clears the last poll failure, which
+  can never be resolved by anything again. `Reinstate` is its inverse and only ever applies to a
+  retired row, so it cannot re-enable polling an operator turned off deliberately.
+- **Retirement is reconciled from the whole catalog, on every worker start**, through a new
+  `IScheduleSourceStore.ApplyCatalogAsync` used by `SourceCatalogInitializer`, and inside the
+  catalog-edit commit transaction. Reconciling rather than reacting to a change is what repairs a
+  server whose sources were dropped by a release that ran months ago — nothing else was ever coming
+  back to them. `UpsertAsync` is left as it was: only a caller holding the whole catalog may reach
+  the operation that acts on rows it did not name.
+- **Nothing is deleted.** The row, its snapshots, its revisions and every calendar event it
+  published survive exactly as before (AI_GUIDELINE §13). The panel takes retired sources out of the
+  operational table and lists them, collapsed, underneath it; the detail drawer says the source is
+  retired and still shows its evidence, and a retired source is no longer offered for upload.
+- **A poll cycle that acquires nothing still records that it completed.** New
+  `IScheduleSourceStore.RecordPollCompletedAsync`, called by `SourcePollingTask` after a successful
+  cycle of an `administrativeUpload` source (never for a frozen cycle, which acquired and parsed
+  nothing). It writes `LastPolledAtUtc` and clears the failure, with `changed: false` — what such a
+  source last *changed* is the upload, which is a different question.
+- **The screen names what actually failed.** For an uploaded source the row and the drawer say
+  "işlenemiyor" rather than "alınamıyor": it has no location to fetch from, so a failure there is
+  always in processing the stored document.
+
+### Consequences
+
+- On the next worker start `G2-VERTICAL-SPRING`, `G2-VERTICAL-AUTUMN` and any other source the
+  catalog has since dropped move out of the operational list, with the startup log naming them.
+  Nothing about their stored history changes.
+- The anatomy sources' stale alarm clears on their next successful cycle rather than needing a
+  database edit, and their poll time starts advancing, which also stops them counting as overdue in
+  the admin metrics.
+- A failure shown for an uploaded source now means it is failing *now*: because the cycle records
+  success, the flag is only ever as old as the last real failure.
+- `RetiredAtUtc` is listed as row-owned in the ADR-136 coverage guard: it is derived from the
+  catalog by the reconciliation, never copied from it.

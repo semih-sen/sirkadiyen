@@ -41,6 +41,10 @@ public sealed class ScheduleSourceConfigurationCoverageTests
             "What the worker observed. Copying it from the catalog would either invent a failure "
             + "or clear a real one that is still happening (ADR-137).",
         ["LastPollFailureReason"] = "The acquirer's own message about this row, not configuration.",
+        ["RetiredAtUtc"] =
+            "Derived from the catalog rather than stated by it: it is set when the document stops "
+            + "declaring the source and cleared when it declares it again, both by the whole-catalog "
+            + "reconciliation, which is also what makes the date answer 'since when' (ADR-155).",
         ["RowVersion"] = "The concurrency token, owned by the database.",
     };
 

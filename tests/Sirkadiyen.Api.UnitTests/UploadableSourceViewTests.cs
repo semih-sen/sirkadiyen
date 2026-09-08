@@ -61,6 +61,29 @@ public sealed class UploadableSourceViewTests
     }
 
     [Fact]
+    public void ARetiredSourceIsNotOfferedForUpload()
+    {
+        ScheduleSource retired = Source(
+            "G2-ANATOMY-SPRING",
+            ScheduleSourceTransport.AdministrativeUpload,
+            ScheduleDocumentFormat.Docx);
+        retired.Retire(new DateTimeOffset(2026, 9, 8, 10, 0, 0, TimeSpan.Zero));
+
+        IReadOnlyList<UploadableSourceView> uploadable = UploadableSourceView.SelectUploadable(
+        [
+            retired,
+            Source(
+                "G2-ANATOMY-AUTUMN",
+                ScheduleSourceTransport.AdministrativeUpload,
+                ScheduleDocumentFormat.Docx),
+        ]);
+
+        // The catalog no longer declares it, so nothing would ever parse a document uploaded for
+        // it, and a name in this list reads as an invitation to upload one (ADR-155).
+        Assert.Equal(["G2-ANATOMY-AUTUMN"], uploadable.Select(source => source.SourceId));
+    }
+
+    [Fact]
     public void ProjectionCarriesTheContextAWorkbookNeverStates()
     {
         UploadableSourceView view = UploadableSourceView.From(

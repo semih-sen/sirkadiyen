@@ -50,20 +50,18 @@ public sealed class ScheduleSourceCatalogRevisionStore(SirkadiyenDbContext dbCon
                 commit.Sources,
                 cancellationToken);
 
-            if (commit.PollingDisabled.Count > 0)
-            {
-                // Polling off, nothing deleted. A source dropped from the document keeps its row,
-                // its snapshots, its revisions and every calendar event it published: absence from
-                // a configuration file is not a publication decision (AI_GUIDELINE §13).
-                List<SourceId> retired = [.. commit.PollingDisabled];
-                List<ScheduleSource> rows = await dbContext.ScheduleSources
-                    .Where(source => retired.Contains(source.SourceId))
-                    .ToListAsync(cancellationToken);
-                foreach (ScheduleSource row in rows)
-                {
-                    row.SetPollingEnabled(false);
-                }
-            }
+            // Polling off and the source marked retired, nothing deleted. A source dropped from
+            // the document keeps its row, its snapshots, its revisions and every calendar event it
+            // published: absence from a configuration file is not a publication decision
+            // (AI_GUIDELINE §13). It is reconciled from the whole committed catalog rather than
+            // from the plan's removal list alone, so that a source dropped by an edit this server
+            // never saw is retired here too, and one the document declares again comes back
+            // (ADR-155).
+            await ScheduleSourceUpsert.StageRetirementsAsync(
+                dbContext,
+                commit.Sources,
+                commit.Revision.RecordedAtUtc,
+                cancellationToken);
 
             await dbContext.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);

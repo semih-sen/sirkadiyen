@@ -12,6 +12,7 @@ internal sealed class SourceCatalogInitializer(
     IServiceScopeFactory scopeFactory,
     ScheduleSourceCatalogLoader catalogLoader,
     WorkerOptions options,
+    TimeProvider timeProvider,
     ILogger<SourceCatalogInitializer> logger)
 {
     public async Task InitializeAsync(CancellationToken cancellationToken)
@@ -26,11 +27,38 @@ internal sealed class SourceCatalogInitializer(
 
         await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
         IScheduleSourceStore store = scope.ServiceProvider.GetRequiredService<IScheduleSourceStore>();
-        int changed = await store.UpsertAsync(sources, cancellationToken);
+
+        // The whole catalog, so a source it no longer declares is retired rather than left in the
+        // operational list for good (ADR-155). Applied on every start rather than only when the
+        // document changes: the sources dropped by earlier releases are still on the server, and
+        // nothing else will ever come back to them.
+        ScheduleSourceCatalogApplication applied = await store.ApplyCatalogAsync(
+            sources,
+            timeProvider.GetUtcNow(),
+            cancellationToken);
         logger.LogInformation(
             "Schedule source catalog loaded with {SourceCount} sources; {ChangedCount} rows changed.",
             sources.Count,
-            changed);
+            applied.RowsChanged);
+
+        if (applied.Retired.Count > 0)
+        {
+            logger.LogWarning(
+                "The catalog no longer declares {RetiredCount} source(s), which are retired and no "
+                + "longer polled: {RetiredSourceIds}. Nothing is deleted — their rows, snapshots, "
+                + "revisions and published events are untouched.",
+                applied.Retired.Count,
+                string.Join(", ", applied.Retired));
+        }
+
+        if (applied.Reinstated.Count > 0)
+        {
+            logger.LogWarning(
+                "The catalog declares {ReinstatedCount} retired source(s) again, which are polled "
+                + "once more: {ReinstatedSourceIds}.",
+                applied.Reinstated.Count,
+                string.Join(", ", applied.Reinstated));
+        }
 
         ReportAcademicYearDivergences(catalog);
     }

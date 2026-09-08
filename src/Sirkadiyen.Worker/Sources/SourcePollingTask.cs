@@ -98,6 +98,8 @@ internal sealed class SourcePollingTask(
                 result.ParseRunId,
                 result.RevisionId);
 
+            await RecordUploadedSourceCycleAsync(services, source, result, cancellationToken);
+
             // The event the operator asked to hear about (ADR-144). A revision only exists when
             // the document actually said something new (ADR-141), so this is a real change rather
             // than a heartbeat, and its validation state is what says whether anyone must act.
@@ -172,6 +174,41 @@ internal sealed class SourcePollingTask(
                 WorkerAlerts.SourcePollFailed(source.SourceId, exception),
                 cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// Records the completed cycle of a source whose document is uploaded rather than fetched
+    /// (ADR-155).
+    /// </summary>
+    /// <remarks>
+    /// Every other source has its poll written by the acquisition that stores the snapshot, which
+    /// is also the only thing that clears a recorded failure. An uploaded source acquires nothing,
+    /// so nothing wrote either: its poll time stood still at the upload, and one failed cycle —
+    /// the parser restarting under a deployment is enough — stayed on the row for good while the
+    /// source went on parsing and publishing successfully every cycle. The panel then says the
+    /// document cannot be acquired about a source that has no document to acquire.
+    /// <para>
+    /// A frozen cycle is not a completed one: it acquired nothing and parsed nothing, exactly as
+    /// for a fetched source, so it leaves the row alone.
+    /// </para>
+    /// </remarks>
+    private async Task RecordUploadedSourceCycleAsync(
+        IServiceProvider services,
+        ScheduleSource source,
+        ScheduleSourcePollResult result,
+        CancellationToken cancellationToken)
+    {
+        if (source.Transport is not ScheduleSourceTransport.AdministrativeUpload
+            || result.Outcome is ScheduleSourcePollOutcome.Frozen)
+        {
+            return;
+        }
+
+        IScheduleSourceStore store = services.GetRequiredService<IScheduleSourceStore>();
+        await store.RecordPollCompletedAsync(
+            source.SourceId,
+            timeProvider.GetUtcNow(),
+            cancellationToken);
     }
 
     private async Task RecordFailureAsync(

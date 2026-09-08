@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdminSourceWorkspace } from './AdminSourceStatus';
@@ -92,6 +92,79 @@ describe('AdminSourceWorkspace', () => {
     expect(
       screen.getAllByText(new RegExp(reason.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))),
     ).not.toHaveLength(0);
+  });
+
+  it('keeps a source the catalog no longer declares out of the operational list', async () => {
+    // A retired source is never polled again, so every column on its row is frozen at the day it
+    // was dropped. Left in the table it is a row that can only ever read as stale, which is what
+    // G2-VERTICAL-SPRING and G2-VERTICAL-AUTUMN were doing months after their documents were
+    // retired (ADR-155). Nothing is deleted, so it stays reachable underneath.
+    const retired = {
+      ...summary,
+      sourceId: 'G2-VERTICAL-SPRING',
+      displayName: 'Dönem 2 dikey koridor beceri uygulamaları bahar',
+      isPollingEnabled: false,
+      retiredAtUtc: '2026-09-01T09:00:00Z',
+    };
+    api.listAdminSources.mockResolvedValue([summary, retired]);
+
+    const user = userEvent.setup();
+    render(<AdminSourceWorkspace />);
+
+    await screen.findByText('Dönem 1 Türkçe');
+    const table = screen.getByRole('table');
+    expect(within(table).queryByText('Dönem 2 dikey koridor beceri uygulamaları bahar')).toBeNull();
+
+    // And still reachable, with its evidence, from the retired list.
+    expect(screen.getByText('Katalogdan çıkarılmış 1 kaynak')).toBeInTheDocument();
+    api.getAdminSource.mockResolvedValue({
+      summary: retired,
+      parserProfile: 'grade2_vertical_corridor_v1',
+      parserProfileVersion: '1.2.0',
+      latestParseWarnings: [],
+      recentSnapshots: [],
+    });
+    await user.click(screen.getByRole('button', { name: 'Dönem 2 dikey koridor beceri uygulamaları bahar' }));
+    expect(await screen.findByText('Bu kaynak katalogdan çıkarılmış.')).toBeInTheDocument();
+  });
+
+  it('does not raise the acquisition alarm for a retired source', async () => {
+    // Its last failure can never be resolved, because nothing will poll it again. Counted in the
+    // banner it is a permanent alarm, and a permanent alarm is one nobody reads.
+    api.listAdminSources.mockResolvedValue([
+      {
+        ...summary,
+        sourceId: 'G2-VERTICAL-AUTUMN',
+        displayName: 'Dönem 2 dikey koridor beceri uygulamaları güz',
+        retiredAtUtc: '2026-09-01T09:00:00Z',
+        lastPollFailureAtUtc: '2026-09-01T08:00:00Z',
+        lastPollFailureReason: 'The Drive file is in the trash.',
+      },
+    ]);
+
+    render(<AdminSourceWorkspace />);
+
+    expect(await screen.findByText('Katalogdan çıkarılmış 1 kaynak')).toBeInTheDocument();
+    expect(screen.queryByText(/kaynağın belgesi alınamıyor/)).toBeNull();
+  });
+
+  it('says an uploaded source is failing to be processed, not to be acquired', async () => {
+    // An administratively uploaded document has no location to fetch from, so "belge alınamıyor"
+    // describes something that never happens for it (ADR-155).
+    api.listAdminSources.mockResolvedValue([
+      {
+        ...summary,
+        sourceId: 'G2-ANATOMY-AUTUMN',
+        displayName: 'Dönem 2 anatomi salon grup saatleri güz',
+        transport: 'AdministrativeUpload',
+        lastPollFailureAtUtc: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(),
+        lastPollFailureReason: 'The parser service refused the request.',
+      },
+    ]);
+
+    render(<AdminSourceWorkspace />);
+
+    expect(await screen.findByText('3 saattir işlenemiyor')).toBeInTheDocument();
   });
 
   it('shows persisted parser warning details without exposing a parse action', async () => {

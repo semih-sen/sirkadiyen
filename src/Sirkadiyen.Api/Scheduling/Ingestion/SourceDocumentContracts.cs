@@ -38,6 +38,11 @@ public sealed record UploadableSourceView
     /// The administratively acquired sources of a catalog, ordered by identifier so
     /// the list a UI renders does not depend on catalog order.
     /// </summary>
+    /// <remarks>
+    /// A retired source is left out: the catalog no longer declares it, so nothing would ever
+    /// parse the document offered for it, and a name in this list is an invitation to upload
+    /// (ADR-155).
+    /// </remarks>
     public static IReadOnlyList<UploadableSourceView> SelectUploadable(
         IReadOnlyList<ScheduleSource> catalog)
     {
@@ -46,7 +51,8 @@ public sealed record UploadableSourceView
         return
         [
             .. catalog
-                .Where(source => source.Transport is ScheduleSourceTransport.AdministrativeUpload)
+                .Where(source => source.Transport is ScheduleSourceTransport.AdministrativeUpload
+                    && source.RetiredAtUtc is null)
                 .OrderBy(source => source.SourceId.Value, StringComparer.Ordinal)
                 .Select(From),
         ];

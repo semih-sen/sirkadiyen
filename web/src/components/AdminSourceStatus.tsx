@@ -44,9 +44,15 @@ export function AdminSourceWorkspace() {
 
 function SourceStatus() {
   const [items, setItems] = useState<SourceStatusListItem[] | null>(null);
+  // A source the catalog no longer declares is kept whole in the database but is not one of the
+  // pipeline's working parts any more: nothing polls it, so every column on its row is frozen at
+  // the day it was dropped and can only ever read as stale. It is listed separately rather than
+  // beside the sources being worked on (ADR-155).
+  const active = (items ?? []).filter((item) => !item.retiredAtUtc);
+  const retired = (items ?? []).filter((item) => item.retiredAtUtc);
   // Lifted to the top of the screen because a failing acquisition is invisible in every other
   // column: those describe the last state the source reached before it started failing (ADR-137).
-  const failing = (items ?? []).filter((item) => item.lastPollFailureAtUtc);
+  const failing = active.filter((item) => item.lastPollFailureAtUtc);
   const [detail, setDetail] = useState<SourceStatusDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -88,12 +94,12 @@ function SourceStatus() {
           tıklayıp sebebi okuyun.
         </Banner>
       )}
-      {items && items.length > 0 && (
+      {items && active.length > 0 && (
         <div className="table-wrap">
           <table className="data-table data-table--stack">
             <thead><tr><th>Kaynak</th><th>Program</th><th>Son poll</th><th>Parse</th><th>Uyarı/Hata</th><th>Revizyon</th></tr></thead>
             <tbody>
-              {items.map((item) => (
+              {active.map((item) => (
                 <tr key={item.sourceId} onClick={() => void open(item.sourceId)} style={{ cursor: 'pointer' }}>
                   <td><strong>{item.displayName}</strong><small className="mono muted" style={{ display: 'block' }}>{item.sourceId}</small></td>
                   <td>Dönem {item.classYear} · {item.programLanguage}</td>
@@ -104,7 +110,8 @@ function SourceStatus() {
                         failure, so the row has to say so where the poll time is read. */}
                     {item.lastPollFailureAtUtc && (
                       <small className="source-failing">
-                        {describeFailingSince(item.lastPollFailureAtUtc)} alınamıyor
+                        {describeFailingSince(item.lastPollFailureAtUtc)}{' '}
+                        {item.transport === 'AdministrativeUpload' ? 'işlenemiyor' : 'alınamıyor'}
                       </small>
                     )}
                   </td>
@@ -126,6 +133,9 @@ function SourceStatus() {
           </table>
         </div>
       )}
+      {retired.length > 0 && (
+        <RetiredSources sources={retired} onOpen={(sourceId) => void open(sourceId)} />
+      )}
       {detail && (
         <SourceDetail
           detail={detail}
@@ -134,6 +144,50 @@ function SourceStatus() {
         />
       )}
     </section>
+  );
+}
+
+/**
+ * The sources the catalog has dropped, kept out of the operational table and reachable underneath
+ * it (ADR-155).
+ *
+ * Collapsed, because nobody is working on these: they are here so that "where did G2-VERTICAL-SPRING
+ * go" has an answer on the screen that answers it, and so their evidence stays one click away.
+ */
+function RetiredSources({
+  sources,
+  onOpen,
+}: {
+  sources: SourceStatusListItem[];
+  onOpen: (sourceId: string) => void;
+}) {
+  return (
+    <details style={{ marginTop: 18 }}>
+      <summary className="muted" style={{ cursor: 'pointer' }}>
+        Katalogdan çıkarılmış {sources.length} kaynak
+      </summary>
+      <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
+        Bu kaynaklar artık katalogda tanımlı değil; poll edilmiyorlar. Satırları, snapshotları,
+        revizyonları ve yayımladıkları etkinlikler silinmedi — kanıt olarak duruyor.
+      </p>
+      <ul style={{ listStyle: 'none', margin: '8px 0 0', padding: 0 }}>
+        {sources.map((item) => (
+          <li key={item.sourceId} style={{ padding: '6px 0' }}>
+            <button
+              type="button"
+              className="btn btn-tertiary btn-sm"
+              onClick={() => onOpen(item.sourceId)}
+            >
+              {item.displayName}
+            </button>{' '}
+            <small className="mono muted">{item.sourceId}</small>{' '}
+            <small className="muted">
+              · {item.retiredAtUtc ? `${formatDateTime(item.retiredAtUtc)} tarihinde çıkarıldı` : 'çıkarıldı'}
+            </small>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 
@@ -151,9 +205,21 @@ function SourceDetail({
       <div className="summary-row"><span className="muted">Taşıma</span><strong>{detail.summary.transport}</strong></div>
       <div className="summary-row"><span className="muted">Parser</span><strong>{detail.parserProfile} · {detail.parserProfileVersion}</strong></div>
 
+      {detail.summary.retiredAtUtc && (
+        <Banner tone="neutral">
+          <strong>Bu kaynak katalogdan çıkarılmış.</strong>{' '}
+          {formatDateTime(detail.summary.retiredAtUtc)} tarihinden beri poll edilmiyor. Aşağıdaki
+          bilgiler o tarihe kadarki son durumu gösteriyor; hiçbir kaydı silinmedi.
+        </Banner>
+      )}
+
       {detail.summary.lastPollFailureAtUtc && (
         <Banner tone="danger">
-          <strong>Belge alınamıyor.</strong>{' '}
+          <strong>
+            {detail.summary.transport === 'AdministrativeUpload'
+              ? 'Yüklenen belge işlenemiyor.'
+              : 'Belge alınamıyor.'}
+          </strong>{' '}
           {describeFailingSince(detail.summary.lastPollFailureAtUtc)} her döngüde başarısız oluyor.
           {detail.summary.lastPolledAtUtc && (
             <> Son başarılı okuma: {formatDateTime(detail.summary.lastPolledAtUtc)}.</>

@@ -1697,3 +1697,35 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
   frontend typecheck + the 3 `DepartmentColorEditor` tests pass. `dotnet build` clean.
 - **Note:** a colour change applies to menu days written/patched afterwards (content change repaints;
   toggle off→on forces an immediate repaint) — same forward-applying behaviour as lesson colours.
+### Katalogdan düşen kaynak emekliye ayrılıyor; yükleme kaynağı döngüsünü kaydediyor (ADR-155, 2026-09-08)
+
+- **Root cause (tek, iki yerde):** Bir kaynağın poll durumunu hiçbir şey temizlemiyordu.
+  `LastPollFailureAtUtc` yalnız `RecordPolled` ile siliniyor, onu da yalnız edinme yolu çağırıyor;
+  `administrativeUpload` kaynağı poll sırasında hiçbir şey edinmediği (ADR-079) için o yol hiç
+  çalışmıyor. Tek bir başarısız döngü satırda kalıcı oluyor. Anatomi satırlarının "18 saattir
+  alınamıyor" demesi bunun kanıtı: gerçekten her döngüde düşen bir kaynak `now` ile yeniden
+  damgalanır ve "0 dakikadır" yazardı. Aynı boşluk `LastPolledAtUtc`'yi yüklemede dondurduğu için bu
+  kaynaklar admin metriklerinde sürekli "gecikmiş" sayılıyordu. Katalogdan düşen kaynakta ise
+  yalnız polling kapatılıyor (ADR-114; hiçbir şey silinmiyor, AI_GUIDELINE §13) ve ekran bunu
+  operatörün geçici duraklatmasından ayırt edemiyor — `G2-VERTICAL-SPRING` / `G2-VERTICAL-AUTUMN`
+  bu yüzden hâlâ listedeydi.
+- **Changed (domain):** `ScheduleSource.RetiredAtUtc` + `Retire`/`Reinstate`. `Retire` idempotent
+  (tarih bir kez yazılır), polling'i kapatır ve artık hiçbir zaman çözülemeyecek son poll hatasını
+  temizler. `Reinstate` yalnız emekli satıra uygulanır, operatörün kapattığı polling'i açmaz.
+- **Changed (uzlaştırma):** Yeni `IScheduleSourceStore.ApplyCatalogAsync` — katalogun tamamıyla
+  çalışır, tanımlı olmayanı emekliye ayırır, yeniden tanımlananı geri alır. Worker her açılışta ve
+  katalog düzenlemesinin commit işleminde çağırıyor; "değişikliğe tepki" değil "uzlaştırma" olduğu
+  için eski bir sürümün düşürdüğü kaynaklar da temizleniyor. `UpsertAsync` aynı kaldı: adı geçmeyen
+  satırlara dokunan işleme yalnız katalogun tamamını tutan çağıran ulaşabilir.
+- **Changed (poll kaydı):** Yeni `RecordPollCompletedAsync`; `SourcePollingTask` yükleme
+  kaynağının başarılı döngüsünden sonra çağırıyor (donmuş döngüde çağırmıyor), `changed: false` ile
+  poll zamanını yazıp hatayı temizliyor.
+- **Changed (panel):** Emekli kaynaklar tablodan çıkıp altta katlanmış "Katalogdan çıkarılmış N
+  kaynak" listesine geçti (detayı hâlâ açılıyor, kanıtı duruyor), hata bandına sayılmıyorlar,
+  yükleme listesinde görünmüyorlar; yükleme kaynağının hatası artık "alınamıyor" değil
+  "işlenemiyor" diyor.
+- **Migration:** `20260908102000_AddScheduleSourceRetirement` (tek nullable sütun).
+- **Tests executed:** Web `tsc --noEmit` temiz, `vitest run` 22 dosya / 118 test yeşil (3'ü yeni).
+  Yeni .NET testleri: 3 domain (emeklilik), 3 persistence (Postgres'e bağlı, atlanabilir), 1 Api.
+- **Not done:** Ortamda .NET SDK olmadığı için `dotnet build` / `dotnet test` **çalıştırılamadı**;
+  deploy öncesi ikisi de koşulmalı. Tarayıcıda doğrulanmadı, deploy edilmedi.

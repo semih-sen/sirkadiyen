@@ -435,6 +435,8 @@ export interface SourceStatusListItem {
   /** Set while the source's document cannot be acquired; cleared by the next success (ADR-137). */
   lastPollFailureAtUtc?: string | null;
   lastPollFailureReason?: string | null;
+  /** Set once the catalog stops declaring the source; it is kept whole but no longer polled (ADR-155). */
+  retiredAtUtc?: string | null;
   latestParseRunStatus?: ParseRunStatus | null;
   latestParseRunAtUtc?: string | null;
   latestParseWarningCount?: number | null;
