@@ -135,6 +135,15 @@ export interface SaveStudentProfileResponse {
   calendarResyncRequested: boolean;
 }
 
+// POST /api/admin/users/{id}/profile response (ADR-158). Mirrors the student's own save, minus the
+// onboarding snapshot, which an operator looking at one account is not asking for.
+export interface SaveUserProfileResponse {
+  profile: StudentProfileView;
+  audienceChanged: boolean;
+  /** As on the student's own save: the resync was *requested*, not finished (ADR-096). */
+  calendarResyncRequested: boolean;
+}
+
 // GET /api/calendar/authorization/options
 export interface CalendarAuthorizationOptions {
   clientId: string;

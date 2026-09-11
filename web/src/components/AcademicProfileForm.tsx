@@ -6,6 +6,7 @@ import { getProfileOptions, lookUpStudentRoster, saveProfile, ApiError } from '@
 import { Banner } from '@/components/ui';
 import type {
   ProgramLanguage,
+  SaveStudentProfileRequest,
   SaveStudentProfileResponse,
   StudentProfileView,
   StudentRosterLookupResponse,
@@ -128,16 +129,33 @@ export function RosterLookupNotice({ result }: { result: StudentRosterLookupResp
  * combination, because silently blanking it would look like the student never
  * chose one.
  */
-export function AcademicProfileForm({
+export function AcademicProfileForm<
+  TResult extends { calendarResyncRequested: boolean } = SaveStudentProfileResponse,
+>({
   initial,
   submitLabel,
   busyLabel,
   onSaved,
+  save,
+  showRosterLookup = true,
+  reasonPrompt,
 }: {
-  initial?: StudentProfileView | null;
+  // Only the fields the form actually reads back, so it can prefill from either the student's own
+  // StudentProfileView or the operator's AdminUserProfile without coupling to either whole shape.
+  initial?: Pick<StudentProfileView, 'classYear' | 'programLanguage' | 'studentNumber' | 'selectors'> | null;
   submitLabel: string;
   busyLabel: string;
-  onSaved: (result: SaveStudentProfileResponse) => void | Promise<void>;
+  onSaved: (result: TResult) => void | Promise<void>;
+  // How the submitted profile is persisted. Defaults to the student's own PUT /api/profile; the
+  // operator edit surface (ADR-158) injects the admin POST that carries a reason. The two save paths
+  // share this whole form so the operator inherits the same schema validation the student sees.
+  save?: (payload: SaveStudentProfileRequest & { reason: string }) => Promise<TResult>;
+  // The operator edit hides the student-number roster lookup: it is correcting a known student, not
+  // onboarding one, so the fields open immediately rather than behind a list search.
+  showRosterLookup?: boolean;
+  // When set, a required audit-reason field renders and its value is passed to `save`. The student's
+  // own save needs no reason, so it is absent there and no field appears (AI_GUIDELINE §19).
+  reasonPrompt?: string;
 }) {
   const [options, setOptions] = useState<SupportedProfileOptions | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -150,6 +168,7 @@ export function AcademicProfileForm({
   );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [reason, setReason] = useState('');
 
   const [lookup, setLookup] = useState<StudentRosterLookupResponse | null>(null);
   const [lookingUp, setLookingUp] = useState(false);
@@ -158,7 +177,7 @@ export function AcademicProfileForm({
   // until the student has either searched the published lists — whatever the
   // outcome — or chosen to fill them in without a number. Editing a stored
   // profile is already past that gate, so `initial` starts it open.
-  const [unlocked, setUnlocked] = useState(initial != null);
+  const [unlocked, setUnlocked] = useState(initial != null || !showRosterLookup);
   // What the list suggested, kept so a field can say where its value came from
   // and stop saying it once the student changes it.
   const [suggested, setSuggested] = useState<Record<string, string>>({});
@@ -259,15 +278,27 @@ export function AcademicProfileForm({
     if (classYear === '' || language === '' || !program) {
       return;
     }
+    if (reasonPrompt != null && !reason.trim()) {
+      setError('Denetim kaydı için bir gerekçe yazın.');
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
-      const result = await saveProfile({
+      const payload = {
         classYear,
         programLanguage: language,
         studentNumber: studentNumber.trim(),
         selectors,
-      });
+        reason: reason.trim(),
+      };
+      // The default path is the student's own PUT, which ignores the reason; an injected `save` is
+      // the operator's POST, which requires it (ADR-158). Without an injected `save`, TResult is its
+      // default SaveStudentProfileResponse, which is what saveProfile returns — the double cast only
+      // states that to the compiler, which cannot narrow the generic on its own.
+      const result = save
+        ? await save(payload)
+        : ((await saveProfile(payload)) as unknown as TResult);
       await onSaved(result);
       setBusy(false);
     } catch (err) {
@@ -329,25 +360,27 @@ export function AcademicProfileForm({
           <p className="field-hint">
             Baştaki sıfırlar korunur; fakülte ve program hanesi seçilen programla tutarlı olmalı.
           </p>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
-            <button
-              className="btn btn-secondary"
-              type="button"
-              onClick={onLookUp}
-              disabled={lookingUp || studentNumber.trim().length !== 10}
-            >
-              {lookingUp ? 'Aranıyor…' : 'Öğrenci listesinde ara'}
-            </button>
-            {!unlocked && (
+          {showRosterLookup && (
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 10 }}>
               <button
-                className="btn btn-tertiary btn-sm"
+                className="btn btn-secondary"
                 type="button"
-                onClick={() => setUnlocked(true)}
+                onClick={onLookUp}
+                disabled={lookingUp || studentNumber.trim().length !== 10}
               >
-                Numaram yok, elle dolduracağım
+                {lookingUp ? 'Aranıyor…' : 'Öğrenci listesinde ara'}
               </button>
-            )}
-          </div>
+              {!unlocked && (
+                <button
+                  className="btn btn-tertiary btn-sm"
+                  type="button"
+                  onClick={() => setUnlocked(true)}
+                >
+                  Numaram yok, elle dolduracağım
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {lookupError && (
@@ -452,10 +485,24 @@ export function AcademicProfileForm({
           );
         })}
 
+        {reasonPrompt != null && (
+          <div className="field">
+            <label htmlFor="profile-reason">Gerekçe (denetim kaydına yazılır)</label>
+            <input
+              id="profile-reason"
+              className="text-input"
+              value={reason}
+              onChange={(event) => setReason(event.target.value)}
+              placeholder={reasonPrompt}
+              required
+            />
+          </div>
+        )}
+
         <button
           className="btn btn-primary btn-block"
           type="submit"
-          disabled={busy || !program || !unlocked}
+          disabled={busy || !program || !unlocked || (reasonPrompt != null && !reason.trim())}
         >
           {busy ? busyLabel : submitLabel}
         </button>

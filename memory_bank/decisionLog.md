@@ -9848,3 +9848,73 @@ correction is recorded here rather than quietly applied.
   scaling needs per-connection claims (`FOR UPDATE SKIP LOCKED`) before a second instance does any
   calendar work; and no live run has exercised these degrees against real Google quota, which is a
   ceiling only production can measure.
+
+## ADR-158: An operator can edit a student's academic profile, through the student's own write path
+
+**Status:** Accepted and implemented
+**Date:** 2026-09-11
+**Implements:** `POST /api/admin/users/{userId}/profile` (`AdminUserEndpoints.SaveProfileAsync`),
+`SaveUserProfileRequest`/`SaveUserProfileResponse`, the operator "Akademik profili düzenle" card in
+`AdminUserDetail`, and the generalization of the shared `AcademicProfileForm` (an injected `save`, an
+optional required-reason field, and a toggle that hides the student-number roster lookup)
+**Relates to:** ADR-055 (the validated student profile and its server-owned schema), ADR-096 (a
+profile change converges the calendar onto the new audience), ADR-105 (the student's own edit
+surface and the `ProfileUpdated` audit), ADR-108 (the per-account operator page), AI_GUIDELINE §6/§8
+(activation precedes a profile), §19 (an operator action is auditable with a reason)
+
+### Context
+
+Every other correction an operator needs for one account existed — activation, revocation, role,
+account deletion, a calendar re-check and rebuild — but not the most ordinary one. A student who
+picked the wrong class year, program language or cohort at onboarding could only fix it themselves,
+and `AdminUserDetail` said so in as many words ("Profili yalnızca öğrencinin kendisi değiştirebilir").
+With the system live and 40 students registered, a mis-selected cohort is a support burden the
+operator could see but not resolve, and the calendar re-check does not help: it converges onto the
+profile *as the student wrote it*, wrong cohort included.
+
+### Decision
+
+**The operator edit is the student's own write, with a different actor and a required reason — not a
+second, looser path.**
+
+- **One endpoint, reusing `StudentProfileService.SaveAsync` unchanged.** It runs the identical
+  supported-schema validation, the same `UserLicenseState.Active` guard (§6/§8), the same
+  transactional upsert, and the same ADR-096 audience/resync flag. An operator inherits every guard
+  the student has rather than a parallel implementation that could drift from them. `ActivationRequired`
+  becomes a 409 (a suspended, never-activated or unknown account may hold no profile); an invalid
+  combination becomes the same field-grouped `ValidationProblem` the student sees, so
+  `StudentProfileEndpoints.ToProblemErrors` is now `internal` and shared rather than copied.
+- **The actor distinguishes it, not a new audit category.** It is recorded as `ProfileUpdated` like
+  the student's own change, but `ActorUserId` is the operator and `SubjectId` is the student, and a
+  `Reason` is carried — exactly how role change, deletion and the re-check already mark an operator
+  acting on someone else's account. A new category would have obliged a migration and an audit-filter
+  change for a distinction the actor already draws. The entry lands on the student's own activity
+  trail, where "why did my calendar change" is asked first. The student number is still never written
+  to the metadata.
+- **The frontend reuses the form rather than rebuilding it.** `AcademicProfileForm` is generalized
+  over its save-result type with an injected `save` (default: the student's `PUT /api/profile`), an
+  optional `reasonPrompt` that renders a required audit-reason field, and `showRosterLookup` (default
+  on) that the operator turns off — it is correcting a known student, not onboarding one, so the
+  fields open immediately. The two student consumers pass none of these and are byte-for-byte
+  unchanged; the operator passes all three. No calendar is written on the request: the worker's
+  ADR-096 convergence does every mutation on its next cycle, and the card reports the resync as
+  *requested*, never finished.
+
+### Consequences
+
+- A wrong cohort is now fixable by the operator from `/admin/users/{id}`, closing the "Operator-authored
+  academic profile edit" gap that Phase 10 of `progress.md` had left open. The calendar converges onto
+  the corrected audience through the existing, non-destructive resync — events that no longer apply are
+  retired by a semantic diff, not by a blanket delete.
+- The edit is bounded to activated accounts, matching the student rule; an operator who needs to give a
+  never-activated account a profile activates it first, which is the audited step that should precede a
+  profile anyway.
+- No new backend behavior was added to test: the write path is `StudentProfileService.SaveAsync`, which
+  its existing unit tests cover, and the endpoint mirrors the four sibling operator writes that are
+  themselves verified through their services rather than an HTTP host. The shared-form generalization is
+  covered by the existing `AcademicProfileForm` tests, which stay green because the defaults preserve the
+  student behavior exactly.
+- **Not addressed here (deliberately):** there is no operator "preview" of what the resync will change,
+  because the edit reuses the same convergence the student's own edit triggers and grants no extra
+  deletion authority; if an operator wants to see the effect first, the existing per-user calendar
+  re-check preview (ADR-115) already shows it.

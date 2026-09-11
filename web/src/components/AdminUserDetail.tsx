@@ -17,10 +17,12 @@ import {
   rebuildUserCalendar,
   repairAdminUserCalendar,
   revokeLicense,
+  saveUserProfile,
   verifyAdminUserCalendar,
 } from '@/lib/api';
 import { LoadState, Tabs, formatDateTime, statusBadge } from '@/components/AdminData';
 import { AdminPageHeader } from '@/components/AdminShell';
+import { AcademicProfileForm } from '@/components/AcademicProfileForm';
 import { AnnouncementHistory } from '@/components/AnnouncementShared';
 import { UserWarningForm } from '@/components/UserWarningForm';
 import { Banner } from '@/components/ui';
@@ -32,19 +34,20 @@ import type {
   CalendarVerificationDiff,
   CalendarVerificationResult,
   CohortRepairPlan,
+  SaveUserProfileResponse,
   UserScheduleChangeView,
 } from '@/lib/types';
 
 /**
  * One account, and every operation an operator may perform on it.
  *
- * The page is a read of authoritative backend state plus the four writes the backend actually
- * supports for a single user: manual activation (ADR-053), license revocation (ADR-022), a
- * calendar warning (ADR-107) and a calendar re-check (ADR-115). It deliberately offers nothing
- * else — an operator still cannot edit a student's academic profile, and pretending otherwise with
- * a disabled control would suggest the capability exists somewhere. The re-check is not an
- * exception: it queues convergence onto the profile as the student wrote it, and changes no field
- * of it.
+ * The page is a read of authoritative backend state plus the writes the backend supports for a
+ * single user: manual activation (ADR-053), license revocation (ADR-022), a calendar warning
+ * (ADR-107), a calendar re-check (ADR-115) and — for the wrong cohort the student cannot always fix
+ * themselves — an academic profile edit (ADR-158). The profile edit runs the same schema validation
+ * and ADR-096 audience/resync path the student's own save does; the actor is the operator and a
+ * reason is recorded. The re-check is different: it queues convergence onto the profile as it stands
+ * and changes no field of it.
  *
  * The calendar tab reads the mapping ledger, so it shows what is genuinely on the calendar
  * Sirkadiyen created for this student, not what the published schedule says should be there.
@@ -149,15 +152,13 @@ export function AdminUserDetail({ userId }: { userId: string }) {
                   <Row key={key} label={key} value={value} />
                 ))}
                 <Row label="Son güncelleme" value={formatDateTime(profile.updatedAtUtc)} />
-                <p className="muted" style={{ fontSize: 13, marginTop: 10 }}>
-                  Profili yalnızca öğrencinin kendisi değiştirebilir; yönetici adına düzenleme yolu
-                  henüz yok.
-                </p>
               </>
             ) : (
               <p className="muted">Akademik profil henüz tamamlanmadı.</p>
             )}
           </Card>
+
+          <ProfileEdit detail={detail} onChanged={load} onNotice={setNotice} />
 
           <Card title="Takvim bağlantısı">
             {calendarConnection ? (
@@ -422,6 +423,73 @@ function Licenses({
           </button>
           {error && <div className="error" role="alert">{error}</div>}
         </div>
+      )}
+    </Card>
+  );
+}
+
+/**
+ * The operator's academic-profile edit (ADR-158), for the wrong cohort a student cannot always fix
+ * themselves. It reuses the student's own form — same options endpoint, same schema validation —
+ * behind an injected save that carries the target user and the required audit reason. On success the
+ * worker converges the calendar onto the new audience (ADR-096); nothing is written here.
+ *
+ * The account must hold an active license: the backend refuses a profile on any other (guideline §6,
+ * §8), so offering the form there would be a promise it cannot keep.
+ */
+function ProfileEdit({
+  detail,
+  onChanged,
+  onNotice,
+}: {
+  detail: AdminUserDetailResponse;
+  onChanged: () => Promise<void>;
+  onNotice: (message: string) => void;
+}) {
+  const { summary, profile } = detail.user;
+  const [open, setOpen] = useState(false);
+
+  if (summary.licenseState !== 'Active') {
+    return (
+      <Card title="Akademik profili düzenle">
+        <p className="muted" style={{ fontSize: 13 }}>
+          Profil düzenlemek için hesabın etkin bir lisansı olmalı. Önce hesabı etkinleştirin.
+        </p>
+      </Card>
+    );
+  }
+
+  return (
+    <Card title="Akademik profili düzenle">
+      {!open ? (
+        <>
+          <p className="muted" style={{ fontSize: 13 }}>
+            Yanlış döneme, dile veya gruba kaydolmuş bir öğrencinin profilini onun adına düzeltir.
+            Öğrencinin kendi kaydettiğiyle aynı şekilde doğrulanır ve takvimi yeni gruba göre yeniden
+            düzenlenir. Gerekçe zorunludur ve denetim kaydına yazılır.
+          </p>
+          <button className="btn btn-secondary" type="button" onClick={() => setOpen(true)}>
+            {profile ? 'Profili düzenle' : 'Profil oluştur'}
+          </button>
+        </>
+      ) : (
+        <AcademicProfileForm<SaveUserProfileResponse>
+          initial={profile}
+          showRosterLookup={false}
+          reasonPrompt="Öğrenci yanlış grup seçtiğini bildirdi."
+          submitLabel={profile ? 'Profili güncelle' : 'Profili oluştur'}
+          busyLabel="Kaydediliyor…"
+          save={(payload) => saveUserProfile(summary.id, payload)}
+          onSaved={async (result) => {
+            setOpen(false);
+            onNotice(
+              result.calendarResyncRequested
+                ? 'Profil kaydedildi. Öğrencinin takvimi yeni gruba göre arka planda yeniden düzenlenecek.'
+                : 'Profil kaydedildi.',
+            );
+            await onChanged();
+          }}
+        />
       )}
     </Card>
   );

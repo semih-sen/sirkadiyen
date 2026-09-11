@@ -48,6 +48,7 @@ import type {
   RedeemLicenseResponse,
   SaveStudentProfileRequest,
   SaveStudentProfileResponse,
+  SaveUserProfileResponse,
   SourceDocumentUploadAuditEntry,
   SourceDocumentUploadResponse,
   StudentProfileView,
@@ -695,6 +696,23 @@ export function changeUserRole(
   return request<ChangeUserRoleResult>(
     `/api/admin/users/${encodeURIComponent(userId)}/role`,
     { method: 'POST', body: { role, reason } },
+  );
+}
+
+/**
+ * Creates or replaces a student's academic profile on their behalf (ADR-158), for the wrong cohort
+ * that until now only the student could fix. It runs the same supported-schema validation and
+ * ADR-096 audience/resync path the student's own save does; the reason is audited because the person
+ * deciding is not the account owner. A 409 means the account has no active license, so no profile may
+ * be set for it; a validation problem lists the fields the schema rejected.
+ */
+export function saveUserProfile(
+  userId: string,
+  body: SaveStudentProfileRequest & { reason: string },
+): Promise<SaveUserProfileResponse> {
+  return request<SaveUserProfileResponse>(
+    `/api/admin/users/${encodeURIComponent(userId)}/profile`,
+    { method: 'POST', body },
   );
 }
 

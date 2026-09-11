@@ -29,8 +29,9 @@ incremental authorization path.
 
 ## Session guarantees
 
-- Session cookie: `HttpOnly`, `Secure`, `SameSite=Lax`, path `/`, eight-hour
-  sliding expiry.
+- Session cookie: `HttpOnly`, `Secure`, `SameSite=Lax`, path `/`, 30-day sliding
+  expiry (ADR-091); each authenticated request renews the window while the browser
+  is in use.
 - Anti-forgery cookie: `HttpOnly`, `Secure`, `SameSite=Strict`; the request token
   is returned in the JSON response and sent in `X-CSRF-TOKEN`.
 - Every authenticated request reloads the local user, so a deleted user or
@@ -43,11 +44,15 @@ incremental authorization path.
 - License redemption is limited to five attempts per authenticated user and
   remote address per minute.
 
-Before a containerized or multi-instance production deployment, configure a
-shared persistent ASP.NET Core Data Protection key ring. The current host default
-is suitable only for this single-instance foundation; otherwise restarts can
-invalidate every cookie and different instances cannot decrypt one another's
-sessions.
+The API and worker share a persistent ASP.NET Core Data Protection key ring so
+the worker decrypts the refresh token the API encrypted and sessions survive a
+restart (ADR-058). Production points both hosts at
+`SIRKADIYEN_DATAPROTECTION__KEY_RING_PATH` (a shared directory; see
+`deploy/README.md`), and `AddSirkadiyenDataProtection` pins the application name
+and persists keys to that path. Left unset it falls back to a per-host
+`LocalApplicationData` directory, which is still persistent but not shared; a
+multi-instance deployment must point every instance at genuinely shared,
+backed-up storage.
 - The cookie holds only backend-owned local user ID, verified email, display name
   and role claims. It never holds a Google credential.
 

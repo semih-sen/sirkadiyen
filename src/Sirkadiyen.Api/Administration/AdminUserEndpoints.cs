@@ -11,6 +11,8 @@ using Sirkadiyen.Application.Identity;
 using Sirkadiyen.Application.Licensing;
 using Sirkadiyen.Application.Onboarding;
 using Sirkadiyen.Application.Scheduling.Access;
+using Sirkadiyen.Application.StudentProfiles;
+using Sirkadiyen.Api.StudentProfiles;
 using Sirkadiyen.Contracts.Serialization;
 using Sirkadiyen.Domain.Auditing;
 using Sirkadiyen.Domain.GoogleCalendar;
@@ -112,6 +114,13 @@ public static class AdminUserEndpoints
             .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
             .WithSummary("Changes this user's authorization role, with an audit entry.");
 
+        // Create or replace a student's academic profile on their behalf (ADR-158), for the wrong
+        // cohort that until now only the student could fix. It runs the student's own validation and
+        // audience/resync path; the actor is the operator and a reason is required.
+        users.MapPost("/{userId:guid}/profile", SaveProfileAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
+            .WithSummary("Creates or replaces this user's academic profile, with an audit entry.");
+
         return builder;
     }
 
@@ -198,6 +207,119 @@ public static class AdminUserEndpoints
 
     /// <summary>Bounds the operator's deletion reason, matching the calendar-repair reason bound.</summary>
     private const int MaximumDeletionReasonLength = 500;
+
+    private static async Task<IResult> SaveProfileAsync(
+        Guid userId,
+        SaveUserProfileRequest request,
+        ClaimsPrincipal principal,
+        HttpContext context,
+        StudentProfileService profileService,
+        AuditEventRecorder audit,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        // The reason is bounded exactly as the other operator actions on this account are, so one
+        // operator note is never longer than another (AI_GUIDELINE §19).
+        if (string.IsNullOrWhiteSpace(request.Reason)
+            || request.Reason.Trim().Length > MaximumDeletionReasonLength)
+        {
+            return Results.Problem(
+                title: "Invalid profile save request",
+                detail: $"'reason' is required and must contain at most "
+                    + $"{MaximumDeletionReasonLength} characters.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (request.ClassYear is not { } classYear)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["classYear"] = ["'classYear' is required."],
+            });
+        }
+
+        if (request.ProgramLanguage is not { } programLanguage)
+        {
+            return Results.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["programLanguage"] = ["'programLanguage' is required."],
+            });
+        }
+
+        SubmittedStudentProfile submitted = new()
+        {
+            ClassYear = classYear,
+            ProgramLanguage = programLanguage,
+            StudentNumber = request.StudentNumber ?? string.Empty,
+            Selectors = request.Selectors is null
+                ? new Dictionary<string, string>(StringComparer.Ordinal)
+                : new Dictionary<string, string>(request.Selectors, StringComparer.Ordinal),
+        };
+
+        // The same service the student's own save uses: it re-checks that the account is activated,
+        // validates against the supported schema, upserts, and queues the ADR-096 resync when the
+        // audience changed. The operator inherits every one of those guards rather than a looser path.
+        SaveStudentProfileResult result = await profileService.SaveAsync(
+            userId,
+            submitted,
+            cancellationToken);
+
+        switch (result.Outcome)
+        {
+            case SaveStudentProfileOutcome.Saved:
+                // Recorded as ProfileUpdated like the student's own change, but the actor is the
+                // operator and the subject is the student, so the entry lands on the student's own
+                // activity trail — where anyone asking why their calendar changed looks first. The
+                // student number is deliberately not recorded: it identifies the person and answers
+                // nothing about the audience.
+                await audit.RecordAsync(
+                    new AuditEventDraft
+                    {
+                        Category = AuditEventCategory.ProfileUpdated,
+                        ActorUserId = UserClaimsPrincipalFactory.GetRequiredUserId(principal),
+                        ActorEmail = UserClaimsPrincipalFactory.GetRequiredEmail(principal),
+                        SubjectType = "StudentProfile",
+                        SubjectId = userId.ToString(),
+                        CorrelationId = context.CorrelationId(),
+                        ClientIp = context.ClientIp(),
+                        UserAgent = context.ClientUserAgent(),
+                        Reason = request.Reason.Trim(),
+                        Metadata = JsonSerializer.Serialize(
+                            new ProfileUpdatedAuditMetadata
+                            {
+                                AcademicYear = result.Profile!.AcademicYear,
+                                ClassYear = result.Profile.ClassYear,
+                                ProgramLanguage = result.Profile.ProgramLanguage.ToString(),
+                                Selectors = result.Profile.Selectors,
+                                AudienceChanged = result.AudienceChanged,
+                                CalendarResyncRequested = result.CalendarResyncRequested,
+                            },
+                            AuditMetadataOptions),
+                    },
+                    cancellationToken);
+
+                return Results.Ok(new SaveUserProfileResponse
+                {
+                    Profile = result.Profile!,
+                    AudienceChanged = result.AudienceChanged,
+                    CalendarResyncRequested = result.CalendarResyncRequested,
+                });
+
+            case SaveStudentProfileOutcome.ActivationRequired:
+                // Covers a suspended, never-activated, or unknown account: none may hold a profile
+                // (guideline §6, §8), and the operator sees the same rule the student would.
+                return Results.Problem(
+                    title: "Account not activated",
+                    detail: "This account has no active license, so a profile cannot be set for it.",
+                    statusCode: StatusCodes.Status409Conflict);
+
+            case SaveStudentProfileOutcome.Invalid:
+            default:
+                return Results.ValidationProblem(
+                    StudentProfileEndpoints.ToProblemErrors(result.ValidationErrors));
+        }
+    }
 
     private static async Task<IResult> DeleteUserAsync(
         Guid userId,

@@ -2,7 +2,9 @@ using Sirkadiyen.Application.Administration;
 using Sirkadiyen.Application.Auditing;
 using Sirkadiyen.Application.Onboarding;
 using Sirkadiyen.Application.Scheduling.Access;
+using Sirkadiyen.Application.StudentProfiles;
 using Sirkadiyen.Domain.Identity;
+using Sirkadiyen.Domain.Scheduling.Sources;
 
 namespace Sirkadiyen.Api.Administration;
 
@@ -111,4 +113,43 @@ public sealed record ChangeUserRoleRequest
     public required UserRole Role { get; init; }
 
     public required string Reason { get; init; }
+}
+
+/// <summary>
+/// An operator's request to create or replace a student's academic profile on their behalf
+/// (ADR-158).
+/// </summary>
+/// <remarks>
+/// It carries the same payload as the student's own <c>PUT /api/profile</c> so the identical
+/// supported-schema validation and audience/resync path runs (ADR-096); the only additions are the
+/// target user in the route and <see cref="Reason"/>. The reason is recorded because a profile
+/// change can retire the events the previous audience received, and here the person deciding is not
+/// the account owner — "why did my lessons change" has to be answerable from the trail alone
+/// (AI_GUIDELINE §19).
+/// </remarks>
+public sealed record SaveUserProfileRequest
+{
+    public int? ClassYear { get; init; }
+
+    public ProgramLanguage? ProgramLanguage { get; init; }
+
+    public string? StudentNumber { get; init; }
+
+    public IReadOnlyDictionary<string, string>? Selectors { get; init; }
+
+    public required string Reason { get; init; }
+}
+
+/// <summary>
+/// The stored profile after an operator edit, and whether the change queued a calendar
+/// re-synchronization (ADR-096). It mirrors what the student's own save reports, minus the
+/// onboarding snapshot, which is not what an operator looking at one account is asking for.
+/// </summary>
+public sealed record SaveUserProfileResponse
+{
+    public required StudentProfileView Profile { get; init; }
+
+    public required bool AudienceChanged { get; init; }
+
+    public required bool CalendarResyncRequested { get; init; }
 }

@@ -3657,6 +3657,57 @@ konfigürasyon değil; kataloğa yazmak poller ile katalog planlayıcısını ka
 `externalId` kataloğun yazıldığı kitap olarak kalıyor ve klasör listelenemediğinde dönülen yer o.
 Listelenemeyen klasör döngüyü düşürmüyor — alternatifi hiçbir öğrencinin oda almadığı bir hafta.
 
+
+## Operatör profil düzenleme + dokümantasyon tutarlılık geçişi (ADR-158) (2026-09-11)
+
+Sistem canlı ve 40 kayıtlı öğrenci var. Kod-doküman tutarlılık kontrolüyle başladı; iki iş çıktı.
+
+### 1. Operatör bir öğrencinin akademik profilini düzenleyebiliyor (ADR-158)
+
+Bir hesap için operatörün ihtiyaç duyduğu her düzeltme vardı (aktivasyon, iptal, rol, silme, takvim
+re-check/rebuild) ama en sıradanı yoktu: yanlış dönem/dil/grup seçen öğrencinin profilini yalnızca
+öğrencinin kendisi düzeltebiliyordu, `AdminUserDetail` de bunu açıkça yazıyordu. Re-check yardım
+etmiyor — profili *öğrencinin yazdığı gibi*, yanlış kohortuyla yakınsatıyor.
+
+- **Tek endpoint, öğrencinin kendi yazma yolunu yeniden kullanıyor:** `POST /api/admin/users/{id}/profile`
+  (`AdminUserEndpoints.SaveProfileAsync`) → `StudentProfileService.SaveAsync` (aynı şema validasyonu,
+  aynı `Active` lisans şartı, aynı upsert, aynı ADR-096 audience/resync bayrağı). Aktör operatör,
+  konu öğrenci, gerekçe zorunlu; `ProfileUpdated` audit'i olarak yazılıyor (actor≠subject operatör
+  eylemini gösteriyor, yeni kategori yok). `ActivationRequired` → 409, geçersiz kombinasyon →
+  öğrencininkiyle aynı `ValidationProblem`. `StudentProfileEndpoints.ToProblemErrors` artık `internal`.
+- **Frontend paylaşılan formu yeniden kullanıyor:** `AcademicProfileForm` sonuç tipine göre generic
+  yapıldı; enjekte edilebilir `save` (varsayılan öğrencinin `PUT /api/profile`'i), opsiyonel zorunlu
+  `reasonPrompt` alanı ve `showRosterLookup` kapatma. İki öğrenci sayfası hiçbir yeni prop geçmiyor,
+  davranışları birebir aynı (123 frontend testi yeşil). `/admin/users/{id}`'de "Akademik profili
+  düzenle" kartı.
+- **Bu istekte takvime hiçbir şey yazılmıyor:** worker ADR-096 yakınsamasını sonraki cycle'da yapıyor;
+  kart resync'i *istendi* olarak bildiriyor, tamamlandı değil. Backend build + 12 API unit test yeşil.
+
+### 2. Statik `docs/` sapmaları kapatıldı
+
+Memory bank titiz ve günceldi; sapma her oturum güncellenmeyen statik dokümanlardaydı:
+
+- `docs/authentication.md`: oturum cookie'si "eight-hour" yazıyordu; kod `TimeSpan.FromDays(30)`
+  (ADR-091). 30 güne düzeltildi. Data Protection key ring notu da güncellendi — artık deploy'da
+  paylaşımlı kalıcı ring (`SIRKADIYEN_DATAPROTECTION__KEY_RING_PATH`) yapılandırılmış (ADR-058,
+  `deploy/README.md`).
+- `docs/licensing-and-onboarding.md`: onboarding tablosu 3 state gösterip "profil/takvim/initial-sync
+  kayıtları henüz yok" diyordu — hepsi implement edilmiş. Tablo gerçek `OnboardingStateService`
+  makinesine göre yeniden yazıldı (LicenseRequired → ProfileRequired → CalendarAuthorizationRequired →
+  ActionRequired/ReadyForInitialSync → InitialSyncInProgress → Active, + Suspended).
+- `progress.md`: kullanıcı doğruladı — CI/CD (GitHub Actions + `deploy/`) ve nginx reverse-proxy
+  aslında **var**; bayat `[ ]` kalemler `[x]`'e alındı.
+
+### Çözülmemiş riskler / takip
+
+- **Data Protection key ring — canlı sunucuda doğrulanmadı.** Kod ve deploy tasarımı doğru; ama çalışan
+  API/worker'da `SIRKADIYEN_DATAPROTECTION__KEY_RING_PATH` env'inin gerçekten set olduğu ve dizinin
+  yazıldığı operatör tarafından teyit edilmeli. Boşsa restart'ta şifreli refresh token'lar çözülemez
+  (`systemctl show sirkadiyen-api sirkadiyen-worker -p Environment | grep DATAPROTECTION`).
+- Operatör profil düzenlemesi için ayrı bir "önizleme" yok (bilinçli): re-check preview (ADR-115)
+  aynı yakınsamayı zaten gösteriyor, edit ekstra silme yetkisi vermiyor.
+- 1. sınıf anatomi profili Ocak 2027'de başlayacağı için bilinçli ertelenmiş — borç değil.
+
 ### Doğrulama
 
 - Canlı hafta (31 Ağustos - 4 Eylül 2026): 6 günde 203 atama; commit'li yıllık snapshot'larla

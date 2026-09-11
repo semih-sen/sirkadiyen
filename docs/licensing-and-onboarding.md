@@ -51,18 +51,25 @@ dedicated calendar or its existing events.
 
 ## Resumable onboarding
 
-`GET /api/onboarding` and `GET /api/auth/me` derive state from backend records:
+`GET /api/onboarding` and `GET /api/auth/me` derive state from authoritative
+backend records — the license, the stored profile, and the Google Calendar
+connection — never from a value the browser supplies. `OnboardingStateService`
+walks them in order, so an interrupted onboarding resumes at the right step:
 
-| Authoritative license state | Onboarding state | Next action |
+| Authoritative condition | Onboarding state | Next action |
 | --- | --- | --- |
-| No redeemed license | `LicenseRequired` | `RedeemLicense` |
-| Redeemed license | `ProfileRequired` | `CompleteAcademicProfile` |
+| No active license | `LicenseRequired` | `RedeemLicense` |
+| Active license, no profile | `ProfileRequired` | `CompleteAcademicProfile` |
+| Profile set, no authorized Calendar grant | `CalendarAuthorizationRequired` | `AuthorizeCalendar` |
+| Authorized, managed calendar unavailable | `ActionRequired` | `ResolveAction` |
+| Authorized, initial sync pending | `ReadyForInitialSync` | `StartInitialSync` |
+| Authorized, initial sync in progress | `InitialSyncInProgress` | `WaitForInitialSync` |
+| Authorized, initial sync completed | `Active` | `None` |
 | Redeemed license later revoked | `Suspended` | `ContactSupport` |
 
-Profile, Calendar authorization, and initial-sync records do not exist yet, so
-the backend cannot truthfully advance beyond `ProfileRequired`. Their later
-modules will extend the derivation rather than accepting an onboarding state
-from the browser.
+A missing Calendar connection, or one flagged `NeedsReauthorization`, counts as
+unauthorized and sends the user back to consent rather than stalling in a state
+that cannot synchronize (ADR-055, ADR-057, ADR-058).
 
 ## Student-list lookup
 

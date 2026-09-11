@@ -20,7 +20,8 @@
 - [x] Add `.env.example`
 - [x] Load the repository `.env` in the hosts, tools and tests (ADR-041)
 - [x] Add Docker Compose development environment
-- [ ] Add CI workflow
+- [x] Add CI/CD workflow (GitHub Actions builds every component and deploys over SSH to the Ubuntu
+  host; see `deploy/README.md`)
 - [x] Add contribution and local setup documentation
 
 ## Phase 1: Domain and contracts
@@ -299,8 +300,9 @@
   reclaims a chosen old snapshot's payload on demand while keeping its immutable identity and the whole
   parse/revision/diff trail; refuses the newest, the year baseline, recovery-needed and frozen scopes
   with a reason; audited `SnapshotPayloadPruned`; per-snapshot "Payload'ı buda" control; ADR-120)
-- [ ] Operator-authored academic profile edit (no backend write exists; a wrong cohort is still
-  fixable only by the student)
+- [x] Operator-authored academic profile edit (`POST /api/admin/users/{id}/profile` reuses the
+  student's own validated write path with an operator actor and a required reason; "Akademik profili
+  düzenle" card on `/admin/users/{id}`; the wrong cohort no longer waits on the student, ADR-158)
 - [~] Retry failed jobs (`POST /api/diffs/{id}/retry` plus `GET /api/diffs?dispatchState=Failed`
   and their `/admin/diffs` queue, ADR-097; a persistently failing per-user initial sync still has
   no terminal state to retry from)
@@ -355,7 +357,8 @@
   replaced by a student-useful "Takvim özeti" (next lesson, 14-day count, total, relative last
   update, Calendar badge); the initial-sync page gained a real progress bar (indeterminate sweep
   while running, 100% only on backend Completed) replacing the frozen fake 99%
-- [ ] Production deployment topology and reverse-proxy config
+- [x] Production deployment topology and reverse-proxy config (Ubuntu host, systemd units, nginx
+  reverse proxy; documented in `deploy/README.md`)
 
 ## Current next action
 

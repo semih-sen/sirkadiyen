@@ -147,7 +147,11 @@ public static class StudentProfileEndpoints
         }
     }
 
-    private static IDictionary<string, string[]> ToProblemErrors(
+    /// <summary>
+    /// Groups profile validation errors by field for a <c>ValidationProblem</c> response. Shared with
+    /// the operator profile-save endpoint (ADR-158), which runs the same validator.
+    /// </summary>
+    internal static IDictionary<string, string[]> ToProblemErrors(
         IReadOnlyList<StudentProfileValidationError> errors)
     {
         Dictionary<string, List<string>> grouped = new(StringComparer.Ordinal);
