@@ -465,6 +465,43 @@ public sealed class ScheduleDiffTests
         Assert.ThrowsAny<ArgumentException>(() => diff.RetryDispatch("semih", blank, Now));
     }
 
+    [Fact]
+    public void ANeutralizedDiffIsDiscardedAndNeitherDispatchableNorReplayable()
+    {
+        ScheduleDiff diff = ScheduleDiff.CreateNeutralized(
+            SourceRowId,
+            SourceId.Parse("G1-TR-ANNUAL"),
+            PreviousRevisionId,
+            CurrentRevisionId,
+            [.. Entries(ScheduleDiffChange.Deleted, 8), .. Entries(ScheduleDiffChange.Created, 9)],
+            "maintenance",
+            "Skipped revision reconciled out of band; deletions repaired directly.",
+            Now);
+
+        // Both dispatch and replay gate on Ready/Released, so a discarded diff reaches no calendar.
+        Assert.Equal(ScheduleDiffState.Discarded, diff.State);
+        Assert.False(diff.IsDispatchable);
+        Assert.False(diff.IsDispatchPending);
+
+        // The real diff is preserved for the audit trail even though it will never dispatch.
+        Assert.Equal(8, diff.DeletedCount);
+        Assert.Equal(9, diff.CreatedCount);
+        Assert.Equal(17, diff.Entries.Count);
+        Assert.Equal("maintenance", diff.DiscardedBy);
+        Assert.Equal(Now, diff.DiscardedAtUtc);
+    }
+
+    [Fact]
+    public void ANeutralizedDiffRejectsABlankActorOrReason()
+    {
+        Assert.ThrowsAny<ArgumentException>(() => ScheduleDiff.CreateNeutralized(
+            SourceRowId, SourceId.Parse("G1-TR-ANNUAL"), PreviousRevisionId, CurrentRevisionId,
+            [], " ", "reason", Now));
+        Assert.ThrowsAny<ArgumentException>(() => ScheduleDiff.CreateNeutralized(
+            SourceRowId, SourceId.Parse("G1-TR-ANNUAL"), PreviousRevisionId, CurrentRevisionId,
+            [], "actor", " ", Now));
+    }
+
     private static ScheduleDiff Failed()
     {
         ScheduleDiff diff = Create(Entries(ScheduleDiffChange.Created, 3));

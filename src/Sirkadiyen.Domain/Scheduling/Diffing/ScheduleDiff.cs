@@ -104,6 +104,81 @@ public sealed class ScheduleDiff
         return diff;
     }
 
+    /// <summary>
+    /// Records a computed diff already <see cref="ScheduleDiffState.Discarded"/>, for a revision
+    /// whose calendar effect is being reconciled out of band rather than dispatched from this diff.
+    /// </summary>
+    /// <remarks>
+    /// A neutralized diff is never dispatched and never replayed — both gates require
+    /// <see cref="ScheduleDiffState.Ready"/> or <see cref="ScheduleDiffState.Released"/> — yet its
+    /// existence takes the revision out of the pending-diff scan so nothing recomputes it. It exists
+    /// to close out a revision whose diff was skipped: recomputing and dispatching it now would write
+    /// that revision's point-in-time content over newer content, so the deletions it lost are repaired
+    /// directly and the revision is neutralized here. The entries and counts are the real diff, and the
+    /// discard reason records why it was not dispatched. Unlike <see cref="Discard"/>, this does not
+    /// require the diff to have been <see cref="ScheduleDiffState.Held"/> first, because a neutralized
+    /// diff is never offered for review.
+    /// </remarks>
+    public static ScheduleDiff CreateNeutralized(
+        Guid scheduleSourceId,
+        SourceId sourceId,
+        Guid? previousRevisionId,
+        Guid currentRevisionId,
+        IReadOnlyCollection<ScheduleDiffEntry> entries,
+        string discardedBy,
+        string discardReason,
+        DateTimeOffset createdAtUtc)
+    {
+        ArgumentNullException.ThrowIfNull(entries);
+        ArgumentException.ThrowIfNullOrWhiteSpace(discardedBy);
+        ArgumentException.ThrowIfNullOrWhiteSpace(discardReason);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            discardedBy.Length,
+            MaximumDiscardedByLength,
+            nameof(discardedBy));
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            discardReason.Length,
+            MaximumDiscardReasonLength,
+            nameof(discardReason));
+
+        if (previousRevisionId == currentRevisionId)
+        {
+            throw new ArgumentException(
+                "A revision cannot be diffed against itself.",
+                nameof(previousRevisionId));
+        }
+
+        ScheduleDiff diff = new()
+        {
+            Id = Guid.CreateVersion7(),
+            ScheduleSourceId = scheduleSourceId,
+            SourceId = sourceId,
+            PreviousRevisionId = previousRevisionId,
+            CurrentRevisionId = currentRevisionId,
+            CreatedAtUtc = createdAtUtc,
+            CreatedCount = Count(entries, ScheduleDiffChange.Created),
+            UpdatedCount = Count(entries, ScheduleDiffChange.Updated),
+            DeletedCount = Count(entries, ScheduleDiffChange.Deleted),
+            UnchangedCount = Count(entries, ScheduleDiffChange.Unchanged),
+            AmbiguousCount = Count(entries, ScheduleDiffChange.Ambiguous),
+            PreviousRecordCount = entries.Count(entry => entry.PreviousRecordId is not null),
+            CurrentRecordCount = entries.Count(entry => entry.CurrentRecordId is not null),
+        };
+
+        diff.entries.AddRange(entries.Select(entry => entry with
+        {
+            Id = Guid.CreateVersion7(),
+            ScheduleDiffId = diff.Id,
+        }));
+
+        diff.State = ScheduleDiffState.Discarded;
+        diff.DiscardedBy = discardedBy;
+        diff.DiscardReason = discardReason;
+        diff.DiscardedAtUtc = createdAtUtc;
+        diff.CalendarDispatchState = CalendarDispatchState.Pending;
+        return diff;
+    }
+
     public Guid Id { get; private init; }
 
     public Guid ScheduleSourceId { get; private init; }

@@ -21,10 +21,10 @@ internal sealed class ScheduleDiffCalculationTask(
             await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
             ScheduleDiffService diffs = scope.ServiceProvider
                 .GetRequiredService<ScheduleDiffService>();
-            IReadOnlyList<ScheduleDiffCalculationResult> results =
+            ScheduleDiffCalculationBatch batch =
                 await diffs.CalculatePendingAsync(BatchSize, cancellationToken);
 
-            foreach (ScheduleDiffCalculationResult result in results)
+            foreach (ScheduleDiffCalculationResult result in batch.Calculated)
             {
                 LogResult(result);
 
@@ -36,6 +36,20 @@ internal sealed class ScheduleDiffCalculationTask(
                         WorkerAlerts.DiffCalculated(result.Diff),
                         cancellationToken);
                 }
+            }
+
+            foreach (ScheduleDiffCalculationFailure failure in batch.Failed)
+            {
+                // A revision that cannot be diffed is surfaced by name rather than lost: it is left
+                // pending and retried, but an operator must see it, because a revision that never
+                // gets a diff has its deletions silently swallowed by the next revision's baseline.
+                logger.LogError(
+                    "Revision {RevisionId} could not be diffed and remains pending: {Reason}",
+                    failure.RevisionId,
+                    failure.Reason);
+                await alerts.SendAsync(
+                    WorkerAlerts.DiffCalculationFailed(failure.RevisionId, failure.Reason),
+                    cancellationToken);
             }
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

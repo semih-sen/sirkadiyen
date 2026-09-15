@@ -66,9 +66,16 @@ public sealed class ScheduleDiffService(
     /// </summary>
     /// <remarks>
     /// One revision that cannot be diffed is reported rather than thrown, so it
-    /// cannot stop the rest of the backlog.
+    /// cannot stop the rest of the backlog. This isolation is load-bearing: the
+    /// pending list is ordered oldest-first, so without it a single revision that
+    /// throws would abort the whole pass on every cycle and permanently starve the
+    /// newer revisions behind it — and a revision whose diff never runs is skipped
+    /// by the next one's baseline, which silently loses the deletions it carried.
+    /// A caught failure leaves the revision pending, so a transient fault retries on
+    /// the next cycle while a persistent one is surfaced to the operator by name
+    /// rather than lost.
     /// </remarks>
-    public async Task<IReadOnlyList<ScheduleDiffCalculationResult>> CalculatePendingAsync(
+    public async Task<ScheduleDiffCalculationBatch> CalculatePendingAsync(
         int limit,
         CancellationToken cancellationToken)
     {
@@ -76,18 +83,59 @@ public sealed class ScheduleDiffService(
 
         IReadOnlyList<Guid> pending = await store.ListPendingDiffAsync(limit, cancellationToken);
 
-        List<ScheduleDiffCalculationResult> results = [];
+        List<ScheduleDiffCalculationResult> calculated = [];
+        List<ScheduleDiffCalculationFailure> failed = [];
         foreach (Guid revisionId in pending)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (await CalculateAsync(revisionId, cancellationToken) is { } result)
+            try
             {
-                results.Add(result);
+                if (await CalculateAsync(revisionId, cancellationToken) is { } result)
+                {
+                    calculated.Add(result);
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                // One revision that cannot be diffed must not stop the rest: record it and move on.
+                // It stays pending (no diff row was written), so the next cycle retries it.
+                failed.Add(new ScheduleDiffCalculationFailure
+                {
+                    RevisionId = revisionId,
+                    Reason = exception.Message,
+                });
             }
         }
 
-        return results;
+        return new ScheduleDiffCalculationBatch
+        {
+            Calculated = calculated,
+            Failed = failed,
+        };
     }
+}
+
+public sealed record ScheduleDiffCalculationBatch
+{
+    /// <summary>The revisions whose diff was calculated (or already existed) this pass.</summary>
+    public required IReadOnlyList<ScheduleDiffCalculationResult> Calculated { get; init; }
+
+    /// <summary>
+    /// The revisions whose diff calculation threw and was isolated, so the rest of the pass could
+    /// proceed. Each stays pending and is retried on the next cycle.
+    /// </summary>
+    public required IReadOnlyList<ScheduleDiffCalculationFailure> Failed { get; init; }
+}
+
+public sealed record ScheduleDiffCalculationFailure
+{
+    public required Guid RevisionId { get; init; }
+
+    public required string Reason { get; init; }
 }
 
 public sealed record ScheduleDiffCalculationResult

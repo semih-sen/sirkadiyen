@@ -193,6 +193,30 @@ internal static class WorkerAlerts
             ],
         };
 
+    /// <summary>
+    /// A revision's diff calculation threw and was isolated so the rest of the pass could proceed.
+    /// </summary>
+    /// <remarks>
+    /// This is an error, not a warning: the revision is left pending and retried, but until it can
+    /// be diffed the next revision's baseline skips it, and any lessons it dropped are removed from
+    /// no calendar. An operator has to see the revision by name to break that out (ADR-059).
+    /// </remarks>
+    public static OperatorAlert DiffCalculationFailed(Guid revisionId, string reason) =>
+        new()
+        {
+            Title = "Fark hesaplanamıyor",
+            Severity = OperatorAlertSeverity.Error,
+            Detail = "Bu revizyonun farkı hesaplanamadı ve revizyon beklemede bırakıldı. Her "
+                + "döngüde yeniden denenecek; ama hesaplanana kadar bir sonraki revizyonun tabanı "
+                + "onu atlar ve taşıdığı silmeler hiçbir takvime uygulanmaz.",
+            DedupeKey = $"diff-calculation-failed:{revisionId}",
+            Fields =
+            [
+                new OperatorAlertField("Revizyon", revisionId.ToString()),
+                new OperatorAlertField("Ayrıntı", string.IsNullOrWhiteSpace(reason) ? "-" : reason),
+            ],
+        };
+
     /// <summary>A diff was calculated: what actually changes in students' calendars.</summary>
     /// <remarks>
     /// A held diff is the alert that matters — it reaches no calendar until an operator acts — so
