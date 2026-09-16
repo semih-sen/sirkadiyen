@@ -35,8 +35,7 @@ public sealed class RosterProfileAuditService(
     StudentRosterLookupService lookup,
     StudentProfileService profileService,
     SupportedProfileSchema schema,
-    IOperationalFreezeStore freezeStore,
-    TimeProvider timeProvider)
+    IOperationalFreezeStore freezeStore)
 {
     /// <summary>
     /// Works out which stored profiles disagree with the lists and what each would become, writing

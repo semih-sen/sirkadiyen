@@ -89,8 +89,7 @@ public sealed class RosterProfileAuditServiceTests
                 Schema),
             NeverSavesProfileService(),
             Schema,
-            new StubFreezeStore(isFrozen: false),
-            TimeProvider.System);
+            new StubFreezeStore(isFrozen: false));
 
         RosterProfileAuditPlan plan = await service.PlanAsync(
             new RosterProfileAuditScope { ClassYear = 3, ProgramLanguage = ProgramLanguage.Turkish },
@@ -192,8 +191,7 @@ public sealed class RosterProfileAuditServiceTests
                 Schema),
             NeverSavesProfileService(),
             Schema,
-            new StubFreezeStore(isFrozen: true),
-            TimeProvider.System);
+            new StubFreezeStore(isFrozen: true));
 
         int recorded = 0;
         RosterProfileAuditRequestResult result = await service.RequestAsync(
@@ -225,8 +223,7 @@ public sealed class RosterProfileAuditServiceTests
                 new StubLicenseStore(UserLicenseState.Active),
                 TimeProvider.System),
             Schema,
-            new StubFreezeStore(isFrozen: false),
-            TimeProvider.System);
+            new StubFreezeStore(isFrozen: false));
 
     private static StudentProfileService NeverSavesProfileService() => new(
         Schema,
