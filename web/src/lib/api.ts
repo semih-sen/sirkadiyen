@@ -26,6 +26,9 @@ import type {
   ProfileRolloverPlan,
   ProfileRolloverRequestResult,
   ProfileRolloverScope,
+  RosterProfileAuditPlan,
+  RosterProfileAuditRequestResult,
+  RosterProfileAuditScope,
   ManagedCalendarRebuildAssessment,
   ManagedCalendarRebuildResult,
   OperationalFreezeChangeResult,
@@ -536,6 +539,31 @@ export function requestProfileRollover(
   reason: string,
 ): Promise<ProfileRolloverRequestResult> {
   return request<ProfileRolloverRequestResult>('/api/operations/profile-rollovers', {
+    method: 'POST',
+    body: { ...scope, planHash, reason },
+  });
+}
+
+/**
+ * Asks which of a cohort's stored profiles disagree with the published faculty lists (ADR-159).
+ * Changes nothing; the returned `planHash` is what a confirmation is bound to.
+ */
+export function previewRosterProfileAudit(
+  scope: RosterProfileAuditScope,
+): Promise<RosterProfileAuditPlan> {
+  return request<RosterProfileAuditPlan>('/api/operations/roster-profile-audits/preview', {
+    method: 'POST',
+    body: scope,
+  });
+}
+
+/** Authorizes the corrections that were previewed. A 409 means the cohort or a list moved since. */
+export function requestRosterProfileAudit(
+  scope: RosterProfileAuditScope,
+  planHash: string,
+  reason: string,
+): Promise<RosterProfileAuditRequestResult> {
+  return request<RosterProfileAuditRequestResult>('/api/operations/roster-profile-audits', {
     method: 'POST',
     body: { ...scope, planHash, reason },
   });

@@ -7,6 +7,7 @@ using Sirkadiyen.Application.Auditing;
 using Sirkadiyen.Application.GoogleCalendar;
 using Sirkadiyen.Application.Operations;
 using Sirkadiyen.Application.StudentProfiles;
+using Sirkadiyen.Application.StudentRosters;
 using Sirkadiyen.Contracts.Serialization;
 using Sirkadiyen.Domain.Auditing;
 using Sirkadiyen.Domain.Operations;
@@ -51,6 +52,13 @@ public static class OperationalEndpoints
         operations.MapPost("/profile-rollovers", RequestProfileRolloverAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
             .WithSummary("Authorizes the shown academic-year rollover, with an audit entry.");
+
+        operations.MapPost("/roster-profile-audits/preview", PreviewRosterProfileAuditAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
+            .WithSummary("Shows which of a cohort's profiles disagree with the published lists.");
+        operations.MapPost("/roster-profile-audits", RequestRosterProfileAuditAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
+            .WithSummary("Authorizes the shown roster-profile corrections, with an audit entry.");
 
         operations.MapGet("/freeze/scopes", ListScopedFreezesAsync)
             .WithSummary("Lists class-year/program-language operational freeze controls.");
@@ -336,6 +344,151 @@ public static class OperationalEndpoints
                 return Results.Ok(result);
         }
     }
+
+    private static async Task<IResult> PreviewRosterProfileAuditAsync(
+        PreviewRosterProfileAuditRequest request,
+        RosterProfileAuditService audits,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (AuditScope(request.ClassYear, request.ProgramLanguage) is not { } scope)
+        {
+            return InvalidAuditScope();
+        }
+
+        return Results.Ok(await audits.PlanAsync(scope, cancellationToken));
+    }
+
+    private static async Task<IResult> RequestRosterProfileAuditAsync(
+        RequestRosterProfileAuditRequest request,
+        ClaimsPrincipal principal,
+        HttpContext context,
+        RosterProfileAuditService audits,
+        AuditEventRecorder audit,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (AuditScope(request.ClassYear, request.ProgramLanguage) is not { } scope)
+        {
+            return InvalidAuditScope();
+        }
+
+        if (string.IsNullOrWhiteSpace(request.PlanHash))
+        {
+            return Results.Problem(
+                title: "Invalid roster profile audit request",
+                detail: "'planHash' is required: a correction may only be confirmed against the "
+                    + "plan it was shown for.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        // Required for the same purpose it is on a rollover: this rewrites data students entered
+        // about themselves and queues the convergence that changes their calendars, and "why did
+        // my cohort change" must be answerable from the audit trail alone (AI_GUIDELINE §19).
+        if (string.IsNullOrWhiteSpace(request.Reason)
+            || request.Reason.Trim().Length > MaximumRepairReasonLength)
+        {
+            return Results.Problem(
+                title: "Invalid roster profile audit request",
+                detail: $"'reason' is required and must contain at most "
+                    + $"{MaximumRepairReasonLength} characters.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        RosterProfileAuditRequestResult result = await audits.RequestAsync(
+            scope,
+            request.PlanHash,
+            (plan, token) => audit.RecordAsync(
+                new AuditEventDraft
+                {
+                    Category = AuditEventCategory.RosterProfileCorrected,
+                    ActorUserId = UserClaimsPrincipalFactory.GetRequiredUserId(principal),
+                    ActorEmail = UserClaimsPrincipalFactory.GetRequiredEmail(principal),
+                    SubjectType = "RosterProfileAudit",
+                    SubjectId = scope.ToString(),
+                    CorrelationId = context.CorrelationId(),
+                    ClientIp = context.ClientIp(),
+                    UserAgent = context.ClientUserAgent(),
+                    Reason = request.Reason.Trim(),
+                    // The corrected user ids and their from/to values are recorded, not only the
+                    // totals: the trail has to state exactly which student was moved to which
+                    // cohort, because that is what "why did my calendar change" resolves to.
+                    Metadata = JsonSerializer.Serialize(
+                        new
+                        {
+                            planHash = plan.PlanHash,
+                            academicYear = plan.AcademicYear,
+                            schemaVersion = plan.SchemaVersion,
+                            profilesExamined = plan.ProfilesExamined,
+                            profilesInAgreement = plan.ProfilesInAgreement,
+                            corrections = plan.TotalCorrections,
+                            unresolved = plan.UnresolvedByRoster.Count,
+                            unreadableRosters = plan.UnreadableRosterIds,
+                            users = plan.Users.Select(user => new
+                            {
+                                userId = user.UserId,
+                                corrections = user.Corrections.Select(correction => new
+                                {
+                                    dimension = correction.Dimension,
+                                    from = correction.StoredValue,
+                                    to = correction.RosterValue,
+                                }),
+                            }),
+                        },
+                        AuditMetadataOptions),
+                },
+                token),
+            cancellationToken);
+
+        switch (result.Outcome)
+        {
+            case RosterProfileAuditOutcome.Corrected:
+                return Results.Accepted("/api/operations/roster-profile-audits", result);
+
+            case RosterProfileAuditOutcome.PlanChanged:
+                return Results.Problem(
+                    title: "The audit plan has changed",
+                    detail: "The cohort or the published lists no longer resolve to the plan you "
+                        + "confirmed. Review the new preview and confirm that one instead.",
+                    statusCode: StatusCodes.Status409Conflict);
+
+            case RosterProfileAuditOutcome.Frozen:
+                return Results.Problem(
+                    title: "Operations are frozen",
+                    detail: "No calendar work may be queued while a global or scoped freeze is in "
+                        + "force. Lift the freeze first.",
+                    statusCode: StatusCodes.Status409Conflict);
+
+            case RosterProfileAuditOutcome.NotSupportedBySchema:
+                return Results.Problem(
+                    title: "The deployed schema does not support this check",
+                    detail: result.Refusal,
+                    statusCode: StatusCodes.Status409Conflict);
+
+            case RosterProfileAuditOutcome.NothingToCorrect:
+            default:
+                return Results.Ok(result);
+        }
+    }
+
+    private static RosterProfileAuditScope? AuditScope(
+        int classYear,
+        ProgramLanguage programLanguage) =>
+        classYear is < 1 or > 6 || !Enum.IsDefined(programLanguage)
+            ? null
+            : new RosterProfileAuditScope
+            {
+                ClassYear = classYear,
+                ProgramLanguage = programLanguage,
+            };
+
+    private static IResult InvalidAuditScope() =>
+        Results.Problem(
+            title: "Invalid roster profile audit scope",
+            detail: "'classYear' must be between 1 and 6 and 'programLanguage' must be supported.",
+            statusCode: StatusCodes.Status400BadRequest);
 
     private static ProfileRolloverScope? RolloverScope(
         string fromAcademicYear,

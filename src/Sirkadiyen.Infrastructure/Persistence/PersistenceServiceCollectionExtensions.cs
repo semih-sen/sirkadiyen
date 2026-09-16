@@ -90,6 +90,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<ILicenseStore, LicenseStore>();
         services.AddScoped<IStudentProfileStore, StudentProfileStore>();
         services.AddScoped<IProfileAcademicYearRolloverStore, ProfileAcademicYearRolloverStore>();
+        services.AddScoped<IRosterProfileAuditStore, RosterProfileAuditStore>();
         // One scoped store implements both connection role interfaces (ISP); every consumer
         // depends only on the narrow role it uses. The three mappings share the one instance.
         services.AddScoped<GoogleCalendarConnectionStore>();
