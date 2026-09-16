@@ -79,3 +79,34 @@ public sealed record RequestProfileRolloverRequest
 
     public required string Reason { get; init; }
 }
+
+/// <summary>
+/// Asks which of a cohort's stored profiles disagree with the published faculty lists, changing
+/// nothing (ADR-159).
+/// </summary>
+/// <remarks>
+/// Only the program is named. The academic year is the deployed schema's for the cohort, never the
+/// caller's, so the check runs against the year new sign-ups are stamped with.
+/// </remarks>
+public sealed record PreviewRosterProfileAuditRequest
+{
+    public required int ClassYear { get; init; }
+
+    public required ProgramLanguage ProgramLanguage { get; init; }
+}
+
+/// <summary>
+/// Authorizes the corrections the operator was shown. <see cref="PlanHash"/> binds the confirmation
+/// to that plan, and <see cref="Reason"/> is recorded with it because this rewrites stored student
+/// profiles and queues calendar writes no published revision asked for.
+/// </summary>
+public sealed record RequestRosterProfileAuditRequest
+{
+    public required int ClassYear { get; init; }
+
+    public required ProgramLanguage ProgramLanguage { get; init; }
+
+    public required string PlanHash { get; init; }
+
+    public required string Reason { get; init; }
+}

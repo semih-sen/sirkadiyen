@@ -303,6 +303,11 @@
 - [x] Operator-authored academic profile edit (`POST /api/admin/users/{id}/profile` reuses the
   student's own validated write path with an operator actor and a required reason; "Akademik profili
   düzenle" card on `/admin/users/{id}`; the wrong cohort no longer waits on the student, ADR-158)
+- [x] Roster-profile audit / one-time correction (`POST /api/operations/roster-profile-audits[/preview]`
+  checks a cohort's stored profiles against the published lists and corrects the disagreeing ones
+  through the student's own write path, preview → plan-hash → reason → apply; "Öğretim üyesi grubu
+  denetimi" card on `/admin/operations`; audited `RosterProfileCorrected`; ADR-159. Built for the
+  Grade 3 Turkish faculty-practice group, now stated in `G3-TR-ROSTER` column E)
 - [~] Retry failed jobs (`POST /api/diffs/{id}/retry` plus `GET /api/diffs?dispatchState=Failed`
   and their `/admin/diffs` queue, ADR-097; a persistently failing per-user initial sync still has
   no terminal state to retry from)
@@ -1806,3 +1811,34 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
 - **Not done (bilerek):** Incremental dispatch, profil resync ve envanter seri döngülerini
   koruyor; fence hâlâ tek worker'a izin veriyor, ikinci instance için önce bağlantı bazlı claim
   (`FOR UPDATE SKIP LOCKED`) gerekiyor; bu dereceler gerçek Google kotasıyla henüz sınanmadı.
+
+## Grade 3 faculty-practice group: roster column + one-time profile audit (2026-09-16)
+
+- **Changed:** `config/student-rosters.json` — `G3-TR-ROSTER` gains a `facultyPracticeGroup`
+  dimension addressed by column letter E (no header of its own), `statedOncePerMergedRun`, mapping
+  lowercase `a1`…`a8` / `b1`…`b8` value by value onto the schema's `A1`…`B8` (never case-folded,
+  ADR-130). Application `StudentRosters/` — `RosterProfileAuditService`, `IRosterProfileAuditStore`,
+  `RosterProfileAudit*` contracts. Infrastructure — `RosterProfileAuditStore` (one read of a
+  cohort's profiles). API — `POST /api/operations/roster-profile-audits[/preview]` on
+  `OperationalEndpoints`, `PreviewRosterProfileAuditRequest`/`RequestRosterProfileAuditRequest`,
+  `AuditEventCategory.RosterProfileCorrected`. Web — `RosterProfileAuditControl` on
+  `/admin/operations`, `previewRosterProfileAudit`/`requestRosterProfileAudit`, the
+  `RosterProfileAudit*` types. DI: service + store registered. ADR-159.
+- **Why:** the faculty published the Grade 3 Turkish öğretim üyesi (faculty-practice) group as a
+  per-student column on the roster sheet. New students are now suggested it at onboarding; students
+  who onboarded before it existed chose it by hand, and the audit brings them into agreement with
+  the faculty's document through the ADR-158 write path (activation guard, schema validation, ADR-096
+  resync). It never guesses: unresolved students and unreadable lists are reported, not corrected.
+- **Tests added:** roster catalog (the lowercase faculty column maps onto the schema, addressed by
+  letter); `RosterProfileAuditServiceTests` (5: a wrong group flagged, a right one left alone and an
+  unresolved number reported; a missing value filled; an unreadable list drives no correction; the
+  correction goes through the student write path and reports resync; a changed plan hash refused; a
+  freeze queues nothing).
+- **Tests executed:** web `tsc --noEmit` clean and `vitest run` green (123/123). **The .NET
+  solution was NOT built or tested in this environment** — no .NET SDK is installed and the offline
+  install is blocked by the egress proxy (403). The C# changes follow the established rollover/repair
+  patterns closely but must be compiled and the Infrastructure unit tests run on a machine with the
+  SDK before merge.
+- **Not done / not verified:** the .NET build and test run above; `next lint` (its config is not
+  committed, so the fresh install prompts interactively). No migration was needed — the audit
+  category is stored as a string with no check constraint (ADR-120's convention).

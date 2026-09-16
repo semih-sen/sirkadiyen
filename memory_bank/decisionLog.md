@@ -9918,3 +9918,89 @@ second, looser path.**
   because the edit reuses the same convergence the student's own edit triggers and grants no extra
   deletion authority; if an operator wants to see the effect first, the existing per-user calendar
   re-check preview (ADR-115) already shows it.
+
+## ADR-159: The Grade 3 faculty-practice group arrived as a roster column, and a one-time audit corrects the profiles that pre-date it
+
+**Status:** Accepted and implemented
+**Date:** 2026-09-16
+**Implements:** the `facultyPracticeGroup` dimension column on `G3-TR-ROSTER` in
+`config/student-rosters.json`; `RosterProfileAuditService` (`PlanAsync`/`RequestAsync`),
+`IRosterProfileAuditStore`/`RosterProfileAuditStore`, the `RosterProfileAudit*` contracts;
+`POST /api/operations/roster-profile-audits[/preview]`; the `RosterProfileCorrected` audit
+category; and the "Öğretim üyesi grubu denetimi" control on `/admin/operations`
+**Relates to:** ADR-085 (the student list is a suggestion, never an authority that overwrites in
+silence), ADR-130 (a lowercase group label is mapped value by value, never case-folded), ADR-145
+(a Grade 3 Turkish student is described by two complementary lists the lookup merges), ADR-096 (a
+profile change converges the calendar onto the new audience), ADR-115/ADR-111/ADR-107 (the
+preview → plan-hash → reason → apply shape of an audited cohort operation), ADR-158 (an operator
+edits a profile through the student's own write path), AI_GUIDELINE §13/§19
+
+### Context
+
+The Grade 3 Turkish supported-profile schema has always declared `facultyPracticeGroup` (the eight
+öğretim üyesi cohorts A1-A8 / B1-B8, dependent on the curriculum group), but the published student
+list did not state it: for 2026-2027 the faculty had not assigned those cohorts when onboarding
+opened. So every Grade 3 Turkish student who onboarded chose their faculty-practice group by hand,
+and a hand-chosen cohort is a cohort some students get wrong — the calendar then quietly delivers
+another group's faculty practicals. The faculty has now published the assignment, as a per-student
+column (column E) on the same sheet `G3-TR-ROSTER` already reads, written lowercase `a1`…`a8` /
+`b1`…`b8`.
+
+### Decision
+
+**Integrate the column as a roster dimension, and add a one-time, audited reconciliation that
+corrects the profiles entered before it existed — through the student's own write path.**
+
+- **The column is a normal roster dimension.** `G3-TR-ROSTER` gains a `facultyPracticeGroup`
+  dimension addressed by letter (column E has no header of its own, like the microbiology/pathology
+  group column, ADR-145), `statedOncePerMergedRun` so an empty cell inside a merged run still
+  resolves, mapped value by value from lowercase to the schema's `A1`…`B8` — never case-folded, for
+  the reason ADR-130 fixed. From now on a new Grade 3 Turkish student is suggested their
+  faculty-practice group at onboarding rather than choosing it, and the existing
+  `ValidateOneRosterPerCohort` rule is satisfied because the three Grade 3 Turkish dimensions stay
+  split across two disjoint lists (`curriculumGroup` + `facultyPracticeGroup` here,
+  `microPathologyGroup` on the micropatho list) that the lookup merges.
+- **The audit reuses the lookup and the student's own save; it adds no second write path.**
+  `RosterProfileAuditService.PlanAsync` lists a cohort's stored profiles, looks each student number
+  up in the live lists (the same `StudentRosterLookupService` onboarding uses, so the suggested
+  values are already validated against the program), and reports, per profile, every dimension the
+  lists state that the stored value disagrees with — a wrong value or a value the student never
+  entered. `RequestAsync` re-plans, checks the plan hash, and rewrites each disagreeing profile with
+  `StudentProfileService.SaveAsync`, overlaying only the list-stated dimensions onto the student's
+  own other selectors. It therefore inherits the activation guard, the schema validation and the
+  ADR-096 audience/resync convergence, exactly as ADR-158's operator edit does — no calendar is
+  written in the request path.
+- **It never guesses, and a stale list never drives a correction.** A student the lists do not
+  resolve to exactly one row (not found, or ambiguous across two, ADR-085) is reported and left
+  untouched. A list Google could not read this cycle confirms nothing, so its dimensions produce no
+  corrections and the operator is shown which lists were unreadable when they read the plan. A
+  suspended account, or one whose other selectors no longer satisfy the schema, is skipped and
+  counted rather than forced.
+- **Audited as one batch entry before the side effect.** Recorded as `RosterProfileCorrected` with
+  the operator as actor, the scope as subject, the confirmed plan hash, and the corrected user ids
+  with their from/to values in the metadata — one entry per batch like the academic-year rollover
+  (ADR-115), for the same reason: an entry per student would bury the log where someone goes to
+  understand what happened. The student number is never written to the metadata (ADR-085/ADR-158).
+- **Preview → plan-hash → reason → apply.** The `/admin/operations` control is the ADR-107/ADR-115
+  shape: the preview is the backend's plan, the `planHash` binds the confirmation to the exact set
+  of students and values shown, editing the scope drops the preview, and a reason is required
+  because this rewrites student-entered data and queues calendar work no revision derived
+  (AI_GUIDELINE §19). It honours the operational freeze (global and scoped) like every path that
+  queues convergence (ADR-034/043).
+
+### Consequences
+
+- New Grade 3 Turkish students no longer hand-enter their faculty-practice group; the ones who did
+  can be brought into agreement with the faculty's own document in one audited pass, and the
+  correction converges each calendar onto the right practicals through the existing non-destructive
+  resync. Run once; in steady state the audit finds nothing to correct.
+- The audit is general over a cohort, not special-cased to one dimension: it corrects any
+  list-stated selector a student disagrees with (a mis-entered curriculum or microbiology/pathology
+  group too), which is the honest reading of "did the old users enter it correctly". It is scoped in
+  the UI to Grade 3 Turkish by default because that is the cohort this arrival concerns.
+- **Not addressed here (deliberately):** the audit is operator-run, not an automatic reconciler like
+  the academic-year drift task (ADR-117). A hand-entered value the faculty later contradicts is a
+  correction a person should authorize with a reason, not one a background pass should make silently;
+  and unlike a year drift, a roster-vs-profile disagreement can be the roster's fault (a stale or
+  mis-read list), which is exactly why the plan reports unreadable lists and unresolved students
+  rather than acting on them.

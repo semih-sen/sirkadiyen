@@ -200,6 +200,17 @@ public enum AuditEventCategory
     ProfileAcademicYearRolled,
 
     /// <summary>
+    /// A SuperAdmin reconciled a cohort's stored profiles against the published faculty lists,
+    /// correcting the ones a student entered by hand before a list stated them (ADR-159). This is the
+    /// one-time repair the Grade 3 faculty-practice group needed: it rewrites data students entered
+    /// about themselves and queues the ADR-096 convergence for each corrected calendar, neither of
+    /// which any published revision asked for — so the operator, the plan they confirmed and their
+    /// reason are recorded here (AI_GUIDELINE §13, §19). One entry per batch, like the academic-year
+    /// rollover; the corrected user ids and their from/to values are in the metadata.
+    /// </summary>
+    RosterProfileCorrected,
+
+    /// <summary>
     /// A student's dedicated calendar was rebuilt after being proven unavailable (ADR-116),
     /// either by the student from the screen they were stuck on or by a SuperAdmin on their
     /// behalf. It discards the whole event ledger for that user, so the trail records who asked

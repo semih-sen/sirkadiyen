@@ -1748,6 +1748,69 @@ export interface ProfileRolloverRequestResult {
   refusal?: string | null;
 }
 
+/**
+ * The cohort whose stored profiles are checked against the published faculty lists (ADR-159).
+ *
+ * Only the program is named; the academic year is the deployed schema's, so the check runs against
+ * the year new sign-ups are stamped with rather than one the caller could type.
+ */
+export interface RosterProfileAuditScope {
+  classYear: number;
+  programLanguage: ProgramLanguage;
+}
+
+/** One dimension a stored profile disagrees with the list on. */
+export interface RosterProfileCorrection {
+  dimension: string;
+  /** What the student entered, or null when they stated nothing for this dimension. */
+  storedValue?: string | null;
+  /** The value the published list now states, already validated against the program. */
+  rosterValue: string;
+}
+
+/** One profile the audit would correct, and to what. */
+export interface RosterProfileUserPlan {
+  userId: string;
+  corrections: RosterProfileCorrection[];
+}
+
+/**
+ * The server-computed plan a confirmation is bound to. As with a rollover, `planHash` covers the
+ * per-user corrections rather than only the totals.
+ */
+export interface RosterProfileAuditPlan {
+  scope: RosterProfileAuditScope;
+  /** Empty when the deployed schema declares no program for this scope. */
+  academicYear: string;
+  schemaVersion: string;
+  profilesExamined: number;
+  profilesInAgreement: number;
+  users: RosterProfileUserPlan[];
+  totalCorrections: number;
+  /** Profiles the lists do not resolve to one student; reported, never corrected against a guess. */
+  unresolvedByRoster: string[];
+  /** Lists that could not be read this cycle, so nothing they would have confirmed was corrected. */
+  unreadableRosterIds: string[];
+  planHash: string;
+}
+
+export type RosterProfileAuditOutcome =
+  | 'Corrected'
+  | 'PlanChanged'
+  | 'NothingToCorrect'
+  | 'Frozen'
+  | 'NotSupportedBySchema'
+  | string;
+
+export interface RosterProfileAuditRequestResult {
+  outcome: RosterProfileAuditOutcome;
+  profilesCorrected: number;
+  calendarResyncRequested: number;
+  profilesSkipped: number;
+  plan?: RosterProfileAuditPlan | null;
+  refusal?: string | null;
+}
+
 export type ManagedCalendarRebuildOutcome =
   | 'Reset'
   | 'NotEligible'

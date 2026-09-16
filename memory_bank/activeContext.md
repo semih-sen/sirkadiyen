@@ -1,6 +1,34 @@
 # Active Context
 
-## Latest session (2026-09-08, ADR-157: initial calendar sync writes concurrently)
+## Latest session (2026-09-16, ADR-159: Grade 3 faculty-practice group — roster column + one-time profile audit)
+
+The faculty published the Grade 3 Turkish öğretim üyesi (faculty-practice) group as a per-student
+column on the roster sheet `G3-TR-ROSTER` (column E, lowercase `a1`…`a8` / `b1`…`b8`). The schema
+had always declared `facultyPracticeGroup`; the list had not stated it, so every student who
+onboarded before this chose their cohort by hand and some chose wrong, quietly receiving another
+group's practicals.
+
+Two changes (ADR-159). First, the column is integrated as a normal roster dimension (addressed by
+letter like the micropatho column, `statedOncePerMergedRun`, mapped value by value onto `A1`…`B8`,
+never case-folded per ADR-130), so new students are suggested it at onboarding. Second, a one-time,
+operator-run, audited reconciliation — `RosterProfileAuditService` + `POST
+/api/operations/roster-profile-audits[/preview]` + the "Öğretim üyesi grubu denetimi" control on
+`/admin/operations` — checks a cohort's stored profiles against the live lists and corrects the
+disagreeing ones through the student's own write path (ADR-158): activation guard, schema
+validation, ADR-096 resync. Preview → plan-hash → reason → apply, freeze-aware, one batch audit
+entry (`RosterProfileCorrected`). It never guesses: students the lists do not resolve, and lists
+Google could not read this cycle, are reported rather than acted on.
+
+**Unresolved risk / follow-up (important):** the .NET side was **not compiled or tested** in this
+session — no .NET SDK is present and the offline installer is blocked by the egress proxy (403). The
+C# (application service, store, endpoints, contracts, audit category, DI, and
+`RosterProfileAuditServiceTests`) follows the rollover/repair patterns closely but must be built and
+the Infrastructure unit tests run before merge. The web side is verified (`tsc` clean, 123 vitest
+tests green). No migration is required (the audit category is a string column with no check
+constraint). The audit is deliberately operator-run, not an automatic reconciler like ADR-117,
+because a roster-vs-profile disagreement can be the roster's fault.
+
+## Session (2026-09-08, ADR-157: initial calendar sync writes concurrently)
 
 Second session of the day, driven by an imminent launch: a WhatsApp announcement to the cohort is
 expected to produce 100-150 activations within an hour. The operator had handed the program to a

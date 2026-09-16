@@ -127,10 +127,33 @@
               "A GRUBU": "3-A",
               "B GRUBU": "3-B"
             }
+          },
+          {
+            "columnLetter": "E",
+            "dimension": "facultyPracticeGroup",
+            "statedOncePerMergedRun": true,
+            "valueMap": {
+              "a1": "A1",
+              "a2": "A2",
+              "a3": "A3",
+              "a4": "A4",
+              "a5": "A5",
+              "a6": "A6",
+              "a7": "A7",
+              "a8": "A8",
+              "b1": "B1",
+              "b2": "B2",
+              "b3": "B3",
+              "b4": "B4",
+              "b5": "B5",
+              "b6": "B6",
+              "b7": "B7",
+              "b8": "B8"
+            }
           }
         ]
       },
-      "notes": "331 students in two merged runs: rows 2-169 are the A curriculum group and rows 170-332 the B one. The list states the curriculum group only. Grade 3 Turkish also requires facultyPracticeGroup, and the faculty has not assigned those cohorts for 2026-2027 yet, so a student always enters that one. One number is stored numerically and has lost a leading zero, one begins '97' rather than the faculty code and is refused by StudentProfileValidator, and 0101240080 is also on the Grade 2 Turkish list. The used range runs to column Z although only A-D hold anything."
+      "notes": "331 students in two merged runs: rows 2-169 are the A curriculum group and rows 170-332 the B one. The curriculum group is in column D ('Grubu'), stated once per merged run. The faculty-practice cohort arrived for 2026-2027 and is now stated too, in column E as a per-student value written lowercase 'a1'…'a8' for the A group and 'b1'…'b8' for the B group; it is mapped value by value onto the schema's 'A1'…'B8' rather than case-folded, for the reason G2-TR gives (Turkish upper-casing would invent a different cohort out of a lowercase 'i', ADR-085/ADR-130). The column has no header of its own, so it is addressed by letter like the microbiology/pathology group column. It is 'statedOncePerMergedRun' so an empty cell inside a merged run still resolves, but each student ordinarily carries their own value. facultyPracticeGroup depends on curriculumGroup in the schema (A-group students may only be A1-A8), which the two merged runs keep consistent. microPathologyGroup is the remaining Grade 3 Turkish dimension and is stated by G3-TR-MICROPATHO-ROSTER, which merges with this list. One number is stored numerically and has lost a leading zero, one begins '97' rather than the faculty code and is refused by StudentProfileValidator, and 0101240080 is also on the Grade 2 Turkish list. The used range runs to column Z although only A-E hold anything."
     },
     {
       "rosterId": "G3-EN-ROSTER",

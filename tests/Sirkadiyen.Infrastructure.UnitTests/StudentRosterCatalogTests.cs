@@ -133,10 +133,39 @@ public sealed class StudentRosterCatalogTests
             catalog.Rosters,
             candidate => candidate.RosterId == "G3-TR-ROSTER");
 
-        StudentRosterDimensionColumn group = Assert.Single(roster.Layout.DimensionColumns);
-        Assert.Equal("curriculumGroup", group.Dimension);
+        StudentRosterDimensionColumn group = Assert.Single(
+            roster.Layout.DimensionColumns,
+            column => column.Dimension == "curriculumGroup");
+        Assert.Equal("Grubu", group.Header);
         Assert.Equal("3-A", group.ValueMap["A GRUBU"]);
         Assert.Equal("3-B", group.ValueMap["B GRUBU"]);
+    }
+
+    [Fact]
+    public async Task TheGradeThreeTurkishListMapsItsLowercaseFacultyGroupOntoTheSchemaAsync()
+    {
+        // The faculty-practice cohort arrived for 2026-2027 and is now stated in
+        // column E, written lowercase 'a1'…'b8' per student. It is mapped value by
+        // value onto the schema's 'A1'…'B8' rather than case-folded, for the reason
+        // G2-TR gives: Turkish upper-casing would invent a different cohort out of a
+        // lowercase 'i' (ADR-085, ADR-130). The column has no header of its own, so
+        // it is addressed by letter like the microbiology/pathology group column.
+        StudentRosterCatalog catalog = await LoadAsync();
+        StudentRosterDefinition roster = Assert.Single(
+            catalog.Rosters,
+            candidate => candidate.RosterId == "G3-TR-ROSTER");
+
+        StudentRosterDimensionColumn faculty = Assert.Single(
+            roster.Layout.DimensionColumns,
+            column => column.Dimension == "facultyPracticeGroup");
+        Assert.Equal("E", faculty.ColumnLetter);
+        Assert.Null(faculty.Header);
+        Assert.True(faculty.StatedOncePerMergedRun);
+        Assert.Equal(16, faculty.ValueMap.Count);
+        Assert.Equal("A1", faculty.ValueMap["a1"]);
+        Assert.Equal("A8", faculty.ValueMap["a8"]);
+        Assert.Equal("B1", faculty.ValueMap["b1"]);
+        Assert.Equal("B8", faculty.ValueMap["b8"]);
     }
 
     [Fact]

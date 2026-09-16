@@ -183,6 +183,7 @@ internal static class ApiServiceCollectionExtensions
         // performed by the worker's convergence pass (ADR-115).
         services.AddSingleton(new ProfileAcademicYearDriftOptions());
         services.AddScoped<ProfileAcademicYearRolloverService>();
+        services.AddScoped<RosterProfileAuditService>();
 
         // Administrative acquisition. The API stores the uploaded evidence; the worker
         // still owns parsing, validation and publication (ADR-080).
