@@ -19,7 +19,7 @@ public sealed class CurrentSupportedProfileSchemaTests
     public void SchemaCarriesTheCurrentYearAndVersion()
     {
         Assert.Equal("2026-2027", Schema.AcademicYear);
-        Assert.Equal("1.5", Schema.SchemaVersion);
+        Assert.Equal("1.6", Schema.SchemaVersion);
         Assert.NotEmpty(Schema.Programs);
     }
 
@@ -130,21 +130,38 @@ public sealed class CurrentSupportedProfileSchemaTests
     }
 
     /// <summary>
-    /// The Grade 3 English program was closed because its annual program states no
-    /// division (ADR-098), but the microbiology/pathology practice document divides
-    /// it into the same A1/A2/B1/B2 cohorts, so it now onboards with that one
-    /// selector (ADR-145 supersedes the closure).
+    /// The Grade 3 English program states no curriculum group of its own (ADR-098); it
+    /// first onboarded on its microbiology/pathology group alone (ADR-145), and as of
+    /// 2026-2027 the faculty split its students into the faculty-practice cohorts
+    /// A1-A4, so it now declares that group too — independent, because there is no
+    /// curriculum group for it to depend on (ADR-160).
     /// </summary>
     [Fact]
-    public void GradeThreeEnglishDeclaresOnlyItsMicroPathologyGroup()
+    public void GradeThreeEnglishDeclaresItsFacultyPracticeGroupWithNoCurriculumGroup()
     {
         SupportedProfileProgram program = Assert.IsType<SupportedProfileProgram>(
             Schema.FindProgram(3, ProgramLanguage.English));
 
         Assert.Equal("2026-2027", program.AcademicYear);
-        SupportedProfileDimension microPathology = Assert.Single(program.Dimensions);
-        Assert.Equal("microPathologyGroup", microPathology.Key);
-        Assert.True(microPathology.Required);
+
+        // No curriculumGroup: the whole English class year sits its theory together.
+        Assert.Equal(
+            ["facultyPracticeGroup", "microPathologyGroup"],
+            program.Dimensions.Select(dimension => dimension.Key));
+        Assert.All(program.Dimensions, dimension => Assert.True(dimension.Required));
+
+        // The faculty-practice cohort is independent and flat here — A1-A4, the four
+        // cohorts the faculty placed the English students in — unlike Turkish, where it
+        // is offered per curriculum group (ADR-160).
+        SupportedProfileDimension cohort = Assert.IsType<SupportedProfileDimension>(
+            program.FindDimension("facultyPracticeGroup"));
+        Assert.False(cohort.IsDependent);
+        Assert.Equal(["A1", "A2", "A3", "A4"], cohort.Values);
+
+        // The microbiology/pathology group stays independent and flat, stated by the
+        // single cross-program list (ADR-145).
+        SupportedProfileDimension microPathology = Assert.IsType<SupportedProfileDimension>(
+            program.FindDimension("microPathologyGroup"));
         Assert.False(microPathology.IsDependent);
         Assert.Equal(["A1", "A2", "B1", "B2"], microPathology.Values);
     }

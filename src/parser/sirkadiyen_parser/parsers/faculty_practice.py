@@ -50,6 +50,7 @@ from sirkadiyen_parser.contracts.parsing import (
     ParseSnapshotRequest,
     ParseSnapshotResponse,
     ParseSourceContext,
+    ProgramLanguage,
     ScheduleAudienceCandidate,
     ScheduleEventType,
     SourceEvidence,
@@ -639,21 +640,30 @@ def _build_candidate(
     local_date = _require_date(resolved_date)
     display_title = f"{TITLE_PREFIX} — {cell.department}"
 
-    # The curriculum group is the cohort's own letter: the A workbook states
-    # A1-A8 and the B workbook B1-B8, so the document says which half of the
-    # class it belongs to without the catalog having to.
-    curriculum_group = f"{context.class_year}-{letter}"
+    # The faculty-practice cohort addresses every record. The curriculum group —
+    # the cohort's own letter, so the A workbook states A1-A8 and the B workbook
+    # B1-B8 — is added alongside it only for a program that HAS an A/B division.
+    # Grade 3 English has none: the whole program sits its theory together and is
+    # split only into the a1-a4 faculty cohorts (ADR-098), so an English source
+    # addresses each record by the cohort alone. That is what lets a Grade 3
+    # English profile, which carries no curriculum group, match the record —
+    # CalendarAudienceResolver withholds a lesson whose every stated dimension the
+    # profile does not also declare (ADR-160).
+    selectors = [AudienceSelector(dimension=DIMENSION_FACULTY_PRACTICE_GROUP, value=cohort)]
+    audience_key_parts = [f"{DIMENSION_FACULTY_PRACTICE_GROUP}={cohort}"]
+    if context.program_language is not ProgramLanguage.ENGLISH:
+        curriculum_group = f"{context.class_year}-{letter}"
+        selectors.insert(
+            0, AudienceSelector(dimension=DIMENSION_CURRICULUM_GROUP, value=curriculum_group)
+        )
+        audience_key_parts.insert(
+            0, f"{DIMENSION_CURRICULUM_GROUP}={curriculum_group}"
+        )
     audience = ScheduleAudienceCandidate(
         scope=AudienceScope.SELECTED_GROUPS,
-        selectors=[
-            AudienceSelector(dimension=DIMENSION_CURRICULUM_GROUP, value=curriculum_group),
-            AudienceSelector(dimension=DIMENSION_FACULTY_PRACTICE_GROUP, value=cohort),
-        ],
+        selectors=selectors,
     )
-    audience_key = (
-        f"{DIMENSION_CURRICULUM_GROUP}={curriculum_group} "
-        f"{DIMENSION_FACULTY_PRACTICE_GROUP}={cohort}"
-    )
+    audience_key = " ".join(audience_key_parts)
 
     identity_components = build_identity_components(
         (

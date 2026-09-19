@@ -17,10 +17,14 @@ namespace Sirkadiyen.Application.StudentProfiles;
 /// handling (ADR-084); adding it sooner would expose an incomplete or over-broad
 /// calendar as complete. The Grade 3 English program was absent for the reason its
 /// annual parser records — that program states no A/B division at all (ADR-098) —
-/// but it is now onboardable: the microbiology/pathology practice document divides
-/// both programs into the same A1/A2/B1/B2 cohorts, an English selector confirmed
-/// by a committed fixture, so Grade 3 English declares that one group (ADR-145
-/// supersedes the closure).
+/// but it is now onboardable. It first declared its microbiology/pathology group
+/// alone, the one cohort the shared practice document divided it into (ADR-145);
+/// as of 2026-2027 the faculty also split the English students into the
+/// faculty-practice cohorts a1-a4, published on the A-group faculty document now
+/// catalogued for English (G3-EN-A-FACULTY), so the program declares
+/// facultyPracticeGroup too. It stays without a curriculum group, because the
+/// English program has no A/B division of its own — the whole class sits its theory
+/// together (ADR-098 stands on that point; ADR-160 adds only the faculty cohort).
 /// </para>
 /// <para>
 /// A program states the academic year its own sources were captured for,
@@ -56,14 +60,18 @@ public static class CurrentSupportedProfileSchema
     /// Grade 3 Turkish arrived and each program began stating its own academic
     /// year (ADR-103), to 1.3 when Grade 2 Turkish rolled over to 2026-2027
     /// (ADR-115), to 1.4 when Grade 1 Turkish and English rolled over with their
-    /// own sources (ADR-131), and to 1.5 when the microbiology/pathology practice
+    /// own sources (ADR-131), to 1.5 when the microbiology/pathology practice
     /// program added the <c>microPathologyGroup</c> dimension to Grade 3 Turkish
-    /// and opened Grade 3 English (ADR-145). It is recorded on every stored
-    /// profile, so a profile written under an earlier version stays identifiable —
-    /// and a Grade 3 Turkish profile still on 1.4 is identifiable as one written
-    /// before the new dimension existed and therefore missing it.
+    /// and opened Grade 3 English (ADR-145), and to 1.6 when the faculty split the
+    /// Grade 3 English students into the faculty-practice cohorts <c>A1</c>-<c>A4</c>,
+    /// so that program gained <c>facultyPracticeGroup</c> — independent, since English
+    /// has no curriculum group for it to depend on (ADR-160). It is recorded on every
+    /// stored profile, so a profile written under an earlier version stays
+    /// identifiable — and a Grade 3 English profile still on 1.5 is identifiable as one
+    /// written before the new dimension existed and therefore missing it, which is
+    /// exactly what the roster-profile audit fills in (ADR-159/ADR-160).
     /// </summary>
-    public const string SchemaVersion = "1.5";
+    public const string SchemaVersion = "1.6";
 
     public static SupportedProfileSchema Create() => new()
     {
@@ -180,20 +188,19 @@ public static class CurrentSupportedProfileSchema
 
     /// <summary>
     /// Grade 3 Turkish: the curriculum group the whole class year is split into,
-    /// and the faculty-practice cohort within it.
+    /// the faculty-practice cohort within it, and the independent microbiology/pathology
+    /// group.
     /// </summary>
     /// <remarks>
-    /// The two dimensions are dependent, not independent, and this is the one
-    /// place that matters: the A and B programs are separate documents with
-    /// separate rotations, and a cohort number means a different rotation in
-    /// each. A student in <c>3-A</c> may only be one of <c>A1</c>-<c>A8</c>, so
-    /// the cohort is offered per group rather than as sixteen flat values that
-    /// would let someone in the A program declare a B rotation (ADR-099).
-    /// <para>
-    /// Both are required. Every Grade 3 lesson is published to one curriculum
-    /// group or both, and every faculty-practice session to exactly one cohort,
-    /// so a student who declared neither would receive nothing.
-    /// </para>
+    /// The curriculum group and the faculty-practice cohort are dependent, not
+    /// independent, and this is the one place that matters: the A and B programs are
+    /// separate documents with separate rotations, and a cohort number means a
+    /// different rotation in each. A student in <c>3-A</c> may only be one of
+    /// <c>A1</c>-<c>A8</c>, so the cohort is offered per group rather than as sixteen
+    /// flat values that would let someone in the A program declare a B rotation
+    /// (ADR-099). Both are required: every Grade 3 Turkish lesson is published to one
+    /// curriculum group or both, and every faculty-practice session to exactly one
+    /// cohort, so a student who declared neither would receive nothing.
     /// </remarks>
     private static SupportedProfileProgram Grade3Turkish() => new()
     {
@@ -224,25 +231,41 @@ public static class CurrentSupportedProfileSchema
     };
 
     /// <summary>
-    /// Grade 3 English: the microbiology/pathology practice cohort, and nothing
-    /// else.
+    /// Grade 3 English: the faculty-practice cohort and the independent
+    /// microbiology/pathology group — and, unlike Grade 3 Turkish, no curriculum group.
     /// </summary>
     /// <remarks>
-    /// The English annual program states no A/B division (ADR-098), which is why
-    /// this program had no schema entry at all. The microbiology/pathology practice
-    /// document is the first source to divide the English class — into the same
-    /// A1/A2/B1/B2 cohorts it divides the Turkish class into — so the program now
-    /// declares exactly that one selector and opens for onboarding (ADR-145). A
-    /// student who declares it receives their microbiology and pathology practicals;
-    /// the English annual lessons, which name no cohort, reach every English Grade 3
-    /// student regardless of it.
+    /// The English program has no A/B division of its own (ADR-098): the whole class
+    /// year sits its theoretical lessons together, and the English annual states no
+    /// cohort. It first onboarded on its microbiology/pathology group alone, the one
+    /// cohort the shared practice document divided it into (ADR-145). As of 2026-2027
+    /// the faculty also split the English students into the faculty-practice cohorts
+    /// <c>A1</c>-<c>A4</c> — the combined student list states them — so the program
+    /// declares that group too (ADR-160). It is <b>independent</b> here, not dependent
+    /// as it is for Turkish, precisely because there is no curriculum group to depend
+    /// on: an English student carries a faculty-practice cohort and nothing gates it.
+    /// The four values are <c>A1</c>-<c>A4</c> because that is where the faculty placed
+    /// the English students; the A-group faculty document holds <c>A5</c>-<c>A8</c> too,
+    /// but no English student is in them. The faculty-practice sessions reach an English
+    /// student because the English faculty source publishes each record addressed by
+    /// the cohort alone, with no curriculum-group selector the profile would have to
+    /// match (ADR-160).
     /// </remarks>
     private static SupportedProfileProgram Grade3English() => new()
     {
         AcademicYear = AcademicYear,
         ClassYear = 3,
         ProgramLanguage = ProgramLanguage.English,
-        Dimensions = [MicroPathologyGroup()],
+        Dimensions =
+        [
+            new SupportedProfileDimension
+            {
+                Key = "facultyPracticeGroup",
+                Required = true,
+                Values = [.. Enumerable.Range(1, 4).Select(index => $"A{index}")],
+            },
+            MicroPathologyGroup(),
+        ],
     };
 
     /// <summary>

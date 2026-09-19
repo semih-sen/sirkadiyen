@@ -113,6 +113,7 @@ def parse(
     worksheets: list[dict[str, Any]],
     *,
     profile: ParserProfileDefinition = PROFILE,
+    program_language: str = "turkish",
 ) -> ParseSnapshotResponse:
     request = ParseSnapshotRequest.model_validate(
         {
@@ -122,7 +123,7 @@ def parse(
             "sourceContext": {
                 "academicYear": "2026-2027",
                 "classYear": 3,
-                "programLanguage": "turkish",
+                "programLanguage": program_language,
                 "timeZoneId": "Europe/Istanbul",
             },
             "snapshot": {
@@ -197,6 +198,22 @@ def test_the_curriculum_group_comes_from_the_cohort_letter() -> None:
         candidate.audience.scope is AudienceScope.SELECTED_GROUPS
         for candidate in turkish_a.candidates
     )
+
+
+def test_an_english_source_states_no_curriculum_group() -> None:
+    """Grade 3 English has no A/B division (ADR-098), so an English source addresses
+    each record by the faculty-practice cohort alone. That is what lets an English
+    profile, which carries no curriculum group, match the record (ADR-160)."""
+    english = parse(
+        [block([["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8"]])],
+        program_language="english",
+    )
+
+    assert cohorts_of(english) == {f"A{index}" for index in range(1, 9)}
+    for candidate in english.candidates:
+        dimensions = {selector.dimension for selector in candidate.audience.selectors}
+        assert dimensions == {"facultyPracticeGroup"}
+        assert candidate.audience.scope is AudienceScope.SELECTED_GROUPS
 
 
 def test_a_hyphen_between_cohorts_enumerates_rather_than_spans() -> None:

@@ -523,6 +523,34 @@
       "fixturePath": "sheets/donem-3-tr-B/Dönem 3 ÖĞRETİM ÜYESİ B GRUBU UYGULAMA TABLOSU VE KONULARI 2026-2027 (2).xlsx"
     },
     {
+      "sourceId": "G3-EN-A-FACULTY",
+      "displayName": "Dönem 3 İngilizce öğretim üyesi uygulama",
+      "transport": "googleDriveFile",
+      "documentFormat": "xlsx",
+      "sourceUri": "https://drive.google.com/file/d/1YluyIWyOjjoL7JGpQXTUiGOROGaSpMIw/view",
+      "externalId": "1YluyIWyOjjoL7JGpQXTUiGOROGaSpMIw",
+      "parserProfile": "grade3_faculty_practice_v1",
+      "parserProfileVersion": "1.1.0",
+      "academicYear": "2026-2027",
+      "classYear": 3,
+      "programLanguage": "english",
+      "timeZoneId": "Europe/Istanbul",
+      "supportedAudienceSelectors": {
+        "facultyPracticeGroup": [
+          "A1",
+          "A2",
+          "A3",
+          "A4",
+          "A5",
+          "A6",
+          "A7",
+          "A8"
+        ]
+      },
+      "fixturePath": "sheets/donem-3-tr-A/Dönem 3 ÖĞRETİM ÜYESİ A GRUBU UYGULAMA TABLOSU VE KONULARI 2026-2027 (1).xlsx",
+      "notes": "The English side of the A-group faculty-practice document. It converts the same file as G3-TR-A-FACULTY and stamps English on its candidates (ADR-160, the ADR-145 shared-document pattern). Unlike the Turkish sibling it states NO curriculumGroup selector — Grade 3 English has no A/B division (ADR-098), so the parser omits the curriculum group for an English source and each record is addressed by the faculty-practice cohort alone, which is what lets an English facultyPracticeGroup-only profile match. The document holds cohorts A1-A8; the English students are only in A1-A4, so the A5-A8 records this stamps English reach nobody (harmless, like the micropatho records a program does not use). Only the A-group document is catalogued for English, because the English students are all in its cohorts; there is no English B-group source."
+    },
+    {
       "sourceId": "G3-FACULTY-LOCATIONS",
       "displayName": "Dönem 3 öğretim üyesi uygulama yerleri",
       "transport": "googleDriveFile",

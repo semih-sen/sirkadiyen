@@ -16,15 +16,16 @@ public sealed class ScheduleSourceCatalogTests
             .LoadAsync(path, CancellationToken.None);
 
         Assert.Equal("1.0", catalog.CatalogVersion);
-        Assert.Equal(24, catalog.Sources.Count);
+        Assert.Equal(25, catalog.Sources.Count);
         Assert.Equal(8, catalog.Sources.Count(
             source => source.Transport == ScheduleSourceTransport.GoogleSheets));
 
-        // Down from 13: the two 2025-2026 vertical-corridor DOCX sources
-        // (G2-VERTICAL-SPRING/AUTUMN) were retired for the single 2026-2027 XLSX
-        // workbook G2-VERTICAL (ADR-147). Still counts the microbiology/pathology
-        // practice document catalogued once per program (ADR-145).
-        Assert.Equal(12, catalog.Sources.Count(
+        // Up to 13 from 12: the A-group faculty-practice document is now catalogued for
+        // English as well (G3-EN-A-FACULTY, ADR-160), the same cross-program pattern the
+        // microbiology/pathology practice document uses (ADR-145) — one Drive file
+        // catalogued once per program. Only the A document, because the English students
+        // are all in its a1-a4 cohorts; there is no English B-group faculty source.
+        Assert.Equal(13, catalog.Sources.Count(
             source => source.Transport == ScheduleSourceTransport.GoogleDriveFile));
         foreach (string sourceId in new[] { "G3-TR-MICROPATHO-PRACTICE", "G3-EN-MICROPATHO-PRACTICE" })
         {
@@ -188,7 +189,7 @@ public sealed class ScheduleSourceCatalogTests
         Assert.Equal("2026-2027", grade3TurkishAnnual.AcademicYear);
         Assert.Equal(3, grade3TurkishAnnual.ClassYear);
 
-        Assert.Equal(10, catalog.Sources.Count(source => source.ClassYear == 3));
+        Assert.Equal(11, catalog.Sources.Count(source => source.ClassYear == 3));
         Assert.All(
             catalog.Sources.Where(source => source.ClassYear == 3),
             source => Assert.Equal("2026-2027", source.AcademicYear));

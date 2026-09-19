@@ -1,6 +1,49 @@
 # Active Context
 
-## Latest session (2026-09-16, ADR-159: Grade 3 faculty-practice group — roster column + one-time profile audit)
+## Latest session (2026-09-19, ADR-160: Grade 3 combined student list + Grade 3 English gains a faculty-practice group, but NO curriculum group)
+
+The faculty replaced the separate Grade 3 lists with one combined document ("D3 Öğrenci Listesi",
+sheet `1qL-nbVICZHU…`, gid 1403495155): 338 Turkish (`0101…`) + 99 English (`0102…`) students, a
+curriculum group in column D (`A grubu`/`B grubu`) and a faculty-practice cohort in column E
+(`a1`…`b8`). The English students fall in the faculty cohorts a1-a4.
+
+**Key correction mid-session:** Grade 3 English has **no A/B curriculum group** (ADR-098 stands). The
+whole English class sits its theory together; its only division is the a1-a4 faculty-practice cohort.
+The sheet is laid out by the Turkish curriculum group and the English rows sit in its A section, but
+that is the document's shape, not the English program's. So English gains `facultyPracticeGroup`
+only, independent (no parent), and NOT `curriculumGroup`.
+
+Changes (ADR-160):
+- **Roster** (`config/student-rosters.json`): `G3-TR-ROSTER` → combined sheet, `0101` rows
+  (`studentNumberProgramPrefix`), still reads column D (`curriculumGroup`, lower-cased `A grubu`/`B
+  grubu`, ADR-130) + column E (`facultyPracticeGroup`). New `G3-EN-FACULTY-ROSTER` → same sheet,
+  `0102` rows, reads **only column E** (`a1`-`a4`), never D. Merges with identity `G3-EN-ROSTER` +
+  micropatho.
+- **Schema** (`CurrentSupportedProfileSchema`): `Grade3English` gains an **independent**
+  `facultyPracticeGroup` A1-A4 (+ existing micropatho); NO curriculumGroup. Turkish keeps its
+  dependent A1-A8/B1-B8. Version 1.5 → **1.6**.
+- **Schedule source** (`config/schedule-sources.json`): one new `G3-EN-A-FACULTY` (same A-group doc
+  `1Yluy…` as `G3-TR-A-FACULTY`, `programLanguage: english`). No B source (English is all in the A
+  document's cohorts).
+- **Parser** (`faculty_practice.py`): `_build_candidate` now **omits the curriculumGroup selector for
+  an English source** (Turkish unchanged). This is required because `CalendarAudienceResolver` (ADR-109)
+  withholds a lesson unless the profile declares every dimension the record states — an English
+  profile has no curriculumGroup, so the record must not carry one. New parser unit test asserts this;
+  Turkish goldens unchanged.
+- **Audit**: no code change — scope-driven; running the control for Grade 3 English fills in the
+  now-declared `facultyPracticeGroup` for profiles that pre-date it (stamped 1.5). Control copy updated.
+
+**Verification:** web `tsc` clean + 123 vitest green; **Python parser tests pass** (faculty-practice
+18, golden suite included — 71 total). The **.NET side was NOT compiled** (no SDK here). Updated/added
+.NET tests: `CurrentSupportedProfileSchemaTests`, `StudentRosterCatalogTests`,
+`ScheduleSourceCatalogTests` (source counts now 25 total / 11 grade-3 / 13 Drive),
+`StudentProfileValidatorTests`, `StudentRosterLookupServiceTests`, `RosterProfileAuditServiceTests` —
+must be built and run before merge. Sheet merges/headers verified from the XLSX export (18 merges,
+D2:D221/D222:D441, E in 16 blocks, worksheet "Sayfa1"). Faculty-practice location enrichment is
+unwired for every program (manifest), so English faculty sessions publish without a room like the
+Turkish ones.
+
+## Session (2026-09-16, ADR-159: Grade 3 faculty-practice group — roster column + one-time profile audit)
 
 The faculty published the Grade 3 Turkish öğretim üyesi (faculty-practice) group as a per-student
 column on the roster sheet `G3-TR-ROSTER` (column E, lowercase `a1`…`a8` / `b1`…`b8`). The schema

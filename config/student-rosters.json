@@ -106,12 +106,13 @@
       "displayName": "Dönem 3 Türkçe öğrenci listesi",
       "transport": "googleSheets",
       "documentFormat": "googleSheet",
-      "sourceUri": "https://docs.google.com/spreadsheets/d/1vF78Lvjyt40U1ConEhJOCAXhhn0zAGmeq6oX2o0NGLY/edit?gid=188613521",
-      "externalId": "1vF78Lvjyt40U1ConEhJOCAXhhn0zAGmeq6oX2o0NGLY",
-      "sheetGid": 188613521,
+      "sourceUri": "https://docs.google.com/spreadsheets/d/1qL-nbVICZHUK6mKP1xSuYIZiUOD3V_YeKUxNNxYsn-g/edit?gid=1403495155",
+      "externalId": "1qL-nbVICZHUK6mKP1xSuYIZiUOD3V_YeKUxNNxYsn-g",
+      "sheetGid": 1403495155,
       "academicYear": "2026-2027",
       "classYear": 3,
       "programLanguage": "turkish",
+      "studentNumberProgramPrefix": "0101",
       "layout": {
         "worksheetTitle": "Sayfa1",
         "headerRow": 1,
@@ -124,8 +125,8 @@
             "dimension": "curriculumGroup",
             "statedOncePerMergedRun": true,
             "valueMap": {
-              "A GRUBU": "3-A",
-              "B GRUBU": "3-B"
+              "A grubu": "3-A",
+              "B grubu": "3-B"
             }
           },
           {
@@ -153,7 +154,7 @@
           }
         ]
       },
-      "notes": "331 students in two merged runs: rows 2-169 are the A curriculum group and rows 170-332 the B one. The curriculum group is in column D ('Grubu'), stated once per merged run. The faculty-practice cohort arrived for 2026-2027 and is now stated too, in column E as a per-student value written lowercase 'a1'…'a8' for the A group and 'b1'…'b8' for the B group; it is mapped value by value onto the schema's 'A1'…'B8' rather than case-folded, for the reason G2-TR gives (Turkish upper-casing would invent a different cohort out of a lowercase 'i', ADR-085/ADR-130). The column has no header of its own, so it is addressed by letter like the microbiology/pathology group column. It is 'statedOncePerMergedRun' so an empty cell inside a merged run still resolves, but each student ordinarily carries their own value. facultyPracticeGroup depends on curriculumGroup in the schema (A-group students may only be A1-A8), which the two merged runs keep consistent. microPathologyGroup is the remaining Grade 3 Turkish dimension and is stated by G3-TR-MICROPATHO-ROSTER, which merges with this list. One number is stored numerically and has lost a leading zero, one begins '97' rather than the faculty code and is refused by StudentProfileValidator, and 0101240080 is also on the Grade 2 Turkish list. The used range runs to column Z although only A-E hold anything."
+      "notes": "The Turkish half of the combined 2026-2027 Dönem-3 student list ('D3 Öğrenci Listesi'), which for 2026-2027 replaced the separate Turkish-only list this roster used to point at (ADR-160). The one document holds both programs' Grade 3 students — the Turkish (0101…) and the English (0102…) — so it is catalogued once per program like the microbiology/pathology list and this Turkish entry claims only the 0101 rows via studentNumberProgramPrefix (the English rows are the sibling G3-EN-FACULTY-ROSTER's, ADR-145/ADR-160). Column D ('Grubu') is the curriculum group and column E the faculty-practice cohort. The curriculum group is a Turkish-only division — the English program has none (ADR-098) — so only this Turkish entry reads column D; the faculty-practice cohort spans both programs and both entries read column E. The list is one A run and one B run: column D states 'A grubu' (rows 2-221) and 'B grubu' (rows 222-441), each a merged run. The faculty-practice cohort is in column E as a per-student value written lowercase 'a1'…'a8' for the A group and 'b1'…'b8' for the B group, each cohort its own merged run; it is mapped value by value onto the schema's 'A1'…'B8' rather than case-folded, for the reason G2-TR gives (Turkish upper-casing would invent a different cohort out of a lowercase 'i', ADR-085/ADR-130). Column E has no header of its own, so it is addressed by letter like the microbiology/pathology group column. facultyPracticeGroup depends on curriculumGroup in the schema (A-group students may only be A1-A8), which the two merged runs keep consistent. microPathologyGroup is the remaining Grade 3 Turkish dimension and is stated by G3-TR-MICROPATHO-ROSTER, which merges with this list. Two numbers begin '9701' rather than the faculty code and are refused by StudentProfileValidator, and 0101240080 is also on the Grade 2 Turkish list. The used range runs to column Z although only A-E hold anything."
     },
     {
       "rosterId": "G3-EN-ROSTER",
@@ -174,7 +175,41 @@
         "familyNameHeader": "Soyad",
         "dimensionColumns": []
       },
-      "notes": "96 students. It states no curriculum group, because the Grade 3 English program has no A/B division of its own (ADR-098); it still confirms identity, and it now merges with the microbiology/pathology list below, which does state an English student's practice group. Its header is written 'OgrenciNo' without Turkish letters or a space, unlike the other three. No malformed numbers."
+      "notes": "96 students. This list itself states no group — it confirms identity only — and its header is written 'OgrenciNo' without Turkish letters or a space, unlike the other three. No malformed numbers. The program has no A/B curriculum group (ADR-098 stands on that point); its one group, the faculty-practice cohort a1-a4, is now stated by the sibling G3-EN-FACULTY-ROSTER below (the English rows of the combined list), and its microbiology/pathology group by G3-EN-MICROPATHO-ROSTER, both of which merge with this one (ADR-160)."
+    },
+    {
+      "rosterId": "G3-EN-FACULTY-ROSTER",
+      "displayName": "Dönem 3 İngilizce öğretim üyesi uygulama grup listesi",
+      "transport": "googleSheets",
+      "documentFormat": "googleSheet",
+      "sourceUri": "https://docs.google.com/spreadsheets/d/1qL-nbVICZHUK6mKP1xSuYIZiUOD3V_YeKUxNNxYsn-g/edit?gid=1403495155",
+      "externalId": "1qL-nbVICZHUK6mKP1xSuYIZiUOD3V_YeKUxNNxYsn-g",
+      "sheetGid": 1403495155,
+      "academicYear": "2026-2027",
+      "classYear": 3,
+      "programLanguage": "english",
+      "studentNumberProgramPrefix": "0102",
+      "layout": {
+        "worksheetTitle": "Sayfa1",
+        "headerRow": 1,
+        "studentNumberHeader": "Öğrenci No",
+        "givenNameHeader": "Ad",
+        "familyNameHeader": "Soyad",
+        "dimensionColumns": [
+          {
+            "columnLetter": "E",
+            "dimension": "facultyPracticeGroup",
+            "statedOncePerMergedRun": true,
+            "valueMap": {
+              "a1": "A1",
+              "a2": "A2",
+              "a3": "A3",
+              "a4": "A4"
+            }
+          }
+        ]
+      },
+      "notes": "The English half of the combined 2026-2027 Dönem-3 student list — the same document G3-TR-ROSTER reads, claiming only the 0102 rows via studentNumberProgramPrefix (ADR-145's shared-document pattern, extended to the faculty-practice group by ADR-160). Grade 3 English has no A/B curriculum group of its own: the whole program attends its theoretical lessons together (the English annual states no cohort, ADR-098), so this list deliberately does NOT read column D ('Grubu'), even though the shared sheet is laid out by the Turkish curriculum group. The one English division is the faculty-practice group, stated in column E as lowercase 'a1'…'a4' — the English students fall in those four cohorts only — mapped value by value onto the schema's 'A1'…'A4' (never case-folded, ADR-130), addressed by letter because the column has no header. It merges with G3-EN-ROSTER (identity) and G3-EN-MICROPATHO-ROSTER (microbiology/pathology group): the three are complementary lists of one cohort stating disjoint dimensions, so the lookup unions them rather than treating the shared number as ambiguous (ADR-145). The lessons these cohorts receive are published by G3-EN-A-FACULTY, which converts the A-group faculty document for English and — because English has no curriculum group — drops the curriculumGroup selector its Turkish sibling keeps, so an English facultyPracticeGroup-only profile matches (ADR-160)."
     },
     {
       "rosterId": "G3-TR-MICROPATHO-ROSTER",

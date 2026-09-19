@@ -103,14 +103,18 @@ public sealed class StudentRosterLookupServiceTests
     }
 
     [Fact]
-    public async Task TheEnglishMicroPathologyListOpensGradeThreeEnglishOnboardingAsync()
+    public async Task TheThreeGradeThreeEnglishListsMergeIntoACompleteSuggestionAsync()
     {
-        // Grade 3 English states no cohort of its own (ADR-098), but the
-        // microbiology/pathology list divides it into A1/A2/B1/B2, which is what
-        // opened the program (ADR-145). The identity-only list and the group list
-        // merge into a complete suggestion.
+        // Grade 3 English is described by three complementary lists of one cohort: the
+        // identity-only list, the faculty list (the faculty-practice group only — the
+        // English rows of the combined document, which state no curriculum group), and
+        // the microbiology/pathology list. They state disjoint dimensions, so the lookup
+        // unions them into a complete suggestion rather than treating the shared number
+        // as ambiguous (ADR-145/ADR-160).
         StudentRosterLookupService service = Service(
             Grade3EnglishReading(Entry("0102240001", "ZEY*****", "SEY***")),
+            Grade3EnglishFacultyReading(
+                Entry("0102240001", "ZEY*****", "SEY***", ("facultyPracticeGroup", "A2"))),
             Grade3EnglishMicroPathoReading(
                 Entry("0102240001", "ZEY*****", "SEY***", ("microPathologyGroup", "B1"))));
 
@@ -121,7 +125,11 @@ public sealed class StudentRosterLookupServiceTests
         Assert.Equal(StudentRosterLookupOutcome.Matched, result.Outcome);
         Assert.Equal(ProgramLanguage.English, result.ProgramLanguage);
         Assert.Equal(
-            new Dictionary<string, string> { ["microPathologyGroup"] = "B1" },
+            new Dictionary<string, string>
+            {
+                ["facultyPracticeGroup"] = "A2",
+                ["microPathologyGroup"] = "B1",
+            },
             result.SuggestedSelectors);
         Assert.Empty(result.DimensionsRequiringInput);
     }
@@ -330,6 +338,17 @@ public sealed class StudentRosterLookupServiceTests
         new()
         {
             RosterId = "G3-EN-MICROPATHO-ROSTER",
+            AcademicYear = CurrentSupportedProfileSchema.AcademicYear,
+            ClassYear = 3,
+            ProgramLanguage = ProgramLanguage.English,
+            Entries = entries,
+        };
+
+    private static StudentRosterReading Grade3EnglishFacultyReading(
+        params StudentRosterEntry[] entries) =>
+        new()
+        {
+            RosterId = "G3-EN-FACULTY-ROSTER",
             AcademicYear = CurrentSupportedProfileSchema.AcademicYear,
             ClassYear = 3,
             ProgramLanguage = ProgramLanguage.English,

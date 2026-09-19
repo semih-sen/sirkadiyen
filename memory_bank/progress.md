@@ -153,6 +153,15 @@
   ADR-098's closure), and the student-roster module extended to merge complementary same-cohort
   lists, scope a shared file by student-number prefix, and address an unheadered column by letter
   (ADR-145)
+- [x] Grade 3 English gained an independent `facultyPracticeGroup` (a1-a4) — but still NO curriculum
+  group (schema 1.6; ADR-098 stands on the A/B point). The faculty's 2026-2027 combined Grade 3 list
+  (`1qL-nbVICZHU…`) states the cohort for the English students, and the A-group faculty document is
+  catalogued for English (`G3-EN-A-FACULTY`, ADR-145 pattern) with the parser omitting the
+  curriculumGroup selector for an English source so an English profile (which has no curriculum group)
+  matches (ADR-109). `G3-TR-ROSTER` re-pointed at the combined sheet (`0101` rows, still reads curriculum
+  + faculty columns); new `G3-EN-FACULTY-ROSTER` (`0102` rows, faculty column only). The ADR-159 audit
+  covers the English profiles that pre-date the group with no code change (ADR-160). *Python parser tests
+  pass; .NET not compiled here — build + run Infrastructure tests before merge.*
 - [x] The Grade 3 annual microbiology/pathology afternoon deferred to that dedicated source:
   `grade3_yearly_v1` 1.5.0 declares `patoloji mikrobiyoloji`/`pathology microbiology` a group rotation,
   so the whole-class placeholder is no longer published beside the group-scoped events (ADR-146)

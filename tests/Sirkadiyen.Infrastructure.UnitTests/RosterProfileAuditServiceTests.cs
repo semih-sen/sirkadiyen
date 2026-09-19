@@ -67,6 +67,43 @@ public sealed class RosterProfileAuditServiceTests
     }
 
     [Fact]
+    public async Task PlanFillsInTheFacultyGroupGradeThreeEnglishStudentsOnboardedWithoutAsync()
+    {
+        // Grade 3 English gained its faculty-practice group from the combined list after some
+        // students had already onboarded on the microbiology/pathology group alone (ADR-160). For
+        // such a student the faculty-practice selector is simply absent, and the audit fills it from
+        // the merged English lists — exactly the "did the old users get it right" repair, applied to
+        // a program that could not have stated it before. There is no curriculum group to fill:
+        // Grade 3 English has none (ADR-098).
+        RosterProfileAuditService service = Service(
+            profiles:
+            [
+                EnglishProfile(NoGroupYet, "0102240001", ("microPathologyGroup", "B1")),
+            ],
+            readings:
+            [
+                Grade3EnglishFacultyReading(
+                    Entry("0102240001", ("facultyPracticeGroup", "A2"))),
+                Grade3EnglishMicroPathoReading(
+                    Entry("0102240001", ("microPathologyGroup", "B1"))),
+            ]);
+
+        RosterProfileAuditPlan plan = await service.PlanAsync(
+            new RosterProfileAuditScope { ClassYear = 3, ProgramLanguage = ProgramLanguage.English },
+            CancellationToken.None);
+
+        Assert.Equal("2026-2027", plan.AcademicYear);
+        Assert.Equal(1, plan.ProfilesExamined);
+        Assert.Equal(0, plan.ProfilesInAgreement);
+
+        RosterProfileUserPlan user = Assert.Single(plan.Users);
+        RosterProfileCorrection correction = Assert.Single(user.Corrections);
+        Assert.Equal("facultyPracticeGroup", correction.Dimension);
+        Assert.Null(correction.StoredValue);
+        Assert.Equal("A2", correction.RosterValue);
+    }
+
+    [Fact]
     public async Task ARosterThatCouldNotBeReadDrivesNoCorrectionAndIsReportedAsync()
     {
         // A stale list confirms nothing. The student's stored value is left exactly as it is, and
@@ -249,6 +286,27 @@ public sealed class RosterProfileAuditServiceTests
             UpdatedAtUtc = DateTimeOffset.UnixEpoch,
         };
 
+    private static StudentProfileView EnglishProfile(
+        Guid userId,
+        string studentNumber,
+        params (string Key, string Value)[] selectors) => new()
+        {
+            UserId = userId,
+            AcademicYear = "2026-2027",
+            ClassYear = 3,
+            ProgramLanguage = ProgramLanguage.English,
+            StudentNumber = studentNumber,
+
+            // Deliberately still on 1.5: this profile was written before the two group dimensions
+            // existed, which is what makes it a profile the audit has something to fill in.
+            SelectorSchemaVersion = "1.5",
+            Selectors = selectors.ToDictionary(
+                selector => selector.Key,
+                selector => selector.Value,
+                StringComparer.Ordinal),
+            UpdatedAtUtc = DateTimeOffset.UnixEpoch,
+        };
+
     private static StudentRosterReading Grade3TurkishReading(params StudentRosterEntry[] entries) =>
         new()
         {
@@ -256,6 +314,28 @@ public sealed class RosterProfileAuditServiceTests
             AcademicYear = CurrentSupportedProfileSchema.AcademicYear,
             ClassYear = 3,
             ProgramLanguage = ProgramLanguage.Turkish,
+            Entries = entries,
+        };
+
+    private static StudentRosterReading Grade3EnglishFacultyReading(
+        params StudentRosterEntry[] entries) =>
+        new()
+        {
+            RosterId = "G3-EN-FACULTY-ROSTER",
+            AcademicYear = CurrentSupportedProfileSchema.AcademicYear,
+            ClassYear = 3,
+            ProgramLanguage = ProgramLanguage.English,
+            Entries = entries,
+        };
+
+    private static StudentRosterReading Grade3EnglishMicroPathoReading(
+        params StudentRosterEntry[] entries) =>
+        new()
+        {
+            RosterId = "G3-EN-MICROPATHO-ROSTER",
+            AcademicYear = CurrentSupportedProfileSchema.AcademicYear,
+            ClassYear = 3,
+            ProgramLanguage = ProgramLanguage.English,
             Entries = entries,
         };
 

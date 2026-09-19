@@ -20,7 +20,10 @@ import type {
  * themselves, and some chose wrong. Now that the column exists, the authoritative value can be
  * compared with what each student entered and the disagreements put right — through the student's
  * own write path, so the calendar converges on the corrected audience exactly as it would after the
- * student's own edit.
+ * student's own edit. The control is scope-driven (any class year and program), so the same
+ * mechanism covers Grade 3 English, which gained its faculty-practice group (a1-a4; it has no A/B
+ * curriculum group) from the combined list after some students had already onboarded without it
+ * (ADR-159/ADR-160): for those students the stored value is simply absent and the audit fills it in.
  *
  * Two-step for the same reason a rollover is: the preview is the backend's plan, and the `planHash`
  * travelling back with the confirmation stops an approved preview from authorizing a correction of
@@ -94,12 +97,14 @@ export function RosterProfileAuditControl() {
         </div>
       </div>
       <p className="muted">
-        Onboarding sırasında listelerin söylemediği bir seçiciyi öğrenci elle girer. Dönem 3 Türkçe
-        öğretim üyesi (faculty-practice) grubunun roster'da bir sütunu yoktu; fakülte yayımlayana
-        kadar herkes grubunu kendisi seçti ve bazıları yanlış seçti. Sütun artık var, bu ekran her
-        öğrencinin girdiği değeri yayımlanan listeyle karşılaştırır ve uyuşmayanları öğrencinin
-        kendi yazma yolundan düzeltir. Tek seferlik bir onarımdır; steady state'te düzeltecek bir
-        şey bulmaz.
+        Onboarding sırasında listelerin söylemediği bir seçiciyi öğrenci elle girer; liste sonradan
+        o seçiciyi belirtmeye başlayınca kayıtlı profillerle karşılaştırılabilir. Dönem 3 Türkçe
+        öğretim üyesi (faculty-practice) grubunun roster'da bir sütunu yoktu, herkes kendi seçti ve
+        bazıları yanlış seçti. Dönem 3 İngilizce ise (müfredat A/B grubu yok) öğretim üyesi uygulama
+        grubunu (a1–a4) artık birleşik listeden alıyor; bu seçici gelmeden önce kaydolan İngilizce
+        öğrencilerde bu alan hiç yok. Bu ekran her öğrencinin girdiği değeri yayımlanan listeyle
+        karşılaştırır ve uyuşmayan ya da eksik olanları öğrencinin kendi yazma yolundan düzeltir.
+        Tek seferlik bir onarımdır; steady state'te düzeltecek bir şey bulmaz.
       </p>
 
       <div className="grid grid-2" style={{ marginTop: 18 }}>

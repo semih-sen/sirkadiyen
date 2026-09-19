@@ -140,8 +140,9 @@ public sealed class StudentProfileValidatorTests
     }
 
     /// <summary>
-    /// The Grade 3 English program now onboards on its microbiology/pathology group,
-    /// the only cohort it declares (ADR-145 supersedes ADR-098).
+    /// Grade 3 English declares its faculty-practice cohort (A1-A4, independent) and its
+    /// microbiology/pathology group, and — unlike Turkish — no curriculum group
+    /// (ADR-160; ADR-098 stands on the A/B point).
     /// </summary>
     [Fact]
     public void AConfirmedGradeThreeEnglishCohortIsValid()
@@ -150,6 +151,7 @@ public sealed class StudentProfileValidatorTests
             3,
             ProgramLanguage.English,
             "0102240048",
+            ("facultyPracticeGroup", "A2"),
             ("microPathologyGroup", "B1"));
 
         Assert.True(result.IsValid);
@@ -157,8 +159,48 @@ public sealed class StudentProfileValidatorTests
     }
 
     /// <summary>
-    /// The one dimension Grade 3 English declares is required, so a profile that
-    /// omits it is reported rather than accepted as program-wide (ADR-145).
+    /// A curriculum group is not a dimension Grade 3 English declares (ADR-098), so a
+    /// profile that carries one is reported rather than quietly accepted (ADR-160).
+    /// </summary>
+    [Fact]
+    public void AGradeThreeEnglishProfileWithACurriculumGroupIsRejected()
+    {
+        StudentProfileValidationResult result = ValidateWith(
+            3,
+            ProgramLanguage.English,
+            "0102240048",
+            ("curriculumGroup", "3-A"),
+            ("facultyPracticeGroup", "A2"),
+            ("microPathologyGroup", "B1"));
+
+        StudentProfileValidationError error = Assert.Single(result.Errors);
+        Assert.Equal(StudentProfileValidationErrorCode.UnknownSelector, error.Code);
+        Assert.Equal("curriculumGroup", error.Key);
+    }
+
+    /// <summary>
+    /// The English faculty-practice cohort is capped at A1-A4 — the cohorts the faculty
+    /// placed the English students in — so a value the A document holds but no English
+    /// student is in (A5-A8) is rejected (ADR-160).
+    /// </summary>
+    [Fact]
+    public void AGradeThreeEnglishFacultyGroupOutsideItsFourCohortsIsRejected()
+    {
+        StudentProfileValidationResult result = ValidateWith(
+            3,
+            ProgramLanguage.English,
+            "0102240048",
+            ("facultyPracticeGroup", "A5"),
+            ("microPathologyGroup", "B1"));
+
+        StudentProfileValidationError error = Assert.Single(result.Errors);
+        Assert.Equal(StudentProfileValidationErrorCode.UnsupportedValue, error.Code);
+        Assert.Equal("facultyPracticeGroup", error.Key);
+    }
+
+    /// <summary>
+    /// Every Grade 3 English dimension is required, so a profile omitting one is
+    /// reported rather than accepted as program-wide (ADR-160).
     /// </summary>
     [Fact]
     public void AGradeThreeEnglishProfileWithoutItsGroupIsRejected()
@@ -166,7 +208,8 @@ public sealed class StudentProfileValidatorTests
         StudentProfileValidationResult result = ValidateWith(
             3,
             ProgramLanguage.English,
-            "0102240048");
+            "0102240048",
+            ("facultyPracticeGroup", "A2"));
 
         StudentProfileValidationError error = Assert.Single(result.Errors);
         Assert.Equal(StudentProfileValidationErrorCode.MissingRequiredSelector, error.Code);

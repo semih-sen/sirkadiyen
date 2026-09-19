@@ -10004,3 +10004,96 @@ corrects the profiles entered before it existed — through the student's own wr
   and unlike a year drift, a roster-vs-profile disagreement can be the roster's fault (a stale or
   mis-read list), which is exactly why the plan reports unreadable lists and unresolved students
   rather than acting on them.
+
+## ADR-160: The Grade 3 student list became one combined document, and Grade 3 English gained a faculty-practice group — but no curriculum group
+
+**Status:** Accepted and implemented
+**Date:** 2026-09-19
+**Implements:** re-pointing `G3-TR-ROSTER` at the combined sheet
+`1qL-nbVICZHUK6mKP1xSuYIZiUOD3V_YeKUxNNxYsn-g` (gid 1403495155) with `studentNumberProgramPrefix`
+`0101`; the new `G3-EN-FACULTY-ROSTER` (the same sheet, prefix `0102`, faculty-practice column only)
+in `config/student-rosters.json`; the `G3-EN-A-FACULTY` schedule source in
+`config/schedule-sources.json`; the faculty-practice parser omitting `curriculumGroup` for an English
+source in `faculty_practice.py`; an independent `facultyPracticeGroup` on `Grade3English()` in
+`CurrentSupportedProfileSchema` and the schema bump to 1.6
+**Relates to:** ADR-098 (**stands** on its own point — Grade 3 English has no A/B curriculum group;
+this only adds the faculty-practice cohort), ADR-145 (the shared-document, one-entry-per-program
+pattern, extended from the microbiology/pathology list to the faculty-practice calendar and the
+combined student list), ADR-048 (a selector may be declared only where a confirmed schedule source
+publishes it), ADR-109 (the resolver withholds a lesson whose every stated dimension the profile does
+not also declare), ADR-130 (the lowercase group label is mapped value by value, never case-folded),
+ADR-159 (the roster-profile audit that now fills the group in for pre-existing English profiles),
+ADR-085 (the list suggests, never decides)
+
+### Context
+
+Two things changed for 2026-2027. First, the faculty replaced the separate Turkish-only and English
+Grade 3 student lists with one combined document, "D3 Öğrenci Listesi" — 338 Turkish (`0101…`) and 99
+English (`0102…`) students in one sheet, with a curriculum group in column D (`A grubu` / `B grubu`)
+and a faculty-practice cohort in column E (`a1`…`b8`). Second, that document places the English Grade
+3 students into the faculty-practice cohorts — they fall in `a1`-`a4`.
+
+The curriculum group, though, is a Turkish-only concept and stays that way: **Grade 3 English has no
+A/B division.** The whole English class year sits its theoretical lessons together (its annual states
+no cohort, ADR-098), and its only division is the a1-a4 faculty-practice cohort. The sheet is laid
+out by the Turkish curriculum group, and the English rows happen to fall in its A section, but that
+is the document's shape, not the English program's.
+
+The catch is ADR-048: the schema may declare a selector only where a confirmed schedule source
+publishes it. Grade 3 English had no faculty-practice schedule source. And a second catch is ADR-109:
+`CalendarAudienceResolver` withholds a lesson unless the profile declares every dimension the record
+states. The A-group faculty document tags each record with `curriculumGroup=3-A` **and** the cohort,
+so an English student who carries only a faculty-practice cohort — and no curriculum group — would
+match none of them. Both had to be solved for the faculty-practice group to mean anything for English.
+
+### Decision
+
+**Give Grade 3 English an independent faculty-practice group (a1-a4) and nothing else new, and make
+the English faculty source publish records addressed by the cohort alone so a curriculum-group-less
+profile matches.**
+
+- **The combined student list is the ADR-145 shared-document pattern, read per program.** `G3-TR-ROSTER`
+  now reads the combined sheet claiming only the `0101` rows via `studentNumberProgramPrefix`,
+  replacing the Turkish-only sheet it used to point at; it still reads both column D (`curriculumGroup`,
+  now lower-cased `A grubu`/`B grubu`, ADR-130) and column E (`facultyPracticeGroup`). The new
+  `G3-EN-FACULTY-ROSTER` reads the same sheet claiming the `0102` rows but reads **only column E**
+  (`a1`-`a4`) — never column D, because English has no curriculum group. It merges with the
+  identity-only `G3-EN-ROSTER` and the microbiology/pathology list; the three English lists state
+  disjoint dimensions, so the lookup unions them (ADR-145).
+- **`facultyPracticeGroup` is independent for English, dependent for Turkish.** Turkish keeps the
+  ADR-099 shape (A1-A8 under 3-A, B1-B8 under 3-B). English declares `facultyPracticeGroup` as a flat
+  set `A1`-`A4` — the four cohorts the faculty placed its students in — with no parent, because there
+  is no curriculum group to gate it. The schema is per-program, so one dimension key legitimately has
+  two shapes. Version 1.6.
+- **The English faculty source publishes records with no curriculum-group selector.** `G3-EN-A-FACULTY`
+  catalogues the same A-group document as `G3-TR-A-FACULTY` with `programLanguage: english`. The
+  parser (`grade3_faculty_practice_v1`) stamps the program from the source, and now omits the
+  `curriculumGroup` selector when the source is English (Turkish records keep it, unchanged). So an
+  English record is addressed by the faculty cohort alone, and an English profile carrying only
+  `facultyPracticeGroup=A2` matches it (ADR-109). Only the A document is catalogued for English — the
+  English students are all in its cohorts — and it publishes a5-a8 English records too, which reach
+  nobody (harmless, like a micropatho record a program does not use). ADR-048 is satisfied: the source
+  declares `facultyPracticeGroup` A1-A8 as supported, covering the schema's A1-A4.
+- **The ADR-159 audit needs no code change to cover it.** It is scope-driven over any program the
+  schema declares. An English student who onboarded on the microbiology/pathology group alone is now
+  missing `facultyPracticeGroup` (their profile pre-dates the dimension, stamped 1.5); running the
+  "Öğretim üyesi grubu denetimi" control for Grade 3 English fills it in from the merged lists through
+  the student's own write path. There is no curriculum group to fill.
+
+### Consequences
+
+- A single document now defines both programs' Grade 3 cohorts, so the two lists cannot drift apart,
+  and Grade 3 English onboards into its faculty-practice group as well as its microbiology/pathology
+  one. New English students are suggested both; existing ones are brought into agreement in one
+  audited pass (ADR-159).
+- ADR-098 is **not** superseded: Grade 3 English still has no A/B curriculum group, and declaring one
+  would have been wrong. The only thing that changed is that the program gained a faculty-practice
+  cohort it did not have before.
+- The parser now branches on program language for the curriculum-group selector — a small,
+  domain-true branch (only Turkish Grade 3 has an A/B division), covered by a parser unit test that
+  asserts an English source states no curriculum group while the Turkish goldens are unchanged.
+- **Not addressed here (deliberately):** the earlier Turkish-only sheet and the separate G3-EN
+  identity sheet are left catalogued where they still serve; only `G3-TR-ROSTER`'s source moved. And
+  faculty-practice location enrichment is still unwired for every program (the locations join is not
+  attempted, per the source manifest), so the English faculty sessions publish without a room exactly
+  as the Turkish ones do — a later, separate change if it is wanted.

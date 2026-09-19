@@ -12,7 +12,7 @@ namespace Sirkadiyen.Infrastructure.UnitTests;
 public sealed class StudentRosterCatalogTests
 {
     [Fact]
-    public async Task TheCommittedCatalogDescribesTheSixPublishedListsAsync()
+    public async Task TheCommittedCatalogDescribesTheSevenPublishedListsAsync()
     {
         StudentRosterCatalog catalog = await LoadAsync();
 
@@ -21,6 +21,7 @@ public sealed class StudentRosterCatalogTests
             [
                 "G2-EN-ROSTER",
                 "G2-TR-ROSTER",
+                "G3-EN-FACULTY-ROSTER",
                 "G3-EN-MICROPATHO-ROSTER",
                 "G3-EN-ROSTER",
                 "G3-TR-MICROPATHO-ROSTER",
@@ -128,17 +129,22 @@ public sealed class StudentRosterCatalogTests
     [Fact]
     public async Task TheGradeThreeTurkishListMapsItsGroupWordingOntoTheSchemaAsync()
     {
+        // The combined 2026-2027 list writes the curriculum group lower-cased ('A
+        // grubu'/'B grubu'), unlike the earlier Turkish-only list's 'A GRUBU'. The
+        // mapping is declared value by value, never case-folded (ADR-130). This
+        // Turkish entry claims only the 0101 rows of the shared document (ADR-160).
         StudentRosterCatalog catalog = await LoadAsync();
         StudentRosterDefinition roster = Assert.Single(
             catalog.Rosters,
             candidate => candidate.RosterId == "G3-TR-ROSTER");
 
+        Assert.Equal("0101", roster.StudentNumberProgramPrefix);
         StudentRosterDimensionColumn group = Assert.Single(
             roster.Layout.DimensionColumns,
             column => column.Dimension == "curriculumGroup");
         Assert.Equal("Grubu", group.Header);
-        Assert.Equal("3-A", group.ValueMap["A GRUBU"]);
-        Assert.Equal("3-B", group.ValueMap["B GRUBU"]);
+        Assert.Equal("3-A", group.ValueMap["A grubu"]);
+        Assert.Equal("3-B", group.ValueMap["B grubu"]);
     }
 
     [Fact]
@@ -169,11 +175,12 @@ public sealed class StudentRosterCatalogTests
     }
 
     [Fact]
-    public async Task TheGradeThreeEnglishListDeclaresNoDimensionAtAllAsync()
+    public async Task TheGradeThreeEnglishIdentityListStillDeclaresNoDimensionAsync()
     {
-        // A statement, not an omission. That program states no A/B division, which
-        // is why it declares no selector and is absent from the supported-profile
-        // schema (ADR-098). Adding a column here would invent one.
+        // The identity-only English list states no group of its own; its header is
+        // written 'OgrenciNo'. Its groups are now stated by the sibling
+        // G3-EN-FACULTY-ROSTER and G3-EN-MICROPATHO-ROSTER, which merge with it
+        // (ADR-160), so this list stays identity-only rather than growing a column.
         StudentRosterCatalog catalog = await LoadAsync();
         StudentRosterDefinition roster = Assert.Single(
             catalog.Rosters,
@@ -181,6 +188,40 @@ public sealed class StudentRosterCatalogTests
 
         Assert.Empty(roster.Layout.DimensionColumns);
         Assert.Equal("OgrenciNo", roster.Layout.StudentNumberHeader);
+    }
+
+    [Fact]
+    public async Task TheGradeThreeEnglishFacultyListStatesOnlyItsFacultyPracticeGroupAsync()
+    {
+        // The English half of the combined Dönem-3 list: the same document as
+        // G3-TR-ROSTER, claiming only the 0102 rows. Grade 3 English has no A/B
+        // curriculum group (ADR-098), so this list deliberately reads only the
+        // faculty-practice column (E), never column D, and states cohorts A1-A4 — the
+        // four the English students are in (ADR-160).
+        StudentRosterCatalog catalog = await LoadAsync();
+        StudentRosterDefinition roster = Assert.Single(
+            catalog.Rosters,
+            candidate => candidate.RosterId == "G3-EN-FACULTY-ROSTER");
+
+        Assert.Equal(ProgramLanguage.English, roster.ProgramLanguage);
+        Assert.Equal(3, roster.ClassYear);
+        Assert.Equal("0102", roster.StudentNumberProgramPrefix);
+        Assert.Equal(1403495155, roster.SheetGid);
+
+        Assert.DoesNotContain(
+            roster.Layout.DimensionColumns,
+            column => column.Dimension == "curriculumGroup");
+
+        StudentRosterDimensionColumn faculty = Assert.Single(roster.Layout.DimensionColumns);
+        Assert.Equal("facultyPracticeGroup", faculty.Dimension);
+        Assert.Equal("E", faculty.ColumnLetter);
+        Assert.Null(faculty.Header);
+        Assert.True(faculty.StatedOncePerMergedRun);
+        Assert.Equal(
+            ["a1", "a2", "a3", "a4"],
+            faculty.ValueMap.Keys.Order(StringComparer.Ordinal));
+        Assert.Equal("A1", faculty.ValueMap["a1"]);
+        Assert.Equal("A4", faculty.ValueMap["a4"]);
     }
 
     [Fact]

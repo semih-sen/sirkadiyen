@@ -120,9 +120,13 @@ runtime into memory, refreshed hourly, and never persisted. A roster is not a
 schedule source: nothing parses it into canonical records, no snapshot is stored,
 and no revision is cut from it.
 
-A list existing does not open a program. The Grade 2 English and Grade 3 English
-lists are catalogued and suggest nothing, because those programs are absent from
-the supported-profile schema (ADR-084, ADR-098).
+A list existing does not open a program. The Grade 2 English list is catalogued
+and suggests nothing, because that program is absent from the supported-profile
+schema (ADR-084). Grade 3 English, by contrast, does onboard: it first opened on
+its microbiology/pathology group (ADR-145) and now states its faculty-practice
+group (a1-a4) too, from the combined Grade 3 list (ADR-160). It still has no A/B
+curriculum group — the whole English class sits its theory together (ADR-098) —
+so unlike Grade 3 Turkish it declares no curriculum group.
 
 Reading a list uses the same `SIRKADIYEN_GOOGLE` source credential the worker
 uses, which `common.env` already supplies to both hosts. Without it every list
