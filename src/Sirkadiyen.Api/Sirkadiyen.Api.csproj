@@ -5,6 +5,15 @@
     <ProjectReference Include="../Sirkadiyen.Infrastructure/Sirkadiyen.Infrastructure.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <!--
+      The endpoint helpers that parse and shape query input are internal: they are
+      implementation detail of the routes, not API surface. They still carry rules worth
+      pinning down on their own, such as refusing a malformed selector pair rather than
+      silently widening the query it describes.
+    -->
+    <InternalsVisibleTo Include="Sirkadiyen.Api.UnitTests" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
     <!--
       Pinned above the 2.0.0 that Microsoft.AspNetCore.OpenApi 10.0.10 pulls in.

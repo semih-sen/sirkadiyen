@@ -21,10 +21,17 @@ public static class CalendarAudienceResolver
     /// yields no event; the program dimensions must match; and a cohort-scoped lesson must
     /// name, in every audience dimension it states, a group the student belongs to (ADR-109).
     /// </summary>
-    public static bool Applies(CanonicalScheduleRecord record, StudentProfileView profile)
+    public static bool Applies(CanonicalScheduleRecord record, StudentProfileView profile) =>
+        Applies(record, CalendarAudience.From(profile));
+
+    /// <summary>
+    /// The same rule, asked of an audience that no stored profile has to exist for. This is the
+    /// body; the profile overload delegates here, so both callers are answered by one authority.
+    /// </summary>
+    public static bool Applies(CanonicalScheduleRecord record, CalendarAudience audience)
     {
         ArgumentNullException.ThrowIfNull(record);
-        ArgumentNullException.ThrowIfNull(profile);
+        ArgumentNullException.ThrowIfNull(audience);
 
         // A cancelled record represents a lesson that is not happening, so it never becomes an
         // event during initial sync. (Turning a live lesson into a cancelled one is a delete,
@@ -37,9 +44,9 @@ public static class CalendarAudienceResolver
         // The program dimensions gate everything before any cohort question is asked. The read
         // store already filters on these, but this rule is the single authority for "does this
         // belong to this student", so it re-checks rather than trusting the caller.
-        if (record.ClassYear != profile.ClassYear
-            || record.ProgramLanguage != profile.ProgramLanguage
-            || !string.Equals(record.AcademicYear, profile.AcademicYear, StringComparison.Ordinal))
+        if (record.ClassYear != audience.ClassYear
+            || record.ProgramLanguage != audience.ProgramLanguage
+            || !string.Equals(record.AcademicYear, audience.AcademicYear, StringComparison.Ordinal))
         {
             return false;
         }
@@ -48,7 +55,7 @@ public static class CalendarAudienceResolver
         {
             AudienceScope.AllStudentsInProgram => true,
             AudienceScope.SelectedGroups =>
-                TargetsProfile(record.AudienceSelectors, profile.Selectors),
+                TargetsProfile(record.AudienceSelectors, audience.Selectors),
             _ => false,
         };
     }

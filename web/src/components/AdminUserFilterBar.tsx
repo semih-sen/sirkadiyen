@@ -10,14 +10,9 @@ import type {
   SupportedProfileOptions,
   SupportedProfileProgram,
 } from '@/lib/types';
+import { dimensionLabel } from '@/lib/selectors';
 
-/** Turkish labels for the selector keys, which the backend names in English (ADR-079). */
-const SELECTOR_LABELS: Record<string, string> = {
-  practiceGroup: 'Uygulama grubu',
-  practiceSubgroup: 'Uygulama alt grubu',
-  anatomyGroup: 'Anatomi grubu',
-  curriculumGroup: 'Müfredat grubu',
-};
+
 
 export const SORT_LABELS: Record<AdminUserSort, string> = {
   CreatedAtUtc: 'Kayıt tarihi',
@@ -197,7 +192,7 @@ export function AdminUserFilterBar({
               {program.dimensions.map((dimension) => (
                 <Choice
                   key={dimension.key}
-                  label={SELECTOR_LABELS[dimension.key] ?? dimension.key}
+                  label={dimensionLabel(dimension.key)}
                   value={filters.selectors?.[dimension.key] ?? ''}
                   onChange={(value) => onChange({
                     selectors: withSelector(filters.selectors, dimension.key, value),

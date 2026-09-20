@@ -258,4 +258,54 @@ public sealed class CalendarAudienceResolverTests
 
         Assert.False(CalendarAudienceResolver.Applies(record, profile));
     }
+
+    [Theory]
+    [InlineData("A1", true)]
+    [InlineData("B2", false)]
+    public void TheAudienceOverloadAgreesWithTheProfileOverload(string declared, bool expected)
+    {
+        // The two entry points must stay one rule. A simulation that resolved a cohort
+        // differently from the synchronization it is meant to explain would be worse than no
+        // simulation at all.
+        StudentProfileView profile = CalendarTestData.Profile(
+            classYear: 3,
+            programLanguage: ProgramLanguage.Turkish,
+            academicYear: "2026-2027",
+            selectors: new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["microPathologyGroup"] = declared,
+            });
+        CanonicalScheduleRecord record = CalendarTestData.Record(
+            classYear: 3,
+            programLanguage: ProgramLanguage.Turkish,
+            academicYear: "2026-2027",
+            scope: AudienceScope.SelectedGroups,
+            selectors: [("microPathologyGroup", "A1")]);
+
+        bool viaProfile = CalendarAudienceResolver.Applies(record, profile);
+        bool viaAudience = CalendarAudienceResolver.Applies(
+            record,
+            CalendarAudience.From(profile));
+
+        Assert.Equal(expected, viaProfile);
+        Assert.Equal(viaProfile, viaAudience);
+    }
+
+    [Fact]
+    public void AnAudienceCarriesOnlyWhatTheRuleReads()
+    {
+        StudentProfileView profile = CalendarTestData.Profile(
+            classYear: 2,
+            selectors: new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["anatomyGroup"] = "2",
+            });
+
+        CalendarAudience audience = CalendarAudience.From(profile);
+
+        Assert.Equal(profile.AcademicYear, audience.AcademicYear);
+        Assert.Equal(profile.ClassYear, audience.ClassYear);
+        Assert.Equal(profile.ProgramLanguage, audience.ProgramLanguage);
+        Assert.Equal(profile.Selectors, audience.Selectors);
+    }
 }

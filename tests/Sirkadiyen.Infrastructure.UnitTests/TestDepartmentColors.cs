@@ -4,16 +4,22 @@ namespace Sirkadiyen.Infrastructure.UnitTests;
 
 internal static class TestDepartmentColors
 {
-    public static DepartmentColorService Create() =>
-        new(new EmptyStore(), TimeProvider.System);
+    /// <summary>
+    /// A colour service with no stored colours, so every key resolves to its catalog default.
+    /// Pass <paramref name="adminDefaults"/> to stand in for colours an operator has set.
+    /// </summary>
+    public static DepartmentColorService Create(
+        IReadOnlyDictionary<string, string>? adminDefaults = null) =>
+        new(new EmptyStore(adminDefaults), TimeProvider.System);
 
-    private sealed class EmptyStore : IDepartmentColorStore
+    private sealed class EmptyStore(IReadOnlyDictionary<string, string>? adminDefaults)
+        : IDepartmentColorStore
     {
         private static readonly IReadOnlyDictionary<string, string> Empty =
             new Dictionary<string, string>();
 
         public Task<IReadOnlyDictionary<string, string>> GetAdminDefaultsAsync(
-            CancellationToken cancellationToken) => Task.FromResult(Empty);
+            CancellationToken cancellationToken) => Task.FromResult(adminDefaults ?? Empty);
 
         public Task<IReadOnlyDictionary<string, string>> GetUserOverridesAsync(
             Guid userId,

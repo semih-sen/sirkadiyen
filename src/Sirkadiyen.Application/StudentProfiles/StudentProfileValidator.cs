@@ -34,20 +34,63 @@ public static class StudentProfileValidator
         // errors surface even when the class year has no supported profile.
         ValidateStudentNumber(submitted, errors);
 
-        SupportedProfileProgram? program = schema.FindProgram(
+        CollectSelectorErrors(
+            schema,
             submitted.ClassYear,
-            submitted.ProgramLanguage);
+            submitted.ProgramLanguage,
+            submitted.Selectors,
+            errors);
+
+        return errors.Count == 0
+            ? StudentProfileValidationResult.Success()
+            : StudentProfileValidationResult.Failure(errors);
+    }
+
+    /// <summary>
+    /// The cohort half of the rule on its own: the program must exist, every stated selector
+    /// must be one it defines, and every dimension it requires must be stated with a supported
+    /// value.
+    /// </summary>
+    /// <remarks>
+    /// A caller that resolves an audience without a stored profile — the cohort schedule
+    /// simulation — has no student number to offer, and <see cref="Validate"/> would reject it
+    /// for the absence of one. Splitting the two keeps that caller on the same selector rules a
+    /// real profile is held to, rather than a second, drifting copy of them.
+    /// </remarks>
+    public static StudentProfileValidationResult ValidateSelectors(
+        SupportedProfileSchema schema,
+        int classYear,
+        ProgramLanguage programLanguage,
+        IReadOnlyDictionary<string, string> selectors)
+    {
+        ArgumentNullException.ThrowIfNull(schema);
+        ArgumentNullException.ThrowIfNull(selectors);
+
+        List<StudentProfileValidationError> errors = [];
+        CollectSelectorErrors(schema, classYear, programLanguage, selectors, errors);
+
+        return errors.Count == 0
+            ? StudentProfileValidationResult.Success()
+            : StudentProfileValidationResult.Failure(errors);
+    }
+
+    private static void CollectSelectorErrors(
+        SupportedProfileSchema schema,
+        int classYear,
+        ProgramLanguage programLanguage,
+        IReadOnlyDictionary<string, string> selectors,
+        List<StudentProfileValidationError> errors)
+    {
+        SupportedProfileProgram? program = schema.FindProgram(classYear, programLanguage);
         if (program is null)
         {
             errors.Add(new StudentProfileValidationError(
                 StudentProfileValidationErrorCode.UnsupportedProgram,
                 Key: null,
-                $"No supported profile exists for class year {submitted.ClassYear} in the "
-                + $"{submitted.ProgramLanguage} program for {schema.AcademicYear}."));
-            return StudentProfileValidationResult.Failure(errors);
+                $"No supported profile exists for class year {classYear} in the "
+                + $"{programLanguage} program for {schema.AcademicYear}."));
+            return;
         }
-
-        IReadOnlyDictionary<string, string> selectors = submitted.Selectors;
 
         // A key the program does not define cannot be validated and must not be
         // silently stored, so it is reported rather than dropped.
@@ -66,10 +109,6 @@ public static class StudentProfileValidator
         {
             ValidateDimension(program, dimension, selectors, errors);
         }
-
-        return errors.Count == 0
-            ? StudentProfileValidationResult.Success()
-            : StudentProfileValidationResult.Failure(errors);
     }
 
     private static void ValidateDimension(

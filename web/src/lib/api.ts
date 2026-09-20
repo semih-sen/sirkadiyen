@@ -132,6 +132,8 @@ import type {
   CancelAnnouncementResult,
   CreateAnnouncementResult,
   UpdateAnnouncementResult,
+  CohortSimulationWeek,
+  ProgramLanguage,
 } from './types';
 
 export class ApiError extends Error {
@@ -206,6 +208,12 @@ interface RequestOptions {
   body?: unknown;
   /** Treat 204/205 as a valid empty result rather than a parse target. */
   allowEmpty?: boolean;
+  /**
+   * Abandons the request. A screen that refetches as the operator pages through something needs
+   * this: without it a slow earlier response can land after a faster later one and render a view
+   * the operator has already navigated away from.
+   */
+  signal?: AbortSignal;
 }
 
 type QueryValue = string | number | boolean | null | undefined;
@@ -217,6 +225,22 @@ function withQuery(path: string, values: Record<string, QueryValue>): string {
   });
   const suffix = query.toString();
   return suffix ? `${path}?${suffix}` : path;
+}
+
+/**
+ * Appends a cohort as repeated `selector=key:value` parameters.
+ *
+ * A nested object has no single conventional query encoding, and the backend refuses a malformed
+ * pair rather than silently widening the question it was asked, so the two endpoints that state a
+ * cohort in a URL build it the one way.
+ */
+function withSelectors(path: string, selectors?: Record<string, string> | null): string {
+  const pairs = Object.entries(selectors ?? {}).filter(([key, value]) => key && value);
+  if (pairs.length === 0) return path;
+
+  const query = new URLSearchParams();
+  pairs.forEach(([key, value]) => query.append('selector', `${key}:${value}`));
+  return `${path}${path.includes('?') ? '&' : '?'}${query.toString()}`;
 }
 
 /**
@@ -242,6 +266,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
       method,
       credentials: 'include',
       headers,
+      signal: options.signal,
       body:
         options.body === undefined
           ? undefined
@@ -767,13 +792,7 @@ export function listAdminUsers(
   filters: AdminUserFilters = {},
 ): Promise<PagedResult<AdminUserListItem>> {
   const { selectors, ...rest } = filters;
-  const path = withQuery('/api/admin/users/', { ...rest });
-  const pairs = Object.entries(selectors ?? {}).filter(([key, value]) => key && value);
-  if (pairs.length === 0) return request(path);
-
-  const query = new URLSearchParams();
-  pairs.forEach(([key, value]) => query.append('selector', `${key}:${value}`));
-  return request(`${path}${path.includes('?') ? '&' : '?'}${query.toString()}`);
+  return request(withSelectors(withQuery('/api/admin/users/', { ...rest }), selectors));
 }
 
 export function getAdminUser(userId: string): Promise<AdminUserDetailResponse> {
@@ -1495,4 +1514,26 @@ export function cancelAnnouncement(
   return request(`${ANNOUNCEMENT_PATH}/${encodeURIComponent(announcementId)}/cancel`, {
     method: 'POST', body: { reason },
   });
+}
+
+/**
+ * One week of the live published schedule, resolved as a stated cohort would receive it.
+ *
+ * A read with no side effects: it writes nothing, queues nothing, and needs no real student. The
+ * academic year is the program's own and is not sent — a year that disagrees with the records
+ * resolves to an empty week that looks like missing data (ADR-103).
+ */
+export function simulateCohortWeek(
+  values: {
+    classYear: number;
+    programLanguage: ProgramLanguage;
+    selectors?: Record<string, string>;
+    /** Any local date inside the wanted week; the server snaps it to Monday. */
+    date?: string;
+  },
+  init?: { signal?: AbortSignal },
+): Promise<CohortSimulationWeek> {
+  const { selectors, ...rest } = values;
+  const path = withQuery('/api/admin/schedule-simulation/week', { ...rest });
+  return request(withSelectors(path, selectors), { signal: init?.signal });
 }

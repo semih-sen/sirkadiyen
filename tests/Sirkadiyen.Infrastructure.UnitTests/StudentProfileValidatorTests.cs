@@ -425,6 +425,79 @@ public sealed class StudentProfileValidatorTests
                     StringComparer.Ordinal),
             });
 
+    [Fact]
+    public void SelectorsAloneValidateWithoutAStudentNumber()
+    {
+        // The cohort schedule simulation states a cohort but has no student, so it must be able
+        // to reach the selector rules without a number the validator would reject it for.
+        StudentProfileValidationResult result = StudentProfileValidator.ValidateSelectors(
+            Schema,
+            1,
+            ProgramLanguage.Turkish,
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["practiceGroup"] = "A",
+                ["practiceSubgroup"] = "A1",
+            });
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void SelectorsAloneStillRefuseAnUnknownKey()
+    {
+        StudentProfileValidationResult result = StudentProfileValidator.ValidateSelectors(
+            Schema,
+            1,
+            ProgramLanguage.Turkish,
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["practiceGroup"] = "A",
+                ["practiceSubgroup"] = "A1",
+                ["anatomyGroup"] = "1",
+            });
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Errors,
+            error => error.Code == StudentProfileValidationErrorCode.UnknownSelector
+                && error.Key == "anatomyGroup");
+    }
+
+    [Fact]
+    public void SelectorsAloneStillRequireEveryRequiredDimension()
+    {
+        StudentProfileValidationResult result = StudentProfileValidator.ValidateSelectors(
+            Schema,
+            1,
+            ProgramLanguage.Turkish,
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["practiceGroup"] = "A",
+            });
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Errors,
+            error => error.Code == StudentProfileValidationErrorCode.MissingRequiredSelector
+                && error.Key == "practiceSubgroup");
+    }
+
+    [Fact]
+    public void SelectorsAloneStillRefuseAnUnsupportedProgram()
+    {
+        StudentProfileValidationResult result = StudentProfileValidator.ValidateSelectors(
+            Schema,
+            6,
+            ProgramLanguage.Turkish,
+            new Dictionary<string, string>(StringComparer.Ordinal));
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Errors,
+            error => error.Code == StudentProfileValidationErrorCode.UnsupportedProgram);
+    }
+
     /// <summary>A well-formed student number whose program code matches the language.</summary>
     private static string DefaultStudentNumber(ProgramLanguage programLanguage) =>
         programLanguage == ProgramLanguage.English ? "0102240048" : "0101240048";

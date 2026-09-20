@@ -2802,3 +2802,214 @@ body.has-drawer {
     transform: none;
   }
 }
+
+/* --- Program simülasyonu: hafta ızgarası ---------------------------------- */
+
+.week-grid {
+  --week-hour-height: 56px;
+  --week-gutter: 58px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--canvas);
+}
+
+.week-grid__head,
+.week-grid__allday,
+.week-grid__body {
+  display: grid;
+  grid-template-columns: var(--week-gutter) repeat(7, minmax(0, 1fr));
+}
+
+.week-grid__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--surface-soft);
+  border-bottom: 1px solid var(--border);
+}
+
+.week-grid__day-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 4px;
+  border-left: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.week-grid__day-name {
+  color: var(--ink-50);
+}
+
+.week-grid__day-date {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--fg-ink);
+}
+
+.week-grid__day-head[data-today="true"] .week-grid__day-date {
+  color: var(--canvas);
+  background: var(--fg);
+  border-radius: 999px;
+  min-width: 26px;
+  text-align: center;
+}
+
+.week-grid__allday {
+  border-bottom: 1px solid var(--border);
+  min-height: 34px;
+  background: var(--canvas);
+}
+
+.week-grid__gutter-label,
+.week-grid__hour {
+  font-size: 11px;
+  color: var(--ink-50);
+  text-align: right;
+  padding-right: 6px;
+}
+
+.week-grid__gutter-label {
+  padding-top: 8px;
+}
+
+.week-grid__allday-cell {
+  border-left: 1px solid var(--border);
+  padding: 3px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.week-grid__scroll {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.week-grid__gutter {
+  position: relative;
+}
+
+/*
+  The label sits at the top of its own hour block, which is exactly where the background
+  gradient draws that hour's line. Nudging it up instead would clip the first one against the
+  top of the scroll box.
+*/
+.week-grid__hour {
+  height: var(--week-hour-height);
+  line-height: 1;
+}
+
+/*
+  Hour lines are a repeating background rather than a row of empty elements: the grid draws the
+  same thing with none of the DOM.
+*/
+.week-grid__day {
+  position: relative;
+  border-left: 1px solid var(--border);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--border) 0,
+    var(--border) 1px,
+    transparent 1px,
+    transparent var(--week-hour-height)
+  );
+}
+
+.week-grid__day[data-weekend="true"],
+.week-grid__allday-cell[data-weekend="true"] {
+  background-color: color-mix(in oklab, var(--surface) 38%, transparent);
+}
+
+.week-grid__day[data-today="true"] {
+  background-color: color-mix(in oklab, var(--accent) 7%, transparent);
+}
+
+.week-event {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border: 0;
+  border-radius: 6px;
+  padding: 3px 5px;
+  font: inherit;
+  font-size: 11.5px;
+  line-height: 1.25;
+  overflow: hidden;
+  text-align: left;
+  cursor: pointer;
+}
+
+.week-event--allday {
+  position: static;
+  width: auto;
+}
+
+.week-event:focus-visible,
+.week-event[data-selected="true"] {
+  outline: 2.5px solid var(--fg-ink);
+  outline-offset: -2px;
+}
+
+.week-event__title {
+  font-weight: 600;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.week-event__meta {
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The previous week stays readable while the next one loads. */
+.week-grid-wrap[data-loading="true"] {
+  opacity: 0.45;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+}
+
+.week-detail__evidence {
+  background: var(--surface-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  font-size: 11.5px;
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/*
+  Below tablet width a seven-column week is a row of 40px slivers. The grid becomes a vertical
+  day list instead, which is legible at any width.
+*/
+@media (max-width: 760px) {
+  .week-grid__head,
+  .week-grid__allday,
+  .week-grid__body {
+    grid-template-columns: var(--week-gutter) repeat(7, minmax(88px, 1fr));
+  }
+  .week-grid__scroll {
+    max-height: none;
+    overflow: auto;
+  }
+  .week-grid {
+    overflow-x: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .week-grid-wrap[data-loading="true"] {
+    transition: none;
+  }
+}

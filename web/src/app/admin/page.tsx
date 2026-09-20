@@ -9,6 +9,7 @@ const AREAS = [
   { href: '/admin/revisions', icon: '✓', title: 'Revizyonlar', text: 'İnceleme bekleyen revizyonları, bulguları ve yayın kararlarını yönet.', state: 'Canlı' },
   { href: '/admin/diffs', icon: '⇅', title: 'Diff kuyrukları', text: 'Bekletilen diff’leri serbest bırak, başarısız takvim dağıtımlarını yeniden dene.', state: 'Canlı' },
   { href: '/admin/colors', icon: '◐', title: 'Anabilim dalı renkleri', text: '45 anabilim dalının fakülte genelindeki takvim görünümünü düzenle.', state: 'Canlı' },
+  { href: '/admin/schedule-simulation', icon: '▦', title: 'Program simülasyonu', text: 'Seçtiğin kitlenin haftalık programını, öğrencinin takviminde göründüğü gibi incele.', state: 'Canlı' },
   { href: '/admin/operations', icon: '⚙', title: 'Operasyon kontrolü', text: 'Acil durumda veri hattını denetimli biçimde dondur veya yeniden aç.', state: 'Canlı' },
   { href: '/admin/users', icon: '◉', title: 'Kullanıcılar & lisans', text: 'Kullanıcı, profil, giriş ve lisans yaşam döngüsünü incele.', state: 'Canlı' },
   { href: '/admin/server', icon: '▣', title: 'Sistem sağlığı', text: 'API sağlığı ve gerçek operasyon sayaçlarını izle.', state: 'Canlı' },

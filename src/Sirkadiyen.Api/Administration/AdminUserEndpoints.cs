@@ -575,7 +575,7 @@ public static class AdminUserEndpoints
             return Invalid($"'pageSize' must be between 1 and {MaximumPageSize}.");
         }
 
-        if (!TryReadSelectors(selectors, out Dictionary<string, string> parsedSelectors, out string? selectorProblem))
+        if (!SelectorQueryReader.TryRead(selectors, out Dictionary<string, string> parsedSelectors, out string? selectorProblem))
         {
             return Invalid(selectorProblem!);
         }
@@ -826,39 +826,6 @@ public static class AdminUserEndpoints
 
         return Results.Ok(
             await scheduleStore.ListRecentChangesAsync(userId, limit, cancellationToken));
-    }
-
-    /// <summary>
-    /// Reads repeated <c>?selector=key:value</c> parameters. A malformed pair is refused rather than
-    /// skipped: silently dropping one would return a wider result set than the operator asked for
-    /// and nothing on the screen would say so.
-    /// </summary>
-    private static bool TryReadSelectors(
-        string[]? values,
-        out Dictionary<string, string> selectors,
-        out string? problem)
-    {
-        selectors = new Dictionary<string, string>(StringComparer.Ordinal);
-        problem = null;
-
-        foreach (string value in values ?? [])
-        {
-            if (string.IsNullOrWhiteSpace(value))
-            {
-                continue;
-            }
-
-            int separator = value.IndexOf(':', StringComparison.Ordinal);
-            if (separator <= 0 || separator == value.Length - 1)
-            {
-                problem = $"'selector' must be written as 'key:value'; '{value}' is not.";
-                return false;
-            }
-
-            selectors[value[..separator].Trim()] = value[(separator + 1)..].Trim();
-        }
-
-        return true;
     }
 
     private static IResult Invalid(string detail) => Results.Problem(

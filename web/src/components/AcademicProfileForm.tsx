@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { getProfileOptions, lookUpStudentRoster, saveProfile, ApiError } from '@/lib/api';
 import { Banner } from '@/components/ui';
+import { DIMENSION_LABELS } from '@/lib/selectors';
 import type {
   ProgramLanguage,
   SaveStudentProfileRequest,
@@ -15,17 +16,10 @@ import type {
   SupportedProfileProgram,
 } from '@/lib/types';
 
-// The schema names dimensions in the contract's language; the form is Turkish.
-// An unlabelled key falls back to itself rather than being hidden, so a new
-// dimension is visibly unlabelled instead of silently unselectable.
-export const DIMENSION_LABELS: Record<string, string> = {
-  practiceGroup: 'Uygulama grubu',
-  practiceSubgroup: 'Uygulama alt grubu',
-  anatomyGroup: 'Anatomi grubu',
-  curriculumGroup: 'Müfredat grubu',
-  facultyPracticeGroup: 'Öğretim üyesi uygulama grubu',
-  microPathologyGroup: 'Mikrobiyoloji-Patoloji uygulama grubu',
-};
+// Re-exported so the screens that already import it from here keep working. The map itself
+// lives in `@/lib/selectors`, because several screens pick a cohort and a second copy is how
+// two of them came to disagree about which dimensions have Turkish names.
+export { DIMENSION_LABELS } from '@/lib/selectors';
 
 /**
  * What a completed save is allowed to claim.

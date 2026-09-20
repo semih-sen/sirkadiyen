@@ -13,6 +13,7 @@ using Sirkadiyen.Application.Identity;
 using Sirkadiyen.Application.Licensing;
 using Sirkadiyen.Application.Meals;
 using Sirkadiyen.Application.Onboarding;
+using Sirkadiyen.Application.Scheduling.Access;
 using Sirkadiyen.Application.Scheduling.Diffing;
 using Sirkadiyen.Application.Scheduling.Ingestion;
 using Sirkadiyen.Application.Scheduling.Publication;
@@ -154,6 +155,10 @@ internal static class ApiServiceCollectionExtensions
         // (ADR-107), so no dispatch service is registered here.
         services.AddScoped<AnnouncementService>();
         services.AddScoped<CohortCalendarRepairService>();
+
+        // Reads the live published schedule for an arbitrary cohort so an operator can audit a
+        // program without a real, already-synchronized student to look at (admin panel only).
+        services.AddScoped<CohortScheduleSimulationService>();
 
         // Operator-triggered snapshot payload pruning from the source dashboard (ADR-120).
         services.AddScoped<SnapshotPayloadPruneService>();

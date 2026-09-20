@@ -11,6 +11,7 @@ export type AdminNavKey =
   | 'users'
   | 'bulk-event'
   | 'user-warning'
+  | 'schedule-simulation'
   | 'sources'
   | 'rosters'
   | 'revisions'
@@ -51,6 +52,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { key: 'revisions', label: 'Revizyonlar', icon: '✓', href: '/admin/revisions' },
       { key: 'diffs', label: 'Diff kuyrukları', icon: '⇅', href: '/admin/diffs' },
       { key: 'colors', label: 'Anabilim dalı renkleri', icon: '◐', href: '/admin/colors' },
+      { key: 'schedule-simulation', label: 'Program simülasyonu', icon: '▦', href: '/admin/schedule-simulation' },
     ],
   },
   {

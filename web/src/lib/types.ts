@@ -1838,3 +1838,95 @@ export interface MealSubscriptionView {
   /** Whether the lunch menu is written to the user's calendar. */
   enabled: boolean;
 }
+
+// ---- Schedule simulation (admin panel) -------------------------------------
+
+/** One audience selector a canonical record states, as the parser wrote it. */
+export interface AudienceSelectorView {
+  dimension: string;
+  value: string;
+}
+
+/** The colour and name a lesson carries on a calendar. */
+export interface ManagedCalendarEventLabel {
+  id: string;
+  name: string;
+  /** `#RRGGBB`. */
+  backgroundColor: string;
+}
+
+/**
+ * The canonical record behind one simulated event.
+ *
+ * This is the diagnostic half of the view: it says where the lesson came from and who it was
+ * addressed to, which is what an operator needs when the calendar half looks wrong.
+ */
+export interface CohortSimulationRawRecord {
+  canonicalRecordId: string;
+  scheduleRevisionId: string;
+  sourceId: string;
+  candidateId: string;
+  stableIdentity: string;
+  contentHash: string;
+  recordStatus: string;
+  eventType: string;
+  audienceScope: string;
+  audienceSelectors: AudienceSelectorView[];
+  displayTitle: string;
+  normalizedCourseIdentity?: string | null;
+  instructor?: string | null;
+  /**
+   * The location the source stated, before the presentation policy judged it. It differs from
+   * the event's `location` exactly where the policy withholds a pointer to another document.
+   */
+  rawLocation?: string | null;
+  curriculumBlock?: string | null;
+  departments: string[];
+  comparableDepartment?: string | null;
+  notes?: string | null;
+  confidence: number;
+  evidence: string;
+  /**
+   * Another event this week carries the same stable identity. The managed event id derives from
+   * the identity alone, so the two would collapse into one event on a real calendar.
+   */
+  sharesStableIdentity: boolean;
+}
+
+/** One lesson, as a calendar would show it and as the record states it. */
+export interface CohortSimulationEvent {
+  summary: string;
+  description?: string | null;
+  location?: string | null;
+  label: ManagedCalendarEventLabel;
+  /** `YYYY-MM-DD`, in `timeZoneId`. */
+  localDate: string;
+  /** `HH:mm:ss`. Null for an all-day item. */
+  startLocalTime?: string | null;
+  endLocalTime?: string | null;
+  isAllDay: boolean;
+  timeZoneId: string;
+  raw: CohortSimulationRawRecord;
+}
+
+/** One week of the live published schedule, resolved for a stated cohort. */
+export interface CohortSimulationWeek {
+  /** The program's own academic year (ADR-103). Derived by the server, never chosen. */
+  academicYear: string;
+  classYear: number;
+  programLanguage: ProgramLanguage;
+  selectors: Record<string, string>;
+  /** Monday, `YYYY-MM-DD`. */
+  weekStartLocalDate: string;
+  /** Sunday, inclusive. */
+  weekEndLocalDate: string;
+  timeZoneId: string;
+  /**
+   * Live lessons resolving to this cohort across the whole year, before the week filter. It is
+   * what separates a quiet week from a cohort that receives nothing at all.
+   */
+  cohortYearEventCount: number;
+  /** The sources that actually contributed a live lesson to this cohort this year. */
+  publishedSourceIds: string[];
+  events: CohortSimulationEvent[];
+}

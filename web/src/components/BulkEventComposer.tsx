@@ -10,7 +10,7 @@ import {
   updateAnnouncement,
 } from '@/lib/api';
 import { LoadState } from '@/components/AdminData';
-import { DIMENSION_LABELS } from '@/components/AcademicProfileForm';
+import { DIMENSION_LABELS, selectorValues } from '@/lib/selectors';
 import {
   AnnouncementHistory,
   CalendarPreview,
@@ -538,14 +538,4 @@ function EditActions({
       </div>
     </div>
   );
-}
-
-function selectorValues(
-  dimension: { values?: string[] | null; dependsOn?: string | null; valuesByParent?: Record<string, string[]> | null },
-  selectors: Record<string, string>,
-): string[] {
-  if (!dimension.dependsOn) return dimension.values ?? [];
-  const parent = selectors[dimension.dependsOn];
-  if (!parent || !dimension.valuesByParent) return [];
-  return dimension.valuesByParent[parent] ?? [];
 }
