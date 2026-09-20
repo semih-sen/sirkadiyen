@@ -8,10 +8,21 @@ import {
   describeSelectors,
 } from '@/components/ScheduleSimulationProfileLoader';
 import type { LoadedCohort } from '@/components/ScheduleSimulationProfileLoader';
+import { WeekAgenda } from '@/components/WeekAgenda';
 import { WeekCalendarGrid } from '@/components/WeekCalendarGrid';
 import { Banner } from '@/components/ui';
 import { ApiError, getProfileOptions, simulateCohortWeek } from '@/lib/api';
-import { addDays, formatWeekRange, istanbulToday, mondayOf } from '@/lib/calendarWeek';
+import {
+  WEEK_ZOOM_LABELS,
+  WEEK_ZOOM_LEVELS,
+  addDays,
+  formatWeekRange,
+  istanbulToday,
+  mondayOf,
+  readStoredZoom,
+  storeZoom,
+} from '@/lib/calendarWeek';
+import type { WeekZoom } from '@/lib/calendarWeek';
 import { applySelector, dimensionLabel, selectorValues } from '@/lib/selectors';
 import type {
   CohortSimulationEvent,
@@ -48,6 +59,18 @@ export function ScheduleSimulation() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<CohortSimulationEvent | null>(null);
+  // Read after mount rather than in the initializer: the server has no localStorage, and
+  // seeding state from it would make the first client render disagree with the server's.
+  const [zoom, setZoomState] = useState<WeekZoom>('normal');
+  useEffect(() => {
+    const stored = readStoredZoom();
+    if (stored) setZoomState(stored);
+  }, []);
+
+  function setZoom(next: WeekZoom) {
+    setZoomState(next);
+    storeZoom(next);
+  }
 
   const loadOptions = useCallback(async () => {
     setOptionsError(null);
@@ -83,11 +106,11 @@ export function ScheduleSimulation() {
   );
   const dimensions = useMemo(() => program?.dimensions ?? [], [program]);
 
-  const missing = useMemo(
-    () => dimensions.filter((dimension) => dimension.required && !selectors[dimension.key]),
-    [dimensions, selectors],
-  );
-  const ready = program !== undefined && missing.length === 0;
+  // A partial cohort is a real question, not an incomplete form: the audience rule withholds
+  // every lesson addressed to a dimension the cohort has not stated (ADR-109), so the week
+  // starts at the programme-wide lessons and fills in as the operator chooses. Only a
+  // programme that does not exist has nothing to ask about.
+  const ready = program !== undefined;
 
   // A later request must not be overtaken by an earlier one: paging weeks with the arrow keys
   // outruns the network easily, and a stale response would render a week the operator has
@@ -226,11 +249,11 @@ export function ScheduleSimulation() {
           </Banner>
         )}
 
-        {program !== undefined && missing.length > 0 && (
-          <Banner tone="warning">
-            Şu boyutlar seçilmeden simülasyon çalıştırılamaz:{' '}
-            {missing.map((dimension) => dimensionLabel(dimension.key)).join(', ')}.
-            Gerçek bir öğrenci de bunların hepsini bildirmek zorundadır.
+        {week && week.missingRequiredSelectors.length > 0 && (
+          <Banner tone="info">
+            Henüz seçilmeyen boyutlar:{' '}
+            {week.missingRequiredSelectors.map(dimensionLabel).join(', ')}. Bu boyutları belirten
+            dersler takvimde <strong>gösterilmiyor</strong>; seçtikçe hafta dolacak.
           </Banner>
         )}
 
@@ -268,15 +291,36 @@ export function ScheduleSimulation() {
             </button>
           </div>
 
-          <label className="field" style={{ margin: 0 }}>
-            <span className="sr-only">Tarihe git</span>
-            <input
-              className="text-input"
-              type="date"
-              value={weekStart}
-              onChange={(changed) => changed.target.value && goToWeek(changed.target.value)}
-            />
-          </label>
+          <div className="cluster" style={{ gap: 8 }}>
+            {/*
+              Hidden on a phone, where the agenda list replaces the grid and there is no row
+              height to trade against.
+            */}
+            <div className="week-zoom" role="group" aria-label="Satır yüksekliği">
+              {(Object.keys(WEEK_ZOOM_LEVELS) as WeekZoom[]).map((level) => (
+                <button
+                  key={level}
+                  className="btn btn-tertiary btn-sm"
+                  type="button"
+                  aria-pressed={zoom === level}
+                  data-selected={zoom === level}
+                  onClick={() => setZoom(level)}
+                >
+                  {WEEK_ZOOM_LABELS[level]}
+                </button>
+              ))}
+            </div>
+
+            <label className="field" style={{ margin: 0 }}>
+              <span className="sr-only">Tarihe git</span>
+              <input
+                className="text-input"
+                type="date"
+                value={weekStart}
+                onChange={(changed) => changed.target.value && goToWeek(changed.target.value)}
+              />
+            </label>
+          </div>
         </div>
 
         <h3 style={{ margin: 0, fontSize: 18 }}>{formatWeekRange(weekStart)}</h3>
@@ -291,10 +335,6 @@ export function ScheduleSimulation() {
               </>
             )}
           </p>
-        )}
-
-        {!ready && !error && (
-          <p className="muted">Kitleyi tamamla; hafta otomatik olarak yüklenecek.</p>
         )}
 
         {error && (
@@ -317,15 +357,36 @@ export function ScheduleSimulation() {
           The previous week stays on screen, dimmed, while the next one loads: collapsing the grid
           on every arrow press makes paging through a term unreadable.
         */}
-        {week && (
+        {/*
+          A week with nothing in it says so in one sentence below; drawing an empty grid and
+          seven "Ders yok" rows underneath it would repeat the same fact three ways.
+        */}
+        {week && week.events.length > 0 && (
           <div data-loading={loading} className="week-grid-wrap">
-            <WeekCalendarGrid
-              weekStart={week.weekStartLocalDate}
-              events={week.events}
-              today={today}
-              selectedId={selected?.raw.canonicalRecordId ?? null}
-              onSelect={setSelected}
-            />
+            <div className="week-view week-view--grid">
+              <WeekCalendarGrid
+                weekStart={week.weekStartLocalDate}
+                events={week.events}
+                today={today}
+                zoom={zoom}
+                selectedId={selected?.raw.canonicalRecordId ?? null}
+                onSelect={setSelected}
+              />
+            </div>
+            {/*
+              The phone gets a list instead of a grid. Both are rendered and the stylesheet
+              shows one: `display: none` hides the other from screen readers too, so nothing is
+              announced twice.
+            */}
+            <div className="week-view week-view--agenda">
+              <WeekAgenda
+                weekStart={week.weekStartLocalDate}
+                events={week.events}
+                today={today}
+                selectedId={selected?.raw.canonicalRecordId ?? null}
+                onSelect={setSelected}
+              />
+            </div>
           </div>
         )}
 

@@ -465,8 +465,10 @@ public sealed class StudentProfileValidatorTests
     }
 
     [Fact]
-    public void SelectorsAloneStillRequireEveryRequiredDimension()
+    public void SelectorsAloneStillRequireEveryRequiredDimensionByDefault()
     {
+        // The default matters: a stored profile must state every dimension, and a caller that
+        // forgets the argument must get the strict rule rather than the lenient one.
         StudentProfileValidationResult result = StudentProfileValidator.ValidateSelectors(
             Schema,
             1,
@@ -481,6 +483,99 @@ public sealed class StudentProfileValidatorTests
             result.Errors,
             error => error.Code == StudentProfileValidationErrorCode.MissingRequiredSelector
                 && error.Key == "practiceSubgroup");
+    }
+
+    [Fact]
+    public void APartialCohortIsValidWhenEveryDimensionIsNotRequired()
+    {
+        // The schedule simulation narrows a cohort one dimension at a time; the audience rule
+        // already withholds what an unstated dimension would have unlocked (ADR-109).
+        StudentProfileValidationResult result = StudentProfileValidator.ValidateSelectors(
+            Schema,
+            1,
+            ProgramLanguage.Turkish,
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["practiceGroup"] = "A",
+            },
+            requireEveryDimension: false);
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void StatingNothingIsValidWhenEveryDimensionIsNotRequired()
+    {
+        StudentProfileValidationResult result = StudentProfileValidator.ValidateSelectors(
+            Schema,
+            1,
+            ProgramLanguage.Turkish,
+            new Dictionary<string, string>(StringComparer.Ordinal),
+            requireEveryDimension: false);
+
+        Assert.True(result.IsValid);
+    }
+
+    [Fact]
+    public void ALenientCohortStillRefusesAnUnsupportedValue()
+    {
+        // Partial is not the same as wrong: a value the programme does not publish is a mistake
+        // whether or not the rest of the cohort is stated.
+        StudentProfileValidationResult result = StudentProfileValidator.ValidateSelectors(
+            Schema,
+            1,
+            ProgramLanguage.Turkish,
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["practiceGroup"] = "Z",
+            },
+            requireEveryDimension: false);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Errors,
+            error => error.Code == StudentProfileValidationErrorCode.UnsupportedValue);
+    }
+
+    [Fact]
+    public void ALenientCohortStillRefusesAChildWithoutItsParent()
+    {
+        StudentProfileValidationResult result = StudentProfileValidator.ValidateSelectors(
+            Schema,
+            1,
+            ProgramLanguage.Turkish,
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["practiceSubgroup"] = "A1",
+            },
+            requireEveryDimension: false);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(
+            result.Errors,
+            error => error.Code == StudentProfileValidationErrorCode.MissingDependency);
+    }
+
+    [Fact]
+    public void MissingRequiredSelectorsNamesWhatACohortLeftOut()
+    {
+        SupportedProfileProgram program = Schema.FindProgram(1, ProgramLanguage.Turkish)!;
+
+        Assert.Equal(
+            ["practiceSubgroup"],
+            StudentProfileValidator.MissingRequiredSelectors(
+                program,
+                new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["practiceGroup"] = "A",
+                }));
+        Assert.Empty(StudentProfileValidator.MissingRequiredSelectors(
+            program,
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["practiceGroup"] = "A",
+                ["practiceSubgroup"] = "A1",
+            }));
     }
 
     [Fact]

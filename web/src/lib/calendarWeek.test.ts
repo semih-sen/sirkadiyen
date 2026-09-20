@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  WEEK_ZOOM_LEVELS,
+  WEEK_ZOOM_STORAGE_KEY,
   addDays,
   dayName,
+  densityFor,
   formatWeekRange,
   gridBounds,
   hourMarks,
@@ -9,7 +12,9 @@ import {
   layoutDay,
   minutesOf,
   mondayOf,
+  readStoredZoom,
   readableTextColor,
+  storeZoom,
   weekDays,
 } from '@/lib/calendarWeek';
 
@@ -215,5 +220,73 @@ describe('readableTextColor', () => {
 
   it('falls back to white for an unusable value', () => {
     expect(readableTextColor('nonsense')).toBe('#ffffff');
+  });
+});
+
+describe('densityFor', () => {
+  it('drops to a single line when two will not fit', () => {
+    expect(densityFor(20)).toBe('tiny');
+    expect(densityFor(33)).toBe('tiny');
+  });
+
+  it('shows a one-line title and the hours in a medium box', () => {
+    expect(densityFor(34)).toBe('compact');
+    expect(densityFor(51)).toBe('compact');
+  });
+
+  it('shows everything once there is room for it', () => {
+    expect(densityFor(52)).toBe('full');
+    expect(densityFor(120)).toBe('full');
+  });
+
+  it('gives the 40-minute lesson a full chip at the default zoom', () => {
+    // 40 minutes is the dominant teaching unit in these programmes, and the default zoom exists
+    // precisely so it reads without truncation. If this flips to 'compact', the default is wrong.
+    const fortyMinutes = (40 / 60) * WEEK_ZOOM_LEVELS.normal;
+    expect(densityFor(fortyMinutes)).toBe('full');
+  });
+
+  it('still fits a 40-minute lesson onto two lines at the densest zoom', () => {
+    const fortyMinutes = (40 / 60) * WEEK_ZOOM_LEVELS.compact;
+    expect(densityFor(fortyMinutes)).toBe('compact');
+  });
+
+  it('orders the zoom steps from dense to airy', () => {
+    expect(WEEK_ZOOM_LEVELS.compact).toBeLessThan(WEEK_ZOOM_LEVELS.normal);
+    expect(WEEK_ZOOM_LEVELS.normal).toBeLessThan(WEEK_ZOOM_LEVELS.wide);
+  });
+});
+
+describe('remembering the zoom', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('reads back what was written', () => {
+    storeZoom('wide');
+
+    expect(readStoredZoom()).toBe('wide');
+  });
+
+  it('reports nothing when the viewer has no preference yet', () => {
+    expect(readStoredZoom()).toBeNull();
+  });
+
+  it('ignores a value that is not a zoom step', () => {
+    localStorage.setItem(WEEK_ZOOM_STORAGE_KEY, 'enormous');
+
+    expect(readStoredZoom()).toBeNull();
+  });
+
+  it('survives storage that throws', () => {
+    // A private window, blocked site data or a server render: the page must still work.
+    const getItem = vi.spyOn(Storage.prototype, 'getItem')
+      .mockImplementation(() => { throw new Error('denied'); });
+    const setItem = vi.spyOn(Storage.prototype, 'setItem')
+      .mockImplementation(() => { throw new Error('denied'); });
+
+    expect(readStoredZoom()).toBeNull();
+    expect(() => storeZoom('compact')).not.toThrow();
+
+    getItem.mockRestore();
+    setItem.mockRestore();
   });
 });

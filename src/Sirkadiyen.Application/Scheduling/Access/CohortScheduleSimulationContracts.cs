@@ -41,6 +41,17 @@ public sealed record CohortSimulationWeek
     public required string TimeZoneId { get; init; }
 
     /// <summary>
+    /// Dimensions the program requires that this query left unstated.
+    /// </summary>
+    /// <remarks>
+    /// Not an error: a partial cohort is a legitimate question, and the audience rule answers it
+    /// by withholding every lesson addressed to a dimension the cohort has not declared
+    /// (ADR-109). It is reported because that withholding is the reason the week looks emptier
+    /// than the operator may expect, and nothing else on the screen would say so.
+    /// </remarks>
+    public required IReadOnlyList<string> MissingRequiredSelectors { get; init; }
+
+    /// <summary>
     /// How many live lessons resolve to this cohort across the whole year, before the week
     /// filter. It is what separates "this week is quiet" from "this cohort receives nothing".
     /// </summary>

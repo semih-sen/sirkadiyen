@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ScheduleSimulation } from './ScheduleSimulation';
@@ -50,6 +50,7 @@ function week(overrides: Record<string, unknown> = {}) {
     weekStartLocalDate: '2026-09-21',
     weekEndLocalDate: '2026-09-27',
     timeZoneId: 'Europe/Istanbul',
+    missingRequiredSelectors: [],
     cohortYearEventCount: 0,
     publishedSourceIds: [],
     events: [],
@@ -94,18 +95,55 @@ function lastQuery() {
 describe('ScheduleSimulation', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // The zoom is remembered per viewer now, and jsdom keeps storage between tests.
+    localStorage.clear();
     api.getProfileOptions.mockResolvedValue(profileOptions);
     api.simulateCohortWeek.mockResolvedValue(week());
   });
 
-  it('does not ask for a week until every required dimension is stated', async () => {
+  it('asks for the week before any dimension is chosen', async () => {
     render(<ScheduleSimulation />);
 
     await screen.findByLabelText('Anatomi grubu');
-    expect(api.simulateCohortWeek).not.toHaveBeenCalled();
-    expect(screen.getByText(/Şu boyutlar seçilmeden simülasyon çalıştırılamaz/))
-      .toHaveTextContent('Anatomi grubu');
+
+    // Nothing is stated yet, so the answer is the programme-wide lessons and nothing else.
+    await waitFor(() => expect(api.simulateCohortWeek).toHaveBeenCalled());
+    expect(lastQuery()).toMatchObject({ classYear: 2, selectors: {} });
     expect(screen.getByLabelText('Anatomi grubu')).toHaveValue('');
+  });
+
+  it('explains which lessons a dimension left unchosen is hiding', async () => {
+    api.simulateCohortWeek.mockResolvedValue(
+      week({ cohortYearEventCount: 8, events: [lesson], missingRequiredSelectors: ['anatomyGroup'] }),
+    );
+    render(<ScheduleSimulation />);
+    await screen.findByLabelText('Anatomi grubu');
+
+    const notice = await screen.findByText(/Henüz seçilmeyen boyutlar/);
+    expect(notice).toHaveTextContent('Anatomi grubu');
+    expect(notice).toHaveTextContent('gösterilmiyor');
+  });
+
+  it('says nothing about missing dimensions once the cohort is complete', async () => {
+    api.simulateCohortWeek.mockResolvedValue(
+      week({ cohortYearEventCount: 8, events: [lesson], missingRequiredSelectors: [] }),
+    );
+    render(<ScheduleSimulation />);
+    await screen.findByLabelText('Anatomi grubu');
+    await userEvent.selectOptions(screen.getByLabelText('Anatomi grubu'), '1');
+
+    await screen.findByTestId('week-grid');
+    expect(screen.queryByText(/Henüz seçilmeyen boyutlar/)).not.toBeInTheDocument();
+  });
+
+  it('re-asks with the narrowed cohort as each dimension is chosen', async () => {
+    render(<ScheduleSimulation />);
+    await screen.findByLabelText('Anatomi grubu');
+    await waitFor(() => expect(lastQuery()?.selectors).toEqual({}));
+
+    await userEvent.selectOptions(screen.getByLabelText('Anatomi grubu'), '2');
+
+    await waitFor(() => expect(lastQuery()?.selectors).toEqual({ anatomyGroup: '2' }));
   });
 
   it('asks for the stated cohort once it is complete', async () => {
@@ -134,14 +172,13 @@ describe('ScheduleSimulation', () => {
       facultyPracticeGroup: 'A2',
     }));
 
-    const beforeSwitch = api.simulateCohortWeek.mock.calls.length;
     await userEvent.selectOptions(screen.getByLabelText('Müfredat grubu'), '3-B');
 
     // A2 belongs to the A rotation; carrying it into 3-B would state a cohort nobody is in.
     await waitFor(() =>
       expect(screen.getByLabelText('Öğretim üyesi uygulama grubu')).toHaveValue(''));
-    // The cohort is incomplete again, so nothing is asked of the server in the meantime.
-    expect(api.simulateCohortWeek.mock.calls.length).toBe(beforeSwitch);
+    // The partial cohort is still asked about — just without the value that no longer applies.
+    await waitFor(() => expect(lastQuery()?.selectors).toEqual({ curriculumGroup: '3-B' }));
 
     await userEvent.selectOptions(screen.getByLabelText('Öğretim üyesi uygulama grubu'), 'B1');
 
@@ -233,11 +270,10 @@ describe('ScheduleSimulation', () => {
   it('reports a failure and retries on demand', async () => {
     const failure = new api.ApiError('nope');
     failure.problem = { detail: 'Kitle geçersiz.' };
-    api.simulateCohortWeek.mockRejectedValueOnce(failure);
+    api.simulateCohortWeek.mockRejectedValue(failure);
 
     render(<ScheduleSimulation />);
     await screen.findByLabelText('Anatomi grubu');
-    await userEvent.selectOptions(screen.getByLabelText('Anatomi grubu'), '1');
 
     const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Kitle geçersiz.');
@@ -256,7 +292,10 @@ describe('ScheduleSimulation', () => {
     await screen.findByLabelText('Anatomi grubu');
     await userEvent.selectOptions(screen.getByLabelText('Anatomi grubu'), '1');
 
-    await userEvent.click(await screen.findByRole('button', { name: /Anatomi/ }));
+    // The lesson is rendered twice — once in the grid, once in the phone's agenda list — and
+    // the stylesheet shows one of them. Scope the click so the test says which it means.
+    const grid = await screen.findByTestId('week-grid');
+    await userEvent.click(within(grid).getByRole('button', { name: /Anatomi/ }));
 
     expect(await screen.findByText('identity-1')).toBeInTheDocument();
     expect(screen.getByText('G2-TR-ANNUAL')).toBeInTheDocument();
@@ -272,6 +311,124 @@ describe('ScheduleSimulation', () => {
     await userEvent.selectOptions(screen.getByLabelText('Program dili'), 'English');
 
     expect(await screen.findByText(/tanımlı bir program yok/)).toBeInTheDocument();
-    expect(api.simulateCohortWeek).not.toHaveBeenCalled();
+    expect(lastQuery()).not.toMatchObject({ programLanguage: 'English' });
+  });
+
+  it('offers the same week as a grid and as a list, for the desktop and the phone', async () => {
+    api.simulateCohortWeek.mockResolvedValue(
+      week({ cohortYearEventCount: 1, events: [lesson] }),
+    );
+    render(<ScheduleSimulation />);
+    await screen.findByLabelText('Anatomi grubu');
+    await userEvent.selectOptions(screen.getByLabelText('Anatomi grubu'), '1');
+
+    const grid = await screen.findByTestId('week-grid');
+    const agenda = screen.getByTestId('week-agenda');
+    expect(within(grid).getByRole('button', { name: /Anatomi/ })).toBeInTheDocument();
+    expect(within(agenda).getByRole('button', { name: /Anatomi/ })).toBeInTheDocument();
+  });
+
+  it('draws neither view for a week with nothing in it', async () => {
+    // The sentence below already says the week is empty; an empty grid and seven "Ders yok"
+    // rows would say it twice more.
+    api.simulateCohortWeek.mockResolvedValue(week({ cohortYearEventCount: 40 }));
+    render(<ScheduleSimulation />);
+    await screen.findByLabelText('Anatomi grubu');
+    await userEvent.selectOptions(screen.getByLabelText('Anatomi grubu'), '1');
+
+    await screen.findByText(/Bu hafta bu kitle için yayımlanmış ders yok/);
+    expect(screen.queryByTestId('week-grid')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('week-agenda')).not.toBeInTheDocument();
+  });
+
+  it('changes the row height when a zoom step is chosen', async () => {
+    api.simulateCohortWeek.mockResolvedValue(
+      week({ cohortYearEventCount: 1, events: [lesson] }),
+    );
+    render(<ScheduleSimulation />);
+    await screen.findByLabelText('Anatomi grubu');
+    await userEvent.selectOptions(screen.getByLabelText('Anatomi grubu'), '1');
+
+    const grid = await screen.findByTestId('week-grid');
+    const heightAt = () => grid.style.getPropertyValue('--week-hour-height');
+    const normal = heightAt();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Geniş' }));
+    expect(Number.parseInt(heightAt(), 10)).toBeGreaterThan(Number.parseInt(normal, 10));
+
+    await userEvent.click(screen.getByRole('button', { name: 'Sık' }));
+    expect(Number.parseInt(heightAt(), 10)).toBeLessThan(Number.parseInt(normal, 10));
+  });
+
+  it('marks the chosen zoom step as pressed', async () => {
+    api.simulateCohortWeek.mockResolvedValue(
+      week({ cohortYearEventCount: 1, events: [lesson] }),
+    );
+    render(<ScheduleSimulation />);
+    await screen.findByLabelText('Anatomi grubu');
+    await userEvent.selectOptions(screen.getByLabelText('Anatomi grubu'), '1');
+
+    expect(screen.getByRole('button', { name: 'Normal' })).toHaveAttribute('aria-pressed', 'true');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Sık' }));
+
+    expect(screen.getByRole('button', { name: 'Sık' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Normal' })).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('remembers the zoom for the next visit', async () => {
+    api.simulateCohortWeek.mockResolvedValue(
+      week({ cohortYearEventCount: 1, events: [lesson] }),
+    );
+    const first = render(<ScheduleSimulation />);
+    await screen.findByLabelText('Anatomi grubu');
+    await screen.findByTestId('week-grid');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Geniş' }));
+    first.unmount();
+
+    render(<ScheduleSimulation />);
+    await screen.findByLabelText('Anatomi grubu');
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Geniş' })).toHaveAttribute('aria-pressed', 'true'));
+  });
+
+  it('falls back to the default when nothing was remembered', async () => {
+    api.simulateCohortWeek.mockResolvedValue(
+      week({ cohortYearEventCount: 1, events: [lesson] }),
+    );
+    render(<ScheduleSimulation />);
+    await screen.findByLabelText('Anatomi grubu');
+
+    expect(screen.getByRole('button', { name: 'Normal' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('ignores a stored value that is not a zoom step', async () => {
+    // Storage is shared with whatever else the browser holds and can be edited by hand.
+    localStorage.setItem('sirkadiyen.scheduleSimulation.zoom', 'enormous');
+    api.simulateCohortWeek.mockResolvedValue(
+      week({ cohortYearEventCount: 1, events: [lesson] }),
+    );
+    render(<ScheduleSimulation />);
+    await screen.findByLabelText('Anatomi grubu');
+
+    expect(screen.getByRole('button', { name: 'Normal' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('keeps the zoom when the operator pages to another week', async () => {
+    api.simulateCohortWeek.mockResolvedValue(
+      week({ cohortYearEventCount: 1, events: [lesson] }),
+    );
+    render(<ScheduleSimulation />);
+    await screen.findByLabelText('Anatomi grubu');
+    await userEvent.selectOptions(screen.getByLabelText('Anatomi grubu'), '1');
+    await screen.findByTestId('week-grid');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Geniş' }));
+    await userEvent.click(screen.getByRole('button', { name: /Sonraki hafta/ }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Geniş' })).toHaveAttribute('aria-pressed', 'true'));
   });
 });

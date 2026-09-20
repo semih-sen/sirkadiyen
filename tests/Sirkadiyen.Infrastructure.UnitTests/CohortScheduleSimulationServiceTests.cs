@@ -223,22 +223,94 @@ public sealed class CohortScheduleSimulationServiceTests
     }
 
     [Fact]
-    public async Task AnOmittedRequiredDimensionIsRefused()
+    public async Task APartialCohortIsAnsweredRatherThanRefused()
     {
-        // The simulation holds a stated cohort to exactly the rules a stored profile is held to,
-        // so it can never show a week no real student could have.
+        // An operator narrows a cohort one choice at a time and watches the week fill in, so an
+        // unstated dimension is a partial question rather than an invalid one.
+        CohortSimulationWeek week = await SimulateAsync(
+            [Record()],
+            selectors: new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["curriculumGroup"] = "3-A",
+            });
+
+        Assert.Single(week.Events);
+        Assert.Equal(["facultyPracticeGroup"], week.MissingRequiredSelectors);
+    }
+
+    [Fact]
+    public async Task StatingNothingYieldsOnlyTheLessonsAddressedToEveryone()
+    {
+        // With no dimension declared, the audience rule withholds every cohort-scoped lesson
+        // (ADR-109) and leaves exactly the programme-wide ones. That is the state the week
+        // fills in from as the operator chooses.
+        CohortSimulationWeek week = await SimulateAsync(
+            [
+                Record(scope: AudienceScope.AllStudentsInProgram, title: "Herkese"),
+                Record(
+                    scope: AudienceScope.SelectedGroups,
+                    selectors: [("curriculumGroup", "3-A")],
+                    title: "Sadece 3-A"),
+            ],
+            selectors: new Dictionary<string, string>(StringComparer.Ordinal));
+
+        Assert.Equal(["Herkese"], week.Events.Select(simulated => simulated.Raw.DisplayTitle));
+        Assert.Equal(["curriculumGroup", "facultyPracticeGroup"], week.MissingRequiredSelectors);
+    }
+
+    [Fact]
+    public async Task NarrowingOneMoreDimensionAddsTheLessonsItUnlocks()
+    {
+        List<CanonicalScheduleRecord> published =
+        [
+            Record(scope: AudienceScope.AllStudentsInProgram, title: "Herkese"),
+            Record(
+                scope: AudienceScope.SelectedGroups,
+                selectors: [("curriculumGroup", "3-A")],
+                title: "Sadece 3-A"),
+        ];
+
+        CohortSimulationWeek before = await SimulateAsync(
+            published,
+            selectors: new Dictionary<string, string>(StringComparer.Ordinal));
+        CohortSimulationWeek after = await SimulateAsync(
+            published,
+            selectors: new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["curriculumGroup"] = "3-A",
+            });
+
+        Assert.Single(before.Events);
+        Assert.Equal(2, after.Events.Count);
+        Assert.Equal(["facultyPracticeGroup"], after.MissingRequiredSelectors);
+    }
+
+    [Fact]
+    public async Task AFullyStatedCohortReportsNothingMissing()
+    {
+        CohortSimulationWeek week = await SimulateAsync([Record()]);
+
+        Assert.Empty(week.MissingRequiredSelectors);
+    }
+
+    [Fact]
+    public async Task ADependentSelectorWithoutItsParentIsStillRefused()
+    {
+        // Allowing a partial cohort does not make an incoherent one acceptable: a faculty
+        // cohort means a different rotation in each curriculum group, so it cannot be judged
+        // without one (ADR-099).
         CohortSimulationValidationException exception =
             await Assert.ThrowsAsync<CohortSimulationValidationException>(
                 () => SimulateAsync(
                     [],
                     selectors: new Dictionary<string, string>(StringComparer.Ordinal)
                     {
-                        ["curriculumGroup"] = "3-A",
+                        ["facultyPracticeGroup"] = "A5",
                     }));
 
         Assert.Contains(
             exception.Errors,
-            error => error.Code == StudentProfileValidationErrorCode.MissingRequiredSelector
+            error => error.Code == StudentProfileValidationErrorCode.MissingDependency
                 && error.Key == "facultyPracticeGroup");
     }
 

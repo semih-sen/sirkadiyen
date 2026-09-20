@@ -53,11 +53,16 @@ public sealed class CohortScheduleSimulationService(
         SupportedProfileProgram? program =
             schema.FindProgram(query.ClassYear, query.ProgramLanguage);
 
+        // A dimension left unstated is allowed here, so an operator can narrow a cohort one
+        // choice at a time and watch the week fill in. What is still refused is a selector the
+        // program does not define or a value it does not publish — those are mistakes, not
+        // partial answers.
         StudentProfileValidationResult validation = StudentProfileValidator.ValidateSelectors(
             schema,
             query.ClassYear,
             query.ProgramLanguage,
-            query.Selectors);
+            query.Selectors,
+            requireEveryDimension: false);
         if (!validation.IsValid || program is null)
         {
             throw new CohortSimulationValidationException(validation.Errors);
@@ -125,6 +130,8 @@ public sealed class CohortScheduleSimulationService(
             WeekStartLocalDate = weekStart,
             WeekEndLocalDate = weekEnd,
             TimeZoneId = ScheduleTimeZoneId,
+            MissingRequiredSelectors =
+                StudentProfileValidator.MissingRequiredSelectors(program, query.Selectors),
             CohortYearEventCount = cohortYear.Count,
             PublishedSourceIds =
             [

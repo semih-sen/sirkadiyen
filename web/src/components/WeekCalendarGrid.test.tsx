@@ -174,4 +174,103 @@ describe('WeekCalendarGrid', () => {
     expect(within(columns[4] as HTMLElement).getByRole('button', { name: /Cuma dersi/ }))
       .toBeInTheDocument();
   });
+
+  describe('fitting text to the box', () => {
+    // A week whose lessons span 08:00-18:00 gives a stable grid to measure against: at the
+    // default zoom each hour is 84px, so a 40-minute lesson is 56px and a 20-minute one is 28px.
+    const spanner = () => event({
+      summary: 'Gün boyu', startLocalTime: '08:00:00', endLocalTime: '18:00:00',
+      localDate: '2026-09-26',
+    });
+
+    it('shows title, hours and place for a 40-minute lesson at the default zoom', () => {
+      renderGrid([
+        spanner(),
+        event({ summary: 'Kırk dakika', startLocalTime: '09:00:00', endLocalTime: '09:40:00' }),
+      ]);
+
+      const chip = screen.getByRole('button', { name: /Kırk dakika/ });
+      expect(chip).toHaveAttribute('data-density', 'full');
+      expect(chip).toHaveTextContent('09:00–09:40');
+      expect(chip).toHaveTextContent('Amfi 1');
+    });
+
+    it('drops the place but keeps the hours in a medium box', () => {
+      renderGrid([
+        spanner(),
+        event({ summary: 'Otuz dakika', startLocalTime: '09:00:00', endLocalTime: '09:30:00' }),
+      ]);
+
+      const chip = screen.getByRole('button', { name: /Otuz dakika/ });
+      expect(chip).toHaveAttribute('data-density', 'compact');
+      expect(chip).toHaveTextContent('09:00–09:30');
+      expect(chip).not.toHaveTextContent('Amfi 1');
+    });
+
+    it('gives the shortest box entirely to the lesson name', () => {
+      // The hours are readable from where the chip sits; the name is not readable anywhere else.
+      renderGrid([
+        spanner(),
+        event({ summary: 'Yirmi dakika', startLocalTime: '09:00:00', endLocalTime: '09:20:00' }),
+      ]);
+
+      const chip = screen.getByRole('button', { name: /Yirmi dakika/ });
+      expect(chip).toHaveAttribute('data-density', 'tiny');
+      expect(chip).not.toHaveTextContent('09:00');
+      expect(chip).toHaveTextContent('Yirmi dakika');
+    });
+
+    it('keeps the whole label reachable even when the box hides part of it', () => {
+      renderGrid([
+        spanner(),
+        event({ summary: 'Yirmi dakika', startLocalTime: '09:00:00', endLocalTime: '09:20:00' }),
+      ]);
+
+      expect(screen.getByRole('button', { name: /Yirmi dakika/ }))
+        .toHaveAttribute('title', 'Yirmi dakika · 09:00–09:20 · Amfi 1');
+    });
+
+    it('gives a lesson more room at a wider zoom and less at a denser one', () => {
+      const lessons = [
+        spanner(),
+        event({ summary: 'Yirmi dakika', startLocalTime: '09:00:00', endLocalTime: '09:20:00' }),
+      ];
+
+      const { unmount } = render(
+        <WeekCalendarGrid
+          weekStart={WEEK_START} events={lessons} today={TODAY} zoom="wide" onSelect={vi.fn()}
+        />,
+      );
+      expect(screen.getByRole('button', { name: /Yirmi dakika/ }))
+        .toHaveAttribute('data-density', 'compact');
+      unmount();
+
+      render(
+        <WeekCalendarGrid
+          weekStart={WEEK_START} events={lessons} today={TODAY} zoom="compact" onSelect={vi.fn()}
+        />,
+      );
+      expect(screen.getByRole('button', { name: /Yirmi dakika/ }))
+        .toHaveAttribute('data-density', 'tiny');
+    });
+
+    it('makes the body taller at a wider zoom', () => {
+      const { container, unmount } = render(
+        <WeekCalendarGrid
+          weekStart={WEEK_START} events={[spanner()]} today={TODAY} zoom="compact" onSelect={vi.fn()}
+        />,
+      );
+      const dense = (container.querySelector('.week-grid__body') as HTMLElement).style.height;
+      unmount();
+
+      const { container: wideContainer } = render(
+        <WeekCalendarGrid
+          weekStart={WEEK_START} events={[spanner()]} today={TODAY} zoom="wide" onSelect={vi.fn()}
+        />,
+      );
+      const airy = (wideContainer.querySelector('.week-grid__body') as HTMLElement).style.height;
+
+      expect(Number.parseInt(airy, 10)).toBeGreaterThan(Number.parseInt(dense, 10));
+    });
+  });
 });

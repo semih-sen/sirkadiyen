@@ -182,6 +182,73 @@ export function layoutDay<T>(
   return positioned;
 }
 
+/**
+ * How much of a lesson a chip has room to show.
+ *
+ * The dominant teaching unit in these programmes is 40 minutes, which is a short chip at any
+ * sensible zoom, so the content has to adapt to the box rather than the box being sized for the
+ * longest possible content. The thresholds are the height at which each extra line of 11.5px
+ * text at line-height 1.25 (≈14.4px) still fits inside 6px of vertical padding.
+ */
+export type WeekDensity = 'tiny' | 'compact' | 'full';
+
+export function densityFor(heightPx: number): WeekDensity {
+  if (heightPx < 34) return 'tiny';      // One line: title and start time side by side.
+  if (heightPx < 52) return 'compact';   // Title on one line, then the time range.
+  return 'full';                          // Title over two lines, then time and place.
+}
+
+/**
+ * Pixels per hour at each zoom step.
+ *
+ * `normal` is the default and is chosen so a 40-minute lesson gets 56px — enough for a
+ * two-line title and the time beneath it. `compact` fits a longer day on screen at the cost of
+ * shorter titles; `wide` is for reading a dense day closely.
+ */
+export const WEEK_ZOOM_LEVELS = {
+  compact: 56,
+  normal: 84,
+  wide: 112,
+} as const;
+
+export type WeekZoom = keyof typeof WEEK_ZOOM_LEVELS;
+
+export const WEEK_ZOOM_LABELS: Record<WeekZoom, string> = {
+  compact: 'Sık',
+  normal: 'Normal',
+  wide: 'Geniş',
+};
+
+export const WEEK_ZOOM_STORAGE_KEY = 'sirkadiyen.scheduleSimulation.zoom';
+
+export function isWeekZoom(value: unknown): value is WeekZoom {
+  return typeof value === 'string' && value in WEEK_ZOOM_LEVELS;
+}
+
+/**
+ * The zoom the operator last chose, if the browser remembers one.
+ *
+ * Storage can be absent, empty or throw outright — a private window, blocked site data, a
+ * server render — so every access is guarded and the default stands in whenever it fails. It is
+ * a convenience for one viewer on one device and nothing depends on it.
+ */
+export function readStoredZoom(): WeekZoom | null {
+  try {
+    const stored = globalThis.localStorage?.getItem(WEEK_ZOOM_STORAGE_KEY);
+    return isWeekZoom(stored) ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
+export function storeZoom(zoom: WeekZoom): void {
+  try {
+    globalThis.localStorage?.setItem(WEEK_ZOOM_STORAGE_KEY, zoom);
+  } catch {
+    // A viewer who cannot persist a preference still gets a working page.
+  }
+}
+
 /** The hour marks a grid covers, as minutes past midnight. */
 export function hourMarks(grid: TimeSpanMinutes): number[] {
   const marks: number[] = [];

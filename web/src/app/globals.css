@@ -2943,6 +2943,26 @@ body.has-drawer {
   cursor: pointer;
 }
 
+/*
+  The teaching unit here is 40 minutes, so most chips are short and the text has to fit the box
+  rather than the box the text. `data-density` is computed from the chip's real pixel height.
+*/
+.week-event[data-density="tiny"] {
+  justify-content: center;
+  padding: 1px 5px;
+}
+
+.week-event[data-density="tiny"] .week-event__title,
+.week-event[data-density="compact"] .week-event__title {
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+
+/* The name gets the whole box; the hours are readable from the row the chip sits in. */
+.week-event[data-density="tiny"] .week-event__title {
+  font-weight: 600;
+}
+
 .week-event--allday {
   position: static;
   width: auto;
@@ -2989,27 +3009,162 @@ body.has-drawer {
   word-break: break-word;
 }
 
-/*
-  Below tablet width a seven-column week is a row of 40px slivers. The grid becomes a vertical
-  day list instead, which is legible at any width.
-*/
-@media (max-width: 760px) {
+/* Tablet keeps the grid but needs a floor under the column width, so it scrolls sideways. */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .week-grid {
+    overflow-x: auto;
+  }
   .week-grid__head,
   .week-grid__allday,
   .week-grid__body {
-    grid-template-columns: var(--week-gutter) repeat(7, minmax(88px, 1fr));
-  }
-  .week-grid__scroll {
-    max-height: none;
-    overflow: auto;
-  }
-  .week-grid {
-    overflow-x: auto;
+    grid-template-columns: var(--week-gutter) repeat(7, minmax(104px, 1fr));
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .week-grid-wrap[data-loading="true"] {
     transition: none;
+  }
+}
+
+/* Zoom control: a segmented row, the pressed step filled in. */
+.week-zoom {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.week-zoom .btn {
+  border-radius: 0;
+  border: 0;
+  box-shadow: none;
+}
+
+.week-zoom .btn[data-selected="true"] {
+  background: var(--fg);
+  color: var(--canvas);
+}
+
+/*
+  One week, two shapes. The grid is the desktop view; the agenda list is the phone's, because a
+  seven-column week on a 375px screen is seven unreadable slivers.
+*/
+.week-view--agenda {
+  display: none;
+}
+
+.week-agenda {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.week-agenda__heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: var(--ink-50);
+  font-weight: 600;
+}
+
+.week-agenda__date {
+  font-size: 17px;
+  color: var(--fg-ink);
+}
+
+.week-agenda__day[data-today="true"] .week-agenda__date {
+  background: var(--fg);
+  color: var(--canvas);
+  border-radius: 999px;
+  min-width: 27px;
+  padding: 1px 6px;
+  text-align: center;
+}
+
+.week-agenda__empty {
+  margin: 0 0 0 4px;
+  font-size: 12.5px;
+}
+
+.week-agenda__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.week-agenda__item {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px 8px 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--canvas);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.week-agenda__item[data-selected="true"] {
+  outline: 2.5px solid var(--fg-ink);
+  outline-offset: -2px;
+}
+
+.week-agenda__stripe {
+  flex: 0 0 5px;
+  align-self: stretch;
+  margin: -8px 0;
+}
+
+.week-agenda__when {
+  flex: 0 0 52px;
+  display: flex;
+  flex-direction: column;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.week-agenda__allday {
+  font-size: 11.5px;
+}
+
+.week-agenda__what {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.week-agenda__title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--fg-ink);
+  /* A list has room for a long title to wrap; nothing needs truncating here. */
+  overflow-wrap: anywhere;
+}
+
+.week-agenda__where {
+  font-size: 12px;
+}
+
+@media (max-width: 760px) {
+  .week-view--grid,
+  .week-zoom {
+    display: none;
+  }
+  .week-view--agenda {
+    display: block;
   }
 }

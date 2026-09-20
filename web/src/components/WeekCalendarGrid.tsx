@@ -2,7 +2,9 @@
 
 import { useMemo } from 'react';
 import {
+  WEEK_ZOOM_LEVELS,
   dayName,
+  densityFor,
   formatMinutes,
   formatTime,
   gridBounds,
@@ -13,6 +15,7 @@ import {
   readableTextColor,
   weekDays,
 } from '@/lib/calendarWeek';
+import type { WeekDensity, WeekZoom } from '@/lib/calendarWeek';
 import type { CohortSimulationEvent } from '@/lib/types';
 
 interface WeekCalendarGridProps {
@@ -21,6 +24,7 @@ interface WeekCalendarGridProps {
   events: CohortSimulationEvent[];
   /** Today in Europe/Istanbul, so the column is highlighted for every operator alike. */
   today: string;
+  zoom?: WeekZoom;
   selectedId?: string | null;
   onSelect: (event: CohortSimulationEvent) => void;
 }
@@ -38,17 +42,19 @@ function timeRange(event: CohortSimulationEvent): string {
  * A week of lessons, laid out the way a calendar lays one out.
  *
  * Purely presentational: it fetches nothing and decides nothing about which lessons belong here.
- * Its one real job is placing concurrent events side by side, which is not decoration — several
- * sources publish into a single cohort, and two of them claiming the same hour is exactly what
- * an operator opens this page to find.
+ * Its two real jobs are placing concurrent events side by side — several sources publish into a
+ * single cohort, and two of them claiming the same hour is exactly what an operator opens this
+ * page to find — and fitting each lesson's text to the box its hours give it.
  */
 export function WeekCalendarGrid({
   weekStart,
   events,
   today,
+  zoom = 'normal',
   selectedId,
   onSelect,
 }: WeekCalendarGridProps) {
+  const hourHeight = WEEK_ZOOM_LEVELS[zoom];
   const days = useMemo(() => weekDays(weekStart), [weekStart]);
 
   const timed = useMemo(
@@ -66,6 +72,7 @@ export function WeekCalendarGrid({
   );
 
   const marks = useMemo(() => hourMarks(grid), [grid]);
+  const bodyHeight = marks.length * hourHeight;
 
   const perDay = useMemo(
     () => days.map((day) => layoutDay(
@@ -79,12 +86,12 @@ export function WeekCalendarGrid({
     [days, timed, grid],
   );
 
-  // The body's height follows the number of hours on show, so a short week is a short grid
-  // rather than a tall one padded with nothing.
-  const bodyHeight = `calc(${marks.length} * var(--week-hour-height))`;
-
   return (
-    <div className="week-grid" data-testid="week-grid">
+    <div
+      className="week-grid"
+      data-testid="week-grid"
+      style={{ ['--week-hour-height' as string]: `${hourHeight}px` }}
+    >
       <div className="week-grid__head">
         <div className="week-grid__corner" aria-hidden="true" />
         {days.map((day) => (
@@ -116,6 +123,7 @@ export function WeekCalendarGrid({
                   event={event}
                   selected={selectedId === eventKey(event)}
                   onSelect={onSelect}
+                  density="compact"
                   allDay
                 />
               ))}
@@ -124,7 +132,7 @@ export function WeekCalendarGrid({
       </div>
 
       <div className="week-grid__scroll">
-        <div className="week-grid__body" style={{ height: bodyHeight }}>
+        <div className="week-grid__body" style={{ height: `${bodyHeight}px` }}>
           <div className="week-grid__gutter">
             {marks.map((minute) => (
               <div key={minute} className="week-grid__hour">
@@ -145,6 +153,9 @@ export function WeekCalendarGrid({
                   event={event}
                   selected={selectedId === eventKey(event)}
                   onSelect={onSelect}
+                  // The chip's real height in pixels is what decides how much of the lesson it
+                  // can show; a percentage on its own says nothing about whether text fits.
+                  density={densityFor((heightPct / 100) * bodyHeight)}
                   style={{
                     top: `${topPct}%`,
                     height: `${heightPct}%`,
@@ -165,23 +176,37 @@ function EventChip({
   event,
   selected,
   onSelect,
+  density,
   style,
   allDay = false,
 }: {
   event: CohortSimulationEvent;
   selected: boolean;
   onSelect: (event: CohortSimulationEvent) => void;
+  density: WeekDensity;
   style?: React.CSSProperties;
   allDay?: boolean;
 }) {
   const background = event.label.backgroundColor;
+
+  // The shortest chips give their whole width to the lesson's name and show no hours at all.
+  // Where the chip sits in the grid already says when it is, and the row is narrow enough that
+  // a time would eat the title down to "1-…" — the one thing nothing else on screen tells you.
+  // The full label stays in the tooltip and in the detail panel either way.
+  const meta = density === 'tiny'
+    ? null
+    : `${timeRange(event)}${density === 'full' && event.location ? ` · ${event.location}` : ''}`;
 
   return (
     <button
       type="button"
       className={allDay ? 'week-event week-event--allday' : 'week-event'}
       data-selected={selected}
+      data-density={density}
       aria-pressed={selected}
+      // Short chips hide the place and the end time, so the full label stays reachable by
+      // pointer and by assistive technology even when the box cannot show it.
+      title={`${event.summary} · ${timeRange(event)}${event.location ? ` · ${event.location}` : ''}`}
       style={{ ...style, background, color: readableTextColor(background) }}
       onClick={() => onSelect(event)}
     >
@@ -196,10 +221,7 @@ function EventChip({
         )}
         {event.summary}
       </span>
-      <span className="week-event__meta">
-        {timeRange(event)}
-        {event.location ? ` · ${event.location}` : ''}
-      </span>
+      {meta && <span className="week-event__meta">{meta}</span>}
     </button>
   );
 }

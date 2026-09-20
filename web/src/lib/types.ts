@@ -1922,6 +1922,14 @@ export interface CohortSimulationWeek {
   weekEndLocalDate: string;
   timeZoneId: string;
   /**
+   * Dimensions the programme requires that this query left unstated.
+   *
+   * Not an error: a partial cohort is a legitimate question, and the audience rule answers it by
+   * withholding every lesson addressed to a dimension the cohort has not declared (ADR-109). It
+   * is reported because that withholding is why the week looks emptier than expected.
+   */
+  missingRequiredSelectors: string[];
+  /**
    * Live lessons resolving to this cohort across the whole year, before the week filter. It is
    * what separates a quiet week from a cohort that receives nothing at all.
    */

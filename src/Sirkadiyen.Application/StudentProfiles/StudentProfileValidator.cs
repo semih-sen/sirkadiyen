@@ -39,6 +39,7 @@ public static class StudentProfileValidator
             submitted.ClassYear,
             submitted.ProgramLanguage,
             submitted.Selectors,
+            requireEveryDimension: true,
             errors);
 
         return errors.Count == 0
@@ -47,31 +48,66 @@ public static class StudentProfileValidator
     }
 
     /// <summary>
-    /// The cohort half of the rule on its own: the program must exist, every stated selector
-    /// must be one it defines, and every dimension it requires must be stated with a supported
-    /// value.
+    /// The cohort half of the rule on its own: the program must exist and every stated selector
+    /// must be one it defines, with a supported value.
     /// </summary>
+    /// <param name="requireEveryDimension">
+    /// Whether a dimension the program requires must actually be stated. A stored profile must
+    /// state all of them, because a student who declared none would receive almost nothing and
+    /// never know why. A caller that is deliberately asking about a partial cohort — the
+    /// schedule simulation, narrowing one dimension at a time — passes <c>false</c> and reads
+    /// the omissions back instead; the audience rule already withholds anything addressed to a
+    /// dimension the cohort has not declared (ADR-109), so a partial cohort is a meaningful
+    /// question rather than an invalid one.
+    /// </param>
     /// <remarks>
-    /// A caller that resolves an audience without a stored profile — the cohort schedule
-    /// simulation — has no student number to offer, and <see cref="Validate"/> would reject it
-    /// for the absence of one. Splitting the two keeps that caller on the same selector rules a
-    /// real profile is held to, rather than a second, drifting copy of them.
+    /// A caller that resolves an audience without a stored profile has no student number to
+    /// offer, and <see cref="Validate"/> would reject it for the absence of one. Splitting the
+    /// two keeps that caller on the same selector rules a real profile is held to, rather than a
+    /// second, drifting copy of them.
     /// </remarks>
     public static StudentProfileValidationResult ValidateSelectors(
         SupportedProfileSchema schema,
         int classYear,
         ProgramLanguage programLanguage,
-        IReadOnlyDictionary<string, string> selectors)
+        IReadOnlyDictionary<string, string> selectors,
+        bool requireEveryDimension = true)
     {
         ArgumentNullException.ThrowIfNull(schema);
         ArgumentNullException.ThrowIfNull(selectors);
 
         List<StudentProfileValidationError> errors = [];
-        CollectSelectorErrors(schema, classYear, programLanguage, selectors, errors);
+        CollectSelectorErrors(
+            schema,
+            classYear,
+            programLanguage,
+            selectors,
+            requireEveryDimension,
+            errors);
 
         return errors.Count == 0
             ? StudentProfileValidationResult.Success()
             : StudentProfileValidationResult.Failure(errors);
+    }
+
+    /// <summary>The dimensions a program requires that this cohort has not stated.</summary>
+    /// <remarks>
+    /// These are not errors when a partial cohort is allowed, but they are the reason a week
+    /// looks emptier than expected, so the caller has to be able to say so.
+    /// </remarks>
+    public static IReadOnlyList<string> MissingRequiredSelectors(
+        SupportedProfileProgram program,
+        IReadOnlyDictionary<string, string> selectors)
+    {
+        ArgumentNullException.ThrowIfNull(program);
+        ArgumentNullException.ThrowIfNull(selectors);
+
+        return
+        [
+            .. program.Dimensions
+                .Where(dimension => dimension.Required && !selectors.ContainsKey(dimension.Key))
+                .Select(dimension => dimension.Key),
+        ];
     }
 
     private static void CollectSelectorErrors(
@@ -79,6 +115,7 @@ public static class StudentProfileValidator
         int classYear,
         ProgramLanguage programLanguage,
         IReadOnlyDictionary<string, string> selectors,
+        bool requireEveryDimension,
         List<StudentProfileValidationError> errors)
     {
         SupportedProfileProgram? program = schema.FindProgram(classYear, programLanguage);
@@ -107,7 +144,7 @@ public static class StudentProfileValidator
 
         foreach (SupportedProfileDimension dimension in program.Dimensions)
         {
-            ValidateDimension(program, dimension, selectors, errors);
+            ValidateDimension(program, dimension, selectors, requireEveryDimension, errors);
         }
     }
 
@@ -115,13 +152,14 @@ public static class StudentProfileValidator
         SupportedProfileProgram program,
         SupportedProfileDimension dimension,
         IReadOnlyDictionary<string, string> selectors,
+        bool requireEveryDimension,
         List<StudentProfileValidationError> errors)
     {
         bool present = selectors.TryGetValue(dimension.Key, out string? value);
 
         if (!present)
         {
-            if (dimension.Required)
+            if (dimension.Required && requireEveryDimension)
             {
                 errors.Add(new StudentProfileValidationError(
                     StudentProfileValidationErrorCode.MissingRequiredSelector,

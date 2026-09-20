@@ -46,7 +46,8 @@ export function DetailDrawer({ title, subtitle, onClose, children }: {
   return <>
     <button type="button" aria-label="Detayı kapat" onClick={onClose} style={{ position: 'fixed', inset: 0, border: 0, background: 'rgba(20,35,40,.35)', zIndex: 290 }} />
     <aside aria-label={`${title} detayı`} style={{ position: 'fixed', zIndex: 300, top: 0, right: 0, bottom: 0, width: 'min(520px, 100vw)', overflowY: 'auto', background: 'var(--canvas)', boxShadow: 'var(--shadow-lg)', padding: 24 }}>
-      <div className="cluster" style={{ justifyContent: 'space-between' }}><div><h2 style={{ fontSize: 19 }}>{title}</h2>{subtitle && <p className="muted" style={{ marginTop: 4 }}>{subtitle}</p>}</div><button className="btn-icon" type="button" onClick={onClose} aria-label="Kapat">×</button></div>
+      {/* nowrap keeps the close button beside a long title instead of below it on a phone. */}
+      <div className="cluster" style={{ justifyContent: 'space-between', flexWrap: 'nowrap', gap: 12 }}><div style={{ minWidth: 0 }}><h2 style={{ fontSize: 19 }}>{title}</h2>{subtitle && <p className="muted" style={{ marginTop: 4 }}>{subtitle}</p>}</div><button className="btn-icon" type="button" onClick={onClose} aria-label="Kapat" style={{ flex: '0 0 auto' }}>×</button></div>
       <div style={{ marginTop: 20 }}>{children}</div>
     </aside>
   </>;
