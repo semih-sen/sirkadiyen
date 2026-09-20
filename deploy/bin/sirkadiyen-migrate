@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# Apply the idempotent migration script that the pipeline rsynced to
+# /srv/sirkadiyen/migrations/<release>.sql.
+#
+#     sirkadiyen-migrate <release>
+#
+# Install as /usr/local/bin/sirkadiyen-migrate (root:root, 0755).
+#
+# The connection string is read from the server's own environment file, so the
+# database password never becomes a GitHub secret. The script `dotnet ef
+# migrations script --idempotent` produces guards every migration against
+# sirkadiyen.__ef_migrations_history, so re-running is a no-op and the server
+# needs psql only - no EF tooling and no SDK.
+# ---------------------------------------------------------------------------
+set -euo pipefail
+
+release="${1:-}"
+sql="/srv/sirkadiyen/migrations/${release}.sql"
+
+if ! [[ "${release}" =~ ^[0-9a-f]{7,40}$ ]]; then
+  echo "usage: sirkadiyen-migrate <release-sha>" >&2
+  exit 64
+fi
+[[ -f "${sql}" ]] || {
+  echo "sirkadiyen-migrate: ${sql} does not exist" >&2
+  exit 66
+}
+
+# SIRKADIYEN_MIGRATION_DSN is a libpq URL for a role that may change the schema,
+# e.g. postgresql://sirkadiyen_migrator:...@127.0.0.1:5432/sirkadiyen
+# shellcheck disable=SC1091
+set -a
+. /srv/sirkadiyen/shared/env/migrations.env
+set +a
+: "${SIRKADIYEN_MIGRATION_DSN:?not set in /srv/sirkadiyen/shared/env/migrations.env}"
+
+echo "sirkadiyen-migrate: applying ${release}"
+
+# ON_ERROR_STOP plus a single transaction: a failing migration leaves the schema
+# exactly as it was, rather than half-applied.
+psql "${SIRKADIYEN_MIGRATION_DSN}" \
+  --quiet \
+  --no-psqlrc \
+  --set ON_ERROR_STOP=on \
+  --single-transaction \
+  --file "${sql}"
+
+echo "sirkadiyen-migrate: ${release} applied"
+
+# Keep the last 20 scripts as an audit trail of what was applied when.
+cd /srv/sirkadiyen/migrations
+# shellcheck disable=SC2012
+ls -1t -- *.sql 2> /dev/null | tail -n +21 | xargs -r rm -f --

@@ -411,6 +411,10 @@ jobs:
           # to be copied next to it or every hashed chunk 404s.
           mkdir -p artifacts/web/.next
           cp -R web/.next/static artifacts/web/.next/static
+          # The standalone trace never includes this: the server writes the
+          # image-optimization cache here at runtime and gets ENOENT on a fresh
+          # release that doesn't have it.
+          mkdir -p artifacts/web/.next/cache/images
           # public/ does not exist in this repository today; copy it if added.
           if [ -d web/public ]; then cp -R web/public artifacts/web/public; fi
           mkdir -p packed

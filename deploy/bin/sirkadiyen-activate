@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# Activate a release that the pipeline has already rsynced to
+# /srv/sirkadiyen/<component>/releases/<release>.
+#
+#     sirkadiyen-activate <api|worker|parser|web> <release>
+#
+# Install as /usr/local/bin/sirkadiyen-activate (root:root, 0755).
+#
+# This is the ONLY thing CI runs on the server, and it takes no code from the
+# caller - just a component name and a release identifier, both validated. The
+# server never fetches anything from GitHub.
+# ---------------------------------------------------------------------------
+set -euo pipefail
+
+component="${1:-}"
+release="${2:-}"
+root=/srv/sirkadiyen
+keep_releases=3
+
+case "${component}" in
+  api | worker | parser | web) ;;
+  *)
+    echo "usage: sirkadiyen-activate <api|worker|parser|web> <release>" >&2
+    exit 64
+    ;;
+esac
+
+# A release is always a commit SHA. Validating it keeps a path such as
+# "../../etc" out of the symlink target.
+if ! [[ "${release}" =~ ^[0-9a-f]{7,40}$ ]]; then
+  echo "sirkadiyen-activate: '${release}' is not a commit SHA" >&2
+  exit 64
+fi
+
+release_dir="${root}/${component}/releases/${release}"
+current_link="${root}/${component}/current"
+service="sirkadiyen-${component}"
+
+[[ -d "${release_dir}" ]] || {
+  echo "sirkadiyen-activate: ${release_dir} does not exist" >&2
+  exit 66
+}
+
+# The pipeline can only rsync as the deploy user, so ownership is fixed here
+# rather than being trusted from the transfer.
+chown -R sirkadiyen:sirkadiyen "${release_dir}"
+
+case "${component}" in
+  api | worker)
+    # The published apphost loses its executable bit through the tar/rsync round
+    # trip on some rsync versions; make it unconditional.
+    chmod +x "${release_dir}/Sirkadiyen.$(tr '[:lower:]' '[:upper:]' <<<"${component:0:1}")${component:1}"
+    ;;
+  parser)
+    # Build the virtualenv here, from the pushed wheelhouse only. `--no-index`
+    # guarantees this never reaches the network, and no build backend or
+    # compiler is involved because every wheel is already built.
+    if [[ ! -d "${release_dir}/venv" ]]; then
+      python3.13 -m venv "${release_dir}/venv"
+      "${release_dir}/venv/bin/pip" install --quiet --upgrade pip
+      "${release_dir}/venv/bin/pip" install \
+        --quiet --no-index --find-links "${release_dir}/wheelhouse" \
+        sirkadiyen-parser
+      chown -R sirkadiyen:sirkadiyen "${release_dir}/venv"
+    fi
+    ;;
+esac
+
+# --- Editable schedule source catalog (ADR-114) ----------------------------
+# The catalog is no longer read from inside a release directory. It is editable
+# by a SuperAdmin at runtime, and a release directory is replaced by the next
+# deployment, so a catalog living there would silently revert every
+# administrative edit. Both hosts read /srv/sirkadiyen/shared/config, which
+# survives deployments; the copy shipped inside the worker artifact is only a
+# seed for a server that has no catalog yet, and never overwrites the live
+# document.
+#
+# The directory is created here rather than only in the setup instructions,
+# because the API unit lists it in ReadWritePaths and systemd refuses to start a
+# unit whose ReadWritePaths does not exist.
+if [[ "${component}" == "api" || "${component}" == "worker" ]]; then
+  catalog_dir="${root}/shared/config"
+  catalog="${catalog_dir}/schedule-sources.json"
+  install -d -o sirkadiyen -g sirkadiyen -m 0750 "${catalog_dir}"
+  if [[ ! -e "${catalog}" && -f "${release_dir}/config/schedule-sources.json" ]]; then
+    install -o sirkadiyen -g sirkadiyen -m 0640 \
+      "${release_dir}/config/schedule-sources.json" "${catalog}"
+    echo "sirkadiyen-activate: seeded ${catalog} from ${release}"
+  fi
+fi
+
+previous="$(readlink -f "${current_link}" 2> /dev/null || true)"
+
+# Atomic swap: create the new symlink beside the old one and rename over it, so
+# there is no instant in which `current` does not resolve.
+ln -sfn "${release_dir}" "${current_link}.new"
+mv -Tf "${current_link}.new" "${current_link}"
+
+echo "sirkadiyen-activate: ${component} -> ${release}"
+systemctl restart "${service}"
+
+# Confirm the process is still alive a few seconds later, so a service that
+# starts and immediately crashes fails the deployment instead of passing it.
+for _ in $(seq 1 10); do
+  sleep 1
+  if ! systemctl is-active --quiet "${service}"; then
+    echo "sirkadiyen-activate: ${service} died after the restart" >&2
+    if [[ -n "${previous}" && -d "${previous}" ]]; then
+      echo "sirkadiyen-activate: rolling back to $(basename "${previous}")" >&2
+      ln -sfn "${previous}" "${current_link}.new"
+      mv -Tf "${current_link}.new" "${current_link}"
+      # `restart` is not enough here: the failed release may still be mid-exit
+      # (or mid auto-restart, since the unit has Restart=always) when this
+      # fires, and starting a new process while the old one is still holding
+      # the listening socket is exactly what produces EADDRINUSE on the
+      # rolled-back release. Stop explicitly and wait for the unit to leave
+      # "deactivating" before starting the previous release.
+      systemctl stop "${service}" || true
+      for _ in $(seq 1 10); do
+        systemctl is-active --quiet "${service}" || break
+        sleep 1
+      done
+      systemctl start "${service}" || true
+      if ! systemctl is-active --quiet "${service}"; then
+        echo "sirkadiyen-activate: rollback to $(basename "${previous}") also failed to start" >&2
+      fi
+    fi
+    journalctl -u "${service}" -n 50 --no-pager >&2
+    exit 70
+  fi
+done
+
+echo "sirkadiyen-activate: ${service} is active"
+
+# Keep a few releases for a manual rollback, discard the rest.
+cd "${root}/${component}/releases"
+# shellcheck disable=SC2012
+ls -1dt -- */ 2> /dev/null | tail -n "+$((keep_releases + 1))" | while read -r stale; do
+  stale="${stale%/}"
+  [[ "${stale}" == "${release}" ]] && continue
+  echo "sirkadiyen-activate: pruning release ${stale}"
+  rm -rf -- "${stale}"
+done

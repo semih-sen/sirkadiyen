@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# ---------------------------------------------------------------------------
+# Cross-service health confirmation, run by the pipeline as its last step.
+#
+#     sirkadiyen-health
+#
+# Install as /usr/local/bin/sirkadiyen-health (root:root, 0755).
+#
+# The ports mirror the deployed configuration: Kestrel on 5080, the worker's
+# internal-only health listener on 5081 (SIRKADIYEN_WORKER__HEALTH_URL), the
+# parser on 8000 (SIRKADIYEN_PARSER__BASE_URL) and Next on 3000. Adjust here if
+# the environment files move them.
+# ---------------------------------------------------------------------------
+set -uo pipefail
+
+failed=0
+
+check() {
+  local name="$1" url="$2" unit="$3"
+
+  if ! systemctl is-active --quiet "${unit}"; then
+    echo "UNHEALTHY ${name}: ${unit} is not active"
+    failed=1
+    return
+  fi
+
+  # Up to ~20s, because a restarted host may still be opening its database pool.
+  local attempt
+  for attempt in $(seq 1 20); do
+    if curl --fail --silent --show-error --max-time 3 --output /dev/null "${url}"; then
+      echo "ok        ${name} (${url})"
+      return
+    fi
+    sleep 1
+  done
+
+  echo "UNHEALTHY ${name}: ${url} did not answer"
+  journalctl -u "${unit}" -n 30 --no-pager
+  failed=1
+}
+
+check "parser" "http://127.0.0.1:8000/health" sirkadiyen-parser.service
+check "api" "http://127.0.0.1:5080/health/ready" sirkadiyen-api.service
+check "worker" "http://127.0.0.1:5081/health/ready" sirkadiyen-worker.service
+check "web" "http://127.0.0.1:3000/" sirkadiyen-web.service
+
+exit "${failed}"
