@@ -102,9 +102,25 @@ systemctl restart "${service}"
 
 # Confirm the process is still alive a few seconds later, so a service that
 # starts and immediately crashes fails the deployment instead of passing it.
+#
+# A single bad reading is not enough to call it dead: right after `restart`,
+# the outgoing process can still be a few hundred ms from actually freeing the
+# port, so the incoming one can hit one EADDRINUSE and get killed by systemd
+# before ever serving anything. The unit has Restart=always, and that one bad
+# start is exactly the kind of blip it exists to absorb - declaring the release
+# dead before giving it those 5 seconds (RestartSec) rolled back a release that
+# would otherwise have come up fine on its own next attempt. Three consecutive
+# down readings (~3s) rides that out while still catching a real crash loop
+# well inside the 10s budget.
+down_streak=0
 for _ in $(seq 1 10); do
   sleep 1
-  if ! systemctl is-active --quiet "${service}"; then
+  if systemctl is-active --quiet "${service}"; then
+    down_streak=0
+    continue
+  fi
+  down_streak=$((down_streak + 1))
+  if (( down_streak >= 3 )); then
     echo "sirkadiyen-activate: ${service} died after the restart" >&2
     if [[ -n "${previous}" && -d "${previous}" ]]; then
       echo "sirkadiyen-activate: rolling back to $(basename "${previous}")" >&2
