@@ -61,11 +61,9 @@ from sirkadiyen_parser.normalization.times import (
     resolve_cell_time,
 )
 from sirkadiyen_parser.parsers.amphitheatre import (
-    AmphitheatreAssignment,
-    AmphitheatreDocument,
     AmphitheatreIndex,
     RoomResolution,
-    read_amphitheatre_document,
+    read_amphitheatre_companion,
 )
 from sirkadiyen_parser.parsers.bedside import read_bedside_document
 from sirkadiyen_parser.parsers.date_repair import (
@@ -929,19 +927,12 @@ def _read_amphitheatre_companion(
     companion family states no dated room grid, so it yields nothing rather than
     being misread, and the metric below reports how much was actually found.
     """
-    if not profile.amphitheatre_companion or not request.auxiliary_snapshots:
-        return AmphitheatreIndex(AmphitheatreDocument())
-
-    assignments: list[AmphitheatreAssignment] = []
-    for snapshot in request.auxiliary_snapshots:
-        document = read_amphitheatre_document(
-            snapshot,
-            context=request.source_context,
-        )
-        assignments.extend(document.assignments)
-
-    index = AmphitheatreIndex(AmphitheatreDocument(assignments=tuple(assignments)))
-    diagnostics.set_metric(METRIC_AMPHITHEATRE_ASSIGNMENTS, len(index))
+    index = read_amphitheatre_companion(request, profile)
+    if profile.amphitheatre_companion and request.auxiliary_snapshots:
+        # Counted whenever the reader was actually offered something, including
+        # when it found nothing in it: a companion that turns out to state no
+        # room at all is a fact about the cycle, not an absent measurement.
+        diagnostics.set_metric(METRIC_AMPHITHEATRE_ASSIGNMENTS, len(index))
     return index
 
 

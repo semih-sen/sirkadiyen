@@ -3,6 +3,13 @@
 The golden tests prove the profile against the real workbooks. These tests pin
 the two rules that decide what reaches a calendar — how a hyphen is read, and
 what a self-contradicting row publishes — with small, labelled blocks.
+
+They also pin where a session is held. The workbook states no room; the weekly
+amphitheatre program states some of them and is read here as a companion
+(ADR-161). The cells those tests use are copied from the real weekly workbooks,
+and what matters most is the refusals: eight of these practices run in the same
+hour in eight rooms, so a room taken on anything weaker than the cohort would be
+right one time in eight.
 """
 
 from datetime import time
@@ -19,8 +26,12 @@ from sirkadiyen_parser.contracts.parsing import (
 )
 from sirkadiyen_parser.normalization.dates import NumericDateOrder
 from sirkadiyen_parser.parsers import get_parser
+from sirkadiyen_parser.parsers.amphitheatre import REASON_AMBIGUOUS, REASON_NO_ASSIGNMENT
 from sirkadiyen_parser.parsers.faculty_practice import (
+    METRIC_AMPHITHEATRE_ASSIGNMENTS,
     METRIC_BLOCKS_READ,
+    METRIC_LOCATION_FROM_AMPHITHEATRE,
+    METRIC_LOCATION_UNRESOLVED_PREFIX,
     REASON_AMBIGUOUS_COHORT,
     REASON_COHORT_NOT_STATED,
     REASON_MIXED_COHORT_LETTERS,
@@ -36,6 +47,18 @@ PROFILE = ParserProfileDefinition(
     "facultyPractice",
     NumericDateOrder.UNDECLARED,
     ("curriculumGroup", "facultyPracticeGroup"),
+)
+
+#: The same profile as the catalogued one reads the weekly amphitheatre program
+#: as a companion. Declared separately so every test above it still proves what a
+#: profile without the companion publishes (ADR-102).
+PROFILE_WITH_AMPHITHEATRE = ParserProfileDefinition(
+    "grade3_faculty_practice_v1",
+    "1.2.0",
+    "facultyPractice",
+    NumericDateOrder.UNDECLARED,
+    ("curriculumGroup", "facultyPracticeGroup"),
+    amphitheatre_companion=True,
 )
 
 BLOCK_TITLE = "DÖNEM-3 HAREKET 2 DİLİMİ - UYGULAMA PROGRAMI (11.10 - 12.10 Uygulaması)"
@@ -109,16 +132,59 @@ def block(
     }
 
 
+#: The practice hour the block title above states, as the weekly grid writes it.
+PRACTICE_SLOT = "11.10 - 12.10"
+
+#: The Monday `DATE_SERIAL` falls on, as a day title row writes it.
+DAY_TITLE = "5 EKİM 2026 / Pazartesi"
+
+
+def amphitheatre_snapshot(bookings: dict[str, str], *, slot: str = PRACTICE_SLOT) -> dict[str, Any]:
+    """One weekly day block: a title row, a room header and one slot row.
+
+    ``bookings`` maps each room to the cell written under it, so a test reads as
+    the grid does: a column is a room and a cell says who is in it.
+    """
+    cells: list[dict[str, Any]] = [text_cell(0, 0, DAY_TITLE), text_cell(1, 0, "SAAT")]
+    for column, (room, text) in enumerate(bookings.items(), start=1):
+        cells.append(text_cell(1, column, room))
+        cells.append(text_cell(2, column, text))
+    cells.append(text_cell(2, 0, slot))
+
+    return {
+        "contractVersion": "1.0",
+        "sourceId": "SHARED-AMPHI",
+        "snapshotId": "amphi-snapshot",
+        "spreadsheetId": "amphi-spreadsheet",
+        "acquiredAtUtc": "2026-10-04T09:00:00Z",
+        "contentHash": "sha256:amphi",
+        "contentHashAlgorithm": "SHA-256",
+        "worksheets": [
+            {
+                "sheetId": "1",
+                "title": "5-9 EKİM 2026",
+                "index": 0,
+                "rowCount": 3,
+                "columnCount": len(bookings) + 1,
+                "mergedRanges": [],
+                "cells": cells,
+            }
+        ],
+    }
+
+
 def parse(
     worksheets: list[dict[str, Any]],
     *,
     profile: ParserProfileDefinition = PROFILE,
     program_language: str = "turkish",
+    auxiliary: list[dict[str, Any]] | None = None,
 ) -> ParseSnapshotResponse:
     request = ParseSnapshotRequest.model_validate(
         {
             "contractVersion": "1.0",
             "correlationId": "unit-test",
+            "auxiliarySnapshots": auxiliary or [],
             "parserProfile": {"name": profile.name, "version": profile.version},
             "sourceContext": {
                 "academicYear": "2026-2027",
@@ -155,7 +221,7 @@ def cohorts_of(response: ParseSnapshotResponse) -> set[str]:
 
 
 def test_the_registered_profile_is_the_faculty_practice_implementation() -> None:
-    profile = get_profile("grade3_faculty_practice_v1", "1.1.0")
+    profile = get_profile("grade3_faculty_practice_v1", "1.2.0")
 
     assert profile is not None
     assert get_parser(profile.name, profile.version) is parse_faculty_practice_snapshot
@@ -429,3 +495,192 @@ def test_a_rotation_row_with_an_unreadable_date_is_reported_not_counted_as_prose
         warning for warning in response.warnings if "could not be read as a date" in warning.message
     )
     assert "HAREKET 2 DİLİMİ" in unresolved.message
+
+
+# --- Where the session is held (ADR-161) --------------------------------------
+
+
+FULL_ROTATION = [["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8"]]
+
+
+def locations(response: ParseSnapshotResponse) -> dict[str, str | None]:
+    """Each published cohort's location, keyed by the cohort it is addressed to."""
+    return {
+        selector.value: candidate.location
+        for candidate in response.candidates
+        for selector in candidate.audience.selectors
+        if selector.dimension == "facultyPracticeGroup"
+    }
+
+
+def test_a_practice_takes_the_room_the_weekly_program_states_for_its_cohort() -> None:
+    response = parse(
+        [block(FULL_ROTATION)],
+        profile=PROFILE_WITH_AMPHITHEATRE,
+        auxiliary=[
+            amphitheatre_snapshot(
+                {
+                    "DAHİLİ BİL.C DERSLİĞİ": "DÖNEM 3-A GERİATRİ - A1- UYGULAMA",
+                    "DAHİLİ BİL.D DERSLİĞİ": "DÖNEM 3-A HEMATOLOJİ - A2- UYGULAMA",
+                }
+            )
+        ],
+    )
+
+    assert locations(response)["A1"] == "DAHİLİ BİL.C DERSLİĞİ"
+    assert locations(response)["A2"] == "DAHİLİ BİL.D DERSLİĞİ"
+    assert metrics(response)[METRIC_LOCATION_FROM_AMPHITHEATRE] == 2
+    assert metrics(response)[METRIC_AMPHITHEATRE_ASSIGNMENTS] == 2
+
+
+def test_the_cohorts_the_weekly_program_omits_keep_no_location() -> None:
+    """Six of the eight are not in this week's document, and stay unplaced."""
+    response = parse(
+        [block(FULL_ROTATION)],
+        profile=PROFILE_WITH_AMPHITHEATRE,
+        auxiliary=[amphitheatre_snapshot({"DAHİLİ BİL.C": "DÖNEM 3-A GERİATRİ - A1- UYGULAMA"})],
+    )
+
+    placed = locations(response)
+    assert placed["A1"] == "DAHİLİ BİL.C"
+    assert [placed[f"A{index}"] for index in range(2, 9)] == [None] * 7
+    assert metrics(response)[METRIC_LOCATION_UNRESOLVED_PREFIX + REASON_NO_ASSIGNMENT] == 7
+
+
+def test_a_run_of_cohorts_places_each_of_them_in_the_same_room() -> None:
+    """`A3-A4` is two cohorts sharing one room, as the rotation writes it too."""
+    response = parse(
+        [block(FULL_ROTATION)],
+        profile=PROFILE_WITH_AMPHITHEATRE,
+        auxiliary=[
+            amphitheatre_snapshot(
+                {"DAHİLİ BİL.C": "DÖNEM 3-A-ÇOCUK SAĞLIĞI VE HASTALIKLARI - A3-A4- UYGULAMA"}
+            )
+        ],
+    )
+
+    assert locations(response)["A3"] == "DAHİLİ BİL.C"
+    assert locations(response)["A4"] == "DAHİLİ BİL.C"
+
+
+def test_a_booking_naming_no_cohort_places_nobody() -> None:
+    """Eight cohorts share this hour, so an unattributed room belongs to no one."""
+    response = parse(
+        [block(FULL_ROTATION)],
+        profile=PROFILE_WITH_AMPHITHEATRE,
+        auxiliary=[
+            amphitheatre_snapshot({"TEVFİK SAĞLAM AMFİSİ": "DÖNEM 3-A -SEMİYOLOJİ -GERİATRİ"})
+        ],
+    )
+
+    assert set(locations(response).values()) == {None}
+
+
+def test_a_bedside_booking_in_the_same_hour_places_nobody() -> None:
+    """The bedside rotation's `A1-2` shares this grid and is not cohort A1."""
+    response = parse(
+        [block(FULL_ROTATION)],
+        profile=PROFILE_WITH_AMPHITHEATRE,
+        auxiliary=[
+            amphitheatre_snapshot({"DAHİLİ BİL.C": "DÖNEM 3 A GRUBU- A1-2 HASTA BAŞI UYGULAMA"})
+        ],
+    )
+
+    assert set(locations(response).values()) == {None}
+
+
+def test_two_bookings_naming_one_cohort_leave_it_unplaced() -> None:
+    response = parse(
+        [block(FULL_ROTATION)],
+        profile=PROFILE_WITH_AMPHITHEATRE,
+        auxiliary=[
+            amphitheatre_snapshot(
+                {
+                    "DAHİLİ BİL.C": "DÖNEM 3-A GERİATRİ - A1- UYGULAMA",
+                    "DAHİLİ BİL.D": "DÖNEM 3-A ANESTEZİYOLOJİ - A1- UYGULAMA",
+                }
+            )
+        ],
+    )
+
+    assert locations(response)["A1"] is None
+    assert metrics(response)[METRIC_LOCATION_UNRESOLVED_PREFIX + REASON_AMBIGUOUS] == 1
+
+
+def test_a_booking_of_the_other_curriculum_group_is_not_claimed() -> None:
+    """One real cell writes `DÖNEM 3 B GRUBU- A1-1`, so this is not theoretical."""
+    response = parse(
+        [block(FULL_ROTATION)],
+        profile=PROFILE_WITH_AMPHITHEATRE,
+        auxiliary=[amphitheatre_snapshot({"DAHİLİ BİL.D": "DÖNEM 3-B NÖROLOJİ - A1- UYGULAMA"})],
+    )
+
+    assert set(locations(response).values()) == {None}
+
+
+def test_a_booking_in_another_hour_is_not_claimed() -> None:
+    response = parse(
+        [block(FULL_ROTATION)],
+        profile=PROFILE_WITH_AMPHITHEATRE,
+        auxiliary=[
+            amphitheatre_snapshot(
+                {"DAHİLİ BİL.C": "DÖNEM 3-A GERİATRİ - A1- UYGULAMA"},
+                slot="13.30 - 14.20",
+            )
+        ],
+    )
+
+    assert set(locations(response).values()) == {None}
+
+
+def test_the_english_program_takes_the_same_room_as_the_cohort_it_shares() -> None:
+    """Grade 3 English sits the A-document's cohorts and states no A/B group.
+
+    The booking says `3-A` because the document is written for the Turkish
+    halves; the English record states no curriculum group at all (ADR-160), so
+    it narrows nothing by one and takes the room of the session it attends.
+    """
+    response = parse(
+        [block(FULL_ROTATION)],
+        profile=PROFILE_WITH_AMPHITHEATRE,
+        program_language="english",
+        auxiliary=[amphitheatre_snapshot({"DAHİLİ BİL.C": "DÖNEM 3-A GERİATRİ - A1- UYGULAMA"})],
+    )
+
+    assert locations(response)["A1"] == "DAHİLİ BİL.C"
+
+
+def test_a_profile_given_no_companion_publishes_exactly_what_it_published_before() -> None:
+    """ADR-102's invariant, proved on the content hash rather than asserted.
+
+    A location the document does not state leaves the hash untouched, so a
+    session that never had a room is not rewritten onto every student's calendar
+    merely because this profile learned to read one.
+    """
+    before = parse([block(FULL_ROTATION)])
+    after = parse([block(FULL_ROTATION)], profile=PROFILE_WITH_AMPHITHEATRE)
+
+    assert [candidate.content_hash for candidate in after.candidates] == [
+        candidate.content_hash for candidate in before.candidates
+    ]
+    assert set(locations(after).values()) == {None}
+
+
+def test_a_room_moves_the_content_hash_but_not_the_identity() -> None:
+    """A room change must patch the existing event, never replace it (§10, §13)."""
+    without = parse([block(FULL_ROTATION)], profile=PROFILE_WITH_AMPHITHEATRE)
+    with_room = parse(
+        [block(FULL_ROTATION)],
+        profile=PROFILE_WITH_AMPHITHEATRE,
+        auxiliary=[amphitheatre_snapshot({"DAHİLİ BİL.C": "DÖNEM 3-A GERİATRİ - A1- UYGULAMA"})],
+    )
+
+    placed = next(candidate for candidate in with_room.candidates if candidate.location is not None)
+    unplaced = next(
+        candidate
+        for candidate in without.candidates
+        if candidate.candidate_id == placed.candidate_id
+    )
+
+    assert placed.stable_identity == unplaced.stable_identity
+    assert placed.content_hash != unplaced.content_hash

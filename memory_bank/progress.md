@@ -851,7 +851,11 @@ a Grade 3 student can declare a profile.
 - **`grade3_bedside_v1`** publishes nothing by design. It is the reader the annual profile calls
   for practice topics, and it is registered and golden-tested so the document is accounted for.
 - **`grade3_faculty_locations_v1`** is declared but unimplemented, so the room lookup returns
-  501 instead of being dispatched to the matrix parser. The room join itself is still unbuilt.
+  501 instead of being dispatched to the matrix parser. That join is still unbuilt — but the
+  faculty practice is no longer roomless: 1.2.0 takes its location from the weekly amphitheatre
+  program, matched on the cohort that document names inside the cell (`DÖNEM 3-A GERİATRİ - A1-
+  UYGULAMA`) and on nothing weaker, because eight of these sessions run in parallel in one hour
+  (ADR-161). A session the weekly document does not name keeps no location.
 - **Bedside topics reach the event description.** A canonical record now carries free-text
   `notes`, part of the content hash and of no stable identity (ADR-101), rendered as a trailing
   `Konu:` paragraph. 88 of 92 topics resolve for the A group and 87 of 92 for B; the rest are
@@ -1851,3 +1855,45 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
 - **Not done / not verified:** the .NET build and test run above; `next lint` (its config is not
   committed, so the fresh install prompts interactively). No migration was needed — the audit
   category is stored as a string with no check constraint (ADR-120's convention).
+
+## Dönem 3 öğretim üyesi uygulamasına amfi programından yer bilgisi (2026-09-20, ADR-161)
+
+- **Why:** these sessions have always reached a student's calendar with no place on them. Their
+  workbook states no room, and `G3-FACULTY-LOCATIONS` — the lookup meant to answer that — words its
+  departments differently, leaves five rooms blank and states no date, so it was never joined. The
+  weekly amphitheatre program states some of them.
+- **What the documents say:** across the four committed weekly workbooks, 548 cells state a Grade 3
+  faculty practice by cohort in 36 distinct wordings — `DÖNEM 3-A GERİATRİ - A1- UYGULAMA -
+  11.10-12.10`, `İÇ HAST. HEMATOLOJİ-A7`, runs that enumerate (`A3-A4`, `B7-B6-B5`). The two
+  documents' departments do not match, and the existing segment reader returns junk on exactly these
+  cells, so the **cohort is the whole of the match**.
+- **Changed (parser):** `amphitheatre.py` reads the cohorts a Grade 3 cell names and answers a
+  second, stricter lookup for them (`resolve_faculty_practice`), which refuses ADR-133's hour
+  fallback — eight cohorts share the hour, so that fallback would be right one time in eight.
+  `faculty_practice.py` reads the companion and publishes the room as `location`, hashed only when
+  one was found. `read_amphitheatre_companion` is now shared with `annual.py`.
+- **Changed (catalog):** the three faculty sources name `SHARED-AMPHI` as a companion;
+  `grade3_faculty_practice_v1` 1.1.0 → 1.2.0.
+- **The bedside trap, found on the real data:** the bedside rotation shares the grid and writes
+  `A2-2 HASTA BAŞI UYGULAMA`, whose `A2` is not a faculty cohort. A bedside cell therefore states no
+  cohort — with an unanchored marker and an optional separator, because three cells write
+  `B1-2HASTA BAŞI` and an anchored pattern let exactly those three through.
+- **Tests added:** 15 in `test_parsers_amphitheatre.py` (cohort reading in every wording it is
+  written, the two bedside spellings, `HASTALIKLARI` not read as a bedside marker, Grade 2 reads no
+  cohort, and the lookup's refusals: no booking, an unattributed room, the other curriculum group,
+  two that disagree; plus the real workbook's two cells) and 11 in
+  `test_parsers_faculty_practice.py` (placement per cohort and per run, the six cohorts a week omits,
+  another hour, the English program taking the same room, the ADR-102 content-hash invariant, and a
+  room moving the content hash but not the identity). One new golden case,
+  `g3-tr-a-faculty-with-amphitheatre`.
+- **Tests executed:** 649 parser tests green, `ruff check`, `ruff format --check` and `mypy` clean.
+  Every annual golden byte-identical; the two faculty goldens move only in the profile version and
+  the new accounting metric.
+- **Not done / not verified:** the .NET solution was NOT built or tested — no SDK in this
+  environment. The one C# change is an assertion count in `ScheduleSourceCatalogTests` (7 → 10
+  sources read `SHARED-AMPHI`) and must be compiled and run before merge. No fixture proves a
+  *placed* room end to end, because the committed weekly workbook covers 31 Aug - 6 Sep 2026 and
+  this rotation starts on 21 Sep; capturing a weekly workbook from a teaching week would need
+  `tools/Sirkadiyen.SnapshotTool`, which needs the SDK.
+- **Open:** the weekly document covers five days of a September-to-May rotation, so most of these
+  sessions will still publish with no room until `G3-FACULTY-LOCATIONS` is joined too.

@@ -354,6 +354,24 @@ CASES = (
         _UNNARROWED,
         "parse/g3-tr-b-faculty.json",
     ),
+    # The A rotation with the weekly amphitheatre program attached, which is what
+    # the pipeline does once that companion has been acquired (ADR-161). The
+    # committed week covers 31 August - 6 September 2026 and this rotation begins
+    # on 21 September, so no session of it is named there and every candidate
+    # digest must be byte-identical to the case above: a companion that says
+    # nothing about a date changes nothing about it (ADR-102). What the golden
+    # adds is the accounting — how many rooms the document stated at all, and the
+    # reason every one of these 510 sessions took none.
+    (
+        "grade3_faculty_practice_v1",
+        "real/g3-tr-a-faculty.snapshot.json",
+        3,
+        "turkish",
+        _Y2026,
+        ("real/shared-amphi.snapshot.json",),
+        _UNNARROWED,
+        "parse/g3-tr-a-faculty-with-amphitheatre.json",
+    ),
     # Both bedside documents, which publish nothing and whose goldens therefore
     # assert on their metrics: they are the reader the annual profile calls, and
     # the metrics are how much of each catalogue it could resolve (ADR-100).

@@ -727,6 +727,11 @@
         "value": 488.0
       },
       {
+        "name": "location.amphitheatreUnresolved.noAmphitheatreAssignmentForLesson",
+        "unit": null,
+        "value": 512.0
+      },
+      {
         "name": "rows.ignored",
         "unit": null,
         "value": 317.0
@@ -759,9 +764,9 @@
     ],
     "parserProfile": {
       "name": "grade3_faculty_practice_v1",
-      "version": "1.1.0"
+      "version": "1.2.0"
     },
-    "responseDigest": "sha256:2e0b7851f841eedbb21d1d9a45e4f2282e6b7b1c9abe82c24c16b3b7493f6c9b",
+    "responseDigest": "sha256:6c3f8d547a9e55478c6f98f610cb43c699d2f07855835ca7daa9112018e7b2ad",
     "snapshotId": "fixture:sha256:71e80553abdbff49237f5074a9bd24af7e441288213dc68c95e17f2bdab09e7e",
     "sourceId": "G3-TR-B-FACULTY",
     "status": "completed",

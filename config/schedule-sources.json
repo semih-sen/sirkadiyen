@@ -470,11 +470,14 @@
       "sourceUri": "https://drive.google.com/file/d/1YluyIWyOjjoL7JGpQXTUiGOROGaSpMIw/view",
       "externalId": "1YluyIWyOjjoL7JGpQXTUiGOROGaSpMIw",
       "parserProfile": "grade3_faculty_practice_v1",
-      "parserProfileVersion": "1.1.0",
+      "parserProfileVersion": "1.2.0",
       "academicYear": "2026-2027",
       "classYear": 3,
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
+      "companionSourceIds": [
+        "SHARED-AMPHI"
+      ],
       "supportedAudienceSelectors": {
         "curriculumGroup": [
           "3-A"
@@ -490,7 +493,8 @@
           "A8"
         ]
       },
-      "fixturePath": "sheets/donem-3-tr-A/Dönem 3 ÖĞRETİM ÜYESİ A GRUBU UYGULAMA TABLOSU VE KONULARI 2026-2027 (1).xlsx"
+      "fixturePath": "sheets/donem-3-tr-A/Dönem 3 ÖĞRETİM ÜYESİ A GRUBU UYGULAMA TABLOSU VE KONULARI 2026-2027 (1).xlsx",
+      "notes": "The workbook states no room anywhere, so the weekly amphitheatre program is read as a companion and supplies the location (ADR-161). It names these sessions by cohort (`DÖNEM 3-A GERİATRİ - A1- UYGULAMA`), and the cohort is the whole of the match: eight of them run in parallel in one hour, in eight rooms, and the two documents word their departments differently. A session the weekly document does not name keeps no location, and the document covers one week of a year-long rotation, so most of them do not."
     },
     {
       "sourceId": "G3-TR-B-FACULTY",
@@ -500,11 +504,14 @@
       "sourceUri": "https://drive.google.com/file/d/1jlkhFvrStcKAsyO_cGb8Lk5xhDgk0hNh/view",
       "externalId": "1jlkhFvrStcKAsyO_cGb8Lk5xhDgk0hNh",
       "parserProfile": "grade3_faculty_practice_v1",
-      "parserProfileVersion": "1.1.0",
+      "parserProfileVersion": "1.2.0",
       "academicYear": "2026-2027",
       "classYear": 3,
       "programLanguage": "turkish",
       "timeZoneId": "Europe/Istanbul",
+      "companionSourceIds": [
+        "SHARED-AMPHI"
+      ],
       "supportedAudienceSelectors": {
         "curriculumGroup": [
           "3-B"
@@ -520,7 +527,8 @@
           "B8"
         ]
       },
-      "fixturePath": "sheets/donem-3-tr-B/Dönem 3 ÖĞRETİM ÜYESİ B GRUBU UYGULAMA TABLOSU VE KONULARI 2026-2027 (2).xlsx"
+      "fixturePath": "sheets/donem-3-tr-B/Dönem 3 ÖĞRETİM ÜYESİ B GRUBU UYGULAMA TABLOSU VE KONULARI 2026-2027 (2).xlsx",
+      "notes": "The workbook states no room anywhere, so the weekly amphitheatre program is read as a companion and supplies the location (ADR-161). It names these sessions by cohort (`DÖNEM 3-B -HAREKET -FİZİK TEDAVİ VE REH. B5-B6 UYGULAMA`), and the cohort is the whole of the match: eight of them run in parallel in one hour, in eight rooms, and the two documents word their departments differently. A session the weekly document does not name keeps no location, and the document covers one week of a year-long rotation, so most of them do not."
     },
     {
       "sourceId": "G3-EN-A-FACULTY",
@@ -530,11 +538,14 @@
       "sourceUri": "https://drive.google.com/file/d/1YluyIWyOjjoL7JGpQXTUiGOROGaSpMIw/view",
       "externalId": "1YluyIWyOjjoL7JGpQXTUiGOROGaSpMIw",
       "parserProfile": "grade3_faculty_practice_v1",
-      "parserProfileVersion": "1.1.0",
+      "parserProfileVersion": "1.2.0",
       "academicYear": "2026-2027",
       "classYear": 3,
       "programLanguage": "english",
       "timeZoneId": "Europe/Istanbul",
+      "companionSourceIds": [
+        "SHARED-AMPHI"
+      ],
       "supportedAudienceSelectors": {
         "facultyPracticeGroup": [
           "A1",
@@ -548,7 +559,7 @@
         ]
       },
       "fixturePath": "sheets/donem-3-tr-A/Dönem 3 ÖĞRETİM ÜYESİ A GRUBU UYGULAMA TABLOSU VE KONULARI 2026-2027 (1).xlsx",
-      "notes": "The English side of the A-group faculty-practice document. It converts the same file as G3-TR-A-FACULTY and stamps English on its candidates (ADR-160, the ADR-145 shared-document pattern). Unlike the Turkish sibling it states NO curriculumGroup selector — Grade 3 English has no A/B division (ADR-098), so the parser omits the curriculum group for an English source and each record is addressed by the faculty-practice cohort alone, which is what lets an English facultyPracticeGroup-only profile match. The document holds cohorts A1-A8; the English students are only in A1-A4, so the A5-A8 records this stamps English reach nobody (harmless, like the micropatho records a program does not use). Only the A-group document is catalogued for English, because the English students are all in its cohorts; there is no English B-group source."
+      "notes": "The English side of the A-group faculty-practice document. It converts the same file as G3-TR-A-FACULTY and stamps English on its candidates (ADR-160, the ADR-145 shared-document pattern). Unlike the Turkish sibling it states NO curriculumGroup selector — Grade 3 English has no A/B division (ADR-098), so the parser omits the curriculum group for an English source and each record is addressed by the faculty-practice cohort alone, which is what lets an English facultyPracticeGroup-only profile match. The document holds cohorts A1-A8; the English students are only in A1-A4, so the A5-A8 records this stamps English reach nobody (harmless, like the micropatho records a program does not use). Only the A-group document is catalogued for English, because the English students are all in its cohorts; there is no English B-group source. Its rooms come from the weekly amphitheatre program on the same terms as the Turkish sources (ADR-161): the booking states the document's `3-A`, an English record states no curriculum group at all, and an unstated fact narrows nothing, so both programs' students in one cohort take the room of the one session they all attend."
     },
     {
       "sourceId": "G3-FACULTY-LOCATIONS",

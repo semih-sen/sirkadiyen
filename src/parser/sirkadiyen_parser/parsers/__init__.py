@@ -62,7 +62,9 @@ _IMPLEMENTATIONS: dict[tuple[str, str], ParserImplementation] = {
     # The rotation those workbooks defer their `Öğretim üyesi Uygulama` rows to.
     # One implementation serves both curriculum groups: the workbooks differ only
     # in their cohort letter and in the order they write their blocks (ADR-099).
-    ("grade3_faculty_practice_v1", "1.1.0"): parse_faculty_practice_snapshot,
+    # 1.2.0 takes the room from the weekly amphitheatre companion, matched on the
+    # cohort the grid names (ADR-161).
+    ("grade3_faculty_practice_v1", "1.2.0"): parse_faculty_practice_snapshot,
     # Registered even though it publishes nothing. The bedside document states no
     # per-session time, so the annual profile keeps those events and this one
     # supplies their topics (ADR-100); reading it here is what proves the reader

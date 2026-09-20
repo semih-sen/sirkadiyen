@@ -92,9 +92,10 @@ public sealed class ScheduleSourceCatalogTests
                 .Distinct(StringComparer.Ordinal)
                 .Count());
 
-        // The weekly amphitheatre program is a companion of every annual source and
-        // publishes nothing itself, so its own class year and language are nominal
-        // (ADR-133). What matters is that it is readable at all.
+        // The weekly amphitheatre program is a companion of every annual source and of
+        // the Grade 3 faculty-practice sources (ADR-161), and publishes nothing itself,
+        // so its own class year and language are nominal (ADR-133). What matters is
+        // that it is readable at all.
         ScheduleSourceDefinition amphitheatre = Assert.Single(
             catalog.Sources,
             source => source.SourceId == "SHARED-AMPHI");
@@ -111,8 +112,10 @@ public sealed class ScheduleSourceCatalogTests
         Assert.False(string.IsNullOrWhiteSpace(amphitheatre.ExternalId));
         Assert.Single(catalog.Sources, source => source.DiscoveryFolderId is not null);
 
-        // Every annual source reads it, which is what makes the room reach a lesson.
-        Assert.Equal(7, catalog.Sources.Count(
+        // Every annual source reads it, which is what makes the room reach a lesson,
+        // and so do the three Grade 3 faculty-practice sources: their workbook states
+        // no room at all and this document names their sessions by cohort (ADR-161).
+        Assert.Equal(10, catalog.Sources.Count(
             source => source.CompanionSourceIds is not null
                 && source.CompanionSourceIds.Contains("SHARED-AMPHI")));
 

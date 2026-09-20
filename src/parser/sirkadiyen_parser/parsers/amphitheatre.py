@@ -51,9 +51,18 @@ A cell may also state its own time, as in ``DÖNEM 5-HALK SAĞLIĞI -E GRUBU
 because the row is a grid the timetable is drawn on and the cell is what the
 source actually asserts.
 
+A Grade 3 cell may name the faculty-practice cohort the session belongs to —
+``DÖNEM 3-A GERİATRİ - A1- UYGULAMA - 11.10-12.10`` — and that is how this
+document says where an ``Öğretim üyesi uygulaması`` is held (ADR-161). Eight
+cohorts sit with eight departments in the same hour, so the cohort, not the
+department, is what tells one of those eight rooms from the other seven.
+
 Nothing here decides which lesson an assignment belongs to. This module reports
-what the document says; :mod:`sirkadiyen_parser.parsers.annual` decides whether a
-published lesson matches one of these assignments closely enough to take its room.
+what the document says and offers two lookups over it;
+:mod:`sirkadiyen_parser.parsers.annual` and
+:mod:`sirkadiyen_parser.parsers.faculty_practice` decide whether a published
+lesson matches one of these assignments closely enough to take its room, and they
+ask different questions of it.
 """
 
 import re
@@ -109,6 +118,7 @@ METRIC_DAY_BLOCKS = "amphitheatre.dayBlocks"
 METRIC_SLOT_ROWS = "amphitheatre.slotRows"
 METRIC_ASSIGNMENTS = "amphitheatre.assignments"
 METRIC_ASSIGNMENTS_WITH_DEPARTMENT = "amphitheatre.assignments.withDepartment"
+METRIC_ASSIGNMENTS_WITH_FACULTY_COHORT = "amphitheatre.assignments.withFacultyPracticeCohort"
 METRIC_ASSIGNMENTS_IN_SCOPE = "amphitheatre.assignments.inSupportedClassYears"
 METRIC_CANDIDATES_EMITTED = "candidates.emitted"
 
@@ -132,6 +142,28 @@ _CLASS_YEAR_PATTERN = re.compile(r"\bdonem\b\s*-?\s*(\d)")
 #: groups, so the letter is only read for it.
 _GROUP_WORD_PATTERN = re.compile(r"\b([ab])\s*gru(?:bu|p)\b")
 _GROUP_ATTACHED_PATTERN = re.compile(r"\bdonem\b\s*-?\s*3\s*-\s*([ab])\b")
+
+#: The Grade 3 faculty-practice cohort, which the grid writes inside an otherwise
+#: free-text cell: ``DÖNEM 3-A GERİATRİ - A1- UYGULAMA``, and several at once in
+#: ``A3-A4`` or ``B7-B6-B5``. The letter and the index are bounded exactly as
+#: `faculty_practice.py` bounds them, and the token must stand alone, so neither
+#: the ``3`` of ``DÖNEM 3-A`` nor the ``12.10`` of a stated time is read as one.
+#: Only Grade 3 runs this rotation, so the cohorts are only read for it.
+_FACULTY_COHORT_PATTERN = re.compile(r"(?<![a-z0-9])([ab])([1-8])(?![0-9])")
+
+#: The bedside rotation, which shares this grid and writes its own subgroup as
+#: ``A1-2`` — a token whose first half is spelled exactly like a faculty-practice
+#: cohort, while the session is a different rotation the faculty program never
+#: states. A cell that says it is a bedside practice therefore names no faculty
+#: cohort and none is read from it. The alternative is a room taken off the wrong
+#: rotation, which is the one failure this join must not have.
+#:
+#: No word boundary precedes the marker, and the separator is optional, because
+#: three cells of the committed weekly workbooks write the subgroup straight onto
+#: it — ``B1-2HASTA BAŞI UYGULAMA`` — and an anchored pattern let exactly those
+#: three through. Nothing else folds to a word ending in ``hasta``: the Turkish
+#: ``HASTALIKLARI`` continues past it.
+_BEDSIDE_MARKER_PATTERN = re.compile(r"hasta\s*basi")
 
 #: A start and end the cell states for itself, as in ``-13.00-15.20``. Both ends
 #: must be written as a time, so ``A2-2`` and ``HALL 1`` cannot match.
@@ -175,11 +207,22 @@ class AmphitheatreAssignment:
     #: Whether the cell stated its own time instead of inheriting the slot row's.
     time_is_stated: bool
     evidence: SourceEvidence
+    #: The Grade 3 faculty-practice cohorts the cell names, empty when it names
+    #: none. This is the one fact in the document that identifies a
+    #: faculty-practice session outright: eight cohorts sit with eight
+    #: departments in the same hour, and the cell says which of them is in the
+    #: room (ADR-161).
+    faculty_practice_groups: tuple[str, ...] = ()
 
     @property
     def department_key(self) -> str | None:
         """The department folded for comparison, or ``None`` when unstated."""
         return comparison_key(self.department) if self.department else None
+
+    @property
+    def faculty_practice_group_keys(self) -> frozenset[str]:
+        """The faculty-practice cohorts this cell names, folded for comparison."""
+        return frozenset(comparison_key(value) for value in self.faculty_practice_groups)
 
 
 @dataclass(frozen=True, slots=True)
@@ -238,6 +281,10 @@ def read_amphitheatre_document(
     diagnostics.set_metric(
         METRIC_ASSIGNMENTS_WITH_DEPARTMENT,
         sum(1 for assignment in assignments if assignment.department),
+    )
+    diagnostics.set_metric(
+        METRIC_ASSIGNMENTS_WITH_FACULTY_COHORT,
+        sum(1 for assignment in assignments if assignment.faculty_practice_groups),
     )
     diagnostics.set_metric(
         METRIC_ASSIGNMENTS_IN_SCOPE,
@@ -664,6 +711,7 @@ def _read_assignment(
         raw_text=text,
         time_is_stated=time_is_stated,
         evidence=grid.evidence(row_index, column_index, extraction_rule=RULE_ASSIGNMENT),
+        faculty_practice_groups=audience.faculty_practice_groups,
     )
 
 
@@ -701,6 +749,7 @@ class _Audience:
     curriculum_group: str | None
     curriculum_block: str | None
     department: str | None
+    faculty_practice_groups: tuple[str, ...]
 
 
 def _read_audience(text: str) -> _Audience:
@@ -729,6 +778,24 @@ def _read_audience(text: str) -> _Audience:
         if group_match:
             curriculum_group = f"3-{group_match.group(1).upper()}"
 
+    # The cohorts are read from the whole cell rather than from its dashed
+    # segments, because the source writes them attached to a department
+    # (``HEMATOLOJİ-A7``), alone between dashes (``- A1- ``) and in runs
+    # (``A3-A4``). The segment reading is deliberately left untouched: these
+    # cells state a department neither reader can recognize either way, and
+    # changing what it returns would move rooms on the annual programs that
+    # match on it.
+    faculty_practice_groups: tuple[str, ...] = ()
+    if class_year == 3 and not _BEDSIDE_MARKER_PATTERN.search(key):
+        faculty_practice_groups = tuple(
+            sorted(
+                {
+                    f"{letter.upper()}{index}"
+                    for letter, index in _FACULTY_COHORT_PATTERN.findall(key)
+                }
+            )
+        )
+
     block, department = _read_block_and_department(text)
     return _Audience(
         class_year=class_year,
@@ -736,6 +803,7 @@ def _read_audience(text: str) -> _Audience:
         curriculum_group=curriculum_group,
         curriculum_block=block,
         department=department,
+        faculty_practice_groups=faculty_practice_groups,
     )
 
 
@@ -779,6 +847,9 @@ REASON_AMBIGUOUS = "ambiguousAmphitheatreAssignment"
 #: rather than because the departments agreed. Recorded distinctly so the weaker
 #: reason is visible in the metrics instead of hiding inside the total.
 REASON_UNANIMOUS_WITHOUT_DEPARTMENT = "unanimousRoomWithoutDepartmentMatch"
+#: A room accepted because the booking names the session's own faculty-practice
+#: cohort, which is the only basis the faculty-practice join accepts (ADR-161).
+RULE_FACULTY_PRACTICE_COHORT = "amphitheatre.facultyPracticeCohort"
 
 
 @dataclass(frozen=True, slots=True)
@@ -876,6 +947,58 @@ class AmphitheatreIndex:
             survivors[0],
         )
 
+    def resolve_faculty_practice(
+        self,
+        *,
+        local_date: date,
+        class_year: int,
+        program_language: ProgramLanguage,
+        curriculum_groups: Sequence[str],
+        faculty_practice_groups: Sequence[str],
+        start_local_time: time,
+        end_local_time: time,
+    ) -> RoomResolution:
+        """The room one Grade 3 faculty-practice session is held in (ADR-161).
+
+        This lookup is stricter than :meth:`resolve`, and deliberately so. The
+        rotation puts eight cohorts of a curriculum group with eight departments
+        in the same hour, in eight rooms; the department wording of the two
+        documents does not match, and every other fact — date, class year,
+        curriculum group, hour — is shared by all eight. Falling back to the hour
+        the way :meth:`resolve` does would hand one cohort's room to the other
+        seven.
+
+        **A room is therefore taken only from a booking that names the session's
+        own cohort.** A cohort the document is silent about keeps no room at all,
+        which is the right answer for a weekly document that covers five days of
+        a year-long rotation. Two bookings that name the cohort and disagree
+        about the room leave it unplaced, as ADR-035 requires.
+        """
+        if not faculty_practice_groups:
+            return RoomResolution(None, REASON_NO_ASSIGNMENT)
+
+        group_keys = {comparison_key(value) for value in curriculum_groups if value}
+        cohort_keys = {comparison_key(value) for value in faculty_practice_groups if value}
+        candidates = [
+            assignment
+            for assignment in self._by_day.get((local_date, class_year), ())
+            if assignment.faculty_practice_group_keys & cohort_keys
+            and self._matches(
+                assignment,
+                program_language=program_language,
+                group_keys=group_keys,
+                start_local_time=start_local_time,
+                end_local_time=end_local_time,
+            )
+        ]
+        if not candidates:
+            return RoomResolution(None, REASON_NO_ASSIGNMENT)
+
+        if len({comparison_key(assignment.room) for assignment in candidates}) > 1:
+            return RoomResolution(None, REASON_AMBIGUOUS)
+
+        return RoomResolution(candidates[0].room, RULE_FACULTY_PRACTICE_COHORT, candidates[0])
+
     @staticmethod
     def _matches(
         assignment: AmphitheatreAssignment,
@@ -905,3 +1028,30 @@ class AmphitheatreIndex:
             assignment.start_local_time < end_local_time
             and start_local_time < assignment.end_local_time
         )
+
+
+def read_amphitheatre_companion(
+    request: ParseSnapshotRequest,
+    profile: ParserProfileDefinition,
+) -> AmphitheatreIndex:
+    """The rooms the weekly amphitheatre companion states, indexed for lookup.
+
+    Empty whenever the profile declares no amphitheatre companion or none was
+    supplied, and then the calling profile publishes exactly what it published
+    before companions existed (ADR-102). The program that states a session is the
+    only source of it and must never wait on a document that merely says where it
+    is.
+
+    Every auxiliary snapshot is offered to the reader. A snapshot of some other
+    companion family states no dated room grid, so it yields nothing rather than
+    being misread; the caller reports how much was actually found.
+    """
+    if not profile.amphitheatre_companion or not request.auxiliary_snapshots:
+        return AmphitheatreIndex(AmphitheatreDocument())
+
+    assignments: list[AmphitheatreAssignment] = []
+    for snapshot in request.auxiliary_snapshots:
+        document = read_amphitheatre_document(snapshot, context=request.source_context)
+        assignments.extend(document.assignments)
+
+    return AmphitheatreIndex(AmphitheatreDocument(assignments=tuple(assignments)))

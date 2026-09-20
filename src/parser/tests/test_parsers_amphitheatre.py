@@ -30,9 +30,11 @@ from sirkadiyen_parser.parsers.amphitheatre import (
     REASON_NO_ASSIGNMENT,
     REASON_UNANIMOUS_WITHOUT_DEPARTMENT,
     RULE_ASSIGNMENT,
+    RULE_FACULTY_PRACTICE_COHORT,
     AmphitheatreAssignment,
     AmphitheatreDocument,
     AmphitheatreIndex,
+    RoomResolution,
     read_amphitheatre_document,
 )
 from sirkadiyen_parser.profiles import ParserProfileDefinition, get_profile
@@ -526,3 +528,201 @@ def test_neither_companion_reader_claims_the_other_s_document() -> None:
     )
     assert read_as_bedside.slots == []
     assert read_as_bedside.topics_by_date() == {}
+
+
+# --- The Grade 3 faculty-practice cohort a cell names (ADR-161) ----------------
+
+
+def test_a_grade_three_cell_states_the_faculty_practice_cohort_it_is_for() -> None:
+    """The one fact that tells eight parallel practices apart.
+
+    Eight cohorts of a curriculum group sit with eight departments in the same
+    hour, in eight rooms, and this document words its departments differently
+    from the faculty program. Nothing but the cohort identifies the session.
+    """
+    booking = assignment_from("DÖNEM 3-A GERİATRİ - A1- UYGULAMA - 11.10-12.10", "DAHİLİ BİL.C")
+
+    assert booking.faculty_practice_groups == ("A1",)
+    assert booking.curriculum_group == "3-A"
+    assert booking.class_year == 3
+
+
+def test_a_cell_naming_several_cohorts_states_all_of_them() -> None:
+    """The grid writes a shared session as a run, exactly as the rotation does."""
+    attached = assignment_from(
+        "DÖNEM 3-A-ÇOCUK SAĞLIĞI VE HASTALIKLARI - A3-A4- UYGULAMA - 11.10-12.10", "DAHİLİ BİL.C"
+    )
+    reversed_run = assignment_from(
+        "DÖNEM 3 -B -SİNİR DUYU DİLİMİ- NÖROLOJİ -B7-B6-B5 UYGULAMA 11.10 - 12.10", "DAHİLİ BİL.D"
+    )
+
+    assert attached.faculty_practice_groups == ("A3", "A4")
+    assert reversed_run.faculty_practice_groups == ("B5", "B6", "B7")
+
+
+def test_a_cohort_written_onto_its_department_is_read() -> None:
+    """`HEMATOLOJİ-A7` is how one whole column of the real workbook writes it."""
+    booking = assignment_from("DÖNEM 3-A -İÇ HAST. HEMATOLOJİ-A7 UYGULAMA - 11.10-12.00", "SAMİ")
+
+    assert booking.faculty_practice_groups == ("A7",)
+
+
+def test_a_bedside_booking_states_no_faculty_practice_cohort() -> None:
+    """The bedside rotation's `A1-2` is not faculty cohort A1.
+
+    Both rotations share this grid, and the bedside subgroup is spelled with a
+    faculty cohort's letter and index. Reading one as the other would put a
+    bedside room on a faculty practice, which is the failure this join must not
+    have, so a cell that says it is a bedside practice states no cohort here.
+    """
+    booking = assignment_from(
+        "DÖNEM 3 A GRUBU- A1-2 HASTA BAŞI UYGULAMA -13.30-14.20", "DAHİLİ BİL.C"
+    )
+
+    assert booking.faculty_practice_groups == ()
+
+
+def test_a_bedside_booking_written_without_a_space_states_no_cohort_either() -> None:
+    """Three cells of the committed workbooks write `B1-2HASTA BAŞI`.
+
+    An anchored marker let exactly those three through, which would have put a
+    bedside room on a faculty practice had the two ever shared an hour. The
+    separator is therefore optional and the marker is not anchored.
+    """
+    booking = assignment_from(
+        "DÖNEM 3 B GRUBU- B1-2HASTA BAŞI UYGULAMA -14.00-14.50", "DAHİLİ BİL.C"
+    )
+
+    assert booking.faculty_practice_groups == ()
+
+
+def test_a_disease_department_is_not_read_as_a_bedside_marker() -> None:
+    """`HASTALIKLARI` continues past `hasta`, so an unanchored marker is safe."""
+    booking = assignment_from(
+        "DÖNEM 3-A İÇ HASTALIKLARI-ALERJİ - A6- UYGULAMA - 11.10-12.10", "DAHİLİ BİL.C"
+    )
+
+    assert booking.faculty_practice_groups == ("A6",)
+
+
+def test_a_lecture_states_no_faculty_practice_cohort() -> None:
+    booking = assignment_from("DÖNEM 3-TÜRKÇE-A GRUBU -SEMİYOLOJİ -İÇ HASTALIKLARI", "SAMİ ZAN")
+
+    assert booking.faculty_practice_groups == ()
+
+
+def test_only_grade_three_states_a_faculty_practice_cohort() -> None:
+    """The rotation is Grade 3's; a `B2` elsewhere is not one of its cohorts."""
+    booking = assignment_from("DÖNEM 2-TÜRKÇE -B2 DİLİM -FİZYOLOJİ", "KEMAL ATAY AMFİSİ")
+
+    assert booking.faculty_practice_groups == ()
+
+
+def resolve_practice(
+    index: AmphitheatreIndex,
+    *,
+    cohort: str = "A1",
+    curriculum_groups: tuple[str, ...] = ("3-A",),
+    program_language: ProgramLanguage = ProgramLanguage.TURKISH,
+) -> RoomResolution:
+    return index.resolve_faculty_practice(
+        local_date=MONDAY,
+        class_year=3,
+        program_language=program_language,
+        curriculum_groups=curriculum_groups,
+        faculty_practice_groups=(cohort,),
+        start_local_time=time(8, 30),
+        end_local_time=time(9, 10),
+    )
+
+
+def test_a_practice_takes_the_room_of_the_booking_naming_its_cohort() -> None:
+    index = index_of(
+        assignment_from("DÖNEM 3-A GERİATRİ - A1- UYGULAMA", "DAHİLİ BİL.C DERSLİĞİ"),
+        assignment_from("DÖNEM 3-A HEMATOLOJİ - A2- UYGULAMA", "DAHİLİ BİL.D DERSLİĞİ"),
+    )
+
+    resolution = resolve_practice(index)
+
+    assert resolution.room == "DAHİLİ BİL.C DERSLİĞİ"
+    assert resolution.reason == RULE_FACULTY_PRACTICE_COHORT
+
+
+def test_a_practice_the_document_does_not_name_keeps_no_room() -> None:
+    """The weekly document covers five days of a rotation that runs all year."""
+    index = index_of(assignment_from("DÖNEM 3-A HEMATOLOJİ - A2- UYGULAMA", "DAHİLİ BİL.D"))
+
+    resolution = resolve_practice(index)
+
+    assert resolution.room is None
+    assert resolution.reason == REASON_NO_ASSIGNMENT
+
+
+def test_an_hour_s_only_booking_does_not_place_a_practice_it_does_not_name() -> None:
+    """The fallback :meth:`resolve` allows is refused here, and must be.
+
+    Eight of these sessions run at once. A booking that names no cohort is one
+    of eight rooms with nothing saying which cohort it belongs to, so giving it
+    to a cohort would be right one time in eight.
+    """
+    index = index_of(assignment_from("DÖNEM 3-A -SEMİYOLOJİ -GERİATRİ", "TEVFİK SAĞLAM AMFİSİ"))
+
+    assert resolve_practice(index).room is None
+
+
+def test_the_other_curriculum_group_s_booking_is_not_claimed() -> None:
+    """One real cell writes `DÖNEM 3 B GRUBU- A1-1`, so this is not theoretical."""
+    index = index_of(assignment_from("DÖNEM 3-B NÖROLOJİ - A1- UYGULAMA", "DAHİLİ BİL.D"))
+
+    assert resolve_practice(index, curriculum_groups=("3-A",)).room is None
+
+
+def test_two_bookings_naming_one_cohort_leave_it_unplaced() -> None:
+    """ADR-035 applied to a room: nothing here picks between two of them."""
+    index = index_of(
+        assignment_from("DÖNEM 3-A GERİATRİ - A1- UYGULAMA", "DAHİLİ BİL.C"),
+        assignment_from("DÖNEM 3-A ANESTEZİYOLOJİ - A1- UYGULAMA", "DAHİLİ BİL.D"),
+    )
+
+    resolution = resolve_practice(index)
+
+    assert resolution.room is None
+    assert resolution.reason == REASON_AMBIGUOUS
+
+
+def test_a_session_of_the_english_program_takes_the_same_room() -> None:
+    """Grade 3 English has no A/B division, so it narrows nothing by one.
+
+    Its students sit the A-document's cohorts alongside the Turkish ones
+    (ADR-160), which is the same session in the same room, and the booking's
+    `3-A` must not exclude them.
+    """
+    index = index_of(assignment_from("DÖNEM 3-A GERİATRİ - A1- UYGULAMA", "DAHİLİ BİL.C"))
+
+    resolution = resolve_practice(
+        index,
+        curriculum_groups=(),
+        program_language=ProgramLanguage.ENGLISH,
+    )
+
+    assert resolution.room == "DAHİLİ BİL.C"
+
+
+def test_the_real_workbook_states_its_faculty_practices_by_cohort() -> None:
+    """The committed week carries two of these cells, and they are read."""
+    document = read_amphitheatre_document(
+        NormalizedSpreadsheetSnapshot.model_validate(
+            load_fixture_json("real/shared-amphi.snapshot.json")
+        )
+    )
+
+    by_cohort = {
+        groups: assignment.room
+        for assignment in document.assignments
+        if (groups := assignment.faculty_practice_groups)
+    }
+
+    assert by_cohort == {
+        ("A3",): "DAHİLİ BİL.C DERSLİĞİ",
+        ("B5", "B6", "B7"): "DAHİLİ BİL.D DERSLİĞİ",
+    }

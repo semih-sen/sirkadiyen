@@ -33,6 +33,19 @@ refused. The other six cohorts are stated once each and are published. Refusing
 the row entirely would take a correct session off six calendars to punish one
 typo, and repairing it from the rotation's pattern would be inventing a fact the
 source does not state.
+
+Where the session is held
+-------------------------
+
+This workbook states no room anywhere. The weekly amphitheatre program states
+some of them, and states them by cohort — ``DÖNEM 3-A GERİATRİ - A1- UYGULAMA -
+11.10-12.10`` — so it is read here as a companion under ADR-102 and supplies the
+location (ADR-161). The cohort is the whole of the match: eight of these
+sessions run in parallel in the same hour, for the same curriculum group, in
+eight rooms, and the two documents word their departments differently, so
+nothing but the cohort tells them apart. A session the weekly document does not
+name keeps no location at all, and a companion that is not supplied changes
+nothing about what this profile publishes.
 """
 
 import re
@@ -68,6 +81,11 @@ from sirkadiyen_parser.normalization.dates import (
 from sirkadiyen_parser.normalization.grid import WorksheetGrid, a1_address
 from sirkadiyen_parser.normalization.text import comparison_key, normalize_text
 from sirkadiyen_parser.normalization.times import TimeRangeResolution, resolve_time_range_text
+from sirkadiyen_parser.parsers.amphitheatre import (
+    AmphitheatreIndex,
+    RoomResolution,
+    read_amphitheatre_companion,
+)
 from sirkadiyen_parser.parsers.annual import DIMENSION_CURRICULUM_GROUP, encode_all_day
 from sirkadiyen_parser.parsers.date_repair import (
     RULE_DATE_SEQUENCE,
@@ -133,6 +151,13 @@ METRIC_ROWS_SCANNED = "rows.scanned"
 METRIC_BLOCKS_READ = "blocks.read"
 METRIC_CANDIDATES_EMITTED = "candidates.emitted"
 METRIC_CELLS_SCANNED = "cells.scanned"
+#: How many room assignments the weekly amphitheatre companion stated at all, how
+#: many of these sessions took a room from it, and why the rest took none. Every
+#: consulted session lands in exactly one of the last two, so a missing room is
+#: always explainable (ADR-161).
+METRIC_AMPHITHEATRE_ASSIGNMENTS = "companion.amphitheatreAssignments"
+METRIC_LOCATION_FROM_AMPHITHEATRE = "location.fromAmphitheatreProgram"
+METRIC_LOCATION_UNRESOLVED_PREFIX = "location.amphitheatreUnresolved."
 
 REASON_BLANK_ROW = "blankRow"
 REASON_TOPIC_LIST_ROW = "topicListRow"
@@ -204,6 +229,13 @@ def parse_faculty_practice_snapshot(
 
     diagnostics.set_metric(METRIC_WORKSHEETS_SCANNED, len(request.snapshot.worksheets))
     report_date_corrections(diagnostics=diagnostics, context=request.source_context)
+
+    amphitheatre = read_amphitheatre_companion(request, profile)
+    if profile.amphitheatre_companion and request.auxiliary_snapshots:
+        # Counted whenever the reader was offered something, including when it
+        # found nothing in it: a companion that states no room at all is a fact
+        # about the cycle, not an absent measurement.
+        diagnostics.set_metric(METRIC_AMPHITHEATRE_ASSIGNMENTS, len(amphitheatre))
     selected = 0
 
     for worksheet in request.snapshot.worksheets:
@@ -213,6 +245,7 @@ def parse_faculty_practice_snapshot(
             grid=grid,
             context=request.source_context,
             numeric_date_order=profile.numeric_date_order,
+            amphitheatre=amphitheatre,
             diagnostics=diagnostics,
             accumulator=accumulator,
         ):
@@ -249,6 +282,7 @@ def _parse_worksheet(
     grid: WorksheetGrid,
     context: ParseSourceContext,
     numeric_date_order: NumericDateOrder,
+    amphitheatre: AmphitheatreIndex,
     diagnostics: ParseDiagnostics,
     accumulator: _Accumulator,
 ) -> bool:
@@ -336,6 +370,7 @@ def _parse_worksheet(
                     block=block,
                     resolved_date=resolved,
                     context=context,
+                    amphitheatre=amphitheatre,
                     diagnostics=diagnostics,
                     accumulator=accumulator,
                 )
@@ -477,6 +512,7 @@ def _parse_date_row(
     block: _Block,
     resolved_date: DateResolution,
     context: ParseSourceContext,
+    amphitheatre: AmphitheatreIndex,
     diagnostics: ParseDiagnostics,
     accumulator: _Accumulator,
 ) -> None:
@@ -518,6 +554,15 @@ def _parse_date_row(
                     block=block,
                     resolved_date=resolved_date,
                     context=context,
+                    location=_resolve_room(
+                        cohort=cohort,
+                        letter=letter,
+                        block=block,
+                        resolved_date=resolved_date,
+                        context=context,
+                        amphitheatre=amphitheatre,
+                        diagnostics=diagnostics,
+                    ),
                 )
             )
         elif not occurrences:
@@ -627,6 +672,47 @@ def _expected_cohorts(letter: str) -> tuple[str, ...]:
     return tuple(f"{letter}{index}" for index in range(1, COHORT_COUNT + 1))
 
 
+def _resolve_room(
+    *,
+    cohort: str,
+    letter: str,
+    block: _Block,
+    resolved_date: DateResolution,
+    context: ParseSourceContext,
+    amphitheatre: AmphitheatreIndex,
+    diagnostics: ParseDiagnostics,
+) -> str | None:
+    """The room the weekly amphitheatre companion states for this session.
+
+    ``None`` whenever that document does not name this cohort in this hour, which
+    is the ordinary case: it covers one week and this rotation runs all year
+    (ADR-161). The curriculum group is passed as the source states it, so a
+    booking written for the other half of the class cannot be claimed — except
+    for the English program, which has no A/B division at all (ADR-098, ADR-160)
+    and therefore narrows nothing by it, exactly as its records are addressed by
+    the cohort alone.
+    """
+    resolution: RoomResolution = amphitheatre.resolve_faculty_practice(
+        local_date=_require_date(resolved_date),
+        class_year=context.class_year,
+        program_language=context.program_language,
+        curriculum_groups=(
+            ()
+            if context.program_language is ProgramLanguage.ENGLISH
+            else (f"{context.class_year}-{letter}",)
+        ),
+        faculty_practice_groups=(cohort,),
+        start_local_time=block.start,
+        end_local_time=block.end,
+    )
+
+    if resolution.room is not None:
+        diagnostics.increment(METRIC_LOCATION_FROM_AMPHITHEATRE)
+    else:
+        diagnostics.increment(METRIC_LOCATION_UNRESOLVED_PREFIX + resolution.reason)
+    return resolution.room
+
+
 def _build_candidate(
     *,
     worksheet: NormalizedWorksheet,
@@ -636,6 +722,7 @@ def _build_candidate(
     block: _Block,
     resolved_date: DateResolution,
     context: ParseSourceContext,
+    location: str | None,
 ) -> CanonicalScheduleCandidate:
     local_date = _require_date(resolved_date)
     display_title = f"{TITLE_PREFIX} — {cell.department}"
@@ -656,9 +743,7 @@ def _build_candidate(
         selectors.insert(
             0, AudienceSelector(dimension=DIMENSION_CURRICULUM_GROUP, value=curriculum_group)
         )
-        audience_key_parts.insert(
-            0, f"{DIMENSION_CURRICULUM_GROUP}={curriculum_group}"
-        )
+        audience_key_parts.insert(0, f"{DIMENSION_CURRICULUM_GROUP}={curriculum_group}")
     audience = ScheduleAudienceCandidate(
         scope=AudienceScope.SELECTED_GROUPS,
         selectors=selectors,
@@ -695,10 +780,13 @@ def _build_candidate(
         is_all_day=False,
         time_zone_id=context.time_zone_id,
         instructor=None,
-        # The room is stated in a separate lookup workbook this parse never
-        # sees, and its department wording does not match these headers, so no
-        # location is claimed rather than one guessed.
-        location=None,
+        # The workbook itself states no room. What fills this is the weekly
+        # amphitheatre program, joined on the cohort it names (ADR-161); the
+        # separate practice-location lookup words its departments differently
+        # from these headers and is still unjoined, so nothing is guessed from
+        # it. A session the weekly document is silent about keeps no location,
+        # which is what it had before.
+        location=location,
         curriculum_block=block.curriculum_block,
         departments=[cell.department],
         stable_identity=stable_identity(identity_components),
@@ -717,6 +805,14 @@ def _build_candidate(
                 "timeZoneId": context.time_zone_id,
                 "curriculumBlock": block.curriculum_block,
                 "departments": cell.department,
+                # Present only when a room was actually found, on the same terms
+                # as the annual profile's audience and notes: a session the
+                # companion says nothing about keeps the content hash it had
+                # before this profile read one at all, so ADR-102's invariant is
+                # provable rather than asserted. A room that later disappears
+                # takes the key with it and moves the hash back, so the event is
+                # still updated rather than left stale.
+                **({"location": location} if location is not None else {}),
             }
         ),
         confidence=resolved_date.confidence,

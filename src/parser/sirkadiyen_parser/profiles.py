@@ -339,12 +339,21 @@ _PROFILES = (
         NumericDateOrder.DAY_FIRST,
         ("curriculumGroup",),
     ),
+    # 1.2.0 takes the room from the weekly amphitheatre program when that
+    # companion is supplied (ADR-161). This workbook states no room anywhere —
+    # the separate lookup it defers to words its departments differently and is
+    # still unjoined — so until now every one of these sessions reached a student
+    # with no place on it. The amphitheatre grid states some of them, and states
+    # them by cohort (``DÖNEM 3-A GERİATRİ - A1- UYGULAMA``), which is the only
+    # fact that tells one of the eight parallel rooms from the other seven. A
+    # session the grid does not name keeps no location at all.
     ParserProfileDefinition(
         "grade3_faculty_practice_v1",
-        _PROFILE_VERSION,
+        "1.2.0",
         "facultyPractice",
         _UNDECLARED,
         ("curriculumGroup", "facultyPracticeGroup"),
+        amphitheatre_companion=True,
     ),
     # The practice-location workbook is a lookup, not a schedule: it states a room
     # per department under a curriculum-block heading and no date anywhere. It is

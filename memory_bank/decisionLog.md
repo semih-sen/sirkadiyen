@@ -10097,3 +10097,104 @@ profile matches.**
   faculty-practice location enrichment is still unwired for every program (the locations join is not
   attempted, per the source manifest), so the English faculty sessions publish without a room exactly
   as the Turkish ones do — a later, separate change if it is wanted.
+
+## ADR-161: The amphitheatre program places a Grade 3 faculty practice, and only by the cohort it names
+
+**Status:** Accepted and implemented
+**Date:** 2026-09-20
+**Implements:** the faculty-practice room enrichment ADR-160 left open
+**Relates to:** ADR-133 (the amphitheatre program is a companion that fills a room), ADR-102 (a
+companion enriches and never publishes), ADR-099 (the faculty-practice rotation and its cohorts),
+ADR-035 (an ambiguous match is not resolved by picking), ADR-098 and ADR-160 (Grade 3 English has a
+faculty-practice cohort and no curriculum group), ADR-100 (the program that owns the session owns
+its time)
+
+### Context
+
+`grade3_faculty_practice_v1` has published every `Öğretim üyesi uygulaması` with **no location at
+all** since it was written. The workbook it reads states no room anywhere. The separate lookup
+catalogued as `G3-FACULTY-LOCATIONS` was supposed to answer that, and does not: its department
+wording does not match the matrix headers (`FİZİK TEDAVİ` against `Fiziksel Tıp ve Rehabilitasyon
+AD`), five of its rooms are blank, and it states no date, so it cannot tell one week's session from
+another's. The join was never attempted and the source manifest has said so.
+
+The weekly amphitheatre program does state some of them, which is what this ADR was opened by.
+Reading the four committed weekly workbooks first is again what determined the design:
+
+- **The grid writes a faculty practice as an ordinary booking that names the cohort**:
+  `DÖNEM 3-A GERİATRİ - A1- UYGULAMA - 11.10-12.10`. Across the four committed workbooks, 548 cells
+  state one, in 36 distinct wordings.
+- **The cohort is written every way the cell can write it**: alone between dashes (`- A1- `),
+  attached to the department (`İÇ HAST. HEMATOLOJİ-A7`), and in runs that enumerate rather than
+  span (`A3-A4`, and `B7-B6-B5` written backwards).
+- **The departments of the two documents do not match.** The grid writes `GERİATRİ` where the matrix
+  header writes `GERATRİ`, `ÇOCUK SAĞLIĞI VE HASTALIKLARI` where the matrix writes `ÇOCUK SAĞLIĞI`,
+  and `İÇ HAST. HEMATOLOJİ` where it writes `HEMATOLOJİ`. Worse, the reader's existing segment rule
+  returns junk on exactly these cells — `UYGULAMA`, `A5 UYGULAMA`, `B6` — because the cohort sits
+  where the department would.
+- **Eight of these sessions run at once.** A curriculum group's eight cohorts sit with eight
+  departments in the same hour, in eight rooms.
+- **The bedside rotation shares the grid and collides with the cohort spelling.** It writes
+  `DÖNEM 3 A GRUBU- A2-2 HASTA BAŞI UYGULAMA`, whose `A2` is a bedside group, not faculty cohort A2.
+  Three cells write it with no separator at all (`B1-2HASTA BAŞI`).
+
+### Decision
+
+**The faculty-practice profile reads the weekly amphitheatre program as a companion, and takes a
+room only from a booking that names the session's own cohort.**
+
+- `grade3_faculty_practice_v1` declares `amphitheatre_companion` and is bumped to 1.2.0.
+  `G3-TR-A-FACULTY`, `G3-TR-B-FACULTY` and `G3-EN-A-FACULTY` name `SHARED-AMPHI` in
+  `companionSourceIds`, so the existing companion machinery delivers it — including
+  `ParseRunCompanionFingerprint`, which is what makes a new weekly workbook re-parse them, and
+  `SourcePollOrder`, which already polls a companion before its readers.
+- **`AmphitheatreAssignment` gains the cohorts its cell names**, read for Grade 3 only, from the
+  whole cell rather than from its dashed segments. The segment reading is deliberately left
+  untouched: it decides the department the *annual* join matches on, and moving it would move rooms
+  on lessons this ADR is not about. Verified: every annual golden is byte-identical.
+- **`AmphitheatreIndex.resolve_faculty_practice` requires the cohort and nothing weaker.** It is a
+  second lookup rather than a parameter on the first, because the two answer different questions.
+  ADR-133's fallback — when no department matches, accept the hour's room if it is unanimous — is
+  right for an annual lesson and wrong here: in an hour where a cohort has eight parallel bookings,
+  it would be right one time in eight. Two bookings that name the cohort and disagree leave the
+  session unplaced, which is ADR-035 applied to a room.
+- **A cell that says it is a bedside practice states no faculty cohort.** The marker is matched
+  unanchored and with an optional separator, because three real cells write `B1-2HASTA BAŞI`; the
+  Turkish `HASTALIKLARI` continues past `hasta` and is unaffected. Without this, a bedside room
+  could be written onto a faculty practice, which is the one failure this join must not have.
+- **A session the weekly document does not name keeps no location**, and the location is added to
+  the content hash **only when one was found**, on the same terms as the annual profile's audience
+  and notes. So a profile given no companion produces byte-identical output, and ADR-102's invariant
+  is provable rather than asserted.
+- **The English program narrows nothing by curriculum group.** Its records state none (ADR-160), so
+  the booking's `3-A` cannot exclude them: the English and Turkish students of cohort A1 attend one
+  session in one room.
+- **`G3-FACULTY-LOCATIONS` is still not joined.** It answers a different question — a room per
+  department per block, for every week — and remains the right source for the dates the weekly
+  document does not cover. Nothing about it is changed here.
+
+### Consequences
+
+- **The A rotation's 510 candidates and the B rotation's 512 are unchanged in every digest.** The
+  committed weekly workbook covers 31 August - 6 September 2026 and the rotation begins on
+  21 September, so the new golden `g3-tr-a-faculty-with-amphitheatre` reads all 203 of that
+  document's assignments, places none of these sessions, and differs from the plain case in the
+  metrics alone. That is the ADR-102 proof on real documents; the placements are proved by unit
+  tests built from the real cell wordings.
+- **Identity never moves.** A room lands as content only. Verified on the content hash: a placed
+  session keeps the stable identity of the unplaced one, so the diff engine sees `Updated` and
+  patches the existing Google event's location, which is what §10 and §13 require.
+- **Every consulted session is accounted for.** `location.fromAmphitheatreProgram` counts the
+  placements and `location.amphitheatreUnresolved.<reason>` the rest, exactly as the annual profile
+  reports them, and `companion.amphitheatreAssignments` reports how much of the document was read.
+- **The companion reader is now shared.** `read_amphitheatre_companion` moved into
+  `amphitheatre.py`; `annual.py` delegates to it and keeps its own metric on the same condition it
+  used before, so no annual output moved.
+- **Only the current week can ever be enriched**, as ADR-133 already says of the annual join, and it
+  bites harder here: this rotation runs from September to May and the document covers five days of
+  it, so the great majority of these sessions will always be published with no room. That is the
+  correct outcome under this decision and the reason `G3-FACULTY-LOCATIONS` is still worth joining
+  one day.
+- **What was not verified:** the .NET solution was not built or tested — there is no SDK in this
+  environment. The only C# change is an assertion count in `ScheduleSourceCatalogTests` (seven
+  sources read `SHARED-AMPHI`, now ten); it must be compiled and run before merge.
