@@ -1,6 +1,6 @@
 {
   "fixture": "real/g2-anatomy-spring.snapshot.json",
-  "parserEngineVersion": "0.4.0",
+  "parserEngineVersion": "0.5.0",
   "payload": {
     "candidateCount": 69,
     "candidateDigests": [

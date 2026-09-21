@@ -1,6 +1,6 @@
 {
   "fixture": "real/g3-tr-a-faculty.snapshot.json",
-  "parserEngineVersion": "0.4.0",
+  "parserEngineVersion": "0.5.0",
   "payload": {
     "candidateCount": 510,
     "candidateDigests": [
@@ -777,9 +777,9 @@
     ],
     "parserProfile": {
       "name": "grade3_faculty_practice_v1",
-      "version": "1.2.0"
+      "version": "1.3.0"
     },
-    "responseDigest": "sha256:7c1fad3cc47ff50671a304b4b83f87b1c82f2fc91804aa73b0f6bf0b683364aa",
+    "responseDigest": "sha256:bc0ef5a04cd73ceba94fb96f06c229c050e00f9019236f595da8499389fcdc05",
     "snapshotId": "fixture:sha256:b870569bde9d01fbb072496a32fef0b495f662a001ac3d29b11508b4c9a6c0b6",
     "sourceId": "G3-TR-A-FACULTY",
     "status": "completedWithWarnings",

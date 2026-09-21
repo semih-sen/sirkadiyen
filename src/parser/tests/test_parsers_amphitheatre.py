@@ -560,6 +560,33 @@ def test_a_cell_naming_several_cohorts_states_all_of_them() -> None:
     assert reversed_run.faculty_practice_groups == ("B5", "B6", "B7")
 
 
+def test_a_cohort_written_with_a_space_before_its_index_is_read() -> None:
+    """The same week's grid wrote `A 8` on one day and `A8` on another.
+
+    The gap left every session of the spaced-out cohort with no room at all,
+    indistinguishable from a cohort the document genuinely never mentions, so
+    the space must not change what is read.
+    """
+    booking = assignment_from(
+        "DÖNEM 3-TÜRKÇE - A GRUBU -ÇOCUK SAĞLIĞI VE HASTALIKLARI-HAREKET DİLİMİ "
+        "-A 8 - UYGULAMA -11.10-12.10",
+        "ROOM IV",
+    )
+
+    assert booking.faculty_practice_groups == ("A8",)
+
+
+def test_a_run_mixing_a_spaced_and_unspaced_cohort_reads_both() -> None:
+    """One real cell writes the first cohort of a run spaced and the second not."""
+    booking = assignment_from(
+        "DÖNEM 3-TÜRKÇE -A GRUBU -FİZİKSEL TIP VE REHABİLİTASYON -HAREKET DİLİMİ "
+        "-A 1-A2 -UYGULAMA -11.10-12.10",
+        "FARMAKOLOJİ DERSLİK",
+    )
+
+    assert booking.faculty_practice_groups == ("A1", "A2")
+
+
 def test_a_cohort_written_onto_its_department_is_read() -> None:
     """`HEMATOLOJİ-A7` is how one whole column of the real workbook writes it."""
     booking = assignment_from("DÖNEM 3-A -İÇ HAST. HEMATOLOJİ-A7 UYGULAMA - 11.10-12.00", "SAMİ")

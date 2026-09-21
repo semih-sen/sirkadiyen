@@ -347,9 +347,18 @@ _PROFILES = (
     # them by cohort (``DÖNEM 3-A GERİATRİ - A1- UYGULAMA``), which is the only
     # fact that tells one of the eight parallel rooms from the other seven. A
     # session the grid does not name keeps no location at all.
+    #
+    # 1.3.0 closes a stray space between a cohort's letter and its index —
+    # ``A 8`` for ``A8`` — in both readings of it: this profile's own rotation
+    # matrix (`faculty_practice.py`) and the amphitheatre companion cell that
+    # states the room (`amphitheatre.py`, shared with the annual profiles, which
+    # do not consult the faculty-practice cohort and are unaffected). Before
+    # this, a spaced cohort's session either published with no room or, in the
+    # rotation matrix itself, was refused entirely — indistinguishable from a
+    # cohort the source genuinely never states (ADR-162).
     ParserProfileDefinition(
         "grade3_faculty_practice_v1",
-        "1.2.0",
+        "1.3.0",
         "facultyPractice",
         _UNDECLARED,
         ("curriculumGroup", "facultyPracticeGroup"),

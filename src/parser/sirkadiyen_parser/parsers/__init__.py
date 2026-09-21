@@ -63,8 +63,11 @@ _IMPLEMENTATIONS: dict[tuple[str, str], ParserImplementation] = {
     # One implementation serves both curriculum groups: the workbooks differ only
     # in their cohort letter and in the order they write their blocks (ADR-099).
     # 1.2.0 takes the room from the weekly amphitheatre companion, matched on the
-    # cohort the grid names (ADR-161).
-    ("grade3_faculty_practice_v1", "1.2.0"): parse_faculty_practice_snapshot,
+    # cohort the grid names (ADR-161). 1.3.0 closes a stray space between a
+    # cohort's letter and its index, ``A 8`` for ``A8``, which both this
+    # workbook's own matrix and the amphitheatre companion cell are typed with
+    # on occasion (ADR-162).
+    ("grade3_faculty_practice_v1", "1.3.0"): parse_faculty_practice_snapshot,
     # Registered even though it publishes nothing. The bedside document states no
     # per-session time, so the annual profile keeps those events and this one
     # supplies their topics (ADR-100); reading it here is what proves the reader

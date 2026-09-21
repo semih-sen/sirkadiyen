@@ -1897,3 +1897,37 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
   `tools/Sirkadiyen.SnapshotTool`, which needs the SDK.
 - **Open:** the weekly document covers five days of a September-to-May rotation, so most of these
   sessions will still publish with no room until `G3-FACULTY-LOCATIONS` is joined too.
+
+## A cohort's letter and its index typed with a stray space, `A 8` for `A8` (2026-09-21, ADR-162)
+
+- **Why:** reported by the operator with screenshots of 21 September 2026 — the rotation's first
+  date, the first date ADR-161's room enrichment could ever fire. The amfi cell reads `...HAREKET
+  DİLİMİ -A 8 - UYGULAMA -11.10-12.10` and a neighbouring cell reads `-A 1-A2 -UYGULAMA-`; the A8
+  event was correctly addressed (3-A, faculty-practice group A8) but showed no room at all
+  (`KAYNAKTAKİ KONUM: Yok`).
+- **Root cause:** `amphitheatre.py`'s `_FACULTY_COHORT_PATTERN` required the letter and digit
+  adjacent with no space. `comparison_key` collapses runs of spaces but does not remove a single one,
+  so `a 8` never matched, `faculty_practice_groups` came back empty for that cell, and
+  `resolve_faculty_practice` had nothing to match A8 against — indistinguishable from a cohort the
+  document genuinely never states.
+- **Same habit, sharper risk, found preventively:** `faculty_practice.py`'s own rotation-matrix reader
+  splits a cell on separators that already include whitespace, so a spaced cohort there would refuse
+  the *entire cell* — one cohort losing its whole session, not just its room. No committed fixture has
+  this yet; fixed anyway since it is the same source, the same typo.
+- **Changed (parser):** `amphitheatre.py`'s `_FACULTY_COHORT_PATTERN` allows one optional space.
+  `faculty_practice.py` gets a new `_COHORT_SPACING_PATTERN` that closes the space before tokenizing.
+  Both scoped to Grade 3 only, as every cohort reader here already is.
+- **Changed (versions):** `PARSER_ENGINE_VERSION` 0.4.0 → 0.5.0 (shared-primitive change); only
+  `grade3_faculty_practice_v1` bumped with it, 1.2.0 → 1.3.0 — the annual profiles share the companion
+  module but never consult the faculty-practice cohort it reads. Catalog: `G3-TR-A-FACULTY`,
+  `G3-TR-B-FACULTY`, `G3-EN-A-FACULTY` → `parserProfileVersion "1.3.0"`.
+- **Tests added:** two in `test_parsers_amphitheatre.py` and one in `test_parsers_faculty_practice.py`,
+  all using the screenshot's own cell text verbatim.
+- **Tests executed:** 652 parser tests green (3 new), `ruff check` and `mypy` clean on both changed
+  modules. All 29 shifted goldens move only in `parserEngineVersion`/profile `version`/
+  `responseDigest` — the three faculty candidate counts (510/510/512) are unchanged, confirming no
+  committed real fixture already contained the spaced form. **`dotnet test Sirkadiyen.slnx` was run
+  this time** (SDK available): Contracts 6/6, Api 20/20, Infrastructure 997/997, Persistence 40/40
+  (244 DB-backed skipped), 0 failed.
+- **Open:** unchanged from ADR-161 — `G3-FACULTY-LOCATIONS` is still unjoined, so most faculty-practice
+  sessions outside the current amfi week still publish with no room.

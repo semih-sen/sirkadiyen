@@ -149,7 +149,16 @@ _GROUP_ATTACHED_PATTERN = re.compile(r"\bdonem\b\s*-?\s*3\s*-\s*([ab])\b")
 #: `faculty_practice.py` bounds them, and the token must stand alone, so neither
 #: the ``3`` of ``DÖNEM 3-A`` nor the ``12.10`` of a stated time is read as one.
 #: Only Grade 3 runs this rotation, so the cohorts are only read for it.
-_FACULTY_COHORT_PATTERN = re.compile(r"(?<![a-z0-9])([ab])([1-8])(?![0-9])")
+#:
+#: The space between the letter and the index is optional because the source
+#: does not write it consistently: the same week's grid has stated one cohort
+#: of a run as ``A 1-A2`` and, on another day, ``A 8`` alone. Reading only the
+#: unspaced form left those cells' sessions with no room at all, silently, since
+#: an unmatched cohort and a cohort the document simply never mentions look
+#: identical downstream. `comparison_key` has already collapsed any run of
+#: spaces to one, so the extra token in the group is never more than a single
+#: space.
+_FACULTY_COHORT_PATTERN = re.compile(r"(?<![a-z0-9])([ab])\s?([1-8])(?![0-9])")
 
 #: The bedside rotation, which shares this grid and writes its own subgroup as
 #: ``A1-2`` — a token whose first half is spelled exactly like a faculty-practice

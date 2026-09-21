@@ -10,6 +10,14 @@ requires bumping this value *and* bumping every parser-profile version whose
 output can change, because only the profile version travels on the wire.
 """
 
+#: 0.5.0 closes a stray space between a Grade 3 faculty-practice cohort's letter
+#: and its index, ``A 8`` for ``A8``, when the weekly amphitheatre companion
+#: names the cohort a room belongs to (ADR-162). `resolve_faculty_practice` is
+#: the only reader of that cohort, so only `grade3_faculty_practice_v1` is
+#: bumped with it — the annual profiles also read this companion but never
+#: consult the cohort it names, exactly as 0.3.0 left this same profile
+#: untouched for a change nothing here calls.
+#:
 #: 0.4.0 reads a date column chronologically and repairs a mistyped year from the
 #: dates around it (ADR-139). Every profile that reads a date is bumped with it,
 #: because a stored snapshot cannot be proved free of such a cell the way the
@@ -41,4 +49,4 @@ output can change, because only the profile version travels on the wire.
 #: `grade1_yearly_v1` 1.5.0 reparses its stored snapshots, which cannot be proved
 #: free of such a cell the way the fixtures can. `grade1_practice_v1` reads only
 #: time ranges written as text and is untouched.
-PARSER_ENGINE_VERSION = "0.4.0"
+PARSER_ENGINE_VERSION = "0.5.0"

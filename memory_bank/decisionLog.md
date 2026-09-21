@@ -10198,3 +10198,106 @@ room only from a booking that names the session's own cohort.**
 - **What was not verified:** the .NET solution was not built or tested — there is no SDK in this
   environment. The only C# change is an assertion count in `ScheduleSourceCatalogTests` (seven
   sources read `SHARED-AMPHI`, now ten); it must be compiled and run before merge.
+
+## ADR-162: A cohort's letter and index typed with a stray space are one cohort, not two refusals
+
+**Status:** Accepted
+**Date:** 2026-09-21
+**Implements:** a formatting gap ADR-161 left closed only for the unspaced form.
+
+### Context
+
+The operator reported the exact failure ADR-161's own "Open" note predicted would eventually surface:
+21 September 2026, the faculty-practice rotation's first date, and the first date the amfi companion
+could ever place a room on. Two screenshots — the amfi program's ROOM IV cell for that day reads
+`DÖNEM 3-TÜRKÇE - A GRUBU -ÇOCUK SAĞLIĞI VE HASTALIKLARI-HAREKET DİLİMİ -A 8 - UYGULAMA -11.10-12.10`,
+and its neighbour in FARMAKOLOJİ DERSLİK reads `-A 1-A2 -UYGULAMA-`; the Schedule Simulation admin
+tool showed the corresponding A8 event correctly addressed (`Müfredat grubu: 3-A`, `Öğretim üyesi
+uygulama grubu: A8`) but with `KONUM: Gösterilmiyor` and `KAYNAKTAKİ KONUM: Yok` — no room read from
+the source at all.
+
+`amphitheatre.py`'s `_FACULTY_COHORT_PATTERN`, `(?<![a-z0-9])([ab])([1-8])(?![0-9])`, requires the
+cohort letter and its digit to sit with nothing between them. The live workbook does not always write
+it that way: `A 8` and, in the same cell family, `A 1-A2` with the first cohort of a run spaced and
+the second not. `comparison_key` folds case and diacritics and collapses a run of spaces to one, but a
+single space between two otherwise-adjacent tokens survives it, so the cell's key still read `...a
+8...` and the pattern found nothing. `_read_audience` therefore recorded an empty
+`faculty_practice_groups` for that cell, and `resolve_faculty_practice` (ADR-161) had no booking to
+match cohort A8 against — `REASON_NO_ASSIGNMENT`, the same code path a cohort the document genuinely
+never mentions takes. Nothing distinguishes a real gap in the weekly document from a formatting typo
+in one of its cells; that is by design for the former and a bug for the latter.
+
+The real committed fixtures (`shared-amphi.snapshot.json`, `g3-faculty-locations.snapshot.json`,
+`g3-tr-a-faculty.snapshot.json`, `g3-tr-b-faculty.snapshot.json`) were all searched and none contains
+a spaced cohort token — they predate the week the operator reported, which is consistent with this
+being the rotation's very first live date rather than a fixture gap.
+
+A second, sharper instance of the same source habit sits one layer up. `faculty_practice.py`'s own
+rotation matrix — the document that states these sessions exist at all, not merely where they are
+held — reads a cell's cohorts with `_read_cohorts`, which tokenizes on `_COHORT_SEPARATORS`, and that
+pattern already includes `\s+` as a separator (for cells that enumerate cohorts with plain spaces
+instead of a hyphen). A stray `A 8` there would split into the tokens `A` and `8`, neither of which
+matches `_COHORT_PATTERN` (`^([AB])([1-8])$`), and `_read_cohorts` returns `None` for the whole cell —
+not a missing room, a missing *session*, one of eight cohorts silently absent from a rotation hour six
+of its neighbours still publish (ADR-099's own worked example is exactly this shape of row). No
+committed fixture proves this has already happened, but it is the same faculty, the same manual
+spreadsheet habit, and the same two-character typo; closing only the companion and leaving the source
+of truth exposed would be fixing where the symptom was reported rather than the fault class.
+
+### Decision
+
+**A single space between a Grade 3 faculty-practice cohort's letter and its index is read as no space
+at all, in both documents that write the cohort.**
+
+- **`amphitheatre.py`:** `_FACULTY_COHORT_PATTERN` becomes `([ab])\s?([1-8])`, one optional space.
+  Bounded to a single space deliberately, matching what `comparison_key` can actually hand it: no
+  cell in any committed fixture, real or synthetic, has ever needed more. Nothing else in
+  `_read_audience` — not the department/curriculum-block segment reader the *annual* join depends on,
+  not the class-year or language readers — consults this pattern, so the annual profiles that also
+  read this companion (ADR-133, ADR-154) are untouched by construction, not merely by test result.
+- **`faculty_practice.py`:** a new `_COHORT_SPACING_PATTERN`, `([{COHORT_LETTERS}])\s+([1-8])`, closes
+  the space in the cell's text *before* `_COHORT_SEPARATORS.split` ever sees it, rather than loosening
+  the separator or the token pattern themselves. `_COHORT_SEPARATORS` still splits `A1 A2` into two
+  tokens exactly as before — the new substitution only fires between a bare letter and an immediately
+  following digit, which no legitimate two-cohort spacing produces. This is a preventive fix: no
+  reported symptom forced it, the same source habit closing the companion-side gap did.
+- **Both patterns are scoped to Grade 3 alone**, as every cohort reader in this system already is
+  (`COHORT_LETTERS = "AB"`, `class_year == 3` guards) — an unbounded letter-plus-digit rule would read
+  room codes and ordinary numbered lists as cohorts.
+- **Engine bump, narrowly applied.** `PARSER_ENGINE_VERSION` 0.4.0 → 0.5.0, because
+  `_FACULTY_COHORT_PATTERN` is shared-module behaviour and a stored snapshot cannot be proved free of
+  a spaced cell the way a fixture can. Only `grade3_faculty_practice_v1` (1.2.0 → 1.3.0) is bumped
+  with it: `resolve_faculty_practice` is the pattern's one consumer, exactly as 0.3.0 left this same
+  profile unbumped when a different shared-primitive change ran through a reader it never calls.
+  `grade1_yearly_v1`, `grade2_yearly_v1`, `grade3_yearly_v1` and the other `amphitheatre_companion`
+  profiles keep their versions: they read this module for a department and a curriculum group, never
+  for a faculty-practice cohort.
+- **Catalog:** `G3-TR-A-FACULTY`, `G3-TR-B-FACULTY`, `G3-EN-A-FACULTY` → `parserProfileVersion
+  "1.3.0"`, so already-stored snapshots reparse on the next poll and the fix reaches calendars synced
+  before this fix, not only future weeks' documents.
+- **Tests pin the exact reported cells.** `test_a_cohort_written_with_a_space_before_its_index_is_read`
+  and `test_a_run_mixing_a_spaced_and_unspaced_cohort_reads_both` use the screenshot's own text
+  verbatim; `test_a_space_between_a_cohort_letter_and_its_index_is_closed` proves the rotation-matrix
+  side keeps all eight cohorts of a row when one is spaced.
+
+### Consequences
+
+- **Every one of the 29 shifted goldens moves only in `parserEngineVersion`, profile `version`, and
+  `responseDigest`.** The three faculty-practice goldens keep their exact candidate counts (510, 510,
+  512) — proof the committed real fixtures never contained the spaced form, so this is a forward fix
+  for a live-document habit, not a correction to output the test suite could already see.
+- **On deployment, the three faculty sources reparse** (version bump) and, for the first time, 21
+  September's A8 (and any other spaced cohort in the current amfi week) gets a room written onto the
+  student's existing calendar event as a content-only update — identity does not move, exactly as
+  ADR-161 already established for a room found at all.
+- **The rotation-matrix fix has no fixture to prove it against a real regression** — it guards a
+  failure mode not yet observed there, on the same evidence (this faculty's own typo) that produced
+  the reported one. If it never fires, it costs one regex substitution and one test; if it does, it
+  is the difference between one cohort losing a room and one cohort losing a session.
+- **Verified this time, unlike ADR-161: the .NET solution was built and run.** `dotnet test
+  Sirkadiyen.slnx` — Contracts 6/6, Api 20/20, Infrastructure 997/997, Persistence 40/40 (244 DB-backed
+  skipped) — all green; the catalog JSON edit needed no C# code change and no test asserts the
+  faculty sources' specific version string.
+- **Open, unchanged from ADR-161:** `G3-FACULTY-LOCATIONS` is still unjoined, so a faculty-practice
+  session outside the current amfi week still publishes with no room. This ADR closes a formatting
+  gap in the join that already exists; it does not widen what the join covers.

@@ -476,7 +476,11 @@ questions are not:
   (`DÖNEM 3-A GERİATRİ - A1- UYGULAMA`) and on nothing weaker. Eight of these
   sessions run in parallel in one hour, for one curriculum group, in eight rooms,
   and the two documents word their departments differently, so the hour fallback
-  that serves an annual lesson would be right one time in eight here.
+  that serves an annual lesson would be right one time in eight here. The letter
+  and the index are read whether or not the source types a stray space between
+  them (`A 8` and `A8` are the same cohort, ADR-162) — the same tolerance the
+  faculty-practice rotation matrix itself applies to its own cells, since one
+  document's typo is not evidence the other is typed more carefully.
 
 Either way a session the weekly document does not name keeps no location at all,
 and the document covers one week of a year-long program, so at any moment only

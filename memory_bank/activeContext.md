@@ -1,5 +1,64 @@
 # Active Context
 
+## Latest session (2026-09-21, ADR-162: a cohort letter and its index typed with a stray space, `A 8` for `A8`)
+
+Reported by the operator with two screenshots: the 21 September 2026 amfi program (weekly
+amphitheatre workbook) shows `DÖNEM 3-TÜRKÇE - A GRUBU -ÇOCUK SAĞLIĞI VE HASTALIKLARI-HAREKET DİLİMİ
+-A 8 - UYGULAMA -11.10-12.10` in ROOM IV, and the same cell's neighbour in FARMAKOLOJİ DERSLİK writes
+`-A 1-A2 -UYGULAMA-`. The Schedule Simulation admin tool showed the matching A8 faculty-practice
+event (correct audience: curriculum group 3-A, faculty-practice group A8) with `location: null` and
+`KAYNAKTAKİ KONUM: Yok` (no room read from source at all) — 21 September is literally the rotation's
+first date, the day ADR-161's room enrichment could first ever fire (the committed fixture week
+precedes it and proves nothing about a placement actually landing).
+
+**Root cause:** `amphitheatre.py`'s `_FACULTY_COHORT_PATTERN` — `(?<![a-z0-9])([ab])([1-8])(?![0-9])`
+— required the cohort letter and its digit adjacent with no space. The live workbook sometimes types
+a stray space between them (`A 8`, and `A 1` in `A 1-A2`). `comparison_key` collapses whitespace runs
+but does not remove single spaces, so the cell's `key` still read `...a 8...`, the regex found no
+match, `AmphitheatreAssignment.faculty_practice_groups` came back empty for that cell, and
+`resolve_faculty_practice` (ADR-161) had nothing to match cohort A8 against — a silent
+`noAmphitheatreAssignmentForLesson`, indistinguishable downstream from a cohort the document
+genuinely never mentions.
+
+**The same habit is a sharper risk one level up.** `faculty_practice.py`'s own rotation-matrix
+`_read_cohorts` splits a cell on `_COHORT_SEPARATORS`, which already includes whitespace as a
+separator — so a spaced cohort there (not observed yet in a committed real fixture, but the same
+source and the same typo) would split `A 8` into two tokens, `A` and `8`, and refuse the *entire
+cell*: not just the room, the session itself, one time in eight of a rotation hour.
+
+Changes (ADR-162):
+- **Parser** (`amphitheatre.py`): `_FACULTY_COHORT_PATTERN` allows one optional space —
+  `([ab])\s?([1-8])`. Nothing else in `_read_audience` reads this pattern, so the annual profiles
+  (which consult this module's department/curriculum-group reading, never the faculty-practice
+  cohort) are unaffected — verified: their goldens move only in `parserEngineVersion`.
+- **Parser** (`faculty_practice.py`): `_read_cohorts` closes the same space (`_COHORT_SPACING_PATTERN`,
+  `([AB])\s+([1-8])` → `\1\2`) before tokenizing, so the rotation matrix cannot lose a whole session to
+  it either, mirroring the amphitheatre fix as a preventive measure rather than a reported symptom.
+- **Engine**: `PARSER_ENGINE_VERSION` 0.4.0 → 0.5.0 (shared-primitive change in `amphitheatre.py`).
+  Only `grade3_faculty_practice_v1` is bumped with it (1.2.0 → 1.3.0) — the annual profiles read this
+  companion too but never consult `faculty_practice_groups`, the same reasoning ADR's 0.3.0 note gives
+  for leaving this profile alone when the change ran the other way.
+- **Catalog**: `G3-TR-A-FACULTY`, `G3-TR-B-FACULTY`, `G3-EN-A-FACULTY` → `parserProfileVersion 1.3.0`,
+  forcing a reparse of already-stored snapshots on next deploy so this fix reaches calendars already
+  synced, not just future polls.
+- **Tests**: both fixes get a regression test using the exact real cell text from the screenshots
+  (`test_a_cohort_written_with_a_space_before_its_index_is_read`,
+  `test_a_run_mixing_a_spaced_and_unspaced_cohort_reads_both` in `test_parsers_amphitheatre.py`;
+  `test_a_space_between_a_cohort_letter_and_its_index_is_closed` in `test_parsers_faculty_practice.py`).
+
+Verified: 652 parser tests green (3 new), ruff and mypy clean on both changed modules. All 29 golden
+files that shifted move only in `parserEngineVersion`/profile `version`/`responseDigest` — the three
+faculty candidate counts (510/510/512) are byte-identical to before, confirming the committed real
+fixtures never actually contained the spaced form and this is a pure forward fix. **The .NET solution
+was built and tested this time** (SDK 10.0.301 available): `dotnet test Sirkadiyen.slnx` — 997 + 40 +
+20 + 6 passed, 244 skipped (DB-backed persistence tests, expected), 0 failed; the catalog JSON edit
+alone needed no C# code change.
+
+**Open:** same as ADR-161 left it — `G3-FACULTY-LOCATIONS` is still unjoined, so most faculty-practice
+sessions outside the current amfi week still publish with no room. This session only closes a
+formatting gap in the join ADR-161 already built.
+
+
 ## Latest session (2026-09-20, ADR-161: the amfi program places a Grade 3 faculty practice, matched on the cohort)
 
 Request: *"Dönem 3 öğretim üyesi uygulamalarının bazılarının yapılacağı yerler amfi programında

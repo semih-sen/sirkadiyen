@@ -119,6 +119,17 @@ _COHORT_PATTERN = re.compile(rf"^([{COHORT_LETTERS}])([1-{COHORT_COUNT}])$")
 #: purpose and means "and": see the module docstring.
 _COHORT_SEPARATORS = re.compile(r"[-/+,;&]|\s+")
 
+#: The amphitheatre companion (`amphitheatre.py`) hit the same source habit: a
+#: cohort letter and its index are sometimes typed with a stray space between
+#: them, ``A 8`` rather than ``A8``. There, splitting on whitespace fed the
+#: letter and the digit to the matcher as two separate tokens and neither one
+#: matched, so the session kept no room at all — silently, because an
+#: unmatched cohort and one the document simply never mentions look identical
+#: downstream. Here the same split would refuse the whole cell instead, taking
+#: a session off a cohort's calendar rather than merely its room, so the space
+#: is closed before the cell is tokenized at all.
+_COHORT_SPACING_PATTERN = re.compile(rf"([{COHORT_LETTERS}])\s+([1-{COHORT_COUNT}])", re.IGNORECASE)
+
 #: The practice hour, which a block title states only inside its parenthesis:
 #: ``… UYGULAMA PROGRAMI (11.10 - 12.10 Uygulaması)``. The range is matched
 #: rather than the whole parenthesis, because the source writes a word after it.
@@ -653,7 +664,8 @@ def _read_cohorts(text: str) -> tuple[str, ...] | None:
     Every separator enumerates, including the hyphen: ``A1-A2`` is the two
     cohorts A1 and A2 sitting with one department, not the run A1 through A2.
     """
-    tokens = [token for token in _COHORT_SEPARATORS.split(text.strip()) if token]
+    closed = _COHORT_SPACING_PATTERN.sub(r"\1\2", text.strip())
+    tokens = [token for token in _COHORT_SEPARATORS.split(closed) if token]
     if not tokens:
         return None
 

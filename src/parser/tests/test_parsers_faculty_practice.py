@@ -54,7 +54,7 @@ PROFILE = ParserProfileDefinition(
 #: profile without the companion publishes (ADR-102).
 PROFILE_WITH_AMPHITHEATRE = ParserProfileDefinition(
     "grade3_faculty_practice_v1",
-    "1.2.0",
+    "1.3.0",
     "facultyPractice",
     NumericDateOrder.UNDECLARED,
     ("curriculumGroup", "facultyPracticeGroup"),
@@ -221,7 +221,7 @@ def cohorts_of(response: ParseSnapshotResponse) -> set[str]:
 
 
 def test_the_registered_profile_is_the_faculty_practice_implementation() -> None:
-    profile = get_profile("grade3_faculty_practice_v1", "1.2.0")
+    profile = get_profile("grade3_faculty_practice_v1", "1.3.0")
 
     assert profile is not None
     assert get_parser(profile.name, profile.version) is parse_faculty_practice_snapshot
@@ -299,6 +299,19 @@ def test_a_hyphen_between_cohorts_enumerates_rather_than_spans() -> None:
         if any(selector.value in {"A1", "A5"} for selector in candidate.audience.selectors)
     ]
     assert {candidate.departments[0] for candidate in together} == {"FİZİK TEDAVİ"}
+
+
+def test_a_space_between_a_cohort_letter_and_its_index_is_closed() -> None:
+    """The amphitheatre companion hit the same source habit: `A 8` for `A8`.
+
+    Splitting on whitespace would feed the letter and the digit to the matcher
+    as two separate tokens and refuse both, which would take the cohort's whole
+    session off its calendar rather than merely costing it a room.
+    """
+    response = parse([block([["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A 8"]])])
+
+    assert cohorts_of(response) == {f"A{index}" for index in range(1, 9)}
+    assert len(response.candidates) == 8
 
 
 def test_a_merged_pair_of_columns_is_read_once() -> None:
