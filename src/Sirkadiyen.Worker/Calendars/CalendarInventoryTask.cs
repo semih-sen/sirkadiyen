@@ -8,7 +8,11 @@ internal sealed class CalendarInventoryTask(
     IServiceScopeFactory scopeFactory,
     ILogger<CalendarInventoryTask> logger)
 {
-    public async Task RunAsync(CancellationToken cancellationToken)
+    /// <returns>
+    /// Whether the sweep yielded its Calendar budget with repairs outstanding, so the cycle
+    /// should resume on the catch-up interval.
+    /// </returns>
+    public async Task<bool> RunAsync(CancellationToken cancellationToken)
     {
         try
         {
@@ -21,13 +25,22 @@ internal sealed class CalendarInventoryTask(
                 logger.LogInformation(
                     "Calendar inventory reconciliation skipped because the global operational "
                     + "freeze is active.");
-                return;
+                return false;
             }
 
             foreach (CalendarInventoryUserResult user in result.Users)
             {
                 LogResult(user);
             }
+
+            if (result.CatchUpRequired)
+            {
+                logger.LogInformation(
+                    "Calendar inventory spent its operation budget and yielded the Calendar "
+                    + "fence; the sweep resumes on the next catch-up cycle.");
+            }
+
+            return result.CatchUpRequired;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -36,6 +49,7 @@ internal sealed class CalendarInventoryTask(
         catch (Exception exception)
         {
             logger.LogError(exception, "Running Calendar inventory reconciliation failed.");
+            return false;
         }
     }
 

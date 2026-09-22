@@ -70,7 +70,7 @@ internal sealed class FencedCalendarMaintenanceTask(
             // everything above it (ADR-150). Inventory, which runs next, ignores its events too.
             catchUpRequired |= await meals.RunAsync(mealMenuChanged, cancellationToken);
 
-            await inventory.RunAsync(cancellationToken);
+            catchUpRequired |= await inventory.RunAsync(cancellationToken);
             return catchUpRequired;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

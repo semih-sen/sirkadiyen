@@ -37,19 +37,39 @@ public sealed class CalendarInventoryReconciliationService(
                 options.ConnectionBatchSize,
                 cancellationToken);
 
+        // One budget for the whole run, not one per user: what it protects is the shared
+        // Calendar fence this stage holds, and that is spent by every user's writes together.
+        InventoryBudget budget = new(options.CalendarOperationsPerRun);
+
         List<CalendarInventoryUserResult> results = [];
         foreach (CalendarInventoryTarget target in targets)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            results.Add(await ReconcileOneAsync(target, now, cancellationToken));
+            if (budget.IsExhausted)
+            {
+                // Left unswept and unstamped, so the next run lists this user again. Reporting
+                // it would say nothing a caller can act on: no calendar was read or written.
+                break;
+            }
+
+            results.Add(await ReconcileOneAsync(target, now, budget, cancellationToken));
         }
 
-        return new CalendarInventoryRunResult { Frozen = false, Users = results };
+        return new CalendarInventoryRunResult
+        {
+            Frozen = false,
+            Users = results,
+
+            // This run stopped short of what it found, so the worker should come back on the
+            // catch-up interval. A run that simply had nothing left to repair sets nothing.
+            CatchUpRequired = budget.IsExhausted,
+        };
     }
 
     private async Task<CalendarInventoryUserResult> ReconcileOneAsync(
         CalendarInventoryTarget target,
         DateTimeOffset now,
+        InventoryBudget budget,
         CancellationToken cancellationToken)
     {
         InventoryAccumulator accumulator = new(target.UserId);
@@ -100,6 +120,18 @@ public sealed class CalendarInventoryReconciliationService(
                 in expectedByIdentity.OrderBy(pair => pair.Key, StringComparer.Ordinal))
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                if (budget.IsExhausted)
+                {
+                    // Deliberately before the stamp below: a sweep that did not reach every
+                    // lesson has not verified this calendar, so it stays due and the next run
+                    // starts it again. Ordering the lessons by stable identity makes that
+                    // restart cover the same ground in the same order rather than at random.
+                    return accumulator.ToResult(
+                        CalendarInventoryOutcome.Deferred,
+                        "The run's Calendar operation budget was spent before this calendar "
+                        + "was fully swept; it remains due.");
+                }
+
                 mappingByIdentity.TryGetValue(stableIdentity, out CalendarEventMappingView? mapping);
                 actualByIdentity.TryGetValue(
                     stableIdentity,
@@ -117,6 +149,7 @@ public sealed class CalendarInventoryReconciliationService(
                     mapping,
                     sameSource,
                     accumulator,
+                    budget,
                     now,
                     cancellationToken);
             }
@@ -180,6 +213,7 @@ public sealed class CalendarInventoryReconciliationService(
         CalendarEventMappingView? mapping,
         IReadOnlyList<ManagedCalendarEventSnapshot> actual,
         InventoryAccumulator accumulator,
+        InventoryBudget budget,
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
@@ -245,6 +279,7 @@ public sealed class CalendarInventoryReconciliationService(
 
         if (selected is null)
         {
+            budget.Spend();
             CalendarEventPatchOutcome patch = mapping is null
                 ? CalendarEventPatchOutcome.NotFound
                 : await calendarClient.PatchEventAsync(
@@ -268,6 +303,7 @@ public sealed class CalendarInventoryReconciliationService(
         }
         else if (!ManagedCalendarEventComparer.IsEquivalent(desired, selected))
         {
+            budget.Spend();
             CalendarEventPatchOutcome patch = await calendarClient.PatchEventAsync(
                 access,
                 target.ManagedCalendarId,
@@ -381,6 +417,23 @@ public sealed class CalendarInventoryReconciliationService(
         calendarEvent.PrivateProperties.TryGetValue("sourceId", out string? actual)
         && string.Equals(sourceId, actual, StringComparison.Ordinal);
 
+    /// <summary>
+    /// The Calendar operations one run may still perform, shared by every user it sweeps.
+    /// </summary>
+    /// <remarks>
+    /// A repair that falls back from a patch to an insert is charged once: the two are one
+    /// attempt at one event, and charging the fallback would make the budget depend on how
+    /// Google happened to answer rather than on how much work was asked for.
+    /// </remarks>
+    private sealed class InventoryBudget(int operations)
+    {
+        private int remaining = operations;
+
+        public bool IsExhausted => remaining <= 0;
+
+        public void Spend() => remaining--;
+    }
+
     private sealed class InventoryAccumulator(Guid userId)
     {
         public Guid UserId { get; } = userId;
@@ -422,6 +475,12 @@ public sealed record CalendarInventoryRunResult
     public required bool Frozen { get; init; }
 
     public required IReadOnlyList<CalendarInventoryUserResult> Users { get; init; }
+
+    /// <summary>
+    /// Whether the run yielded with repairs still outstanding, so the worker should resume on
+    /// the catch-up interval instead of waiting out the inventory interval.
+    /// </summary>
+    public bool CatchUpRequired { get; init; }
 }
 
 public sealed record CalendarInventoryUserResult
