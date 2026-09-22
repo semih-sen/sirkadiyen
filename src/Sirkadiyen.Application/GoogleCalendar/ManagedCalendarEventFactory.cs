@@ -53,7 +53,15 @@ public static class ManagedCalendarEventFactory
             ["stableIdentity"] = record.StableIdentity,
             ["contentHash"] = record.ContentHash,
             ["sourceId"] = record.SourceId.Value,
-            ["canonicalRecordId"] = record.Id.ToString(),
+
+            // The canonical record's database id is deliberately not written here. Every
+            // published revision creates new record rows, so that id changes for every lesson
+            // on every publish even when the lesson itself is byte-identical — while the
+            // stable identity and the content hash, which answer "which lesson" and "did it
+            // change", both stay put. Marking the event with it made every republish look like
+            // a difference to ManagedCalendarEventComparer and had inventory rewrite every
+            // event of every calendar, which held the shared Calendar fence for tens of
+            // minutes per sweep. Nothing ever read the marker back.
         };
 
         ManagedCalendarEvent managedEvent = new()
