@@ -199,6 +199,8 @@ internal sealed class WorkerOptionsFactory(
                 configuration["SIRKADIYEN_SYNC:INVENTORY_CONNECTION_BATCH_SIZE"], 5),
             Interval = ConfigurationValueParser.Duration(
                 configuration["SIRKADIYEN_SYNC:INVENTORY_INTERVAL"], TimeSpan.FromHours(24)),
+            CalendarOperationsPerRun = ConfigurationValueParser.Integer(
+                configuration["SIRKADIYEN_SYNC:INVENTORY_CALENDAR_OPERATIONS_PER_RUN"], 300),
         }, static options => options.Validate());
 
     public AdaptivePollingOptions CreatePollingOptions() => new()

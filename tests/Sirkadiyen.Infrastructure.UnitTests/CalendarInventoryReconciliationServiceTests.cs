@@ -163,6 +163,68 @@ public sealed class CalendarInventoryReconciliationServiceTests
         Assert.Equal("#123456", label.BackgroundColor);
     }
 
+    /// <summary>
+    /// A sweep with more to repair than its budget allows stops, leaves the calendar due, and
+    /// asks for a catch-up cycle. Inventory holds the shared Calendar fence while it works, so
+    /// an unbounded sweep is one that can keep every other stage — a new student's initial
+    /// synchronization above all — waiting for as long as it has repairs to make.
+    /// </summary>
+    [Fact]
+    public async Task ASweepThatSpendsItsBudgetYieldsWithTheCalendarStillDue()
+    {
+        Harness harness = new() { Options = new CalendarInventoryReconciliationOptions
+        {
+            CalendarOperationsPerRun = 2,
+        } };
+
+        foreach (int index in Enumerable.Range(0, 5))
+        {
+            CanonicalScheduleRecord record =
+                CalendarTestData.Record(stableIdentity: $"lesson-{index}");
+            harness.Records.Add(record);
+            harness.Mappings.Seed(Mapping(harness.UserId, record, $"stored-{index}"));
+        }
+
+        CalendarInventoryRunResult run = await harness.Build().RunDueAsync(CancellationToken.None);
+        CalendarInventoryUserResult result = Assert.Single(run.Users);
+
+        Assert.Equal(CalendarInventoryOutcome.Deferred, result.Outcome);
+        Assert.Equal(2, harness.Client.Patches.Count);
+        Assert.True(run.CatchUpRequired);
+
+        // Unstamped, so the next run lists this user again and resumes the sweep.
+        Assert.False(harness.Connections.InventoryCompleted);
+    }
+
+    [Fact]
+    public async Task ASweepWithNothingToRepairSpendsNoBudgetAndAsksForNoCatchUp()
+    {
+        Harness harness = new() { Options = new CalendarInventoryReconciliationOptions
+        {
+            CalendarOperationsPerRun = 1,
+        } };
+
+        foreach (int index in Enumerable.Range(0, 5))
+        {
+            CanonicalScheduleRecord record =
+                CalendarTestData.Record(stableIdentity: $"converged-{index}");
+            harness.Records.Add(record);
+            ManagedCalendarEvent expected =
+                ManagedCalendarEventFactory.ToManagedEvent(harness.UserId, record);
+            harness.Mappings.Seed(Mapping(harness.UserId, record, expected.EventId));
+            harness.Client.Events.Add(Snapshot(expected));
+        }
+
+        CalendarInventoryRunResult run = await harness.Build().RunDueAsync(CancellationToken.None);
+
+        Assert.Equal(
+            CalendarInventoryOutcome.Completed,
+            Assert.Single(run.Users).Outcome);
+        Assert.Empty(harness.Client.Patches);
+        Assert.False(run.CatchUpRequired);
+        Assert.True(harness.Connections.InventoryCompleted);
+    }
+
     [Fact]
     public async Task DuplicateAndUnexpectedStateIsReportedButNeverDeleted()
     {
@@ -347,6 +409,8 @@ public sealed class CalendarInventoryReconciliationServiceTests
 
         public DepartmentColorService Colors { get; set; } = TestDepartmentColors.Create();
 
+        public CalendarInventoryReconciliationOptions Options { get; set; } = new();
+
         public CalendarInventoryReconciliationService Build() => new(
             Targets,
             new FakeScheduleReadStore(Records),
@@ -355,7 +419,7 @@ public sealed class CalendarInventoryReconciliationServiceTests
             Client,
             new FakeTokenProtector(),
             new FakeFreezeStore(Frozen),
-            new CalendarInventoryReconciliationOptions(),
+            Options,
             new FixedTimeProvider(Now),
             Colors);
 
