@@ -10301,3 +10301,216 @@ at all, in both documents that write the cohort.**
 - **Open, unchanged from ADR-161:** `G3-FACULTY-LOCATIONS` is still unjoined, so a faculty-practice
   session outside the current amfi week still publishes with no room. This ADR closes a formatting
   gap in the join that already exists; it does not widen what the join covers.
+
+## ADR-163: An ambiguous candidate set yields one entry per record, not one per pair
+
+**Status:** Accepted
+**Date:** 2026-09-22
+**Amends:** ADR-035 (secondary matching) and ADR-040 (the dispatch gate), on the shape of the entries
+ambiguity produces — not on what ambiguity means or on what it holds.
+
+### Context
+
+Two invariants this system states explicitly contradicted each other, and had done so in production
+since 31 August 2026.
+
+`SemanticScheduleDiffer` promises that "a many-to-one or one-to-many candidate set remains ambiguous
+and is never converted into a destructive delete-and-create pair" (ADR-035, ADR-040). Its
+implementation kept that promise by labelling every candidate in a contested set `Ambiguous` and
+adding all of them to the matched sets, so none of the records fell through to the `Deleted` or
+`Created` passes. That part was correct and stays.
+
+`ScheduleDiffEntryConfiguration` promises that "a record may be classified only once within a diff, on
+either side", enforced by two unique indexes: `(ScheduleDiffId, PreviousRecordId)` and
+`(ScheduleDiffId, CurrentRecordId)`.
+
+Ambiguity is many-to-one by nature; classification is one-to-one by definition. Three old lessons
+plausibly matching one new lesson produced three entries naming the same `CurrentRecordId`, and the
+insert could not be made at all:
+
+```text
+ERROR: duplicate key value violates unique constraint
+       "IX_schedule_diff_entries_ScheduleDiffId_CurrentRecordId"
+```
+
+Nothing recovered from that. `SaveAsync` caught it as a race (below), `ListPendingDiffAsync` defines
+pending as "a published revision with no diff row", and the transaction had rolled back — so the
+revision was pending again six seconds later, forever. Four revisions (`01a05957`, `01a061eb`,
+`01a06adf`, `01a07a9f`) were in that loop for three weeks; 392 diffs with no ambiguous entry passed
+cleanly throughout, which is what pinned the cause.
+
+The failure was invisible because `ScheduleDiffStore.IsUniqueViolation` tested only the SQLSTATE,
+`23505`, and not which constraint produced it. It was written for one specific race — two worker
+passes diffing the same revision, caught on `schedule_diffs.CurrentRevisionId` — and its
+`AlreadyCalculated` outcome is honest for that case: both passes read the same two immutable
+revisions, so the stored diff says the same thing. Applied to an entry-table violation, the same
+outcome asserts a diff exists when none does. `ScheduleDiffCalculationTask` checks `Outcome is Stored`
+before alarming, so no alarm fired; the exception never reached `CalculatePendingAsync`'s catch, so
+the revision never entered the `Failed` list either, and `ScheduleDiffService`'s
+notify-the-operator-by-name path was never triggered. The logs said `AlreadyCalculated` about a
+revision that had never once been calculated.
+
+Two test suites each covered half of this and met nowhere.
+`SemanticScheduleDifferTests.SeveralPlausibleMatchesStayAmbiguousWithoutCreateOrDelete` asserted
+exactly two entries for one previous record against two current ones — both naming the same
+`PreviousRecordId`, which is to say it pinned as correct an output the database forbids. It passed
+because the differ is a pure function and the test never touched a database. On the persistence side,
+`ScheduleDiffReviewStoreTests` wrote a single ambiguous entry (no contest), and
+`ScheduleDiffStoreTests.ARaceThatLosesReportsTheExistingDiffRatherThanWritingASecond` exercised the
+genuine race but never asked whether `AlreadyCalculated` could be returned for the wrong reason.
+
+### Decision
+
+**A contested candidate set produces one `Ambiguous` entry per record it draws in — one for each
+previous record and one for each current record — with the opposite side left null.**
+
+- **Unique pairs are unaffected.** A candidate whose previous and current record each appear exactly
+  once is still `Updated` with both sides set, exactly as before.
+- **`AddAmbiguousSides` groups the contested candidates by record** and writes one entry per record.
+  Each carries its record's best-scoring candidate as evidence (`MatchScore`, `TitleScore`,
+  `InstructorScore`, `DepartmentScore`), ties broken by the counterpart identifiers so the output
+  stays deterministic, as ADR-018 requires.
+- **The null side is the point, not a shortcut.** No counterpart was chosen; writing one would be the
+  guess the whole rule exists to refuse. The unique indexes treat nulls as distinct, so any number of
+  one-sided entries coexist and the invariant "classified once on either side" holds literally.
+- **No record is dropped.** Every record in a contested set keeps exactly one entry. Discarding the
+  losing candidates instead — the smaller edit — would have left their records classified nowhere,
+  because they are already in the matched sets and so never reach the `Deleted` or `Created` passes.
+  Section 9's "do not silently discard rows" applies here as much as it does in the parser.
+- **`IsUniqueViolation` becomes `IsDuplicateDiffForRevision`** and additionally matches
+  `ConstraintName` against `IX_schedule_diffs_CurrentRevisionId`, which
+  `ScheduleDiffConfiguration.CurrentRevisionIndexName` now states explicitly — the name EF Core
+  already generated, so no migration follows, but a rename now has to be deliberate instead of
+  silently moving a convention the catch depends on. Any other unique violation on that write
+  propagates.
+- **What ambiguity means is unchanged.** `AmbiguousCount > 0` still holds the diff, a held ambiguous
+  diff is still not releasable (ADR-042), and `CalendarReconciliationService` still refuses to act on
+  an ambiguous entry.
+
+### Consequences
+
+- **The count of ambiguous entries changes.** One previous against two currents was two entries and is
+  now three. `AmbiguousCount` is only ever read as `> 0` (the hold gate) or reported, so nothing
+  decides differently; a diff's summary numbers are not comparable across this change.
+- **The review screen loses the pairing.** An operator saw "this old lesson, that new one, ambiguous";
+  they now see each involved record on its own row with its best score, and must read the set as a
+  set. This is the cost of the chosen model. Holding the pairing properly means a separate
+  ambiguity-set table with its own migration and review projection, which is the better long-term
+  shape and deliberately not done here: the priority was to end a three-week outage, not to redesign
+  the review surface under it. Recorded as open.
+- **An entry contradiction is now loud.** It throws out of `SaveAsync`, `CalculatePendingAsync` catches
+  it per revision, the revision lands in the `Failed` list by name and the operator is notified. The
+  revision does stay pending and is retried on the next cycle — correct for a transient fault, and now
+  at least visible for a persistent one.
+- **The retry loop still has no ceiling.** Nothing here adds back-off or a terminal state for a
+  revision that fails persistently; this ADR removes today's cause and the silence around it, not the
+  structural gap. Open, and deliberately so: it is a separate change with its own state transitions
+  and migration.
+- **The test gap is closed on both sides.** The differ tests now assert the one-entry-per-record
+  contract in both directions (one-to-many and many-to-one) and that a clean pair beside a contested
+  set is still `Updated`; `ScheduleDiffStoreTests` gains two DB-backed tests — one writing a real
+  many-to-one ambiguity all the way to Postgres and confirming the revision leaves the pending list,
+  one proving an entry contradiction throws instead of reporting `AlreadyCalculated`.
+- **Verified: `dotnet build Sirkadiyen.slnx` clean, `dotnet test Sirkadiyen.slnx` green** — Contracts
+  6/6, Api 20/20, Infrastructure 1010/1010, Persistence 40/40. **The two new DB-backed tests did not
+  run here** (246 persistence tests skipped; no `SIRKADIYEN_TEST_DATABASE__CONNECTION_STRING` and no
+  Docker daemon on this workstation), so the end-to-end proof this ADR rests on is still pending a run
+  against a real database.
+
+## ADR-164: A revision whose diff cannot be calculated stops being recalculated forever
+
+**Status:** Accepted
+**Date:** 2026-09-22
+**Follows:** ADR-163, which removed the fault that exposed this gap but not the gap itself.
+**Mirrors:** ADR-097's dispatch retry, one pipeline stage earlier.
+
+### Context
+
+ADR-163 ended a three-week outage in which four revisions were recalculated every six seconds. It
+did so by removing the reason their diffs could not be stored, and by making a stored-entry
+contradiction loud instead of silent. Neither of those is a ceiling. The loop itself — a revision
+that fails, is due again immediately, fails again, at the worker's cycle rate, indefinitely — was
+still there, waiting for the next permanent fault of any kind.
+
+The loop exists because *pending is derived*. `ListPendingDiffAsync` defines it as "a published or
+superseded revision with no diff row", which is a deliberate and good design: calculation is driven
+by state, so a worker killed between publishing and diffing recovers on its next cycle without any
+handoff to lose (ADR-018's determinism argument and `ScheduleDiffService`'s own remarks). The cost
+of deriving it is that a failed attempt writes nothing at all. There is no attempt count, no
+deferral and no record that anything was tried, so the next pass sees a revision indistinguishable
+from one that has never been attempted.
+
+That is exactly right for a transient fault and exactly wrong for a permanent one. In production the
+difference showed up as 13-15% worker CPU at idle, ~150 duplicate-key errors a minute in the
+PostgreSQL log and ~1.7 GB/day of log volume written twice, for three weeks, to retry four
+calculations that could never have succeeded.
+
+Simply skipping a revision after N failures is not available as a default. `ScheduleDiffService`'s
+own docstring states the danger: *a revision whose diff never runs is skipped by the next one's
+baseline, which silently loses the deletions it carried.* Giving up must therefore be loud and
+recoverable, never quiet.
+
+`RevisionState` cannot carry this. Its transitions are guarded, and `Published` does not mean "diff
+pending" — it means students are entitled to see this revision, and it is read that way by baseline
+selection, superseding and calendar authorization. Moving a revision out of `Published` because its
+diff failed would tell every one of those consumers something false.
+
+### Decision
+
+**Diff-calculation progress is a second, separate state on the revision, exactly as calendar
+dispatch is a second state on the diff (ADR-097).**
+
+- **`RevisionDiffState`** — `Pending` or `Failed` — alongside `DiffAttempts`,
+  `NextDiffAttemptAtUtc` and `DiffFailureReason` on `ScheduleRevision`. Stored as text, for the same
+  forward-compatibility reason as every other state in this system: adding a state later must not
+  renumber the ones already written (AI_GUIDELINE section 18).
+- **`ListPendingDiffAsync` takes `now`** and returns only revisions that are `Pending` and whose
+  `NextDiffAttemptAtUtc` has passed (or was never set, which is every revision that has never
+  failed). The derived definition of pending is otherwise untouched — the back-off narrows the
+  queue, it does not replace what makes a revision belong in it.
+- **`RecordDiffCalculationFailure` defers with an exponential back-off** from
+  `RETRY_BASE_DELAY`, capped at twelve doublings exactly as dispatch retry is, and moves the
+  revision to `Failed` once `MAXIMUM_CALCULATION_ATTEMPTS` is reached. Six attempts on a one-minute
+  base is about half an hour of back-off: long enough to outlast a database restart or a deployment,
+  short enough that a genuinely broken revision is in front of an operator the same morning.
+- **`Failed` is not an unpublication.** The revision stays `Published` and its diff stays missing.
+  That is the state worth an operator's attention, and it is reached without touching `RevisionState`
+  or any of its transitions.
+- **The alert says which it is.** `WorkerAlerts.DiffCalculationFailed` now carries the resulting
+  state: "will be retried after a back-off" and "attempts exhausted, waiting for an operator" are
+  different messages with different dedupe keys, because they call for different actions.
+- **`POST /api/revisions/{id}/retry-diff`** returns a terminally failed revision to the queue,
+  recording who did so and why, and requiring a reason exactly as every other operator lever does.
+  The attempt count resets while `DiffRetriedAtUtc` persists, so a revision retried repeatedly is
+  visible as such rather than looking untouched. The lever lives on `ScheduleDiffReviewService`
+  beside the dispatch retry, which is why that service now also holds the calculation store: this is
+  the one operator path that acts before any diff exists to review.
+- **The migration backfills `DiffState` as `Pending`, not the empty string EF scaffolds.** Every
+  revision that already exists is one whose calculation has never given up. The scaffolded default
+  would have failed the check constraint on any non-empty table and, had it not, hidden every
+  existing undiffed revision from the queue.
+
+### Consequences
+
+- **A permanent fault now costs minutes of CPU instead of weeks.** Six attempts over roughly half an
+  hour, then nothing until someone acts. The 13-15% idle burn, the 150 errors a minute and the
+  doubled log volume all become bounded by construction rather than by fixing each cause as it
+  appears.
+- **A transient fault is unchanged in outcome and slower in recovery.** A revision that fails once
+  now waits a minute instead of six seconds. That is the trade, and it is the right way round: the
+  cases this delays are rare, and the case it bounds ran for three weeks.
+- **A revision can now be stuck without retrying.** This is deliberate and is why the alert names it
+  and the endpoint exists — but if nobody acts on the alert, the revision stays undiffed and the
+  next revision's baseline still skips it. The failure mode moves from "loud and self-inflicted" to
+  "loud and waiting", never to "silent".
+- **The retry lever has no admin UI.** `POST /api/revisions/{id}/retry-diff` is reachable by a
+  SuperAdmin, and `/admin` has no button for it; the alert states the endpoint. Open, and the same
+  gap ADR-032 accepted for the endpoints that preceded their screens.
+- **There is no failed-calculation queue view.** A terminally failed revision is found by its alert
+  or by its id, not by listing. `GET /api/revisions?state=Published` cannot distinguish one, because
+  the distinguishing field is `DiffState`. Open.
+- **Verified: `dotnet build Sirkadiyen.slnx` clean, `dotnet test Sirkadiyen.slnx` green** —
+  Contracts 6/6, Api 20/20, Infrastructure 1023/1023, Persistence 40/40. The back-off, the terminal
+  state and the operator retry are covered by eleven new domain tests and three new DB-backed store
+  tests; **the DB-backed ones did not run here** (249 persistence tests skipped, no database on this
+  workstation), so like ADR-163 this rests on a run that has not happened yet.

@@ -125,6 +125,243 @@ public sealed class ScheduleDiffStoreTests(PostgresFixture fixture)
     }
 
     [Fact]
+    public async Task AnAmbiguousCandidateSetIsStoredRatherThanRejectedByTheEntryTable()
+    {
+        // The differ's ambiguity contract and the entry table's uniqueness rule
+        // meet here, and only here. A set that named the same record on two
+        // entries could not be inserted at all: the revision stayed pending and
+        // the worker recalculated it forever, so this is a regression test for
+        // the whole loop, not only for the differ's output shape.
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        ScheduleSource source = await ScheduleDiffScenario.AddSourceAsync(context);
+
+        // Two lessons the identity pass cannot carry over, and one new lesson
+        // that both of them look like: many-to-one, which is the shape that
+        // reached production.
+        await ScheduleDiffScenario.PublishAsync(
+            context,
+            source,
+            Now,
+            ["old-one", "old-two"],
+            secondaryMatchable: true);
+        ScheduleRevision second = await ScheduleDiffScenario.PublishAsync(
+            context,
+            source,
+            Now.AddHours(1),
+            ["new-one"],
+            secondaryMatchable: true);
+
+        ScheduleDiffCalculationResult result = await AssertCalculatedAsync(context, second.Id);
+
+        Assert.Equal(ScheduleDiffPersistenceOutcome.Stored, result.Outcome);
+        Assert.Equal(3, result.Diff.AmbiguousCount);
+        Assert.Equal(0, result.Diff.DeletedCount);
+        Assert.Equal(0, result.Diff.CreatedCount);
+
+        // Ambiguity holds the diff; nothing here may reach a calendar.
+        Assert.Equal(ScheduleDiffState.Held, result.Diff.State);
+        Assert.False(result.Diff.IsDispatchable);
+        Assert.False(result.Diff.IsReleasable);
+
+        context.ChangeTracker.Clear();
+        ScheduleDiff stored = await ReadDiffAsync(context, second.Id);
+        Assert.Equal(3, stored.Entries.Count);
+        Assert.All(
+            stored.Entries,
+            entry => Assert.Equal(ScheduleDiffChange.Ambiguous, entry.Change));
+
+        // Every record involved is classified, and none of them twice.
+        Assert.Equal(2, stored.Entries.Count(entry => entry.PreviousRecordId is not null));
+        Assert.Single(stored.Entries, entry => entry.CurrentRecordId is not null);
+        Assert.DoesNotContain(
+            stored.Entries,
+            entry => entry.PreviousRecordId is not null && entry.CurrentRecordId is not null);
+
+        // The revision is no longer pending, which is what ends the retry loop.
+        context.ChangeTracker.Clear();
+        Assert.DoesNotContain(
+            second.Id,
+            await new ScheduleDiffStore(context).ListPendingDiffAsync(500, Now.AddDays(1), Token));
+    }
+
+    [Fact]
+    public async Task AnEntryContradictionIsReportedRatherThanReadAsAnEarlierPass()
+    {
+        // AlreadyCalculated means another pass won the race for this revision.
+        // A unique violation on the entries says something else entirely — the
+        // diff contradicts itself — and reporting that as success left a real
+        // failure invisible while the worker retried it on every cycle.
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        ScheduleSource source = await ScheduleDiffScenario.AddSourceAsync(context);
+        ScheduleRevision revision = await ScheduleDiffScenario.PublishAsync(context, source, Now, ["a"]);
+
+        ScheduleDiffStore store = new(context);
+        ScheduleDiffInput input = (await store.LoadAsync(revision.Id, Token))!;
+        Guid recordId = input.CurrentRecords[0].Id;
+
+        ScheduleDiff diff = ScheduleDiff.Create(
+            input.ScheduleSourceId,
+            input.SourceId,
+            input.PreviousRevisionId,
+            input.CurrentRevisionId,
+            [
+                new ScheduleDiffEntry
+                {
+                    Change = ScheduleDiffChange.Created,
+                    Match = ScheduleDiffMatch.None,
+                    CurrentRecordId = recordId,
+                },
+                new ScheduleDiffEntry
+                {
+                    Change = ScheduleDiffChange.Ambiguous,
+                    Match = ScheduleDiffMatch.SecondaryAttributes,
+                    CurrentRecordId = recordId,
+                },
+            ],
+            new ScheduleDiffSafetyThresholds(),
+            Now);
+
+        await Assert.ThrowsAsync<DbUpdateException>(() => store.SaveAsync(diff, Token));
+
+        // And the revision stays pending, so the failure is visible as one.
+        context.ChangeTracker.Clear();
+        Assert.Contains(revision.Id, await new ScheduleDiffStore(context).ListPendingDiffAsync(500, Now.AddDays(1), Token));
+    }
+
+    [Fact]
+    public async Task AFailedCalculationIsDeferredInsteadOfBeingDueAgainImmediately()
+    {
+        // "Pending" is derived — published, no diff row — so a failed attempt used to leave the
+        // revision due again on the very next cycle. That is why a permanent fault burned a worker
+        // cycle every six seconds for three weeks (ADR-164).
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        ScheduleSource source = await ScheduleDiffScenario.AddSourceAsync(context);
+        ScheduleRevision revision = await ScheduleDiffScenario.PublishAsync(context, source, Now, ["a"]);
+
+        ScheduleDiffStore store = new(context);
+        Assert.Contains(revision.Id, await store.ListPendingDiffAsync(500, Now, Token));
+
+        RevisionDiffState? state = await store.RecordDiffCalculationFailureAsync(
+            revision.Id,
+            "duplicate key value violates unique constraint",
+            TimeSpan.FromMinutes(1),
+            maxAttempts: 6,
+            Now,
+            Token);
+
+        Assert.Equal(RevisionDiffState.Pending, state);
+
+        context.ChangeTracker.Clear();
+        store = new ScheduleDiffStore(context);
+
+        // Not due yet at thirty seconds, due again at two minutes.
+        Assert.DoesNotContain(
+            revision.Id,
+            await store.ListPendingDiffAsync(500, Now.AddSeconds(30), Token));
+        Assert.Contains(
+            revision.Id,
+            await store.ListPendingDiffAsync(500, Now.AddMinutes(2), Token));
+    }
+
+    [Fact]
+    public async Task ARevisionThatKeepsFailingStopsBeingQueuedAtAll()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        ScheduleSource source = await ScheduleDiffScenario.AddSourceAsync(context);
+        ScheduleRevision revision = await ScheduleDiffScenario.PublishAsync(context, source, Now, ["a"]);
+
+        ScheduleDiffStore store = new(context);
+        RevisionDiffState? state = null;
+        for (int attempt = 0; attempt < 3; attempt++)
+        {
+            state = await store.RecordDiffCalculationFailureAsync(
+                revision.Id,
+                "still broken",
+                TimeSpan.FromMinutes(1),
+                maxAttempts: 3,
+                Now,
+                Token);
+        }
+
+        Assert.Equal(RevisionDiffState.Failed, state);
+
+        context.ChangeTracker.Clear();
+        store = new ScheduleDiffStore(context);
+
+        // However far in the future the worker looks, it is no longer offered.
+        Assert.DoesNotContain(revision.Id, await store.ListPendingDiffAsync(500, Now.AddYears(1), Token));
+
+        // Recording another failure against it is refused rather than silently counted.
+        Assert.Null(await store.RecordDiffCalculationFailureAsync(
+            revision.Id,
+            "again",
+            TimeSpan.FromMinutes(1),
+            maxAttempts: 3,
+            Now,
+            Token));
+
+        // And it is still published: giving up on the diff is not an unpublication.
+        context.ChangeTracker.Clear();
+        ScheduleRevision stored = await context.ScheduleRevisions
+            .SingleAsync(candidate => candidate.Id == revision.Id, Token);
+        Assert.Equal(RevisionState.Published, stored.State);
+        Assert.Equal(RevisionDiffState.Failed, stored.DiffState);
+        Assert.Equal(3, stored.DiffAttempts);
+        Assert.Equal("still broken", stored.DiffFailureReason);
+    }
+
+    [Fact]
+    public async Task AnOperatorCanReturnAGivenUpRevisionToTheQueue()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        await using SirkadiyenDbContext context = fixture.CreateContext();
+        ScheduleSource source = await ScheduleDiffScenario.AddSourceAsync(context);
+        ScheduleRevision revision = await ScheduleDiffScenario.PublishAsync(context, source, Now, ["a"]);
+
+        ScheduleDiffStore store = new(context);
+        await store.RecordDiffCalculationFailureAsync(
+            revision.Id,
+            "broken",
+            TimeSpan.FromMinutes(1),
+            maxAttempts: 1,
+            Now,
+            Token);
+
+        context.ChangeTracker.Clear();
+        store = new ScheduleDiffStore(context);
+
+        Assert.Equal(
+            RevisionDiffRetryOutcome.Queued,
+            await store.RetryDiffCalculationAsync(
+                revision.Id,
+                "semih",
+                "The differ fix is deployed.",
+                Now.AddHours(2),
+                Token));
+
+        context.ChangeTracker.Clear();
+        store = new ScheduleDiffStore(context);
+        Assert.Contains(revision.Id, await store.ListPendingDiffAsync(500, Now.AddHours(2), Token));
+
+        // A revision already queued has nothing to retry, and one that does not exist says so.
+        Assert.Equal(
+            RevisionDiffRetryOutcome.NotRetriable,
+            await store.RetryDiffCalculationAsync(revision.Id, "semih", "Again.", Now, Token));
+        Assert.Equal(
+            RevisionDiffRetryOutcome.NotFound,
+            await store.RetryDiffCalculationAsync(
+                Guid.CreateVersion7(),
+                "semih",
+                "Nothing here.",
+                Now,
+                Token));
+    }
+
+    [Fact]
     public async Task AMassDeletionHoldsTheDiffInsteadOfEmptyingCalendars()
     {
         Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
@@ -161,7 +398,7 @@ public sealed class ScheduleDiffStoreTests(PostgresFixture fixture)
 
         context.ChangeTracker.Clear();
         ScheduleDiffStore store = new(context);
-        IReadOnlyList<Guid> pending = await store.ListPendingDiffAsync(500, Token);
+        IReadOnlyList<Guid> pending = await store.ListPendingDiffAsync(500, Now.AddDays(1), Token);
 
         Assert.Contains(first.Id, pending);
         Assert.Contains(second.Id, pending);
@@ -184,7 +421,7 @@ public sealed class ScheduleDiffStoreTests(PostgresFixture fixture)
         ScheduleDiffStore store = new(context);
 
         Assert.Null(await store.LoadAsync(candidate.Id, Token));
-        Assert.DoesNotContain(candidate.Id, await store.ListPendingDiffAsync(500, Token));
+        Assert.DoesNotContain(candidate.Id, await store.ListPendingDiffAsync(500, Now.AddDays(1), Token));
         Assert.Null(await Service(context).CalculateAsync(candidate.Id, Token));
     }
 
@@ -357,6 +594,7 @@ public sealed class ScheduleDiffStoreTests(PostgresFixture fixture)
         new ScheduleDiffStore(context),
         new SemanticScheduleDiffer(new SemanticDiffOptions()),
         new ScheduleDiffSafetyThresholds(),
+        new ScheduleDiffRetryOptions(),
         new ScheduleDiffScenario.FixedClock(Now));
 
     private static ScheduleDiff Build(ScheduleDiffInput input) => ScheduleDiff.Create(

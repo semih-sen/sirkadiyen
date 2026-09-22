@@ -57,7 +57,8 @@ internal static class ScheduleDiffScenario
         ScheduleSource source,
         DateTimeOffset createdAtUtc,
         IReadOnlyList<string> identities,
-        IReadOnlyCollection<string>? changedContentIdentities = null)
+        IReadOnlyCollection<string>? changedContentIdentities = null,
+        bool secondaryMatchable = false)
     {
         SourceSnapshot snapshot = new(
             source.Id,
@@ -87,7 +88,8 @@ internal static class ScheduleDiffScenario
             identity,
             changedContentIdentities?.Contains(identity) == true
                 ? $"sha256:changed-{identity}"
-                : $"sha256:{identity}"))];
+                : $"sha256:{identity}",
+            secondaryMatchable))];
         revision.SetRecordSet(records);
         revision.TransitionTo(RevisionState.Validating, createdAtUtc);
         revision.TransitionTo(RevisionState.Validated, createdAtUtc, "All validation rules passed.");
@@ -106,14 +108,16 @@ internal static class ScheduleDiffScenario
         ScheduleSource source,
         DateTimeOffset createdAtUtc,
         IReadOnlyList<string> identities,
-        IReadOnlyCollection<string>? changedContentIdentities = null)
+        IReadOnlyCollection<string>? changedContentIdentities = null,
+        bool secondaryMatchable = false)
     {
         ScheduleRevision revision = await AddRevisionAsync(
             context,
             source,
             createdAtUtc,
             identities,
-            changedContentIdentities);
+            changedContentIdentities,
+            secondaryMatchable);
 
         context.ChangeTracker.Clear();
         RevisionPublicationResult result = await new ScheduleRevisionPublicationStore(context)
@@ -124,11 +128,18 @@ internal static class ScheduleDiffScenario
         return revision;
     }
 
+    /// <param name="secondaryMatchable">
+    /// Gives every record the same normalized lesson name and instructor, which
+    /// is what lets records the identity pass could not match become secondary
+    /// candidates for one another. Without it no record states an instructor and
+    /// secondary matching never runs.
+    /// </param>
     public static CanonicalScheduleRecord Materialize(
         Guid revisionId,
         SourceId sourceId,
         string identity,
-        string contentHash)
+        string contentHash,
+        bool secondaryMatchable = false)
     {
         IReadOnlyList<AudienceSelector> audience =
         [
@@ -146,8 +157,8 @@ internal static class ScheduleDiffScenario
             DomainEventType.Theory,
             DomainAudienceScope.SelectedGroups,
             JsonSerializer.Serialize(audience, ContractJson.CreateOptions()),
-            $"Lesson {identity}",
-            null,
+            secondaryMatchable ? "Dolaşım Fizyolojisi" : $"Lesson {identity}",
+            secondaryMatchable ? "dolasim-fizyolojisi" : null,
             new DateOnly(2025, 10, 3),
             new TimeOnly(9, 0),
             new TimeOnly(10, 50),
@@ -156,7 +167,8 @@ internal static class ScheduleDiffScenario
             identity,
             contentHash,
             1.0m,
-            "[]");
+            "[]",
+            secondaryMatchable ? "Prof. Dr. Ayşe Yılmaz" : null);
     }
 
     public sealed class FixedClock(DateTimeOffset now) : TimeProvider

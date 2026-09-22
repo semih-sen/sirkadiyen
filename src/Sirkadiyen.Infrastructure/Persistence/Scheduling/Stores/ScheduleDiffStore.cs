@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Sirkadiyen.Application.Scheduling.Diffing;
+using Sirkadiyen.Infrastructure.Persistence.Scheduling.Configurations;
 using Sirkadiyen.Domain.Scheduling.Diffing;
 using Sirkadiyen.Domain.Scheduling.Publication;
 
@@ -67,6 +68,7 @@ public sealed class ScheduleDiffStore(SirkadiyenDbContext dbContext) : ISchedule
 
     public async Task<IReadOnlyList<Guid>> ListPendingDiffAsync(
         int limit,
+        DateTimeOffset now,
         CancellationToken cancellationToken)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
@@ -75,12 +77,69 @@ public sealed class ScheduleDiffStore(SirkadiyenDbContext dbContext) : ISchedule
             .Where(revision =>
                 (revision.State == RevisionState.Published
                     || revision.State == RevisionState.Superseded)
+                // A revision that has given up is left out until an operator returns it, and one
+                // that failed transiently until its back-off has passed (ADR-164). Everything
+                // else, including every revision that has never failed, is due now.
+                && revision.DiffState == RevisionDiffState.Pending
+                && (revision.NextDiffAttemptAtUtc == null || revision.NextDiffAttemptAtUtc <= now)
                 && !dbContext.ScheduleDiffs.Any(diff => diff.CurrentRevisionId == revision.Id))
             .OrderBy(revision => revision.PublishedAtUtc)
             .ThenBy(revision => revision.Id)
             .Select(revision => revision.Id)
             .Take(limit)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<RevisionDiffState?> RecordDiffCalculationFailureAsync(
+        Guid revisionId,
+        string reason,
+        TimeSpan baseRetryDelay,
+        int maxAttempts,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        // Cleared first: the failed attempt may well have left a half-built diff tracked, and this
+        // write must record the failure rather than try once more to save what caused it.
+        dbContext.ChangeTracker.Clear();
+
+        ScheduleRevision? revision = await dbContext.ScheduleRevisions
+            .SingleOrDefaultAsync(candidate => candidate.Id == revisionId, cancellationToken);
+
+        if (revision is null
+            || revision.State is not (RevisionState.Published or RevisionState.Superseded)
+            || revision.DiffState is not RevisionDiffState.Pending)
+        {
+            return null;
+        }
+
+        revision.RecordDiffCalculationFailure(reason, baseRetryDelay, maxAttempts, now);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return revision.DiffState;
+    }
+
+    public async Task<RevisionDiffRetryOutcome> RetryDiffCalculationAsync(
+        Guid revisionId,
+        string retriedBy,
+        string retryReason,
+        DateTimeOffset now,
+        CancellationToken cancellationToken)
+    {
+        ScheduleRevision? revision = await dbContext.ScheduleRevisions
+            .SingleOrDefaultAsync(candidate => candidate.Id == revisionId, cancellationToken);
+
+        if (revision is null)
+        {
+            return RevisionDiffRetryOutcome.NotFound;
+        }
+
+        if (!revision.IsDiffCalculationRetriable)
+        {
+            return RevisionDiffRetryOutcome.NotRetriable;
+        }
+
+        revision.RetryDiffCalculation(retriedBy, retryReason, now);
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return RevisionDiffRetryOutcome.Queued;
     }
 
     public async Task<ScheduleDiffPersistenceResult> SaveAsync(
@@ -95,11 +154,16 @@ public sealed class ScheduleDiffStore(SirkadiyenDbContext dbContext) : ISchedule
         {
             await dbContext.SaveChangesAsync(cancellationToken);
         }
-        catch (DbUpdateException exception) when (IsUniqueViolation(exception))
+        catch (DbUpdateException exception) when (IsDuplicateDiffForRevision(exception))
         {
             // Another pass diffed this revision first. Both passes read the same
             // two immutable revisions, so the stored diff says the same thing;
             // reporting it beats writing a second set of calendar operations.
+            //
+            // Only that one constraint is caught. A unique violation anywhere
+            // else on this write — an entry naming the same record twice, say —
+            // is the diff contradicting itself, not a race, and reporting it as
+            // an already-calculated diff would retry it silently forever.
             dbContext.ChangeTracker.Clear();
             return new ScheduleDiffPersistenceResult
             {
@@ -232,6 +296,10 @@ public sealed class ScheduleDiffStore(SirkadiyenDbContext dbContext) : ISchedule
             .OrderBy(record => record.CandidateId)
             .ToListAsync(cancellationToken);
 
-    private static bool IsUniqueViolation(DbUpdateException exception) =>
-        exception.InnerException is PostgresException { SqlState: UniqueViolation };
+    private static bool IsDuplicateDiffForRevision(DbUpdateException exception) =>
+        exception.InnerException is PostgresException
+        {
+            SqlState: UniqueViolation,
+            ConstraintName: ScheduleDiffConfiguration.CurrentRevisionIndexName,
+        };
 }

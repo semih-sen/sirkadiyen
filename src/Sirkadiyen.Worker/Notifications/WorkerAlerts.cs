@@ -201,18 +201,35 @@ internal static class WorkerAlerts
     /// be diffed the next revision's baseline skips it, and any lessons it dropped are removed from
     /// no calendar. An operator has to see the revision by name to break that out (ADR-059).
     /// </remarks>
-    public static OperatorAlert DiffCalculationFailed(Guid revisionId, string reason) =>
+    public static OperatorAlert DiffCalculationFailed(
+        Guid revisionId,
+        string reason,
+        RevisionDiffState diffState) =>
         new()
         {
-            Title = "Fark hesaplanamıyor",
+            Title = diffState is RevisionDiffState.Failed
+                ? "Fark hesaplaması denemeleri tükendi"
+                : "Fark hesaplanamıyor",
             Severity = OperatorAlertSeverity.Error,
-            Detail = "Bu revizyonun farkı hesaplanamadı ve revizyon beklemede bırakıldı. Her "
-                + "döngüde yeniden denenecek; ama hesaplanana kadar bir sonraki revizyonun tabanı "
-                + "onu atlar ve taşıdığı silmeler hiçbir takvime uygulanmaz.",
-            DedupeKey = $"diff-calculation-failed:{revisionId}",
+            Detail = diffState is RevisionDiffState.Failed
+                // The one case an operator must act on: nothing will try again on its own
+                // (ADR-164), and until someone does, this revision's deletions are lost.
+                ? "Bu revizyonun farkı üst üste hesaplanamadı ve otomatik deneme durduruldu. "
+                    + "Kendiliğinden tekrar denenmeyecek; bir sonraki revizyonun tabanı onu atlar "
+                    + "ve taşıdığı silmeler hiçbir takvime uygulanmaz. Sebep giderildikten sonra "
+                    + "POST /api/revisions/{id}/retry-diff ile kuyruğa geri alın."
+                : "Bu revizyonun farkı hesaplanamadı. Artan aralıklarla yeniden denenecek; ama "
+                    + "hesaplanana kadar bir sonraki revizyonun tabanı onu atlar ve taşıdığı "
+                    + "silmeler hiçbir takvime uygulanmaz.",
+            DedupeKey = $"diff-calculation-failed:{revisionId}:{diffState}",
             Fields =
             [
                 new OperatorAlertField("Revizyon", revisionId.ToString()),
+                new OperatorAlertField(
+                    "Durum",
+                    diffState is RevisionDiffState.Failed
+                        ? "Denemeler tükendi, operatör bekliyor"
+                        : "Yeniden denenecek"),
                 new OperatorAlertField("Ayrıntı", string.IsNullOrWhiteSpace(reason) ? "-" : reason),
             ],
         };

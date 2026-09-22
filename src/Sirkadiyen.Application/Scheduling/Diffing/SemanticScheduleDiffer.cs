@@ -21,7 +21,9 @@ namespace Sirkadiyen.Application.Scheduling.Diffing;
 /// the entry: <c>DepartmentScore</c> is null for a match made without one.
 /// </para>
 /// A many-to-one or one-to-many candidate set remains ambiguous and is never
-/// converted into a destructive delete-and-create pair.
+/// converted into a destructive delete-and-create pair. Such a set yields one
+/// ambiguous entry per record it drew in, not one per candidate pair, because a
+/// record may be classified only once within a diff.
 /// </remarks>
 public sealed class SemanticScheduleDiffer
 {
@@ -159,19 +161,75 @@ public sealed class SemanticScheduleDiffer
             .GroupBy(candidate => candidate.Current.Id)
             .ToDictionary(group => group.Key, group => group.Count());
 
+        List<SecondaryCandidate> contested = [];
+
         foreach (SecondaryCandidate candidate in candidates
                      .OrderBy(candidate => candidate.Previous.Id)
                      .ThenBy(candidate => candidate.Current.Id))
         {
-            bool unique = previousCandidateCounts[candidate.Previous.Id] == 1
-                && currentCandidateCounts[candidate.Current.Id] == 1;
+            if (previousCandidateCounts[candidate.Previous.Id] != 1
+                || currentCandidateCounts[candidate.Current.Id] != 1)
+            {
+                contested.Add(candidate);
+                continue;
+            }
 
-            entries.Add(candidate.ToEntry(
-                unique ? ScheduleDiffChange.Updated : ScheduleDiffChange.Ambiguous));
+            entries.Add(candidate.ToEntry(ScheduleDiffChange.Updated));
             matchedPrevious.Add(candidate.Previous.Id);
             matchedCurrent.Add(candidate.Current.Id);
         }
+
+        AddAmbiguousSides(contested, entries, matchedPrevious, matchedCurrent);
     }
+
+    /// <summary>
+    /// Records one <see cref="ScheduleDiffChange.Ambiguous"/> entry per record
+    /// drawn into a contested candidate set, rather than one per candidate pair.
+    /// </summary>
+    /// <remarks>
+    /// A contested set is many-to-one or one-to-many by nature, but a record may
+    /// be classified only once within a diff — the entry table enforces that on
+    /// both sides. One entry per pair therefore names the same record twice and
+    /// cannot be stored at all, which leaves the revision undiffed rather than
+    /// held. The pairing itself is not what the ambiguity means: it means these
+    /// records could not be told apart, and every one of them must be visible to
+    /// the operator reviewing the hold. Each entry carries its record's
+    /// best-scoring candidate as evidence, and the opposite side stays null
+    /// because no single counterpart was chosen.
+    /// </remarks>
+    private static void AddAmbiguousSides(
+        IReadOnlyCollection<SecondaryCandidate> contested,
+        List<ScheduleDiffEntry> entries,
+        HashSet<Guid> matchedPrevious,
+        HashSet<Guid> matchedCurrent)
+    {
+        foreach (IGrouping<Guid, SecondaryCandidate> group in contested
+                     .GroupBy(candidate => candidate.Previous.Id)
+                     .OrderBy(group => group.Key))
+        {
+            entries.Add(BestOf(group).ToPreviousSideEntry(ScheduleDiffChange.Ambiguous));
+            matchedPrevious.Add(group.Key);
+        }
+
+        foreach (IGrouping<Guid, SecondaryCandidate> group in contested
+                     .GroupBy(candidate => candidate.Current.Id)
+                     .OrderBy(group => group.Key))
+        {
+            entries.Add(BestOf(group).ToCurrentSideEntry(ScheduleDiffChange.Ambiguous));
+            matchedCurrent.Add(group.Key);
+        }
+    }
+
+    /// <summary>
+    /// The strongest candidate a record took part in, resolving equal scores by
+    /// the counterpart identifiers so the evidence is deterministic.
+    /// </summary>
+    private static SecondaryCandidate BestOf(IEnumerable<SecondaryCandidate> candidates) =>
+        candidates
+            .OrderByDescending(candidate => candidate.CompositeScore)
+            .ThenBy(candidate => candidate.Previous.Id)
+            .ThenBy(candidate => candidate.Current.Id)
+            .First();
 
     private bool TryScore(
         CanonicalScheduleRecord previous,
@@ -422,5 +480,13 @@ public sealed class SemanticScheduleDiffer
             InstructorScore = InstructorScore,
             DepartmentScore = DepartmentScore,
         };
+
+        /// <summary>The previous record alone, with this candidate as evidence.</summary>
+        public ScheduleDiffEntry ToPreviousSideEntry(ScheduleDiffChange change) =>
+            ToEntry(change) with { CurrentRecordId = null };
+
+        /// <summary>The current record alone, with this candidate as evidence.</summary>
+        public ScheduleDiffEntry ToCurrentSideEntry(ScheduleDiffChange change) =>
+            ToEntry(change) with { PreviousRecordId = null };
     }
 }

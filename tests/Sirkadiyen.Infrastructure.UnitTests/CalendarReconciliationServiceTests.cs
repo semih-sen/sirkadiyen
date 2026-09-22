@@ -281,6 +281,22 @@ public sealed class CalendarReconciliationServiceTests
 
         public Task<IReadOnlyList<Guid>> ListPendingDiffAsync(
             int limit,
+            DateTimeOffset now,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<RevisionDiffState?> RecordDiffCalculationFailureAsync(
+            Guid revisionId,
+            string reason,
+            TimeSpan baseRetryDelay,
+            int maxAttempts,
+            DateTimeOffset now,
+            CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<RevisionDiffRetryOutcome> RetryDiffCalculationAsync(
+            Guid revisionId,
+            string retriedBy,
+            string retryReason,
+            DateTimeOffset now,
             CancellationToken cancellationToken) => throw new NotSupportedException();
 
         public Task<ScheduleDiffPersistenceResult> SaveAsync(

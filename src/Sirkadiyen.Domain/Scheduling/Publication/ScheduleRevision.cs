@@ -25,6 +25,12 @@ public sealed class ScheduleRevision
 
     public const int MaximumRejectionReasonLength = 2000;
 
+    public const int MaximumDiffFailureReasonLength = 2000;
+
+    public const int MaximumDiffRetriedByLength = 200;
+
+    public const int MaximumDiffRetryReasonLength = 2000;
+
     private static readonly IReadOnlyDictionary<RevisionState, RevisionState[]> AllowedTransitions =
         new Dictionary<RevisionState, RevisionState[]>
         {
@@ -248,6 +254,143 @@ public sealed class ScheduleRevision
         RecordSetHash = CanonicalRecordSetHash.Compute(records);
     }
 
+    /// <summary>
+    /// How diff calculation for this published revision is going (ADR-164).
+    /// </summary>
+    /// <remarks>
+    /// Deliberately separate from <see cref="State"/>, the same way a diff's
+    /// <c>CalendarDispatchState</c> is separate from its own state (ADR-097).
+    /// <see cref="RevisionState.Published"/> means students are entitled to see
+    /// this revision; whether its diff has been calculated yet is a different
+    /// question, read by a different consumer, and folding the two together
+    /// would make a calculation failure look like an unpublication.
+    /// </remarks>
+    public RevisionDiffState DiffState { get; private set; }
+
+    /// <summary>How many times diff calculation has failed for this revision.</summary>
+    public int DiffAttempts { get; private set; }
+
+    /// <summary>
+    /// When the next calculation attempt is due, or <see langword="null"/> when
+    /// one is due now — which is the state of every revision that has never
+    /// failed, and of one an operator has just returned to the queue.
+    /// </summary>
+    public DateTimeOffset? NextDiffAttemptAtUtc { get; private set; }
+
+    /// <summary>Why the last calculation attempt failed, when one has.</summary>
+    public string? DiffFailureReason { get; private set; }
+
+    /// <summary>Who returned a terminally failed calculation to the queue, and why (ADR-164).</summary>
+    public string? DiffRetriedBy { get; private set; }
+
+    public string? DiffRetryReason { get; private set; }
+
+    public DateTimeOffset? DiffRetriedAtUtc { get; private set; }
+
+    /// <summary>
+    /// Whether an operator may return this revision to the calculation queue: its
+    /// calculation failed terminally, and it is still a revision that can be
+    /// diffed at all.
+    /// </summary>
+    public bool IsDiffCalculationRetriable =>
+        DiffState is RevisionDiffState.Failed
+        && State is RevisionState.Published or RevisionState.Superseded;
+
+    /// <summary>
+    /// Records that calculating this revision's diff failed, deferring the next
+    /// attempt with an exponential back-off or giving up once the attempts are
+    /// exhausted (ADR-164).
+    /// </summary>
+    /// <remarks>
+    /// Before this existed, a revision whose calculation failed was pending again
+    /// immediately, because "pending" is derived — a published revision with no
+    /// diff row — and a failed attempt writes nothing. A permanent fault
+    /// therefore produced an unbounded retry loop at the worker's cycle rate. The
+    /// back-off bounds a transient fault's cost and
+    /// <see cref="RevisionDiffState.Failed"/> bounds a permanent one's, without
+    /// touching what makes a revision pending in the first place.
+    /// </remarks>
+    public void RecordDiffCalculationFailure(
+        string reason,
+        TimeSpan baseRetryDelay,
+        int maxAttempts,
+        DateTimeOffset now)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(baseRetryDelay.Ticks);
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxAttempts);
+
+        if (State is not (RevisionState.Published or RevisionState.Superseded))
+        {
+            throw new InvalidOperationException(
+                $"A revision in {State} is never diffed, so it cannot fail calculation.");
+        }
+
+        if (DiffState is not RevisionDiffState.Pending)
+        {
+            throw new InvalidOperationException(
+                $"A calculation failure cannot be recorded from {DiffState}.");
+        }
+
+        DiffAttempts++;
+        DiffFailureReason = Truncate(reason, MaximumDiffFailureReasonLength);
+
+        if (DiffAttempts >= maxAttempts)
+        {
+            // Terminal, and deliberately so: the revision is still published and
+            // still has no diff, so it is still visible as undiffed — it has just
+            // stopped consuming a cycle every six seconds to prove it.
+            DiffState = RevisionDiffState.Failed;
+            NextDiffAttemptAtUtc = null;
+        }
+        else
+        {
+            // Exponential back-off, capped at twelve doublings exactly as dispatch
+            // retry is (ADR-097), so a deferral cannot overflow into an unreachable
+            // date.
+            int exponent = Math.Min(DiffAttempts - 1, 12);
+            NextDiffAttemptAtUtc = now + (baseRetryDelay * Math.Pow(2, exponent));
+        }
+    }
+
+    /// <summary>
+    /// Returns a terminally failed calculation to the queue, recording who did so
+    /// and why (ADR-164).
+    /// </summary>
+    /// <remarks>
+    /// The attempt count is reset so the revision gets a full set of attempts
+    /// again, while <see cref="DiffRetriedAtUtc"/> keeps the fact that it was
+    /// retried at all — the same split dispatch retry makes, so a revision being
+    /// retried repeatedly is visible as such rather than looking untouched.
+    /// </remarks>
+    public void RetryDiffCalculation(string retriedBy, string retryReason, DateTimeOffset atUtc)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(retriedBy);
+        ArgumentException.ThrowIfNullOrWhiteSpace(retryReason);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            retriedBy.Length,
+            MaximumDiffRetriedByLength,
+            nameof(retriedBy));
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(
+            retryReason.Length,
+            MaximumDiffRetryReasonLength,
+            nameof(retryReason));
+
+        if (!IsDiffCalculationRetriable)
+        {
+            throw new InvalidOperationException(
+                $"Only a revision whose diff calculation failed terminally can be retried; "
+                + $"this one is {State}/{DiffState}.");
+        }
+
+        DiffState = RevisionDiffState.Pending;
+        DiffAttempts = 0;
+        NextDiffAttemptAtUtc = null;
+        DiffRetriedBy = retriedBy;
+        DiffRetryReason = retryReason;
+        DiffRetriedAtUtc = atUtc;
+    }
+
     private static string Truncate(string value, int maximumLength) =>
         value.Length <= maximumLength ? value : value[..maximumLength];
 }
@@ -261,4 +404,21 @@ public enum RevisionState
     Published,
     Rejected,
     Superseded,
+}
+
+/// <summary>
+/// Whether a published revision's semantic diff is still being attempted
+/// (ADR-164).
+/// </summary>
+/// <remarks>
+/// <see cref="Failed"/> does not mean the revision is unpublished or that its
+/// changes were abandoned — the revision is live and its diff is still missing,
+/// which is precisely what makes it worth an operator's attention. It means only
+/// that automatic recalculation has stopped, so a permanent fault costs one
+/// investigation instead of a worker cycle every six seconds forever.
+/// </remarks>
+public enum RevisionDiffState
+{
+    Pending,
+    Failed,
 }

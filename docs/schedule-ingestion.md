@@ -358,6 +358,8 @@ operation at all (ADR-040). It is held when:
 | --- | --- | --- |
 | `MAXIMUM_DELETION_SHARE` | `0.20` | share of the previous revision that may vanish |
 | `MINIMUM_DELETION_COUNT` | `10` | absolute floor; both conditions must hold |
+| `RETRY_BASE_DELAY` | `00:01:00` | first wait after a failed calculation; doubled each time |
+| `MAXIMUM_CALCULATION_ATTEMPTS` | `6` | failures before recalculation stops and waits for an operator |
 
 This does not replace the validation rule of the same name. Validation compares
 stable-identity sets before publication and cannot know that a rescheduled
@@ -367,6 +369,23 @@ that actually decides how many events would be deleted.
 
 The reason a diff was held is stored in full on the diff, written invariantly so
 it reads the same on a Turkish host.
+
+### When calculation itself fails
+
+A diff that cannot be calculated at all is a different failure from one that is
+held: there is no diff to review. Because "pending" means *a published revision
+with no diff row*, a failed attempt leaves nothing behind and the revision is due
+again on the very next cycle — which is right after a crash mid-calculation and
+wrong for a fault that will fail identically every time. Each failure is
+therefore recorded on the revision and defers the next attempt with an
+exponential back-off; once `MAXIMUM_CALCULATION_ATTEMPTS` is reached the revision
+stops being recalculated and an operator is alerted by name (ADR-164).
+
+Giving up is not an unpublication. The revision stays `Published` and its diff
+stays missing, which is exactly what needs attention: until it is calculated, the
+next revision's baseline skips it and the deletions it carried reach no calendar.
+Once the cause is fixed, `POST /api/revisions/{id}/retry-diff` returns it to the
+queue, recording who did so and why.
 
 ### Releasing a held diff
 

@@ -1,5 +1,96 @@
 # Active Context
 
+## Latest session (2026-09-22, ADR-163 + ADR-164: ambiguity is one entry per record, and diff recalculation now has a ceiling)
+
+Reported from production logs and confirmed against the code. Four published revisions (`01a05957`
+from 31 August, `01a061eb`, `01a06adf`, `01a07a9f`) had never been diffed and were being recalculated
+every six seconds, three weeks running: ~13-15% worker CPU at idle, ~150 duplicate-key errors a
+minute in the PostgreSQL log, ~1.2-1.7 GB/day of log volume written twice (journald and rsyslog).
+Every stuck revision had ambiguous entries; the 392 diffs that passed cleanly had none.
+
+**Root cause — two of this system's own invariants contradict each other.** `SemanticScheduleDiffer`
+wrote one entry per *candidate* in a contested set, so three old lessons plausibly matching one new
+lesson produced three entries naming the same `CurrentRecordId`;
+`IX_schedule_diff_entries_ScheduleDiffId_CurrentRecordId` forbids exactly that. The insert could not
+succeed, the transaction rolled back, no diff row was written — and `ListPendingDiffAsync` defines
+pending as "a published revision with no diff row", so the revision was pending again immediately.
+The differ's non-destructive guarantee itself was never broken: the contested records were added to
+the matched sets and so never fell through to `Deleted`/`Created`. Only the entry *count* was wrong.
+
+**What kept it silent for three weeks:** `ScheduleDiffStore.IsUniqueViolation` matched SQLSTATE
+`23505` alone, with no check on which constraint. Written for the two-workers race on
+`schedule_diffs.CurrentRevisionId`, it also swallowed the entry-table violation and reported
+`AlreadyCalculated` — so `ScheduleDiffCalculationTask`'s `Outcome is Stored` check never alarmed, the
+exception never reached `CalculatePendingAsync`'s catch, and the revision never entered the `Failed`
+list. The logs asserted a diff existed for a revision that had never once been calculated.
+
+**Why no test caught it:** `SemanticScheduleDifferTests.SeveralPlausibleMatchesStayAmbiguousWithoutCreateOrDelete`
+covered the multi-candidate case with no database and asserted two entries sharing one
+`PreviousRecordId` — pinning as correct an output the schema forbids. The DB-backed ambiguity test
+(`ScheduleDiffReviewStoreTests`) wrote a single, uncontested ambiguous entry. Multi-candidate was
+tested without a database; the database was tested without multi-candidate.
+
+Changes (ADR-163):
+- **Differ** (`SemanticScheduleDiffer.AddSecondaryMatches`): a contested set now yields one
+  `Ambiguous` entry per record — one per previous record, one per current record — with the opposite
+  side null, each carrying its record's best-scoring candidate as evidence. Unique 1:1 candidates are
+  still `Updated` with both sides set. Nulls are distinct to the unique indexes, so the "classified
+  once on either side" invariant now holds literally. No record is dropped: discarding losing
+  candidates would have left their records classified nowhere, since they are already in the matched
+  sets.
+- **Store** (`ScheduleDiffStore`): `IsUniqueViolation` → `IsDuplicateDiffForRevision`, which also
+  matches `ConstraintName` against `IX_schedule_diffs_CurrentRevisionId`. Anything else propagates,
+  so an entry contradiction reaches the `Failed` list and the operator by name.
+- **Configuration** (`ScheduleDiffConfiguration`): the index name is now stated explicitly as
+  `CurrentRevisionIndexName` — the same name EF Core generated, so no migration — so that renaming it
+  cannot silently break the catch that depends on it.
+- **Tests**: the differ tests assert the one-entry-per-record contract in both directions and that a
+  clean pair beside a contested set is still `Updated`; `ScheduleDiffStoreTests` gains a DB-backed
+  many-to-one ambiguity test (stored, held, revision leaves the pending list) and a DB-backed test
+  that an entry contradiction throws rather than reporting `AlreadyCalculated`.
+
+**Verified (both ADRs):** `dotnet build Sirkadiyen.slnx` clean; `dotnet test Sirkadiyen.slnx` green —
+Contracts 6/6, Api 20/20, Infrastructure 1023/1023, Persistence 40/40 (249 DB-backed skipped).
+`dotnet ef migrations has-pending-model-changes`: none after `AddDiffCalculationRetry`.
+
+**Follow-up in the same session (ADR-164): the retry loop now has a ceiling.** ADR-163 removed the
+fault; the loop that amplified it was still structural, because `ListPendingDiffAsync` derives
+"pending" from the absence of a diff row and a failed attempt writes nothing. `ScheduleRevision`
+gains a second state alongside `State` — `RevisionDiffState` (`Pending`/`Failed`) with
+`DiffAttempts`, `NextDiffAttemptAtUtc` and `DiffFailureReason` — mirroring how `CalendarDispatchState`
+sits beside `ScheduleDiffState` on a diff (ADR-097). A failure defers the next attempt with an
+exponential back-off from `SIRKADIYEN_DIFF__RETRY_BASE_DELAY` and gives up after
+`SIRKADIYEN_DIFF__MAXIMUM_CALCULATION_ATTEMPTS` (6). `Failed` is **not** an unpublication: the
+revision stays `Published` with no diff, which is exactly the state that needs an operator. The
+alert distinguishes "will retry" from "gave up", and `POST /api/revisions/{id}/retry-diff` returns a
+given-up revision to the queue with a required reason. Migration `AddDiffCalculationRetry` backfills
+`DiffState` as `Pending` — the scaffolded empty-string default would have failed the new check
+constraint and hidden every existing undiffed revision from the queue.
+
+**Unresolved risks / open:**
+- **The two new DB-backed tests have not run.** This workstation has no
+  `SIRKADIYEN_TEST_DATABASE__CONNECTION_STRING` and no Docker daemon, so 246 persistence tests are
+  skipped — including both new ones. The central claim of ADR-163 (that a contested set now inserts
+  successfully) is proven only by the schema's semantics and the unit tests, not yet by a real insert.
+  Run them before deploying.
+- **The four stuck revisions are still stuck.** The fix lets their diffs calculate on the next worker
+  cycle after deployment; nothing has yet confirmed they do, or that what they then dispatch is
+  correct. Each will be `Held` on ambiguity and needs operator review.
+- **A given-up revision waits for a human, with no UI and no queue view.** ADR-164 bounds the loop,
+  and the cost is that a terminally failed revision now sits until someone acts on the alert. There
+  is no `/admin` button for `POST /api/revisions/{id}/retry-diff`, and no way to list revisions by
+  `DiffState` — one is found by its alert or its id. If the alert is missed, the revision stays
+  undiffed and the next revision's baseline still skips it.
+- **The back-off has not been exercised against a real database.** The three new DB-backed store
+  tests for deferral, giving up and operator retry are skipped here along with everything else.
+- **Log volume.** journald has no `SystemMaxUse` and rsyslog rotates weekly with `rotate 4`; the
+  worker writes the same lines to both. With the loop stopped this stops growing, but the
+  configuration is still unbounded and should be capped independently of this bug.
+- **Ambiguity pairing is not modelled.** The review screen now shows each involved record on its own
+  row without naming what it was confused with. A dedicated ambiguity-set table is the better shape
+  and was deliberately deferred.
+
+
 ## Latest session (2026-09-21, ADR-162: a cohort letter and its index typed with a stray space, `A 8` for `A8`)
 
 Reported by the operator with two screenshots: the 21 September 2026 amfi program (weekly

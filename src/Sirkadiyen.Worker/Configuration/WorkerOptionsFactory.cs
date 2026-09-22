@@ -277,6 +277,15 @@ internal sealed class WorkerOptionsFactory(
                 configuration["SIRKADIYEN_DIFF:MINIMUM_DELETION_COUNT"], 10),
         }, static options => options.Validate());
 
+    public ScheduleDiffRetryOptions CreateDiffRetryOptions() =>
+        Validate(new ScheduleDiffRetryOptions
+        {
+            BaseRetryDelay = ConfigurationValueParser.Duration(
+                configuration["SIRKADIYEN_DIFF:RETRY_BASE_DELAY"], TimeSpan.FromMinutes(1)),
+            MaximumAttempts = ConfigurationValueParser.Integer(
+                configuration["SIRKADIYEN_DIFF:MAXIMUM_CALCULATION_ATTEMPTS"], 6),
+        }, static options => options.Validate());
+
     public ParseRunOptions CreateParseRunOptions() => Validate(new ParseRunOptions
     {
         StaleRunTimeout = ConfigurationValueParser.Duration(

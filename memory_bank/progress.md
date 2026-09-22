@@ -208,6 +208,21 @@
 - [x] Calculate and store a diff after publication
 - [x] Provide an operator path for releasing a held diff (ADR-042)
 - [x] Provide an operator path for retrying a terminally failed diff dispatch (ADR-097)
+- [x] Make an ambiguous candidate set storable: one entry per record, not one per pair (ADR-163).
+  Contested candidates produced several entries naming the same record, which the entry table's
+  uniqueness rule forbids, so four revisions were never diffed and were retried every six seconds for
+  three weeks. Includes narrowing the store's unique-violation catch to the diff's own constraint, so
+  an entry contradiction reaches the operator instead of being reported as `AlreadyCalculated`.
+- [!] Run the five new DB-backed tests (ADR-163 ambiguity, ADR-164 back-off/give-up/retry) — skipped
+  on the workstation that wrote them; needs `SIRKADIYEN_TEST_DATABASE__CONNECTION_STRING` or the
+  Compose Postgres. `AddDiffCalculationRetry` has also never been applied to a real database.
+- [x] Put a ceiling on diff recalculation (ADR-164): `RevisionDiffState` beside `RevisionState`,
+  exponential back-off per failure, terminal `Failed` after the configured attempts, a state-aware
+  operator alert and `POST /api/revisions/{id}/retry-diff` to return one to the queue
+- [ ] Give the calculation retry an `/admin` control and a way to list revisions by `DiffState`; a
+  terminally failed revision is currently found only by its alert or its id (ADR-164, open)
+- [ ] Model an ambiguity set properly, so a held diff's review names which records were confused with
+  which (ADR-163, deferred)
 
 ## Phase 9: Calendar synchronization
 

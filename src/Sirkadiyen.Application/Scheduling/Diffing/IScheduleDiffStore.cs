@@ -25,8 +25,46 @@ public interface IScheduleDiffStore
     /// A revision that was published and then superseded before its diff was
     /// calculated is still included. Skipping it would silently drop everything
     /// that revision changed.
+    /// <para>
+    /// A revision whose calculation has failed is excluded until its back-off has
+    /// passed, and excluded entirely once its attempts are exhausted (ADR-164).
+    /// Without that, a permanent fault is retried at the worker's cycle rate
+    /// forever, because "pending" is derived from the absence of a diff row and a
+    /// failed attempt writes nothing.
+    /// </para>
     /// </remarks>
-    Task<IReadOnlyList<Guid>> ListPendingDiffAsync(int limit, CancellationToken cancellationToken);
+    /// <param name="now">The current time, so a deferred revision is only returned once it is due.</param>
+    Task<IReadOnlyList<Guid>> ListPendingDiffAsync(
+        int limit,
+        DateTimeOffset now,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Records that calculating one revision's diff failed, deferring it with a back-off or moving
+    /// it to <see cref="RevisionDiffState.Failed"/> once attempts are exhausted (ADR-164).
+    /// </summary>
+    /// <returns>
+    /// The resulting state, so the caller can report deferral versus giving up, or
+    /// <see langword="null"/> when the revision no longer exists or is no longer in a state that is
+    /// diffed at all.
+    /// </returns>
+    Task<RevisionDiffState?> RecordDiffCalculationFailureAsync(
+        Guid revisionId,
+        string reason,
+        TimeSpan baseRetryDelay,
+        int maxAttempts,
+        DateTimeOffset now,
+        CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Returns a terminally failed calculation to the queue on an operator's decision (ADR-164).
+    /// </summary>
+    Task<RevisionDiffRetryOutcome> RetryDiffCalculationAsync(
+        Guid revisionId,
+        string retriedBy,
+        string retryReason,
+        DateTimeOffset now,
+        CancellationToken cancellationToken);
 
     /// <summary>Stores a diff and its entries in one transaction.</summary>
     Task<ScheduleDiffPersistenceResult> SaveAsync(
@@ -138,4 +176,17 @@ public enum ScheduleDiffPersistenceOutcome
 
     /// <summary>Another pass stored a diff for this revision first.</summary>
     AlreadyCalculated,
+}
+
+/// <summary>What an operator's request to recalculate a revision's diff did (ADR-164).</summary>
+public enum RevisionDiffRetryOutcome
+{
+    /// <summary>No revision with that identifier exists.</summary>
+    NotFound,
+
+    /// <summary>The revision's calculation had not failed terminally, so there was nothing to retry.</summary>
+    NotRetriable,
+
+    /// <summary>The revision is back in the calculation queue.</summary>
+    Queued,
 }

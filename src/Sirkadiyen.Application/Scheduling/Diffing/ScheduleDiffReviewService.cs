@@ -1,4 +1,5 @@
 using Sirkadiyen.Domain.Scheduling.Diffing;
+using Sirkadiyen.Domain.Scheduling.Publication;
 
 namespace Sirkadiyen.Application.Scheduling.Diffing;
 
@@ -11,8 +12,15 @@ namespace Sirkadiyen.Application.Scheduling.Diffing;
 /// which is right when the hold reveals a parse fault and wrong when the source
 /// really did drop a hundred lessons at the end of a semester.
 /// </remarks>
+/// <remarks>
+/// The calculation store is a second dependency because one of the operator
+/// levers here acts before a diff exists at all: a revision whose calculation
+/// failed terminally has nothing in the review queue to act on (ADR-164), and
+/// the queue it has to be returned to is the calculation store's.
+/// </remarks>
 public sealed class ScheduleDiffReviewService(
     IScheduleDiffReviewStore store,
+    IScheduleDiffStore calculationStore,
     TimeProvider timeProvider)
 {
     public Task<IReadOnlyList<ScheduleDiffSummary>> ListAsync(
@@ -86,6 +94,27 @@ public sealed class ScheduleDiffReviewService(
         CancellationToken cancellationToken) =>
         store.RetryDispatchAsync(
             scheduleDiffId,
+            retriedBy,
+            retryReason,
+            timeProvider.GetUtcNow(),
+            cancellationToken);
+
+    /// <summary>
+    /// Returns a revision whose diff calculation failed terminally to the calculation queue on a
+    /// named operator's behalf (ADR-164).
+    /// </summary>
+    /// <remarks>
+    /// The counterpart to <see cref="RetryDispatchAsync"/>, one stage earlier. That one retries
+    /// writing a calculated diff to calendars; this one retries calculating it at all, for a
+    /// revision that has no diff to review precisely because calculation never succeeded.
+    /// </remarks>
+    public Task<RevisionDiffRetryOutcome> RetryCalculationAsync(
+        Guid revisionId,
+        string retriedBy,
+        string retryReason,
+        CancellationToken cancellationToken) =>
+        calculationStore.RetryDiffCalculationAsync(
+            revisionId,
             retriedBy,
             retryReason,
             timeProvider.GetUtcNow(),

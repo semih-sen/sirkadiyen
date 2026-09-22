@@ -45,3 +45,24 @@ public sealed record ApproveRevisionResponse
 
     public Guid? SupersededRevisionId { get; init; }
 }
+
+/// <summary>
+/// Why the authenticated SuperAdmin is returning a revision to the diff calculation queue
+/// (ADR-164).
+/// </summary>
+/// <remarks>
+/// The actor is derived from the backend-authenticated Google identity and is
+/// never accepted from this payload.
+/// </remarks>
+public sealed record RetryRevisionDiffRequest
+{
+    /// <example>The ambiguity that broke the entry insert is fixed and deployed.</example>
+    public required string? RetryReason { get; init; }
+}
+
+public sealed record RetryRevisionDiffResponse
+{
+    public required Guid RevisionId { get; init; }
+
+    public required bool Queued { get; init; }
+}

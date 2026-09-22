@@ -317,13 +317,130 @@ public sealed class SemanticScheduleDifferTests
             [previous],
             [currentOne, currentTwo]);
 
-        Assert.Equal(2, entries.Count);
+        // One entry per record drawn into the contested set, not one per pair:
+        // the old lesson and both candidates for it, each classified once.
+        Assert.Equal(3, entries.Count);
         Assert.All(
             entries,
             entry => Assert.Equal(ScheduleDiffChange.Ambiguous, entry.Change));
         Assert.DoesNotContain(entries, entry => entry.Change is ScheduleDiffChange.Created);
         Assert.DoesNotContain(entries, entry => entry.Change is ScheduleDiffChange.Deleted);
+        AssertEachRecordClassifiedOnce(entries);
+        Assert.Equal([previous.Id], PreviousIds(entries));
+        Assert.Equal(new[] { currentOne.Id, currentTwo.Id }.Order(), CurrentIds(entries));
     }
+
+    [Fact]
+    public void SeveralOldLessonsMatchingOneNewOneStayAmbiguousOncePerRecord()
+    {
+        CanonicalScheduleRecord previousOne = Record(
+            PreviousRevisionId,
+            "previous-one",
+            stableIdentity: "old-time-one",
+            hour: 9);
+        CanonicalScheduleRecord previousTwo = Record(
+            PreviousRevisionId,
+            "previous-two",
+            stableIdentity: "old-time-two",
+            hour: 11);
+        CanonicalScheduleRecord current = Record(
+            CurrentRevisionId,
+            "current",
+            stableIdentity: "new-time",
+            hour: 10);
+
+        IReadOnlyList<ScheduleDiffEntry> entries = Differ().Diff(
+            [previousOne, previousTwo],
+            [current]);
+
+        Assert.Equal(3, entries.Count);
+        Assert.All(
+            entries,
+            entry => Assert.Equal(ScheduleDiffChange.Ambiguous, entry.Change));
+        AssertEachRecordClassifiedOnce(entries);
+        Assert.Equal(new[] { previousOne.Id, previousTwo.Id }.Order(), PreviousIds(entries));
+        Assert.Equal([current.Id], CurrentIds(entries));
+    }
+
+    [Fact]
+    public void AnAmbiguousSetDoesNotSuppressACleanMatchBesideIt()
+    {
+        CanonicalScheduleRecord contestedPrevious = Record(
+            PreviousRevisionId,
+            "contested-previous",
+            stableIdentity: "old-contested",
+            hour: 9);
+        CanonicalScheduleRecord contestedCurrentOne = Record(
+            CurrentRevisionId,
+            "contested-current-one",
+            stableIdentity: "new-contested-one",
+            hour: 10);
+        CanonicalScheduleRecord contestedCurrentTwo = Record(
+            CurrentRevisionId,
+            "contested-current-two",
+            stableIdentity: "new-contested-two",
+            hour: 11);
+        CanonicalScheduleRecord cleanPrevious = Record(
+            PreviousRevisionId,
+            "clean-previous",
+            stableIdentity: "old-clean",
+            title: "Klinik Biyokimya",
+            normalizedTitle: "klinik-biyokimya",
+            instructor: "Dr. Zeynep Aksoy",
+            hour: 13);
+        CanonicalScheduleRecord cleanCurrent = Record(
+            CurrentRevisionId,
+            "clean-current",
+            stableIdentity: "new-clean",
+            title: "Klinik Biyokimya",
+            normalizedTitle: "klinik-biyokimya",
+            instructor: "Dr. Zeynep Aksoy",
+            hour: 14);
+
+        IReadOnlyList<ScheduleDiffEntry> entries = Differ().Diff(
+            [contestedPrevious, cleanPrevious],
+            [contestedCurrentOne, contestedCurrentTwo, cleanCurrent]);
+
+        ScheduleDiffEntry updated = Assert.Single(
+            entries,
+            entry => entry.Change is ScheduleDiffChange.Updated);
+        Assert.Equal(cleanPrevious.Id, updated.PreviousRecordId);
+        Assert.Equal(cleanCurrent.Id, updated.CurrentRecordId);
+        Assert.Equal(3, entries.Count(entry => entry.Change is ScheduleDiffChange.Ambiguous));
+        AssertEachRecordClassifiedOnce(entries);
+    }
+
+    /// <summary>
+    /// The invariant the entry table enforces: within one diff a record is named
+    /// at most once on the previous side and at most once on the current side.
+    /// </summary>
+    private static void AssertEachRecordClassifiedOnce(IEnumerable<ScheduleDiffEntry> entries)
+    {
+        List<ScheduleDiffEntry> materialized = entries.ToList();
+
+        Assert.Equal(
+            materialized.Count(entry => entry.PreviousRecordId is not null),
+            PreviousIds(materialized).Count);
+        Assert.Equal(
+            materialized.Count(entry => entry.CurrentRecordId is not null),
+            CurrentIds(materialized).Count);
+    }
+
+    private static IReadOnlyList<Guid> PreviousIds(IEnumerable<ScheduleDiffEntry> entries) =>
+        entries
+            .Select(entry => entry.PreviousRecordId)
+            .OfType<Guid>()
+            .Distinct()
+            .Order()
+            .ToList();
+
+    private static IReadOnlyList<Guid> CurrentIds(IEnumerable<ScheduleDiffEntry> entries) =>
+        entries
+            .Select(entry => entry.CurrentRecordId)
+            .OfType<Guid>()
+            .Distinct()
+            .Order()
+            .ToList();
 
     [Fact]
     public void DuplicateInputIdentityIsRejectedBeforeDiffing()

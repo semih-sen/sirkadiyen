@@ -1,4 +1,5 @@
 using Sirkadiyen.Domain.Scheduling.Diffing;
+using Sirkadiyen.Domain.Scheduling.Publication;
 
 namespace Sirkadiyen.Application.Scheduling.Diffing;
 
@@ -21,6 +22,7 @@ public sealed class ScheduleDiffService(
     IScheduleDiffStore store,
     SemanticScheduleDiffer differ,
     ScheduleDiffSafetyThresholds thresholds,
+    ScheduleDiffRetryOptions retryOptions,
     TimeProvider timeProvider)
 {
     /// <summary>
@@ -71,9 +73,9 @@ public sealed class ScheduleDiffService(
     /// throws would abort the whole pass on every cycle and permanently starve the
     /// newer revisions behind it — and a revision whose diff never runs is skipped
     /// by the next one's baseline, which silently loses the deletions it carried.
-    /// A caught failure leaves the revision pending, so a transient fault retries on
-    /// the next cycle while a persistent one is surfaced to the operator by name
-    /// rather than lost.
+    /// A caught failure is recorded on the revision, so a transient fault retries
+    /// after a back-off while a persistent one stops being retried and is surfaced
+    /// to the operator by name rather than lost (ADR-164).
     /// </remarks>
     public async Task<ScheduleDiffCalculationBatch> CalculatePendingAsync(
         int limit,
@@ -81,7 +83,8 @@ public sealed class ScheduleDiffService(
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(limit);
 
-        IReadOnlyList<Guid> pending = await store.ListPendingDiffAsync(limit, cancellationToken);
+        DateTimeOffset now = timeProvider.GetUtcNow();
+        IReadOnlyList<Guid> pending = await store.ListPendingDiffAsync(limit, now, cancellationToken);
 
         List<ScheduleDiffCalculationResult> calculated = [];
         List<ScheduleDiffCalculationFailure> failed = [];
@@ -102,11 +105,23 @@ public sealed class ScheduleDiffService(
             catch (Exception exception)
             {
                 // One revision that cannot be diffed must not stop the rest: record it and move on.
-                // It stays pending (no diff row was written), so the next cycle retries it.
+                // No diff row was written, so the revision is still pending in the sense that
+                // matters — but recording the failure defers the next attempt, and eventually
+                // stops it, so a fault that will never succeed cannot burn a cycle every six
+                // seconds forever (ADR-164).
+                RevisionDiffState? diffState = await store.RecordDiffCalculationFailureAsync(
+                    revisionId,
+                    exception.Message,
+                    retryOptions.BaseRetryDelay,
+                    retryOptions.MaximumAttempts,
+                    now,
+                    cancellationToken);
+
                 failed.Add(new ScheduleDiffCalculationFailure
                 {
                     RevisionId = revisionId,
                     Reason = exception.Message,
+                    DiffState = diffState ?? RevisionDiffState.Pending,
                 });
             }
         }
@@ -136,6 +151,13 @@ public sealed record ScheduleDiffCalculationFailure
     public required Guid RevisionId { get; init; }
 
     public required string Reason { get; init; }
+
+    /// <summary>
+    /// Whether this revision will be tried again on its own (ADR-164).
+    /// <see cref="RevisionDiffState.Failed"/> means it will not: its attempts are exhausted and it
+    /// now waits for an operator, which is what the alert has to say out loud.
+    /// </summary>
+    public required RevisionDiffState DiffState { get; init; }
 }
 
 public sealed record ScheduleDiffCalculationResult

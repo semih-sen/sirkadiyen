@@ -45,6 +45,25 @@ internal sealed class ScheduleRevisionConfiguration : IEntityTypeConfiguration<S
             .HasMaxLength(ScheduleRevision.MaximumRejectionReasonLength);
         builder.Property(revision => revision.RejectedAtUtc);
 
+        // How diff calculation is going for this revision (ADR-164), stored as text for the same
+        // forward-compatibility reason as State: adding a state later must not renumber the ones
+        // already written (AI_GUIDELINE section 18).
+        builder.Property(revision => revision.DiffState)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .IsRequired();
+        builder.Property(revision => revision.DiffAttempts).IsRequired();
+        builder.Property(revision => revision.NextDiffAttemptAtUtc);
+        builder.Property(revision => revision.DiffFailureReason)
+            .HasMaxLength(ScheduleRevision.MaximumDiffFailureReasonLength);
+        builder.Property(revision => revision.DiffRetriedBy)
+            .HasMaxLength(ScheduleRevision.MaximumDiffRetriedByLength);
+        builder.Property(revision => revision.DiffRetryReason)
+            .HasMaxLength(ScheduleRevision.MaximumDiffRetryReasonLength);
+        builder.Property(revision => revision.DiffRetriedAtUtc);
+
+        builder.Ignore(revision => revision.IsDiffCalculationRetriable);
+
         builder.HasOne<ScheduleSource>()
             .WithMany()
             .HasForeignKey(revision => revision.ScheduleSourceId)
@@ -67,5 +86,16 @@ internal sealed class ScheduleRevisionConfiguration : IEntityTypeConfiguration<S
 
         // Publication and the review queue both scan by state, oldest first.
         builder.HasIndex(revision => new { revision.State, revision.CreatedAtUtc });
+
+        // The diff calculator scans for published revisions whose back-off has passed (ADR-164).
+        builder.HasIndex(revision => new { revision.DiffState, revision.NextDiffAttemptAtUtc });
+
+        builder.ToTable(table => table.HasCheckConstraint(
+            "ck_schedule_revisions_diff_state",
+            "\"DiffState\" IN ('Pending', 'Failed')"));
+
+        builder.ToTable(table => table.HasCheckConstraint(
+            "ck_schedule_revisions_diff_attempts",
+            "\"DiffAttempts\" >= 0"));
     }
 }

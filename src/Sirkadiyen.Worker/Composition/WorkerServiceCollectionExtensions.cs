@@ -47,6 +47,7 @@ internal static class WorkerServiceCollectionExtensions
         services.AddSingleton<WorkerHealthState>();
         services.AddSingleton(diffOptions);
         services.AddSingleton(options.CreateDiffThresholds());
+        services.AddSingleton(options.CreateDiffRetryOptions());
         services.AddSingleton<SemanticScheduleDiffer>();
         services.AddScoped<ScheduleDiffService>();
         services.AddSingleton(options.CreatePollingOptions());

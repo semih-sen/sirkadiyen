@@ -9,6 +9,18 @@ namespace Sirkadiyen.Infrastructure.Persistence.Scheduling.Configurations;
 
 internal sealed class ScheduleDiffConfiguration : IEntityTypeConfiguration<ScheduleDiff>
 {
+    /// <summary>
+    /// The unique index that makes diff calculation idempotent, named here so
+    /// that a store catching its violation can name the constraint it means
+    /// rather than treating every unique violation on the write as this one.
+    /// </summary>
+    /// <remarks>
+    /// This is the name EF Core already generated for the index, stated
+    /// explicitly so that renaming it has to be a deliberate act with a
+    /// migration behind it.
+    /// </remarks>
+    public const string CurrentRevisionIndexName = "IX_schedule_diffs_CurrentRevisionId";
+
     public void Configure(EntityTypeBuilder<ScheduleDiff> builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
@@ -92,7 +104,9 @@ internal sealed class ScheduleDiffConfiguration : IEntityTypeConfiguration<Sched
         // Exactly one diff per published revision. Calculation is retried after
         // a crash, and this is what makes the retry idempotent rather than
         // producing a second set of calendar operations.
-        builder.HasIndex(diff => diff.CurrentRevisionId).IsUnique();
+        builder.HasIndex(diff => diff.CurrentRevisionId)
+            .IsUnique()
+            .HasDatabaseName(CurrentRevisionIndexName);
 
         // The dispatcher scans for ready diffs and the review queue for held
         // ones, both oldest first.

@@ -452,6 +452,7 @@ public sealed class ScheduleDiffReviewStoreTests(PostgresFixture fixture)
             new ScheduleDiffStore(context),
             new SemanticScheduleDiffer(new SemanticDiffOptions()),
             new ScheduleDiffSafetyThresholds(),
+            new ScheduleDiffRetryOptions(),
             new ScheduleDiffScenario.FixedClock(Now));
 
         ScheduleDiffCalculationResult? result = await service.CalculateAsync(revisionId, Token);

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Sirkadiyen.Application.Notifications;
 using Sirkadiyen.Application.Scheduling.Diffing;
 using Sirkadiyen.Domain.Scheduling.Diffing;
+using Sirkadiyen.Domain.Scheduling.Publication;
 using Sirkadiyen.Worker.Notifications;
 
 namespace Sirkadiyen.Worker.Sources;
@@ -40,15 +41,32 @@ internal sealed class ScheduleDiffCalculationTask(
 
             foreach (ScheduleDiffCalculationFailure failure in batch.Failed)
             {
-                // A revision that cannot be diffed is surfaced by name rather than lost: it is left
-                // pending and retried, but an operator must see it, because a revision that never
-                // gets a diff has its deletions silently swallowed by the next revision's baseline.
-                logger.LogError(
-                    "Revision {RevisionId} could not be diffed and remains pending: {Reason}",
-                    failure.RevisionId,
-                    failure.Reason);
+                // A revision that cannot be diffed is surfaced by name rather than lost, because a
+                // revision that never gets a diff has its deletions silently swallowed by the next
+                // revision's baseline. Whether it will be tried again is the part that decides
+                // whether an operator has to do something now (ADR-164).
+                if (failure.DiffState is RevisionDiffState.Failed)
+                {
+                    logger.LogError(
+                        "Revision {RevisionId} could not be diffed and has exhausted its attempts; "
+                        + "it will not be retried automatically: {Reason}",
+                        failure.RevisionId,
+                        failure.Reason);
+                }
+                else
+                {
+                    logger.LogError(
+                        "Revision {RevisionId} could not be diffed and will be retried after a "
+                        + "back-off: {Reason}",
+                        failure.RevisionId,
+                        failure.Reason);
+                }
+
                 await alerts.SendAsync(
-                    WorkerAlerts.DiffCalculationFailed(failure.RevisionId, failure.Reason),
+                    WorkerAlerts.DiffCalculationFailed(
+                        failure.RevisionId,
+                        failure.Reason,
+                        failure.DiffState),
                     cancellationToken);
             }
         }

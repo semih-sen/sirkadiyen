@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Antiforgery;
 using Sirkadiyen.Api.Identity;
+using Sirkadiyen.Application.Scheduling.Diffing;
 using Sirkadiyen.Application.Scheduling.Publication;
 using Sirkadiyen.Domain.Scheduling.Publication;
 
@@ -39,6 +40,10 @@ public static class RevisionEndpoints
         revisions.MapPost("/{id:guid}/reject", RejectAsync)
             .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
             .WithSummary("Rejects a quarantined revision, closing its review terminally.");
+
+        revisions.MapPost("/{id:guid}/retry-diff", RetryDiffAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute(required: true))
+            .WithSummary("Returns a revision whose diff calculation gave up to the queue.");
 
         return builder;
     }
@@ -149,6 +154,67 @@ public static class RevisionEndpoints
                 PublicationOutcome = result.Publication?.Outcome
                     ?? RevisionPublicationOutcome.NotValidated,
                 SupersededRevisionId = result.Publication?.SupersededRevisionId,
+            }),
+        };
+    }
+
+    private static async Task<IResult> RetryDiffAsync(
+        Guid id,
+        RetryRevisionDiffRequest request,
+        ClaimsPrincipal principal,
+        ScheduleDiffReviewService review,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        string retriedBy = UserClaimsPrincipalFactory.GetRequiredEmail(principal);
+        string retryReason = request.RetryReason?.Trim() ?? string.Empty;
+
+        if (retryReason.Length == 0)
+        {
+            // The whole point of returning it to the queue is that someone believes the cause is
+            // gone. An unexplained retry is how a revision ends up looping again.
+            return Results.Problem(
+                title: "Incomplete retry",
+                detail: "'retryReason' is required.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (retriedBy.Length > ScheduleRevision.MaximumDiffRetriedByLength
+            || retryReason.Length > ScheduleRevision.MaximumDiffRetryReasonLength)
+        {
+            return Results.Problem(
+                title: "Retry fields are too long",
+                detail: $"'retriedBy' allows {ScheduleRevision.MaximumDiffRetriedByLength} "
+                    + $"characters and 'retryReason' allows "
+                    + $"{ScheduleRevision.MaximumDiffRetryReasonLength}.",
+                statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        RevisionDiffRetryOutcome outcome = await review.RetryCalculationAsync(
+            id,
+            retriedBy,
+            retryReason,
+            cancellationToken);
+
+        return outcome switch
+        {
+            RevisionDiffRetryOutcome.NotFound => Results.Problem(
+                title: "Revision not found",
+                detail: $"No revision with ID '{id}' exists.",
+                statusCode: StatusCodes.Status404NotFound),
+
+            RevisionDiffRetryOutcome.NotRetriable => Results.Problem(
+                title: "Diff calculation has not given up",
+                detail: "This revision's diff calculation has not failed terminally, so there is "
+                    + "nothing to retry: a pending revision is already queued, and a revision that "
+                    + "was never published is never diffed at all.",
+                statusCode: StatusCodes.Status409Conflict),
+
+            _ => Results.Ok(new RetryRevisionDiffResponse
+            {
+                RevisionId = id,
+                Queued = true,
             }),
         };
     }
