@@ -365,7 +365,30 @@ public sealed class ManagedCalendarEventFactoryTests
         Assert.Equal("sha256:lesson", result.PrivateProperties["stableIdentity"]);
         Assert.Equal(record.ContentHash, result.PrivateProperties["contentHash"]);
         Assert.Equal(record.SourceId.Value, result.PrivateProperties["sourceId"]);
-        Assert.Equal(record.Id.ToString(), result.PrivateProperties["canonicalRecordId"]);
+
+        // Not the canonical record's database id: it is reissued on every publish, so marking
+        // the event with it made every republish look like content drift for every event.
+        Assert.False(result.PrivateProperties.ContainsKey("canonicalRecordId"));
+    }
+
+    /// <summary>
+    /// The regression that made a republish rewrite every calendar: two revisions of the same
+    /// lesson differ only by the row id the publish issued, so the events they produce must be
+    /// equivalent.
+    /// </summary>
+    [Fact]
+    public void TwoRevisionsOfOneUnchangedLessonProduceEquivalentEvents()
+    {
+        CanonicalScheduleRecord first = CalendarTestData.Record(stableIdentity: "sha256:lesson");
+        CanonicalScheduleRecord republished =
+            CalendarTestData.Record(stableIdentity: "sha256:lesson");
+        Assert.NotEqual(first.Id, republished.Id);
+
+        ManagedCalendarEvent before = ManagedCalendarEventFactory.ToManagedEvent(UserId, first);
+        ManagedCalendarEvent after =
+            ManagedCalendarEventFactory.ToManagedEvent(UserId, republished);
+
+        Assert.Equal(before.PrivateProperties, after.PrivateProperties);
     }
 
     [Fact]
