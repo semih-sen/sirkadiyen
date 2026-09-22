@@ -160,7 +160,9 @@ public sealed class CalendarVerificationComparerTests
             Summary = calendarEvent.Summary,
             Description = calendarEvent.Description,
             Location = calendarEvent.Location,
-            EventLabelId = calendarEvent.Label.Id,
+
+            // Null, as Google's events.list returns it (see the inventory tests' Snapshot).
+            EventLabelId = null,
             IsAllDay = calendarEvent.IsAllDay,
             StartDate = calendarEvent.StartDate,
             EndDateExclusive = calendarEvent.EndDateExclusive,
