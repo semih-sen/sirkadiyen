@@ -14,6 +14,7 @@ using Sirkadiyen.Domain.Scheduling.Diffing;
 using Sirkadiyen.Infrastructure.Google;
 using Sirkadiyen.Infrastructure.Notifications;
 using Sirkadiyen.Infrastructure.Scheduling.Ingestion;
+using Sirkadiyen.Worker.Health;
 
 namespace Sirkadiyen.Worker.Configuration;
 
@@ -201,6 +202,27 @@ internal sealed class WorkerOptionsFactory(
                 configuration["SIRKADIYEN_SYNC:INVENTORY_INTERVAL"], TimeSpan.FromHours(24)),
             CalendarOperationsPerRun = ConfigurationValueParser.Integer(
                 configuration["SIRKADIYEN_SYNC:INVENTORY_CALENDAR_OPERATIONS_PER_RUN"], 300),
+        }, static options => options.Validate());
+
+    /// <summary>
+    /// When a worker that has stopped advancing is reported, and whether it ends itself
+    /// (ADR-124's heartbeat says what a healthy worker is doing; this says when one stops).
+    /// </summary>
+    public WorkerStallWatchdogOptions CreateStallWatchdogOptions() =>
+        Validate(new WorkerStallWatchdogOptions
+        {
+            CheckInterval = ConfigurationValueParser.Duration(
+                configuration["SIRKADIYEN_WORKER:STALL_CHECK_INTERVAL"],
+                TimeSpan.FromMinutes(1)),
+            AlertAfter = ConfigurationValueParser.Duration(
+                configuration["SIRKADIYEN_WORKER:STALL_ALERT_AFTER"],
+                TimeSpan.FromMinutes(15)),
+
+            // Zero, so an unconfigured deployment reports a stall and leaves the decision to a
+            // person, exactly as it did before this existed.
+            RestartAfter = ConfigurationValueParser.Duration(
+                configuration["SIRKADIYEN_WORKER:STALL_RESTART_AFTER"],
+                TimeSpan.Zero),
         }, static options => options.Validate());
 
     public AdaptivePollingOptions CreatePollingOptions() => new()

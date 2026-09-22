@@ -155,6 +155,12 @@ internal static class WorkerServiceCollectionExtensions
         services.AddSingleton<WorkerHeartbeatTask>();
         services.AddHostedService<Worker>();
 
+        // Its own hosted service, on its own timer: a cycle loop wedged inside a stage cannot
+        // report that it is wedged, because the heartbeat it would report through is published
+        // from inside that same loop.
+        services.AddSingleton(options.CreateStallWatchdogOptions());
+        services.AddHostedService<WorkerStallWatchdog>();
+
         return services;
     }
 }

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Sirkadiyen.Application.GoogleCalendar;
+using Sirkadiyen.Worker.Health;
 using Sirkadiyen.Worker.Meals;
 
 namespace Sirkadiyen.Worker.Calendars;
@@ -15,6 +16,7 @@ internal sealed class FencedCalendarMaintenanceTask(
     AnnouncementDispatchTask announcements,
     MealDeliveryTask meals,
     CalendarInventoryTask inventory,
+    WorkerHealthState healthState,
     ILogger<FencedCalendarMaintenanceTask> logger)
 {
     /// <param name="mealMenuChanged">
@@ -43,33 +45,41 @@ internal sealed class FencedCalendarMaintenanceTask(
             // ledger describing events that are not on the calendar the connection points at. Holding
             // the same session advisory lock the other stages use makes exactly one worker perform
             // calendar work at a time, which is the only safe way to run a non-idempotent create.
+            healthState.MarkActivity("calendar-initial-sync");
             bool catchUpRequired = await initialSync.RunAsync(cancellationToken);
+            healthState.MarkActivity("calendar-diff-dispatch");
             catchUpRequired |= await dispatch.RunAsync(cancellationToken);
+            healthState.MarkActivity("calendar-reconciliation");
             catchUpRequired |= await reconciliation.RunAsync(cancellationToken);
 
             // Immediately before the resync it feeds. The reconciler restamps profiles whose
             // academic year the deployed schema has moved on from and flags their connections;
             // running it first means the requests it creates are converged in this cycle rather
             // than the next one (ADR-117).
+            healthState.MarkActivity("calendar-academic-year-drift");
             catchUpRequired |= await academicYearDrift.RunAsync(cancellationToken);
 
             // After replay, before inventory. Replay applies the diffs a user missed, which is
             // about the schedule; this converges who they are. Running it before inventory means
             // inventory sees the calendar the new profile expects rather than reporting the old
             // cohort's events as unexpected.
+            healthState.MarkActivity("calendar-profile-resync");
             catchUpRequired |= await profileResync.RunAsync(cancellationToken);
 
             // After every schedule stage: an announcement is the product speaking, and it must
             // never take the Calendar budget the schedule itself needs (ADR-107). Inventory still
             // runs afterwards and ignores announcement events, so it reports neither them nor a
             // conflict about them.
+            healthState.MarkActivity("calendar-announcements");
             catchUpRequired |= await announcements.RunAsync(cancellationToken);
 
             // Last of the write stages, for the same reason as announcements: the cafeteria menu is
             // the product speaking, not schedule truth, so it yields the Calendar budget to
             // everything above it (ADR-150). Inventory, which runs next, ignores its events too.
+            healthState.MarkActivity("calendar-meal-delivery");
             catchUpRequired |= await meals.RunAsync(mealMenuChanged, cancellationToken);
 
+            healthState.MarkActivity("calendar-inventory");
             catchUpRequired |= await inventory.RunAsync(cancellationToken);
             return catchUpRequired;
         }

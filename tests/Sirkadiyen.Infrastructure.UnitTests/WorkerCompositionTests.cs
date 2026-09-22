@@ -7,6 +7,7 @@ using Sirkadiyen.Application.StudentProfiles;
 using Sirkadiyen.Infrastructure.Notifications;
 using Sirkadiyen.Worker.Calendars;
 using Sirkadiyen.Worker.Composition;
+using Sirkadiyen.Worker.Health;
 using Sirkadiyen.Worker.Sources;
 using Xunit;
 
@@ -29,6 +30,20 @@ public sealed class WorkerCompositionTests
 
         // The composite stage pulls in every task it runs, so resolving it proves the whole chain.
         Assert.NotNull(provider.GetRequiredService<FencedCalendarMaintenanceTask>());
+    }
+
+    /// <summary>
+    /// The watchdog is registered as its own hosted service rather than as a step of the cycle,
+    /// so that a cycle wedged inside a stage cannot stop it from reporting that stage.
+    /// </summary>
+    [Fact]
+    public void TheStallWatchdogIsHostedBesideTheWorkerRatherThanInsideIt()
+    {
+        using ServiceProvider provider = BuildProvider();
+
+        IEnumerable<IHostedService> hosted = provider.GetServices<IHostedService>();
+        Assert.Contains(hosted, service => service is WorkerStallWatchdog);
+        Assert.Contains(hosted, service => service is Sirkadiyen.Worker.Worker);
     }
 
     [Fact]
