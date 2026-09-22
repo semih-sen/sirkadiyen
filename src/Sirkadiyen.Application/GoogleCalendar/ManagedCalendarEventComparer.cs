@@ -18,7 +18,7 @@ public static class ManagedCalendarEventComparer
             || !TextEquals(expected.Summary, actual.Summary)
             || !TextEquals(expected.Description, actual.Description)
             || !TextEquals(expected.Location, actual.Location)
-            || !string.Equals(expected.Label.Id, actual.EventLabelId, StringComparison.Ordinal)
+            || !LabelEquals(expected.Label.Id, actual.EventLabelId)
             || expected.IsAllDay != actual.IsAllDay
             || expected.PrivateProperties.Any(property =>
                 !actual.PrivateProperties.TryGetValue(property.Key, out string? value)
@@ -44,6 +44,23 @@ public static class ManagedCalendarEventComparer
         return expectedStart.UtcDateTime == actual.StartAt.Value.UtcDateTime
             && expectedEnd.UtcDateTime == actual.EndAt.Value.UtcDateTime;
     }
+
+    /// <summary>
+    /// Compares the event label only when the snapshot actually carries one.
+    /// </summary>
+    /// <remarks>
+    /// A listed event never does: Calendar's <c>events.list</c> takes no <c>eventLabelVersion</c>
+    /// parameter — the API accepts it on import/insert/patch/update only — so every event read
+    /// back through <c>ListManagedEventsAsync</c> reports no label, whatever label it carries.
+    /// Reading that absence as a difference made inventory consider every event of every calendar
+    /// stale and patch all of them on every sweep, which held the Calendar fence for hours and
+    /// starved initial synchronization down to one budget of events per worker cycle. An absent
+    /// label is therefore unknown, not wrong; a label that is present and different is a real
+    /// difference and still repaired.
+    /// </remarks>
+    private static bool LabelEquals(string expected, string? actual) =>
+        string.IsNullOrEmpty(actual)
+        || string.Equals(expected, actual, StringComparison.Ordinal);
 
     private static DateTimeOffset ToInstant(DateTime local, TimeZoneInfo zone)
     {

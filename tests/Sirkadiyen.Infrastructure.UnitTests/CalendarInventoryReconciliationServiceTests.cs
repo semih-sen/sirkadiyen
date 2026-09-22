@@ -81,12 +81,18 @@ public sealed class CalendarInventoryReconciliationServiceTests
         Assert.Empty(harness.Client.Deletes);
     }
 
+    /// <summary>
+    /// The label a listed event carries is unobservable, so its absence must not be read as
+    /// drift. This is the regression that made every sweep rewrite every calendar: a full
+    /// inventory pass took hours, held the shared Calendar fence throughout, and left initial
+    /// synchronization advancing one budget of events per worker cycle.
+    /// </summary>
     [Fact]
-    public async Task AStalePresentationLabelIsRepairedWithoutACanonicalContentChange()
+    public async Task AnEventWhoseLabelGoogleDoesNotReportIsLeftAlone()
     {
         Harness harness = new();
         CanonicalScheduleRecord record = CalendarTestData.Record(
-            stableIdentity: "old-color",
+            stableIdentity: "unreported-label",
             departments: ["ANATOMİ AD."]);
         harness.Records.Add(record);
         ManagedCalendarEvent expected =
@@ -96,9 +102,39 @@ public sealed class CalendarInventoryReconciliationServiceTests
 
         CalendarInventoryUserResult result = await harness.RunSingleAsync();
 
+        Assert.Equal(CalendarInventoryOutcome.Completed, result.Outcome);
+        Assert.Equal(0, result.Patched);
+        Assert.Empty(harness.Client.Patches);
+        Assert.Empty(harness.Client.Deletes);
+
+        // The presentation is still converged, through the label definition the calendar holds
+        // rather than through a rewrite of every event that carries it.
+        ManagedCalendarEventLabel label = Assert.Single(harness.Client.EnsuredLabels);
+        Assert.Equal("#D50000", label.BackgroundColor);
+    }
+
+    /// <summary>
+    /// The other half of the same rule: a label Google does report and that differs is real
+    /// drift, so the comparison is not dead code.
+    /// </summary>
+    [Fact]
+    public async Task AReportedLabelThatDiffersIsRepaired()
+    {
+        Harness harness = new();
+        CanonicalScheduleRecord record = CalendarTestData.Record(
+            stableIdentity: "stale-label",
+            departments: ["ANATOMİ AD."]);
+        harness.Records.Add(record);
+        ManagedCalendarEvent expected =
+            ManagedCalendarEventFactory.ToManagedEvent(harness.UserId, record);
+        harness.Mappings.Seed(Mapping(harness.UserId, record, expected.EventId));
+        harness.Client.Events.Add(Snapshot(expected) with { EventLabelId = "some-other-label" });
+
+        CalendarInventoryUserResult result = await harness.RunSingleAsync();
+
         Assert.Equal(1, result.Patched);
         ManagedCalendarEvent patch = Assert.Single(harness.Client.Patches);
-        Assert.Equal("#D50000", patch.Label.BackgroundColor);
+        Assert.Equal(expected.Label.Id, patch.Label.Id);
         Assert.Empty(harness.Client.Deletes);
     }
 
@@ -252,7 +288,12 @@ public sealed class CalendarInventoryReconciliationServiceTests
             Summary = calendarEvent.Summary,
             Description = calendarEvent.Description,
             Location = calendarEvent.Location,
-            EventLabelId = calendarEvent.Label.Id,
+
+            // Null, as Google's events.list returns it: that endpoint takes no
+            // eventLabelVersion, so a listed event never carries its label. The fake used to
+            // echo the expected label back, which made every test agree with a comparison that
+            // production could never satisfy.
+            EventLabelId = null,
             IsAllDay = calendarEvent.IsAllDay,
             StartDate = calendarEvent.StartDate,
             EndDateExclusive = calendarEvent.EndDateExclusive,
