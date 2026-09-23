@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Sirkadiyen.Api.Health;
 using Sirkadiyen.Api.Identity;
 using Sirkadiyen.Api.Observability;
+using Sirkadiyen.Api.Vault;
 using Sirkadiyen.Application.Administration;
 using Sirkadiyen.Application.Announcements;
 using Sirkadiyen.Application.Auditing;
@@ -248,6 +249,10 @@ internal static class ApiServiceCollectionExtensions
         services.AddScoped<StudentRosterCatalogEditingService>();
         services.AddScoped<ScheduleSourceCatalogEditingService>();
         services.AddSirkadiyenPersistence(connectionString);
+
+        // The owner's personal Obsidian vault feature (ADR-168). Off unless SIRKADIYEN_VAULT:API_KEY
+        // is set; it shares nothing with the schedule product but the host process.
+        services.AddSirkadiyenVault(configuration, builder.Environment.ContentRootPath);
 
         return services;
     }

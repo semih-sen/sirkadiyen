@@ -15,6 +15,7 @@ using Sirkadiyen.Api.Scheduling.Ingestion;
 using Sirkadiyen.Api.Scheduling.Publication;
 using Sirkadiyen.Api.StudentProfiles;
 using Sirkadiyen.Api.StudentRosters;
+using Sirkadiyen.Api.Vault;
 
 namespace Sirkadiyen.Api.Composition;
 
@@ -64,6 +65,7 @@ internal static class ApiEndpointRouteBuilderExtensions
         app.MapMetricsEndpoints();
         app.MapServiceHealthEndpoints();
         app.MapServerResourcesEndpoints();
+        app.MapVaultEndpoints();
 
         return app;
     }

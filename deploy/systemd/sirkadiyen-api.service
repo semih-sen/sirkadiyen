@@ -36,6 +36,14 @@ Environment=SIRKADIYEN_SOURCES__CATALOG_PATH=/srv/sirkadiyen/shared/config/sched
 # now uses as well as the worker.
 Environment=SIRKADIYEN_ROSTERS__CATALOG_PATH=/srv/sirkadiyen/shared/config/student-rosters.json
 
+# The owner's personal Obsidian vault feature (ADR-168), off unless api.env sets
+# SIRKADIYEN_VAULT__API_KEY. It runs the Claude Code CLI as a child process, and
+# the CLI keeps its state in this directory, which is why it is listed under
+# ReadWritePaths below. Job workspaces need no entry: they go under /tmp, which
+# PrivateTmp makes private and writable.
+Environment=SIRKADIYEN_VAULT__CLAUDE_CONFIG_DIR=/srv/sirkadiyen/shared/claude
+Environment=SIRKADIYEN_VAULT__CLAUDE_PATH=/usr/bin/claude
+
 Restart=always
 RestartSec=5
 TimeoutStopSec=30
@@ -52,6 +60,9 @@ ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/srv/sirkadiyen/shared/dataprotection-keys
 ReadWritePaths=/srv/sirkadiyen/shared/config
+# The leading '-' lets the unit start where the vault feature was never set up
+# and the directory does not exist; without it a missing path stops the API.
+ReadWritePaths=-/srv/sirkadiyen/shared/claude
 ProtectKernelTunables=true
 ProtectControlGroups=true
 RestrictSUIDSGID=true

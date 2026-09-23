@@ -1974,3 +1974,26 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
 - **Open:** the duplicates already in students' calendars are not gone — ADR-167 is the lever and
   nobody has pulled it; the stored pharmacology diff is still held and must be discarded or
   superseded; the ADR-167 persistence tests have not run against a real database.
+
+## Personal Obsidian vault through Claude Code and MinIO (2026-09-23, ADR-168)
+
+- [x] Application: job service, in-memory queue, catalog, path policy, prompts, answer parser, link
+  normalizer, backlink edit check (`src/Sirkadiyen.Application/Vault/`)
+- [x] Infrastructure: `S3VaultStore` (`AWSSDK.S3`, conditional writes + HEAD pre-check),
+  `ClaudeCodeAgentRunner` (`--restricted`, stdin prompt, process-tree kill on timeout)
+- [x] API: `POST /api/vault/notes`, `GET /api/vault/jobs/{id}`, `X-Vault-Key` filter, rate limit,
+  `VaultJobProcessor`; off unless `SIRKADIYEN_VAULT__API_KEY` is set
+- [x] Local MinIO behind the `vault` compose profile (`quay.io/minio/minio`, pinned)
+- [x] End-to-end against real MinIO and the real CLI (Sonnet 5, effort medium), three runs
+- [x] Deployment documentation (`deploy/README.md` §4), unit file change, `.env.example`
+- [ ] Install the CLI, the unit change and the env values on the server; run the `systemd-run`
+  smoke test first
+- [ ] Confirm the production MinIO release enforces conditional writes
+- [ ] The iPad shortcut
+
+- **Tests added:** Application/Infrastructure 97 (path policy, catalog, parser, edit check, link
+  normalizer, request, registry, job service, S3 store over a fake endpoint, output reader, runner over
+  a fake CLI), Api 9, Persistence 2 MinIO integration tests (skipped without `SIRKADIYEN_TEST_VAULT__*`).
+- **Tests executed:** `dotnet build Sirkadiyen.slnx` clean; Infrastructure 1132/1132, Api 29/29,
+  vault integration 2/2 against local MinIO.
+- **Open:** Linux behaviour of the CLI under the unit's sandbox is unverified; see ADR-168.

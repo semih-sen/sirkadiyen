@@ -234,6 +234,24 @@ the uploaded bytes with the same OpenXML reader, marks the snapshot
 `snapshot.administrative_upload`, and the API stores it. Only DOCX is accepted,
 because only DOCX sources are handed out.
 
+### Personal vault: MinIO and the Claude Code CLI (ADR-168)
+
+Used only by the owner's optional vault feature in the API, off unless
+`SIRKADIYEN_VAULT__API_KEY` is set:
+
+- `AWSSDK.S3` 4.0.103.3 against MinIO, path-style, with conditional `PutObject`
+  (`If-None-Match: *` to create, `If-Match` to replace), chunk encoding off and
+  checksums only when required, for compatibility with older MinIO releases.
+- The `claude` CLI (`@anthropic-ai/claude-code`, pinned at 2.1.280 on the
+  server) as a child process: `-p --output-format json --restricted`, the
+  standing rules as `--append-system-prompt` (`--restricted` disables
+  `CLAUDE.md` discovery), `claude-sonnet-5` at effort `medium` by default.
+  Authenticated on the server by `CLAUDE_CODE_OAUTH_TOKEN` from
+  `claude setup-token`; `--bare` cannot be used, because it reads no OAuth
+  credential.
+- Local development: `docker compose --profile vault up -d minio`
+  (`quay.io/minio/minio`, since Docker Hub no longer carries `minio/minio`).
+
 ### Google Calendar API
 
 Used by .NET for:
