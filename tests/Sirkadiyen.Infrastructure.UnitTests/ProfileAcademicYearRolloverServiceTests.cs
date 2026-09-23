@@ -465,6 +465,12 @@ public sealed class ProfileAcademicYearRolloverServiceTests
     private sealed class StubScheduleReadStore(IReadOnlyList<CanonicalScheduleRecord> published)
         : ICanonicalScheduleReadStore
     {
+        public List<Guid> RevisionsAwaitingDispatch { get; } = [];
+
+        public Task<IReadOnlyList<Guid>> ListRevisionsAwaitingCalendarDispatchAsync(
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<Guid>>([.. RevisionsAwaitingDispatch]);
+
         public Task<IReadOnlyList<CanonicalScheduleRecord>> ListCurrentPublishedRecordsAsync(
             string academicYear,
             int classYear,

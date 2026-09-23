@@ -524,10 +524,13 @@ export function setFreeze(isFrozen: boolean, reason: string): Promise<Operationa
 }
 
 /** Computes what repairing one program's calendars would converge, changing nothing (ADR-111). */
-export function previewCalendarRepair(scope: CohortRepairScope): Promise<CohortRepairPlan> {
+export function previewCalendarRepair(
+  scope: CohortRepairScope,
+  removesRetired = false,
+): Promise<CohortRepairPlan> {
   return request<CohortRepairPlan>('/api/operations/calendar-repairs/preview', {
     method: 'POST',
-    body: scope,
+    body: { ...scope, removesRetired },
   });
 }
 
@@ -539,10 +542,11 @@ export function requestCalendarRepair(
   scope: CohortRepairScope,
   planHash: string,
   reason: string,
+  removesRetired = false,
 ): Promise<CohortRepairRequestResult> {
   return request<CohortRepairRequestResult>('/api/operations/calendar-repairs', {
     method: 'POST',
-    body: { ...scope, planHash, reason },
+    body: { ...scope, planHash, reason, removesRetired },
   });
 }
 
@@ -598,9 +602,13 @@ export function requestRosterProfileAudit(
  * Asks what re-synchronizing one student's calendar would converge (ADR-115). It is the cohort
  * repair narrowed to one row, so it returns the same plan shape.
  */
-export function previewUserCalendarRecheck(userId: string): Promise<CohortRepairPlan> {
+export function previewUserCalendarRecheck(
+  userId: string,
+  removesRetired = false,
+): Promise<CohortRepairPlan> {
   return request<CohortRepairPlan>(
-    `/api/admin/users/${encodeURIComponent(userId)}/calendar-recheck/preview`,
+    `/api/admin/users/${encodeURIComponent(userId)}/calendar-recheck/preview`
+      + `?removesRetired=${removesRetired}`,
     { method: 'POST' },
   );
 }
@@ -610,10 +618,11 @@ export function requestUserCalendarRecheck(
   userId: string,
   planHash: string,
   reason: string,
+  removesRetired = false,
 ): Promise<CohortRepairRequestResult> {
   return request<CohortRepairRequestResult>(
     `/api/admin/users/${encodeURIComponent(userId)}/calendar-recheck`,
-    { method: 'POST', body: { planHash, reason } },
+    { method: 'POST', body: { planHash, reason, removesRetired } },
   );
 }
 

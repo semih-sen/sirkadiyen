@@ -356,6 +356,51 @@ public sealed class GoogleCalendarConnectionTests
         Assert.Equal(Now.AddHours(2), connection.UpdatedAtUtc);
     }
 
+    /// <summary>
+    /// The authorization to delete lessons no longer published anywhere is spent with the pass it
+    /// was given for, so a later retirement needs a person to confirm a later plan (ADR-167).
+    /// </summary>
+    [Fact]
+    public void AnAuthorizedRetiredRemovalIsClearedWithThePassItAuthorized()
+    {
+        GoogleCalendarConnection connection = CompletedConnection();
+
+        Assert.True(connection.TryAuthorizeRetiredRemoval(Now.AddHours(1)));
+        Assert.Equal(Now.AddHours(1), connection.RetiredRemovalAuthorizedAtUtc);
+        Assert.Equal(Now.AddHours(1), connection.ProfileResyncRequiredSinceUtc);
+
+        connection.CompleteProfileResync(Now.AddHours(1), Now.AddHours(2));
+
+        Assert.Null(connection.RetiredRemovalAuthorizedAtUtc);
+        Assert.Null(connection.ProfileResyncRequiredSinceUtc);
+    }
+
+    [Fact]
+    public void AnUnsynchronizedConnectionCannotAuthorizeARetiredRemoval()
+    {
+        GoogleCalendarConnection connection = Create();
+
+        Assert.False(connection.TryAuthorizeRetiredRemoval(Now.AddHours(1)));
+        Assert.Null(connection.RetiredRemovalAuthorizedAtUtc);
+        Assert.Null(connection.ProfileResyncRequiredSinceUtc);
+    }
+
+    /// <summary>
+    /// An ordinary profile change keeps its place in the queue and must not inherit a permission
+    /// nobody granted for it — nor lose one already granted for the pass it will share.
+    /// </summary>
+    [Fact]
+    public void AnAuthorizationSurvivesAnOrdinaryResyncRequestMadeBesideIt()
+    {
+        GoogleCalendarConnection connection = CompletedConnection();
+        connection.TryAuthorizeRetiredRemoval(Now.AddHours(1));
+
+        connection.TryRequestProfileResync(Now.AddHours(2));
+
+        Assert.Equal(Now.AddHours(1), connection.ProfileResyncRequiredSinceUtc);
+        Assert.Equal(Now.AddHours(1), connection.RetiredRemovalAuthorizedAtUtc);
+    }
+
     [Fact]
     public void AStaleWorkerCannotClearANewerResyncRequest()
     {

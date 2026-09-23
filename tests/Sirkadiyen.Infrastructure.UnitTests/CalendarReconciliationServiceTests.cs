@@ -677,6 +677,12 @@ public sealed class CalendarReconciliationServiceTests
     private sealed class FakeScheduleReadStore(IReadOnlyList<CanonicalScheduleRecord> records)
         : ICanonicalScheduleReadStore
     {
+        public List<Guid> RevisionsAwaitingDispatch { get; } = [];
+
+        public Task<IReadOnlyList<Guid>> ListRevisionsAwaitingCalendarDispatchAsync(
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<Guid>>([.. RevisionsAwaitingDispatch]);
+
         public Task<IReadOnlyList<PublishedRecordIdentity>> ListCurrentPublishedIdentitiesAsync(
             string academicYear,
             CancellationToken cancellationToken) => throw new NotSupportedException();

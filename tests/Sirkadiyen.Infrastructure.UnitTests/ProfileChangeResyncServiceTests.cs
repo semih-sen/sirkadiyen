@@ -74,6 +74,30 @@ public sealed class ProfileChangeResyncServiceTests
         Assert.Empty(mappings.Removed);
     }
 
+    /// <summary>
+    /// The one authorized exception (ADR-167). An operator read the source, saw that these
+    /// lessons were renamed rather than missed, and confirmed a plan that removes them — which is
+    /// the only way the duplicate left behind by a held diff can ever leave a calendar.
+    /// </summary>
+    [Fact]
+    public async Task AnAuthorizedPassRemovesTheLessonThatIsNoLongerPublished()
+    {
+        FakeCalendarClient client = new();
+        FakeMappingStore mappings = new(Mapping("retired-lesson", "evt-retired"));
+
+        ProfileResyncResult result = Single(await Build(
+            new FakeConnectionStore(Pending(removesRetiredLessons: true)),
+            new FakeScheduleReadStore([], []),
+            mappings,
+            client,
+            Profile("B")).RunPendingAsync(CancellationToken.None));
+
+        Assert.Equal(ProfileResyncOutcome.Completed, result.Outcome);
+        Assert.Equal(1, result.EventsRemoved);
+        Assert.Equal("evt-retired", Assert.Single(client.Deletes).EventId);
+        Assert.Equal("retired-lesson", Assert.Single(mappings.Removed));
+    }
+
     [Fact]
     public async Task AMappingWhoseLessonBelongsToAnotherSourceIsNotTreatedAsLive()
     {
@@ -370,12 +394,13 @@ public sealed class ProfileChangeResyncServiceTests
         CanonicalRecordId = Guid.CreateVersion7(),
     };
 
-    private static PendingProfileResync Pending() => new()
+    private static PendingProfileResync Pending(bool removesRetiredLessons = false) => new()
     {
         UserId = UserId,
         ProtectedRefreshToken = "protected:refresh-token",
         ManagedCalendarId = "cal",
         RequiredSinceUtc = RequestedAt,
+        RemovesRetiredLessons = removesRetiredLessons,
     };
 
     private static ProfileResyncResult Single(ProfileResyncRunResult run) => Assert.Single(run.Users);
@@ -490,6 +515,12 @@ public sealed class ProfileChangeResyncServiceTests
         IReadOnlyList<CanonicalScheduleRecord> applicableProgramRecords,
         IReadOnlyList<CanonicalScheduleRecord> liveAcrossPrograms) : ICanonicalScheduleReadStore
     {
+        public List<Guid> RevisionsAwaitingDispatch { get; } = [];
+
+        public Task<IReadOnlyList<Guid>> ListRevisionsAwaitingCalendarDispatchAsync(
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<Guid>>([.. RevisionsAwaitingDispatch]);
+
         public Task<IReadOnlyList<CanonicalScheduleRecord>> ListCurrentPublishedRecordsAsync(
             string academicYear,
             int classYear,

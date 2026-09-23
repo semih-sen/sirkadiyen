@@ -225,6 +225,7 @@ public sealed class GoogleCalendarConnectionStore(SirkadiyenDbContext dbContext)
                 ProtectedRefreshToken = connection.ProtectedRefreshToken,
                 ManagedCalendarId = connection.ManagedCalendarId!,
                 RequiredSinceUtc = connection.ProfileResyncRequiredSinceUtc!.Value,
+                RemovesRetiredLessons = connection.RetiredRemovalAuthorizedAtUtc != null,
             })
             .ToListAsync(cancellationToken);
     }

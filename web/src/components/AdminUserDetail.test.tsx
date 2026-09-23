@@ -156,12 +156,13 @@ describe('AdminUserDetail', () => {
     api.previewUserCalendarRecheck.mockResolvedValue({
       scope: { academicYear: '2026-2027', classYear: 2, programLanguage: 'Turkish' },
       users: [{
-        userId: 'u1', surplusEventCount: 0, missingEventCount: 412, untouchableRetiredCount: 30,
+        userId: 'u1', surplusEventCount: 0, missingEventCount: 412, retiredEventCount: 30,
       }],
       cohortUserCount: 1,
       totalSurplusEvents: 0,
       totalMissingEvents: 412,
-      totalUntouchableRetired: 30,
+      totalRetiredEvents: 30,
+      removesRetired: false,
       planHash: 'plan-hash-from-the-server',
     });
     api.requestUserCalendarRecheck.mockResolvedValue({ outcome: 'Requested', usersRequested: 1 });
@@ -183,6 +184,7 @@ describe('AdminUserDetail', () => {
       'u1',
       'plan-hash-from-the-server',
       'Dönem 2 yıl taşıması sonrası.',
+      false,
     ));
   });
 
@@ -193,7 +195,8 @@ describe('AdminUserDetail', () => {
       cohortUserCount: 1,
       totalSurplusEvents: 0,
       totalMissingEvents: 0,
-      totalUntouchableRetired: 0,
+      totalRetiredEvents: 0,
+      removesRetired: false,
       planHash: 'hash',
     });
 

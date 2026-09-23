@@ -20,13 +20,14 @@ vi.mock('@/lib/api', () => api);
 const plan = {
   scope: { academicYear: '2026-2027', classYear: 3, programLanguage: 'Turkish' },
   users: [
-    { userId: 'user-1', surplusEventCount: 7, missingEventCount: 0, untouchableRetiredCount: 0 },
-    { userId: 'user-2', surplusEventCount: 7, missingEventCount: 1, untouchableRetiredCount: 2 },
+    { userId: 'user-1', surplusEventCount: 7, missingEventCount: 0, retiredEventCount: 0 },
+    { userId: 'user-2', surplusEventCount: 7, missingEventCount: 1, retiredEventCount: 2 },
   ],
   cohortUserCount: 40,
   totalSurplusEvents: 14,
   totalMissingEvents: 1,
-  totalUntouchableRetired: 3,
+  totalRetiredEvents: 3,
+  removesRetired: false,
   planHash: 'abcdef0123456789abcdef',
 };
 
@@ -84,8 +85,44 @@ describe('CalendarRepairControl', () => {
       { academicYear: '2026-2027', classYear: 3, programLanguage: 'Turkish' },
       'abcdef0123456789abcdef',
       'ADR-109 artıkları temizleniyor',
+      false,
     );
     expect(await screen.findByText(/2 öğrencinin takvimi/)).toBeInTheDocument();
+  });
+
+  it('previews and confirms the retirement repair in the mode the operator chose', async () => {
+    // The duplicate a held diff leaves behind — the old spelling of a renamed lesson — is not
+    // published anywhere, so this mode is the only thing that can remove it (ADR-167). The mode
+    // must travel with both calls, or a confirmation would authorize the other repair.
+    const retiring = { ...plan, removesRetired: true };
+    api.previewCalendarRepair.mockResolvedValue(retiring);
+    api.requestCalendarRepair.mockResolvedValue({
+      outcome: 'Requested',
+      usersRequested: 2,
+      plan: retiring,
+    });
+
+    const user = userEvent.setup();
+    render(<CalendarRepairControl />);
+
+    await user.click(screen.getByLabelText('Yayından kalkmış dersleri de kaldır'));
+    await user.click(screen.getByRole('button', { name: 'Ön izleme al' }));
+
+    expect(api.previewCalendarRepair).toHaveBeenCalledWith(
+      { academicYear: '2026-2027', classYear: 3, programLanguage: 'Turkish' },
+      true,
+    );
+    expect(await screen.findByText(/yayından kalkmış kayıt silinecek/)).toBeInTheDocument();
+
+    await user.type(await screen.findByLabelText('Düzeltme gerekçesi'), 'drog → ilaç artıkları');
+    await user.click(screen.getByRole('button', { name: '2 takvimi düzelt' }));
+
+    expect(api.requestCalendarRepair).toHaveBeenCalledWith(
+      { academicYear: '2026-2027', classYear: 3, programLanguage: 'Turkish' },
+      'abcdef0123456789abcdef',
+      'drog → ilaç artıkları',
+      true,
+    );
   });
 
   it('drops a previewed plan when the scope is edited', async () => {

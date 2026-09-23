@@ -491,6 +491,12 @@ public sealed class CohortScheduleSimulationServiceTests
     private sealed class RecordingStore(IReadOnlyList<CanonicalScheduleRecord> published)
         : ICanonicalScheduleReadStore
     {
+        public List<Guid> RevisionsAwaitingDispatch { get; } = [];
+
+        public Task<IReadOnlyList<Guid>> ListRevisionsAwaitingCalendarDispatchAsync(
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<Guid>>([.. RevisionsAwaitingDispatch]);
+
         public string? RequestedAcademicYear { get; private set; }
 
         public Task<IReadOnlyList<CanonicalScheduleRecord>> ListCurrentPublishedRecordsAsync(

@@ -94,6 +94,12 @@ public sealed record PendingProfileResync
 
     /// <summary>The request timestamp, which is also its optimistic workflow token.</summary>
     public required DateTimeOffset RequiredSinceUtc { get; init; }
+
+    /// <summary>
+    /// Whether an operator authorized this pass to also remove lessons that are no longer
+    /// published anywhere (ADR-167). False is the normal case.
+    /// </summary>
+    public bool RemovesRetiredLessons { get; init; }
 }
 
 public enum CompleteProfileResyncOutcome

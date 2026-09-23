@@ -96,7 +96,11 @@ public sealed class ProfileChangeResyncService(
                 };
             }
 
-            ProfileResyncPlan plan = await PlanAsync(connection.UserId, profile, cancellationToken);
+            ProfileResyncPlan plan = await PlanAsync(
+                connection.UserId,
+                profile,
+                connection.RemovesRetiredLessons,
+                cancellationToken);
 
             CalendarAccess access = new()
             {
@@ -220,10 +224,17 @@ public sealed class ProfileChangeResyncService(
     /// student's; a stable identity that is absent from published truth is left alone, because
     /// removing it would be deleting from absence rather than from a published decision
     /// (AI_GUIDELINE §13). Retiring such a lesson remains the semantic diff's job.
+    /// <para>
+    /// <paramref name="removesRetiredLessons"/> is the one exception, and it is not this pass
+    /// deciding anything: an operator read the source, saw that these lessons are gone rather
+    /// than missed, and authorized their removal against a plan they were shown (ADR-167). The
+    /// bound is then lifted for this pass only, because the authorization is cleared with it.
+    /// </para>
     /// </remarks>
     private async Task<ProfileResyncPlan> PlanAsync(
         Guid userId,
         StudentProfileView profile,
+        bool removesRetiredLessons,
         CancellationToken cancellationToken)
     {
         IReadOnlyList<CanonicalScheduleRecord> published =
@@ -263,8 +274,9 @@ public sealed class ProfileChangeResyncService(
             [
                 .. held.Where(mapping =>
                     !applicable.ContainsKey(mapping.StableIdentity)
-                    && liveIdentities.Contains(
-                        (mapping.SourceId.Value, mapping.StableIdentity))),
+                    && (removesRetiredLessons
+                        || liveIdentities.Contains(
+                            (mapping.SourceId.Value, mapping.StableIdentity)))),
             ],
             Additions =
             [

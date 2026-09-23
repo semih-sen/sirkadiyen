@@ -48,6 +48,27 @@ public interface ICanonicalScheduleReadStore
     Task<IReadOnlyList<PublishedRecordIdentity>> ListCurrentPublishedIdentitiesAsync(
         string academicYear,
         CancellationToken cancellationToken);
+
+    /// <summary>
+    /// The published revisions whose changes have not reached any calendar yet: no diff row, or a
+    /// diff that is held, discarded, waiting or failed (ADR-166).
+    /// </summary>
+    /// <remarks>
+    /// Being published makes a revision the live schedule, which is what a student's first
+    /// synchronization writes and what every audience question is answered from. It does not by
+    /// itself make it something to converge an <em>existing</em> calendar onto: that is the diff's
+    /// decision, because only the diff knows which lesson replaced which, and therefore what has to
+    /// be removed alongside what is added.
+    /// <para>
+    /// The periodic inventory sweep used to miss this. It repairs from published truth and never
+    /// deletes from absence (ADR-089), so while a diff sat held it wrote the additions of that
+    /// revision and none of its retirements — a reworded lesson appeared beside its old spelling in
+    /// every affected calendar, and nothing could then remove the old one. Reading this set is how
+    /// the sweep leaves an undispatched revision to the dispatch path.
+    /// </para>
+    /// </remarks>
+    Task<IReadOnlyList<Guid>> ListRevisionsAwaitingCalendarDispatchAsync(
+        CancellationToken cancellationToken);
 }
 
 /// <summary>One live lesson's identity, as the ledger keys it.</summary>

@@ -1,5 +1,77 @@
 # Active Context
 
+## Latest session (2026-09-23, ADR-165 + ADR-166 + ADR-167: one reworded word duplicated a term's pharmacology lectures)
+
+Reported by the operator with four Google Calendar screenshots (8 Oct 2026, 6 and 12 Nov 2026,
+16 Mar 2027): every pharmacology lecture appears twice at the same hour, once as "…droglar" and once
+as "…ilaçlar". The source renamed the word; the old events never left.
+
+**Three faults compose, and all three had to be fixed.**
+
+1. **The rename was read as an ambiguity, not an update (ADR-165).** A reworded title mints a new
+   stable identity (`courseIdentity` is an identity component), so only secondary matching could
+   catch it — and secondary matching deliberately ignores the start time so a *moved* lesson is
+   still recognized. The lectures of a block differ only by `-I`/`-II`, so with the differ's own
+   normalization the correct pair scores 0.942 and the crossed pair 0.929, both above every
+   threshold. Two candidates per record → contested → `Ambiguous` → the **whole** diff held
+   (ADR-163), and an ambiguous hold is not releasable by design (ADR-042). Even the renames that
+   were not contested at all ("Antiprotozoal droglar" ↔ "ilaçlar", 0.81, below the floor, a clean
+   delete-and-create) never dispatched, because they shared the diff. "Fix it at the source" was
+   not available: the source is correct, and the next revision would hold for the same reason.
+2. **The inventory sweep applied half of the held revision (ADR-166).** It reads published truth
+   with no reference to the diff, and a revision is published *before* it is diffed. So it wrote
+   every new title and, by its founding rule, could never remove the old ones.
+3. **Nothing could clean up afterwards (ADR-167).** A retired identity appears in exactly one diff
+   — the one that retired it. Once that diff is held, the identity is absent from published truth
+   forever, which is precisely the condition under which the sweep (ADR-089), profile
+   re-synchronization (ADR-096) and the cohort repair (ADR-111) all refuse to delete.
+
+Changes:
+- **Differ** (`SemanticScheduleDiffer.AddSecondaryMatches`): two passes. Candidates whose records
+  keep the very same local slot are offered first; one that is unique among *those* is `Updated`.
+  What is left is re-run through the original uniqueness rule over the records still free, and what
+  is still contested stays `Ambiguous`, one entry per record. A reworded-and-moved lesson, and two
+  lessons genuinely sharing one slot, are still held.
+- **Inventory** (`CalendarInventoryReconciliationService`): reads
+  `ListRevisionsAwaitingCalendarDispatchAsync` once per run and skips those records, counting them
+  as `DeferredToDispatch` on the result and in the worker log, and excluding them from the
+  unexpected/conflict counts. Initial sync is deliberately not gated — a new student holds nothing.
+- **Repair** (ADR-167): `GoogleCalendarConnection.RetiredRemovalAuthorizedAtUtc` +
+  `TryAuthorizeRetiredRemoval`, carried to the worker on `PendingProfileResync.RemovesRetiredLessons`
+  and widening `ProfileChangeResyncService`'s removal rule for that pass only. Cohort repair and the
+  per-user re-check take `removesRetired`; the mode is in the plan hash (`cohort-calendar-repair/v2`)
+  so a report can never authorize a removal. Migration `AddRetiredRemovalAuthorization` adds the
+  column and a check constraint that forbids it without a pending request. Admin UI on both screens.
+- **Renames:** `UntouchableRetiredCount` → `RetiredEventCount`, `TotalUntouchableRetired` →
+  `TotalRetiredEvents`, and the web types with them.
+
+**Verified:** `dotnet build Sirkadiyen.slnx` clean; `dotnet test Sirkadiyen.slnx` green — Contracts
+6/6, Api 20/20, Infrastructure 1035/1035, Persistence 40/40 (249 DB-backed skipped).
+`dotnet ef migrations has-pending-model-changes`: none. `npm run typecheck` clean, `npm test` green
+(27 files, 225 tests).
+
+**Unresolved risks / open:**
+- **The existing duplicates are still in students' calendars.** ADR-167 gives the lever; nobody has
+  pulled it. It needs an operator to read the pharmacology source, preview the retirement repair for
+  Grade 3 Turkish (and any other affected line), and confirm it with a reason.
+- **The held pharmacology diff is still held.** ADR-165 changes what the differ *would* produce, but
+  a diff is calculated once. The stored one keeps its ambiguous entries and its hold; it has to be
+  discarded (ADR-127) so a superseding revision is diffed afresh, or the affected calendars are
+  converged by the ADR-167 repair instead. Neither has been done.
+- **No DB-backed test ran for ADR-167.** The new column, its check constraint, and the store
+  projection of `RemovesRetiredLessons` are proven only by model-mapping and domain tests. Run the
+  persistence suite against a real PostgreSQL before deploying.
+- **ADR-166 makes an undispatched revision invisible to synchronized students and live for new
+  ones.** That divergence is deliberate and is the price of not duplicating, but nothing alerts on
+  it yet beyond `DeferredToDispatch` in the worker log.
+- **Profile re-synchronization is still not hold-aware.** A student who edits their profile during a
+  hold can still get the new title written beside the old one. Rare, student-initiated, cleanable by
+  ADR-167 — but not prevented.
+- **The anchored pass widens matching slightly.** A substitution that keeps the hour and scores
+  above the bar is now matched rather than rescued into ambiguity by a neighbouring lecture. The
+  thresholds are the only defence and they are configuration.
+
+
 ## Latest session (2026-09-22, ADR-163 + ADR-164: ambiguity is one entry per record, and diff recalculation now has a ceiling)
 
 Reported from production logs and confirmed against the code. Four published revisions (`01a05957`

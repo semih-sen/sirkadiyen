@@ -99,6 +99,21 @@ public sealed class GoogleCalendarConnection
     /// </remarks>
     public DateTimeOffset? ProfileResyncRequiredSinceUtc { get; private set; }
 
+    /// <summary>
+    /// When an operator authorized this calendar's convergence to also remove lessons that are no
+    /// longer published anywhere (ADR-167). Null is the normal state and means the pass removes
+    /// only what a published decision says is not this student's.
+    /// </summary>
+    /// <remarks>
+    /// The ordinary re-synchronization deliberately never deletes from absence: a lesson missing
+    /// from published truth may be missing because a parse went wrong, and the convergence pass
+    /// cannot tell that from a retirement (AI_GUIDELINE §13, ADR-089). A person can, by reading
+    /// the source. This field is that person's answer, carried to the worker — which is why it is
+    /// a timestamp rather than a flag: it says when the judgement was made, and the audit trail
+    /// says by whom and why.
+    /// </remarks>
+    public DateTimeOffset? RetiredRemovalAuthorizedAtUtc { get; private set; }
+
     public DateTimeOffset CreatedAtUtc { get; private init; }
 
     /// <summary>When the current grant was recorded; a re-authorization advances it.</summary>
@@ -292,6 +307,28 @@ public sealed class GoogleCalendarConnection
     }
 
     /// <summary>
+    /// Records that an operator authorized this calendar to be converged <em>including</em> the
+    /// removal of lessons no longer published anywhere (ADR-167). Returns whether it took effect.
+    /// </summary>
+    /// <remarks>
+    /// It is the ordinary re-synchronization request plus one permission, not a second kind of
+    /// work: the same pass runs, under the same freeze, budget and credential rules, and only its
+    /// removal rule widens. An existing request keeps its timestamp so the queue order does not
+    /// change, while the authorization is stamped now, because it is this authorization that the
+    /// pass about to run is acting on.
+    /// </remarks>
+    public bool TryAuthorizeRetiredRemoval(DateTimeOffset atUtc)
+    {
+        if (!TryRequestProfileResync(atUtc))
+        {
+            return false;
+        }
+
+        RetiredRemovalAuthorizedAtUtc = atUtc;
+        return true;
+    }
+
+    /// <summary>
     /// Clears a profile re-synchronization request after a complete pass found no remaining
     /// calendar work for the current profile (ADR-096).
     /// </summary>
@@ -311,6 +348,10 @@ public sealed class GoogleCalendarConnection
         }
 
         ProfileResyncRequiredSinceUtc = null;
+
+        // The authorization was for this pass and is spent with it. A later retirement needs a
+        // person to look at a later plan and say so again.
+        RetiredRemovalAuthorizedAtUtc = null;
         UpdatedAtUtc = atUtc;
     }
 
@@ -402,6 +443,7 @@ public sealed class GoogleCalendarConnection
         ReconciliationCursorDispatchedAtUtc = null;
         ReconciliationCursorDiffId = null;
         ProfileResyncRequiredSinceUtc = null;
+        RetiredRemovalAuthorizedAtUtc = null;
 
         UpdatedAtUtc = atUtc;
     }

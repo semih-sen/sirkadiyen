@@ -1946,3 +1946,31 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
   (244 DB-backed skipped), 0 failed.
 - **Open:** unchanged from ADR-161 — `G3-FACULTY-LOCATIONS` is still unjoined, so most faculty-practice
   sessions outside the current amfi week still publish with no room.
+
+## "drog" → "ilaç": one rewording, duplicated lectures, three fixes (2026-09-23, ADR-165/166/167)
+
+- **Reported** with four calendar screenshots: every pharmacology lecture of the term present twice
+  at the same hour, in both spellings.
+- **Root cause, in three parts.** (1) A reworded title mints a new stable identity, so only
+  secondary matching could recognize it — and because that stage ignores the start time (so a moved
+  lesson is still matched), the `-I` and `-II` lectures of a block each scored above every threshold
+  against both successors: 0.942 correct vs 0.929 crossed. Contested → `Ambiguous` → the whole diff
+  held, unreleasable by design. (2) The inventory sweep reads published truth with no reference to
+  the diff, and publication precedes diffing, so it wrote the new titles and — never deleting from
+  absence — could not remove the old ones. (3) A retired identity is named in exactly one diff, so
+  once that diff was held no path in the system could ever delete those events.
+- **Changed (differ, ADR-165):** contested candidates that kept their exact local slot are resolved
+  first; unique-among-anchored becomes `Updated`, the rest re-run the original rule over the records
+  still free. Reworded-and-moved, and two lessons truly sharing a slot, stay ambiguous.
+- **Changed (inventory, ADR-166):** records of a revision whose diff is not `Dispatched` are skipped
+  and counted as `DeferredToDispatch`; initial sync is deliberately untouched.
+- **Changed (repair, ADR-167):** an operator can authorize the removal of lessons no longer
+  published, per connection and per pass, through the existing convergence pass — mode in the plan
+  hash, reason required, audit before side effect. Migration `AddRetiredRemovalAuthorization`.
+- **Tests added:** 4 differ, 2 inventory, 3 connection-domain, 2 cohort-repair, 1 resync, 1 web.
+- **Tests executed:** `dotnet test Sirkadiyen.slnx` green — Contracts 6/6, Api 20/20, Infrastructure
+  1035/1035, Persistence 40/40 (249 DB-backed skipped). `dotnet ef migrations
+  has-pending-model-changes`: none. Web: `npm run typecheck` clean, `npm test` 27 files / 225 tests.
+- **Open:** the duplicates already in students' calendars are not gone — ADR-167 is the lever and
+  nobody has pulled it; the stored pharmacology diff is still held and must be discarded or
+  superseded; the ADR-167 persistence tests have not run against a real database.

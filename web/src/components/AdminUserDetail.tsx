@@ -585,6 +585,7 @@ const WINDOW_PRESETS: { label: string; days: number }[] = [
  */
 function CalendarRecheck({ userId, onConverged }: { userId: string; onConverged: () => void }) {
   const [plan, setPlan] = useState<CohortRepairPlan | null>(null);
+  const [removesRetired, setRemovesRetired] = useState(false);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -593,7 +594,7 @@ function CalendarRecheck({ userId, onConverged }: { userId: string; onConverged:
   async function preview() {
     setBusy(true); setError(null); setNotice(null);
     try {
-      setPlan(await previewUserCalendarRecheck(userId));
+      setPlan(await previewUserCalendarRecheck(userId, removesRetired));
     } catch (caught) {
       setPlan(null);
       setError(caught instanceof ApiError ? caught.message : 'Ön izleme alınamadı.');
@@ -604,7 +605,12 @@ function CalendarRecheck({ userId, onConverged }: { userId: string; onConverged:
     if (!plan || !reason.trim()) { setError('Denetim kaydı için bir gerekçe yazın.'); return; }
     setBusy(true); setError(null);
     try {
-      const result = await requestUserCalendarRecheck(userId, plan.planHash, reason.trim());
+      const result = await requestUserCalendarRecheck(
+        userId,
+        plan.planHash,
+        reason.trim(),
+        plan.removesRetired,
+      );
       setNotice(
         result.outcome === 'NothingToRepair'
           ? 'Bu takvimde düzeltilecek bir şey kalmamış.'
@@ -630,6 +636,22 @@ function CalendarRecheck({ userId, onConverged }: { userId: string; onConverged:
         olmayan dersleri ve hâlâ yayında olup artık kendisine ait olmayan etkinlikleri sayar. Hiçbir
         şeyi bu ekran yazmaz; onaylarsanız takvim yakınsama sırasına alınır.
       </p>
+
+      <label
+        htmlFor="recheck-removes-retired"
+        className="cluster"
+        style={{ gap: 8, marginTop: 12 }}
+      >
+        <input
+          id="recheck-removes-retired"
+          type="checkbox"
+          checked={removesRetired}
+          onChange={(event) => { setRemovesRetired(event.target.checked); setPlan(null); }}
+        />
+        <span className="muted" style={{ fontSize: 13 }}>
+          Yayından kalkmış dersleri de kaldır (ADR-167)
+        </span>
+      </label>
 
       <div className="cluster" style={{ marginTop: 12 }}>
         <button
@@ -660,20 +682,23 @@ function CalendarRecheck({ userId, onConverged }: { userId: string; onConverged:
                   <tr>
                     <th>Silinecek</th>
                     <th>Yazılacak</th>
-                    <th>Dokunulmayan</th>
+                    <th>{plan.removesRetired ? 'Yayından kalkmış' : 'Dokunulmayan'}</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
                     <td>{user!.surplusEventCount}</td>
                     <td>{user!.missingEventCount}</td>
-                    <td>{user!.untouchableRetiredCount}</td>
+                    <td>{user!.retiredEventCount}</td>
                   </tr>
                 </tbody>
               </table>
               <p className="muted" style={{ fontSize: 12, marginTop: 8 }}>
-                &ldquo;Dokunulmayan&rdquo;, dersi artık yayında olmayan kayıtlardır. Yokluktan
-                silmek yasaktır (ADR-089); yalnızca raporlanır.
+                {plan.removesRetired
+                  ? 'Son sütun, dersi artık hiçbir yayında olmayan kayıtlardır. Bu planı '
+                    + 'onaylamak silinmelerini yetkilendirir; önce kaynaktan doğrulayın.'
+                  : '“Dokunulmayan”, dersi artık yayında olmayan kayıtlardır. Yokluktan silmek '
+                    + 'yasaktır (ADR-089); yalnızca raporlanır.'}
               </p>
             </div>
           )}

@@ -36,8 +36,14 @@ public sealed class CohortCalendarRepairService(
     /// Works out what a repair would converge, writing nothing. Safe to call repeatedly, and the
     /// only way an operator sees what they are about to authorize.
     /// </summary>
+    /// <param name="removesRetired">
+    /// Whether the plan is the retirement repair (ADR-167): lessons no longer published anywhere
+    /// are then part of what it removes, instead of being counted and left alone. It changes the
+    /// plan hash, so a confirmation of one mode never authorizes the other.
+    /// </param>
     public async Task<CohortRepairPlan> PlanAsync(
         CohortRepairScope scope,
+        bool removesRetired,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(scope);
@@ -45,7 +51,7 @@ public sealed class CohortCalendarRepairService(
         IReadOnlyList<CohortRepairHolding> holdings =
             await repairStore.ListCohortHoldingsAsync(scope, cancellationToken);
 
-        return await PlanForHoldingsAsync(scope, holdings, cancellationToken);
+        return await PlanForHoldingsAsync(scope, holdings, removesRetired, cancellationToken);
     }
 
     /// <summary>
@@ -60,6 +66,7 @@ public sealed class CohortCalendarRepairService(
     /// </remarks>
     public async Task<CohortRepairPlan?> PlanForUserAsync(
         Guid userId,
+        bool removesRetired,
         CancellationToken cancellationToken)
     {
         CohortRepairHolding? holding =
@@ -76,12 +83,13 @@ public sealed class CohortCalendarRepairService(
             ProgramLanguage = holding.Profile.ProgramLanguage,
         };
 
-        return await PlanForHoldingsAsync(scope, [holding], cancellationToken);
+        return await PlanForHoldingsAsync(scope, [holding], removesRetired, cancellationToken);
     }
 
     private async Task<CohortRepairPlan> PlanForHoldingsAsync(
         CohortRepairScope scope,
         IReadOnlyList<CohortRepairHolding> holdings,
+        bool removesRetired,
         CancellationToken cancellationToken)
     {
         IReadOnlyList<CanonicalScheduleRecord> published =
@@ -131,8 +139,9 @@ public sealed class CohortCalendarRepairService(
                 }
                 else
                 {
-                    // No longer published at all. Removing it would be deleting from absence, so
-                    // it is counted for the operator and left alone (ADR-089).
+                    // No longer published at all. Ordinarily removing it would be deleting from
+                    // absence, so it is counted for the operator and left alone (ADR-089); under
+                    // a retirement repair it is exactly what the operator is authorizing.
                     retired++;
                 }
             }
@@ -142,11 +151,12 @@ public sealed class CohortCalendarRepairService(
             int missing = applicable.Count(identity => !held.Contains(identity));
 
             // Counted for the whole cohort, not only for the users this pass would act on: a
-            // student whose sole anomaly is an unpublished leftover has nothing to converge, and
-            // an operator who never sees those rows cannot know they are there to investigate.
+            // student whose sole anomaly is an unpublished leftover has nothing to converge under
+            // an ordinary repair, and an operator who never sees those rows cannot know they are
+            // there to investigate.
             cohortRetired += retired;
 
-            if (surplus == 0 && missing == 0)
+            if (surplus == 0 && missing == 0 && !(removesRetired && retired > 0))
             {
                 continue;
             }
@@ -156,7 +166,7 @@ public sealed class CohortCalendarRepairService(
                 UserId = holding.UserId,
                 SurplusEventCount = surplus,
                 MissingEventCount = missing,
-                UntouchableRetiredCount = retired,
+                RetiredEventCount = retired,
             });
         }
 
@@ -167,8 +177,9 @@ public sealed class CohortCalendarRepairService(
             CohortUserCount = holdings.Count,
             TotalSurplusEvents = users.Sum(user => user.SurplusEventCount),
             TotalMissingEvents = users.Sum(user => user.MissingEventCount),
-            TotalUntouchableRetired = cohortRetired,
-            PlanHash = ComputePlanHash(scope, users, cohortRetired),
+            TotalRetiredEvents = cohortRetired,
+            RemovesRetired = removesRetired,
+            PlanHash = ComputePlanHash(scope, users, cohortRetired, removesRetired),
         };
     }
 
@@ -187,6 +198,7 @@ public sealed class CohortCalendarRepairService(
     public async Task<CohortRepairRequestResult> RequestAsync(
         CohortRepairScope scope,
         string confirmedPlanHash,
+        bool removesRetired,
         Func<CohortRepairPlan, CancellationToken, Task> recordAuthorization,
         CancellationToken cancellationToken)
     {
@@ -212,7 +224,7 @@ public sealed class CohortCalendarRepairService(
 
         // Replanned rather than trusted from the caller: the confirmation authorizes a plan, and
         // the only way to know it is still that plan is to compute it again.
-        CohortRepairPlan plan = await PlanAsync(scope, cancellationToken);
+        CohortRepairPlan plan = await PlanAsync(scope, removesRetired, cancellationToken);
 
         if (!CryptographicOperations.FixedTimeEquals(
                 Encoding.UTF8.GetBytes(plan.PlanHash),
@@ -240,6 +252,7 @@ public sealed class CohortCalendarRepairService(
 
         int requested = await repairStore.RequestConvergenceAsync(
             [.. plan.Users.Select(user => user.UserId)],
+            removesRetired,
             timeProvider.GetUtcNow(),
             cancellationToken);
 
@@ -264,13 +277,14 @@ public sealed class CohortCalendarRepairService(
     public async Task<CohortRepairRequestResult> RequestForUserAsync(
         Guid userId,
         string confirmedPlanHash,
+        bool removesRetired,
         Func<CohortRepairPlan, CancellationToken, Task> recordAuthorization,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(confirmedPlanHash);
         ArgumentNullException.ThrowIfNull(recordAuthorization);
 
-        CohortRepairPlan? plan = await PlanForUserAsync(userId, cancellationToken);
+        CohortRepairPlan? plan = await PlanForUserAsync(userId, removesRetired, cancellationToken);
         if (plan is null)
         {
             return new CohortRepairRequestResult { Outcome = CohortRepairOutcome.NothingToRepair };
@@ -313,6 +327,7 @@ public sealed class CohortCalendarRepairService(
 
         int requested = await repairStore.RequestConvergenceAsync(
             [userId],
+            removesRetired,
             timeProvider.GetUtcNow(),
             cancellationToken);
 
@@ -332,10 +347,15 @@ public sealed class CohortCalendarRepairService(
     private static string ComputePlanHash(
         CohortRepairScope scope,
         IReadOnlyList<CohortRepairUserPlan> users,
-        int cohortRetired)
+        int cohortRetired,
+        bool removesRetired)
     {
         StringBuilder material = new();
-        material.Append("cohort-calendar-repair/v1\n");
+
+        // v2: the mode is material. The same counts mean a different repair depending on whether
+        // the retired rows are being removed or only reported (ADR-167).
+        material.Append("cohort-calendar-repair/v2\n");
+        material.Append(removesRetired ? "removes-retired\n" : "reports-retired\n");
         material.Append(scope.AcademicYear).Append('\n');
         material.Append(scope.ClassYear.ToString(CultureInfo.InvariantCulture)).Append('\n');
         material.Append(scope.ProgramLanguage.ToString()).Append('\n');
@@ -348,7 +368,7 @@ public sealed class CohortCalendarRepairService(
                 .Append(':')
                 .Append(user.MissingEventCount.ToString(CultureInfo.InvariantCulture))
                 .Append(':')
-                .Append(user.UntouchableRetiredCount.ToString(CultureInfo.InvariantCulture))
+                .Append(user.RetiredEventCount.ToString(CultureInfo.InvariantCulture))
                 .Append('\n');
         }
 

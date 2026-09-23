@@ -9,6 +9,12 @@ namespace Sirkadiyen.Application.GoogleCalendar;
 /// Sirkadiyen-marked Google events. It repairs missing/stale expected events and missing
 /// ledger rows, but never deletes from level-triggered absence or duplicate detection.
 /// </summary>
+/// <remarks>
+/// Because it never deletes, it may only ever write what a dispatched revision already decided.
+/// A revision whose diff has not been dispatched — held, discarded, queued, failed, or not yet
+/// calculated — is skipped and counted as deferred (ADR-166): repairing drift is this sweep's
+/// job, and applying a revision is the dispatch path's.
+/// </remarks>
 public sealed class CalendarInventoryReconciliationService(
     ICalendarSyncTargetReadStore targetStore,
     ICanonicalScheduleReadStore scheduleReadStore,
@@ -41,6 +47,14 @@ public sealed class CalendarInventoryReconciliationService(
         // Calendar fence this stage holds, and that is spent by every user's writes together.
         InventoryBudget budget = new(options.CalendarOperationsPerRun);
 
+        // Read once for the whole run, not per user: it is one small set, and asking each user's
+        // sweep separately would let two users of the same cohort disagree about it mid-run.
+        HashSet<Guid> awaitingDispatch =
+        [
+            .. await scheduleReadStore.ListRevisionsAwaitingCalendarDispatchAsync(
+                cancellationToken),
+        ];
+
         List<CalendarInventoryUserResult> results = [];
         foreach (CalendarInventoryTarget target in targets)
         {
@@ -52,7 +66,12 @@ public sealed class CalendarInventoryReconciliationService(
                 break;
             }
 
-            results.Add(await ReconcileOneAsync(target, now, budget, cancellationToken));
+            results.Add(await ReconcileOneAsync(
+                target,
+                now,
+                budget,
+                awaitingDispatch,
+                cancellationToken));
         }
 
         return new CalendarInventoryRunResult
@@ -70,6 +89,7 @@ public sealed class CalendarInventoryReconciliationService(
         CalendarInventoryTarget target,
         DateTimeOffset now,
         InventoryBudget budget,
+        IReadOnlySet<Guid> awaitingDispatch,
         CancellationToken cancellationToken)
     {
         InventoryAccumulator accumulator = new(target.UserId);
@@ -97,9 +117,25 @@ public sealed class CalendarInventoryReconciliationService(
                     target.Profile.ClassYear,
                     target.Profile.ProgramLanguage,
                     cancellationToken);
-            List<CanonicalScheduleRecord> expected =
+            List<CanonicalScheduleRecord> applicable =
                 [.. published.Where(record =>
                     CalendarAudienceResolver.Applies(record, target.Profile))];
+
+            // Published, applicable — and still not this sweep's business, because the revision it
+            // belongs to has not been dispatched (ADR-166). Writing it here would apply half of
+            // that revision: this sweep can add what a rewording introduced but never remove what
+            // it retired, so the two spellings would sit in the calendar side by side, and no
+            // later pass could tell which was the stale one. It is left to the dispatch path.
+            List<CanonicalScheduleRecord> expected =
+                [.. applicable.Where(record =>
+                    !awaitingDispatch.Contains(record.ScheduleRevisionId))];
+            HashSet<string> deferredIdentities =
+            [
+                .. applicable
+                    .Where(record => awaitingDispatch.Contains(record.ScheduleRevisionId))
+                    .Select(record => record.StableIdentity),
+            ];
+            accumulator.DeferredToDispatch = deferredIdentities.Count;
 
             Dictionary<string, CanonicalScheduleRecord> expectedByIdentity =
                 ToUniqueExpected(expected);
@@ -154,10 +190,15 @@ public sealed class CalendarInventoryReconciliationService(
                     cancellationToken);
             }
 
+            // A deferred lesson is neither expected nor unexpected: this sweep decided nothing
+            // about it, so counting a row it already holds as drift would raise a conflict signal
+            // for work that is simply still queued.
             accumulator.UnexpectedMappings = mappingByIdentity.Keys.Count(identity =>
-                !expectedByIdentity.ContainsKey(identity));
+                !expectedByIdentity.ContainsKey(identity)
+                && !deferredIdentities.Contains(identity));
             accumulator.UnexpectedEvents += actualByIdentity
-                .Where(pair => !expectedByIdentity.ContainsKey(pair.Key))
+                .Where(pair => !expectedByIdentity.ContainsKey(pair.Key)
+                    && !deferredIdentities.Contains(pair.Key))
                 .Sum(pair => pair.Value.Count);
 
             // Conflicts and unexpected stale rows are observations, not deletion authority.
@@ -452,6 +493,9 @@ public sealed class CalendarInventoryReconciliationService(
 
         public int UnexpectedEvents { get; set; }
 
+        /// <summary>Applicable lessons this sweep left to the dispatch path (ADR-166).</summary>
+        public int DeferredToDispatch { get; set; }
+
         public CalendarInventoryUserResult ToResult(
             CalendarInventoryOutcome outcome,
             string? failureReason = null) => new()
@@ -465,6 +509,7 @@ public sealed class CalendarInventoryReconciliationService(
                 Conflicts = Conflicts,
                 UnexpectedMappings = UnexpectedMappings,
                 UnexpectedEvents = UnexpectedEvents,
+                DeferredToDispatch = DeferredToDispatch,
                 FailureReason = failureReason,
             };
     }
@@ -502,6 +547,17 @@ public sealed record CalendarInventoryUserResult
     public int UnexpectedMappings { get; init; }
 
     public int UnexpectedEvents { get; init; }
+
+    /// <summary>
+    /// How many applicable lessons belonged to a revision whose diff has not been dispatched, and
+    /// were therefore left to the dispatch path rather than written here (ADR-166).
+    /// </summary>
+    /// <remarks>
+    /// A number that stays above zero across runs is worth reading as what it is: a revision that
+    /// is live for anyone synchronizing for the first time, and invisible to everyone who was
+    /// already synchronized. That is a held or failed diff waiting for an operator.
+    /// </remarks>
+    public int DeferredToDispatch { get; init; }
 
     public string? FailureReason { get; init; }
 }

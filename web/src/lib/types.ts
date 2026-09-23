@@ -1657,8 +1657,11 @@ export interface CohortRepairUserPlan {
   surplusEventCount: number;
   /** Events that apply to them and are not on the calendar. These get written. */
   missingEventCount: number;
-  /** Rows whose lesson is no longer published; counted, never touched (ADR-089). */
-  untouchableRetiredCount: number;
+  /**
+   * Rows whose lesson is no longer published anywhere. Counted and left alone in an ordinary
+   * repair (ADR-089); removed when the plan is a retirement repair (ADR-167).
+   */
+  retiredEventCount: number;
 }
 
 /**
@@ -1673,7 +1676,9 @@ export interface CohortRepairPlan {
   totalSurplusEvents: number;
   totalMissingEvents: number;
   /** Cohort-wide, and deliberately not the sum of `users` — see ADR-111. */
-  totalUntouchableRetired: number;
+  totalRetiredEvents: number;
+  /** Whether this plan removes those retired rows rather than only reporting them (ADR-167). */
+  removesRetired: boolean;
   planHash: string;
 }
 

@@ -52,6 +52,13 @@ public sealed record RequestUserCalendarRecheck
     public required string PlanHash { get; init; }
 
     public required string Reason { get; init; }
+
+    /// <summary>
+    /// Whether this is the retirement repair: it also removes lessons that are no longer
+    /// published anywhere, which nothing else in the system can remove (ADR-167). Optional, and
+    /// false — report only — when it is absent.
+    /// </summary>
+    public bool RemovesRetired { get; init; }
 }
 
 /// <summary>

@@ -123,7 +123,8 @@ public static class OperationalEndpoints
             return InvalidScope();
         }
 
-        return Results.Ok(await repairs.PlanAsync(scope, cancellationToken));
+        return Results.Ok(
+            await repairs.PlanAsync(scope, request.RemovesRetired, cancellationToken));
     }
 
     private static async Task<IResult> RequestCalendarRepairAsync(
@@ -169,6 +170,7 @@ public static class OperationalEndpoints
         CohortRepairRequestResult result = await repairs.RequestAsync(
             scope,
             request.PlanHash,
+            request.RemovesRetired,
             (plan, token) => audit.RecordAsync(
                 new AuditEventDraft
                 {
@@ -192,7 +194,8 @@ public static class OperationalEndpoints
                             users = plan.Users.Count,
                             surplus = plan.TotalSurplusEvents,
                             missing = plan.TotalMissingEvents,
-                            retiredUntouched = plan.TotalUntouchableRetired,
+                            retired = plan.TotalRetiredEvents,
+                            removesRetired = plan.RemovesRetired,
                         },
                         AuditMetadataOptions),
                 },

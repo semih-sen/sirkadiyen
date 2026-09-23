@@ -10514,3 +10514,226 @@ dispatch is a second state on the diff (ADR-097).**
   state and the operator retry are covered by eleven new domain tests and three new DB-backed store
   tests; **the DB-backed ones did not run here** (249 persistence tests skipped, no database on this
   workstation), so like ADR-163 this rests on a run that has not happened yet.
+
+---
+
+## ADR-165: A contested candidate set whose records kept their slot is a match, not an ambiguity
+
+**Status:** Accepted
+**Date:** 2026-09-23
+**Amends:** ADR-035 (secondary matching) and ADR-042 (ambiguity is resolved at the source).
+**Reported by:** the operator, with four Google Calendar screenshots — 8 October 2026, 6 and
+12 November 2026, 16 March 2027 — each showing one pharmacology lecture twice, once saying
+"droglar" and once "ilaçlar", at the same hour.
+
+### Context
+
+The pharmacology tables replaced the word "drog" with "ilaç" in every lecture title. That is a
+rewording, not a schedule change: the same lesson, the same hour, the same instructor.
+
+It should have been an `Updated` entry. It was not, because of how the two matching stages compose:
+
+1. `courseIdentity(display_title)` is one of the stable identity's components (`annual.py`), so a
+   reworded title mints a new identity. Identity matching therefore fails on both sides.
+2. Secondary matching exists for exactly this and would have caught it — except that
+   `HasSameStructuralContext` deliberately excludes the start time, so that a lesson which *moved*
+   can still be recognized. Every lesson of that day's block is therefore a candidate for every
+   other.
+3. The lectures of a block differ only by their ordinal: `…antiinflamatuar droglar-I` and `…-II`.
+   Measured with the differ's own normalization, the correct pair scores 0.942 and the crossed pair
+   0.929 — both far above the 0.82 title floor, both composing to over 0.95 against a 0.88 bar. Two
+   candidates per record, on both sides.
+4. Contested means `Ambiguous`, one ambiguous entry holds the **whole diff** (ADR-163), and an
+   ambiguous hold is deliberately not releasable (ADR-042): an operator cannot decide which
+   candidate a record became.
+
+So one reworded word held every retirement in the revision — including the lessons whose rename was
+*not* contested at all ("Antiprotozoal droglar" ↔ "ilaçlar" scores 0.81, below the floor, a clean
+delete-and-create). Meanwhile the revision was `Published`, so the inventory sweep wrote its new
+titles into every calendar (ADR-166). Both spellings, side by side, indefinitely.
+
+"Resolve it at the source" is not available here. The source is correct: the faculty renamed a
+course. There is nothing for anyone to fix in the workbook, and the next revision would be diffed
+against this one and hold again for the same reason, forever.
+
+### Decision
+
+**Within a contested set, a candidate whose two records occupy the very same local slot is offered
+first, and is a match when it is unique among those.**
+
+`SemanticScheduleDiffer.AddSecondaryMatches` now runs the uniqueness rule twice:
+
+- **Pass one** considers only *anchored* candidates — `SecondaryCandidate.SharesExactSlot`, meaning
+  equal start and end local times. The date, audience, event type and all-day shape are already
+  equal by `HasSameStructuralContext`, so the slot is the last attribute that can tell one of an
+  hour's lessons from the next. A candidate unique among the anchored ones becomes `Updated`.
+- **Pass two** re-runs the original rule over the candidates whose records pass one did not take,
+  because a matched record is no longer anybody's candidate. What is still contested becomes
+  `Ambiguous`, one entry per record, exactly as ADR-163 established.
+
+The matching bar itself is untouched: an anchored candidate still had to clear the title,
+instructor, department and composite thresholds to exist at all. This only decides *between*
+candidates that already qualify.
+
+### Consequences
+
+- **A source-wide rewording now dispatches.** The renamed lesson is patched in place: students keep
+  the event they already have, with its new title, and no second one appears.
+- **A lesson that was reworded *and* moved is still held.** It has no candidate in its own slot,
+  falls to pass two, and is contested there as before. This is deliberate — that case genuinely
+  cannot be told from a substitution.
+- **Two lessons that really share one slot are still held.** They are anchored to each other
+  symmetrically, so neither is unique among the anchored, and pass one declines to choose. The
+  uniqueness rule, not the anchor, is what protects them.
+- **Pass two can now match a pair that used to be ambiguous**, when pass one removed the record
+  that was contesting it. This is a widening of the previous behaviour and is intended: the contest
+  is genuinely over once one side is resolved.
+- **The inverse risk — a substitution that kept the hour.** If a faculty replaces the 11:00 lecture
+  with a different one and rewords nothing else, and it scores above the bar against the old one, it
+  is now matched rather than held. It was already matched before this change whenever it was the
+  *only* candidate; what changed is that a neighbouring lecture no longer rescues it into ambiguity.
+  The thresholds remain the defence, and they are configuration.
+- **Verified:** `dotnet build Sirkadiyen.slnx` clean; `dotnet test Sirkadiyen.slnx` green
+  (Contracts 6/6, Api 20/20, Infrastructure 1035/1035, Persistence 40/40, 249 DB-backed skipped).
+  Four new differ tests: the rename matched slot by slot, the reworded-and-moved case still
+  ambiguous, two lessons sharing one slot still ambiguous, and the released-contest case.
+
+---
+
+## ADR-166: The inventory sweep may only write what a dispatched revision decided
+
+**Status:** Accepted
+**Date:** 2026-09-23
+**Amends:** ADR-089 (the sweep never deletes from absence).
+**Follows:** ADR-165, which removed the commonest reason a diff is held; this removes the damage a
+hold does while it lasts.
+
+### Context
+
+The duplicates ADR-165 was reported for had two authors. The held diff is why the old event was
+never deleted. The *new* event was written by `CalendarInventoryReconciliationService`, and that is
+the part that turned an operator problem into a student-visible one.
+
+The sweep reads `ListCurrentPublishedRecordsAsync`, which filters on `revision.State == Published`
+and nothing else. A revision is published *before* its diff is calculated — `ListPendingDiffAsync`
+is driven by "published with no diff row" — so from the moment of publication the sweep treats every
+record of that revision as truth it must repair towards, whether or not the diff has been
+dispatched, held, discarded or has failed.
+
+Half of a revision is exactly what it can then apply. It inserts what the revision added; it can
+never remove what the revision retired, by its own founding rule. A rewording is the worst possible
+shape for that asymmetry: both spellings end up in the calendar, the ledger gains a row for the new
+one, and no later pass can tell which of the two is the stale one — the retired identity is absent
+from published truth, so ADR-089 protects it from the sweep and ADR-096's publication bound protects
+it from profile re-synchronization.
+
+"No calendar operation may be derived from a held diff" was already the stated rule
+(`ScheduleDiffState.Held`). The sweep did not break it by reading the diff wrongly; it broke it by
+never reading it at all.
+
+### Decision
+
+**A record whose revision has not been dispatched is not the sweep's business.**
+
+- New read: `ICanonicalScheduleReadStore.ListRevisionsAwaitingCalendarDispatchAsync` — published
+  revisions with no diff whose `CalendarDispatchState` is `Dispatched`. `Dispatched` is the one
+  green light; held, discarded, pending and failed all mean the retirements have not been applied.
+- `CalendarInventoryReconciliationService` reads that set once per run and drops those records from
+  `expected`, counting them as `DeferredToDispatch` on the per-user result and in the worker log.
+  They are excluded from the unexpected-mapping and unexpected-event counts too: this sweep decided
+  nothing about them, so reporting them as drift would raise conflicts for work that is queued.
+
+Initial synchronization is deliberately **not** gated. A student synchronizing for the first time
+holds nothing, so writing the newest published truth cannot duplicate anything; gating it would
+leave them missing a whole source instead.
+
+### Consequences
+
+- **A held or failed diff now means what it says.** Nothing of that revision reaches an existing
+  calendar until an operator resolves it, instead of half of it arriving immediately.
+- **A revision that is never dispatched is invisible to everyone already synchronized, and live for
+  everyone who synchronizes for the first time.** That divergence is real and is the price of not
+  duplicating; `DeferredToDispatch` staying above zero across runs is the signal that it is
+  happening, and it names a diff waiting for a person.
+- **Drift repair for those lessons waits too.** If a student deletes an event belonging to an
+  undispatched revision, the sweep will not restore it until the diff dispatches. Repairing drift is
+  this sweep's job; applying a revision is not.
+- **Profile re-synchronization is not gated** and can still write a new-title event for a student
+  who changes their profile during a hold, leaving the old one beside it. It is rare,
+  student-initiated, and now cleanable by ADR-167. Open.
+- **Verified:** build clean, full suite green; two new inventory tests — a lesson of an undispatched
+  revision is neither written nor counted as drift, and one already held is left untouched.
+
+---
+
+## ADR-167: Removing a lesson that is no longer published is an operator's judgement, carried on the request
+
+**Status:** Accepted
+**Date:** 2026-09-23
+**Amends:** ADR-089 and ADR-096's deletion bound, as the single authorized exception.
+**Completes:** the pharmacology duplicate report — ADR-165 and ADR-166 stop it recurring; this
+removes the events already written.
+
+### Context
+
+Once an identity leaves published truth, nothing in this system can remove the events that carry it.
+The semantic diff is the only path that ever deletes a retired lesson, and it names that identity
+exactly once — in the diff of the revision that retired it. If that diff was held, discarded or
+failed, the identity never appears in a diff again: the next revision is diffed against *this* one,
+so its baseline no longer contains it.
+
+Every other path refuses by design, and each refusal is correct on its own terms:
+
+- the inventory sweep never deletes from absence (ADR-089), and now does not write from it either
+  (ADR-166);
+- profile re-synchronization removes only what is *still published* and no longer the student's
+  (ADR-096), because a lesson missing from published truth may be missing because a parse failed;
+- the cohort repair routes every deletion through that same pass (ADR-111), so it inherits the same
+  bound — it counted these rows as `UntouchableRetiredCount` and left them.
+
+The reason they all refuse is a real one: absence is ambiguous. A retired lesson and a lesson the
+parser temporarily failed to see are indistinguishable *to a background job*. They are not
+indistinguishable to a person with the source open.
+
+### Decision
+
+**A person may authorize the deletion, against a plan they were shown, and that authorization
+travels with the convergence request.**
+
+- `GoogleCalendarConnection.RetiredRemovalAuthorizedAtUtc` — nullable, set by
+  `TryAuthorizeRetiredRemoval`, cleared by `CompleteProfileResync` and by calendar detachment. A
+  timestamp rather than a flag, because it records *when the judgement was made*; the audit event
+  records by whom and why. A check constraint forbids it without a pending request, so it cannot
+  outlive the pass it authorizes.
+- `PendingProfileResync.RemovesRetiredLessons` carries it to the worker, and
+  `ProfileChangeResyncService.PlanAsync` widens its removal rule for that pass only.
+- `CohortCalendarRepairService.PlanAsync`/`RequestAsync` take `removesRetired`. The mode is part of
+  the plan hash (now `cohort-calendar-repair/v2`), so confirming a report can never queue a removal,
+  and a student whose *only* anomaly is a retired leftover is in the plan's user list — under an
+  ordinary repair they are not, because there is nothing to converge.
+- The same mode is offered on the per-user re-check (ADR-115) and on both admin screens, with the
+  warning that a failed parse looks identical and the source must be read first.
+
+No second deletion path was added. Every removal is still made by the convergence pass, under its
+freeze, budget, credential and resumability guarantees — only its removal rule widens, and only when
+a named person said so against a named plan.
+
+### Consequences
+
+- **The duplicates that exist today can be removed**, cohort-wide or one student at a time, with the
+  trail stating who authorized what.
+- **This is the one operation that deletes events no published revision asked to delete.** The plan
+  hash, the required reason, the audit-before-side-effect ordering and the freeze all apply, and the
+  UI states the risk plainly — but a mistaken authorization deletes real lessons, and only a
+  re-synchronization restores them, from whatever truth is published then.
+- **The authorization is per pass and per connection.** It is cleared when the pass completes, so a
+  later retirement needs a later plan and a later confirmation. An ordinary profile change made
+  beside it does not clear it and does not grant it.
+- **Naming changed:** `UntouchableRetiredCount` → `RetiredEventCount`, `TotalUntouchableRetired` →
+  `TotalRetiredEvents`, and the web types with them. "Untouchable" stopped being true.
+- **The DB-backed half is unverified here.** The new column, its check constraint and the store
+  behaviour are covered by the model-mapping tests and by domain tests that do run; this workstation
+  has no PostgreSQL, so the 249 persistence tests remain skipped. `dotnet ef migrations
+  has-pending-model-changes`: none after `AddRetiredRemovalAuthorization`.
+- **Verified:** `dotnet build Sirkadiyen.slnx` clean; `dotnet test Sirkadiyen.slnx` green
+  (Infrastructure 1035/1035); `npm run typecheck` clean and `npm test` green (27 files, 225 tests).

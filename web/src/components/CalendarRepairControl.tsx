@@ -24,6 +24,7 @@ export function CalendarRepairControl() {
   const [classYear, setClassYear] = useState(3);
   const [programLanguage, setProgramLanguage] = useState<ProgramLanguage>('Turkish');
   const [plan, setPlan] = useState<CohortRepairPlan | null>(null);
+  const [removesRetired, setRemovesRetired] = useState(false);
   const [reason, setReason] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +46,7 @@ export function CalendarRepairControl() {
     if (!scope.academicYear) { setError('Akademik yıl zorunludur.'); return; }
     setBusy(true); setError(null); setNotice(null);
     try {
-      setPlan(await previewCalendarRepair(scope));
+      setPlan(await previewCalendarRepair(scope, removesRetired));
     } catch (caught) {
       setPlan(null);
       setError(caught instanceof ApiError ? caught.message : 'Ön izleme alınamadı.');
@@ -56,7 +57,12 @@ export function CalendarRepairControl() {
     if (!plan || !reason.trim()) { setError('Denetim kaydı için bir gerekçe yazın.'); return; }
     setBusy(true); setError(null);
     try {
-      const result = await requestCalendarRepair(scope, plan.planHash, reason.trim());
+      const result = await requestCalendarRepair(
+        scope,
+        plan.planHash,
+        reason.trim(),
+        plan.removesRetired,
+      );
       if (result.outcome === 'NothingToRepair') {
         setNotice('Bu hatta düzeltilecek bir şey kalmamış. Hiçbir bağlantı işaretlenmedi.');
       } else {
@@ -129,6 +135,24 @@ export function CalendarRepairControl() {
         </div>
       </div>
 
+      <div className="field" style={{ marginTop: 4 }}>
+        <label htmlFor="repair-removes-retired" className="cluster" style={{ gap: 8 }}>
+          <input
+            id="repair-removes-retired"
+            type="checkbox"
+            checked={removesRetired}
+            onChange={(event) => editScope(() => setRemovesRetired(event.target.checked))}
+          />
+          <span>Yayından kalkmış dersleri de kaldır</span>
+        </label>
+        <p className="muted" style={{ fontSize: 12 }}>
+          Kaynak bir dersi yeniden adlandırdığında eski kayıt hiçbir yayında kalmaz; diff'i
+          takvime ulaşmadıysa o etkinliği başka hiçbir yol silemez (ADR-167). Bunu işaretlemeden
+          önce dersin gerçekten kaldırıldığını kaynaktan doğrulayın: eksik bir parse de aynı
+          şekilde görünür.
+        </p>
+      </div>
+
       <div className="cluster" style={{ marginTop: 4 }}>
         <button
           className="btn btn-secondary"
@@ -154,7 +178,10 @@ export function CalendarRepairControl() {
           <Banner tone="danger">
             <strong>Bu işlem takvimlerden etkinlik siler.</strong> Silmeleri yayın kararına bağlı
             olan yakınsama adımı yapar: hâlâ yayında olup öğrenciye ait olmayan etkinlikler
-            kaldırılır, eksik olanlar yazılır. Yayından kalkmış kayıtlara dokunulmaz.
+            kaldırılır, eksik olanlar yazılır.
+            {plan.removesRetired
+              ? ' Bu plan ayrıca yayından kalkmış kayıtları da siler — bunu geri alan bir yol yok.'
+              : ' Yayından kalkmış kayıtlara dokunulmaz.'}
           </Banner>
 
           <div className="field" style={{ marginTop: 16 }}>
@@ -220,9 +247,14 @@ function RepairPlanSummary({ plan }: { plan: CohortRepairPlan }) {
           hint="Yakınsanacak bir şeyi olmayan öğrenciler işaretlenmez."
         />
         <PlanFigure
-          value={plan.totalUntouchableRetired}
-          label="kayıt olduğu gibi bırakılacak"
-          hint="Dersi artık yayında değil. Yokluktan silmek yasak (ADR-089); yalnızca raporlanır."
+          value={plan.totalRetiredEvents}
+          label={plan.removesRetired
+            ? 'yayından kalkmış kayıt silinecek'
+            : 'kayıt olduğu gibi bırakılacak'}
+          hint={plan.removesRetired
+            ? 'Dersi artık hiçbir yayında yok. Bu planı onaylamak, silinmelerini yetkilendirir.'
+            : 'Dersi artık yayında değil. Yokluktan silmek yasak (ADR-089); yalnızca raporlanır.'}
+          tone={plan.removesRetired && plan.totalRetiredEvents > 0 ? 'danger' : undefined}
         />
       </div>
 
@@ -238,7 +270,7 @@ function RepairPlanSummary({ plan }: { plan: CohortRepairPlan }) {
                   <th>Kullanıcı</th>
                   <th>Silinecek</th>
                   <th>Yazılacak</th>
-                  <th>Dokunulmayan</th>
+                  <th>{plan.removesRetired ? 'Yayından kalkmış' : 'Dokunulmayan'}</th>
                 </tr>
               </thead>
               <tbody>
@@ -247,7 +279,9 @@ function RepairPlanSummary({ plan }: { plan: CohortRepairPlan }) {
                     <td className="mono" data-label="Kullanıcı">{user.userId}</td>
                     <td data-label="Silinecek">{user.surplusEventCount}</td>
                     <td data-label="Yazılacak">{user.missingEventCount}</td>
-                    <td data-label="Dokunulmayan">{user.untouchableRetiredCount}</td>
+                    <td data-label={plan.removesRetired ? 'Yayından kalkmış' : 'Dokunulmayan'}>
+                      {user.retiredEventCount}
+                    </td>
                   </tr>
                 ))}
               </tbody>

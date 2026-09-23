@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Sirkadiyen.Application.GoogleCalendar;
+using Sirkadiyen.Domain.Scheduling.Diffing;
 using Sirkadiyen.Domain.Scheduling.Publication;
 using Sirkadiyen.Domain.Scheduling.Sources;
 
@@ -76,6 +77,24 @@ public sealed class CanonicalScheduleReadStore(SirkadiyenDbContext dbContext)
                 StableIdentity = record.StableIdentity,
             })
             .Distinct()
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Guid>> ListRevisionsAwaitingCalendarDispatchAsync(
+        CancellationToken cancellationToken)
+    {
+        // Dispatched is the one green light. A diff that is held, discarded, pending or failed has
+        // not put its retirements into anybody's calendar, and a revision with no diff row at all
+        // has not even been asked. The set is at most one revision per source, so it is read whole
+        // rather than joined into every caller's query.
+        return await dbContext.ScheduleRevisions
+            .AsNoTracking()
+            .Where(revision =>
+                revision.State == RevisionState.Published
+                && !dbContext.ScheduleDiffs.Any(diff =>
+                    diff.CurrentRevisionId == revision.Id
+                    && diff.CalendarDispatchState == CalendarDispatchState.Dispatched))
+            .Select(revision => revision.Id)
             .ToListAsync(cancellationToken);
     }
 }

@@ -50,11 +50,16 @@ public sealed record CohortRepairUserPlan
     public required int MissingEventCount { get; init; }
 
     /// <summary>
-    /// Ledger rows whose lesson is no longer published at all. They are counted and never touched:
-    /// removing one would be deleting from absence rather than from a published decision
-    /// (AI_GUIDELINE §13, ADR-089). Retiring them stays the semantic diff's job.
+    /// Ledger rows whose lesson is no longer published at all — a lesson the source renamed or
+    /// dropped while its diff never reached a calendar.
     /// </summary>
-    public required int UntouchableRetiredCount { get; init; }
+    /// <remarks>
+    /// In an ordinary repair they are counted and never touched: removing one would be deleting
+    /// from absence rather than from a published decision (AI_GUIDELINE §13, ADR-089). In a
+    /// retirement repair — <see cref="CohortRepairPlan.RemovesRetired"/> — they are precisely what
+    /// the operator is authorizing the removal of (ADR-167).
+    /// </remarks>
+    public required int RetiredEventCount { get; init; }
 }
 
 /// <summary>The full, reviewable plan an operator confirms (ADR-111).</summary>
@@ -73,12 +78,22 @@ public sealed record CohortRepairPlan
     public required int TotalMissingEvents { get; init; }
 
     /// <summary>
-    /// Ledger rows across the whole cohort whose lesson is no longer published. Deliberately not
-    /// the sum of <see cref="Users"/>: a student whose only anomaly is such a leftover has nothing
-    /// to converge and so is absent from that list, but the operator still needs to know the rows
-    /// exist. Nothing ever deletes them here (ADR-089).
+    /// Ledger rows across the whole cohort whose lesson is no longer published. Under an ordinary
+    /// repair this is deliberately not the sum of <see cref="Users"/>: a student whose only
+    /// anomaly is such a leftover has nothing to converge and so is absent from that list, but the
+    /// operator still needs to know the rows exist.
     /// </summary>
-    public required int TotalUntouchableRetired { get; init; }
+    public required int TotalRetiredEvents { get; init; }
+
+    /// <summary>
+    /// Whether this plan removes the retired rows rather than only reporting them (ADR-167).
+    /// </summary>
+    /// <remarks>
+    /// This is the one repair that deletes events no published revision asked to delete, so it is
+    /// stated on the plan the operator confirms and is part of <see cref="PlanHash"/>: confirming
+    /// a report can never queue a removal.
+    /// </remarks>
+    public required bool RemovesRetired { get; init; }
 
     /// <summary>
     /// Binds a confirmation to the plan that was displayed, not to whatever the cohort resolves

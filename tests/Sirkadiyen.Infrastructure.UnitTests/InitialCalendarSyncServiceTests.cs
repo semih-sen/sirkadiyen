@@ -724,6 +724,12 @@ public sealed class InitialCalendarSyncServiceTests
     private sealed class FakeScheduleReadStore(params CanonicalScheduleRecord[] records)
         : ICanonicalScheduleReadStore
     {
+        public List<Guid> RevisionsAwaitingDispatch { get; } = [];
+
+        public Task<IReadOnlyList<Guid>> ListRevisionsAwaitingCalendarDispatchAsync(
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<Guid>>([.. RevisionsAwaitingDispatch]);
+
         public Task<IReadOnlyList<CanonicalScheduleRecord>> ListCurrentPublishedRecordsAsync(
             string academicYear,
             int classYear,

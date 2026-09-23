@@ -67,10 +67,11 @@ internal sealed class CalendarInventoryTask(
                 + "{Patched} patched, {MappingsRecovered} mappings recovered, "
                 + "{LedgerRowsUpdated} ledger rows updated; {Conflicts} conflicts, "
                 + "{UnexpectedMappings} unexpected mappings and {UnexpectedEvents} "
-                + "unexpected events were preserved without deletion.",
+                + "unexpected events were preserved without deletion; "
+                + "{DeferredToDispatch} lessons were left to the dispatch path.",
                 user.UserId, user.Inserted, user.Patched, user.MappingsRecovered,
                 user.LedgerRowsUpdated, user.Conflicts, user.UnexpectedMappings,
-                user.UnexpectedEvents);
+                user.UnexpectedEvents, user.DeferredToDispatch);
             return;
         }
 

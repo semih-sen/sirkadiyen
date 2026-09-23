@@ -39,8 +39,14 @@ public interface ICohortCalendarRepairStore
     /// flag. A user whose connection has since died or whose initial sync never finished is
     /// silently skipped, exactly as <c>TryRequestProfileResync</c> already decides (ADR-096).
     /// </summary>
+    /// <param name="removesRetiredLessons">
+    /// Whether the operator authorized that pass to also remove lessons no longer published
+    /// anywhere (ADR-167). It is carried on the connection, so the permission reaches the worker
+    /// with the request it belongs to and is cleared when that request completes.
+    /// </param>
     Task<int> RequestConvergenceAsync(
         IReadOnlyCollection<Guid> userIds,
+        bool removesRetiredLessons,
         DateTimeOffset atUtc,
         CancellationToken cancellationToken);
 }

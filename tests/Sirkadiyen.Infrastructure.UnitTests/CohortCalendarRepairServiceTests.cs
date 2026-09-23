@@ -34,12 +34,12 @@ public sealed class CohortCalendarRepairServiceTests
             published,
             Holding(profile, published));
 
-        CohortRepairPlan plan = await service.PlanAsync(Grade3Turkish, CancellationToken.None);
+        CohortRepairPlan plan = await service.PlanAsync(Grade3Turkish, removesRetired: false, CancellationToken.None);
 
         CohortRepairUserPlan user = Assert.Single(plan.Users);
         Assert.Equal(7, user.SurplusEventCount);
         Assert.Equal(0, user.MissingEventCount);
-        Assert.Equal(0, user.UntouchableRetiredCount);
+        Assert.Equal(0, user.RetiredEventCount);
         Assert.Equal(7, plan.TotalSurplusEvents);
         Assert.Equal(1, plan.CohortUserCount);
     }
@@ -55,13 +55,13 @@ public sealed class CohortCalendarRepairServiceTests
         CohortRepairPlan plan = await Service(
                 published: [own],
                 Holding(profile, [own], extraHeldIdentities: ["identity-of-a-retired-lesson"]))
-            .PlanAsync(Grade3Turkish, CancellationToken.None);
+            .PlanAsync(Grade3Turkish, removesRetired: false, CancellationToken.None);
 
         // Nothing to converge, so the student is not in the actionable list — but the leftover is
         // still reported to the cohort total, or an operator would never learn it exists.
         Assert.Empty(plan.Users);
         Assert.Equal(0, plan.TotalSurplusEvents);
-        Assert.Equal(1, plan.TotalUntouchableRetired);
+        Assert.Equal(1, plan.TotalRetiredEvents);
     }
 
     [Fact]
@@ -76,12 +76,81 @@ public sealed class CohortCalendarRepairServiceTests
         CohortRepairPlan plan = await Service(
                 published: [own, other],
                 Holding(profile, [own, other], extraHeldIdentities: ["identity-of-a-retired-lesson"]))
-            .PlanAsync(Grade3Turkish, CancellationToken.None);
+            .PlanAsync(Grade3Turkish, removesRetired: false, CancellationToken.None);
 
         CohortRepairUserPlan user = Assert.Single(plan.Users);
         Assert.Equal(1, user.SurplusEventCount);
-        Assert.Equal(1, user.UntouchableRetiredCount);
-        Assert.Equal(1, plan.TotalUntouchableRetired);
+        Assert.Equal(1, user.RetiredEventCount);
+        Assert.Equal(1, plan.TotalRetiredEvents);
+    }
+
+    /// <summary>
+    /// The retirement repair (ADR-167): the same leftover that an ordinary plan only reports is
+    /// what this one removes, and the student whose sole anomaly is that leftover is in the plan.
+    /// </summary>
+    [Fact]
+    public async Task ARetirementRepairPlansTheLeftoverAnOrdinaryRepairOnlyReportsAsync()
+    {
+        StudentProfileView profile = Grade3Profile("A3");
+        CanonicalScheduleRecord own = FacultyRecord("A3");
+        RecordingRepairStore store = new(
+            [Holding(profile, [own], extraHeldIdentities: ["identity-of-a-retired-lesson"])]);
+        CohortCalendarRepairService service = Service([own], store);
+
+        CohortRepairPlan plan = await service.PlanAsync(
+            Grade3Turkish,
+            removesRetired: true,
+            CancellationToken.None);
+
+        CohortRepairUserPlan user = Assert.Single(plan.Users);
+        Assert.Equal(profile.UserId, user.UserId);
+        Assert.Equal(1, user.RetiredEventCount);
+        Assert.Equal(0, user.SurplusEventCount);
+        Assert.True(plan.RemovesRetired);
+
+        CohortRepairRequestResult result = await service.RequestAsync(
+            Grade3Turkish,
+            plan.PlanHash,
+            removesRetired: true,
+            NoAudit,
+            CancellationToken.None);
+
+        Assert.Equal(CohortRepairOutcome.Requested, result.Outcome);
+        Assert.Equal([profile.UserId], store.Requested);
+
+        // The permission travels with the request, so the convergence pass knows it may delete
+        // from absence for this user and this pass only.
+        Assert.True(store.RequestedRetiredRemoval);
+    }
+
+    /// <summary>
+    /// Confirming what you were shown is the whole point of the hash, and the mode is part of
+    /// what you were shown: a report of retired rows must never authorize their deletion.
+    /// </summary>
+    [Fact]
+    public async Task AReportingPlansHashDoesNotAuthorizeARemovingRepairAsync()
+    {
+        StudentProfileView profile = Grade3Profile("A3");
+        CanonicalScheduleRecord own = FacultyRecord("A3");
+        RecordingRepairStore store = new(
+            [Holding(profile, [own], extraHeldIdentities: ["identity-of-a-retired-lesson"])]);
+        CohortCalendarRepairService service = Service([own], store);
+
+        CohortRepairPlan reported = await service.PlanAsync(
+            Grade3Turkish,
+            removesRetired: false,
+            CancellationToken.None);
+
+        CohortRepairRequestResult result = await service.RequestAsync(
+            Grade3Turkish,
+            reported.PlanHash,
+            removesRetired: true,
+            NoAudit,
+            CancellationToken.None);
+
+        Assert.Equal(CohortRepairOutcome.PlanChanged, result.Outcome);
+        Assert.Empty(store.Requested);
+        Assert.False(store.RequestedRetiredRemoval);
     }
 
     [Fact]
@@ -91,7 +160,7 @@ public sealed class CohortCalendarRepairServiceTests
         CanonicalScheduleRecord own = FacultyRecord("A3");
 
         CohortRepairPlan plan = await Service(published: [own], Holding(profile, [own]))
-            .PlanAsync(Grade3Turkish, CancellationToken.None);
+            .PlanAsync(Grade3Turkish, removesRetired: false, CancellationToken.None);
 
         Assert.Empty(plan.Users);
         Assert.Equal(1, plan.CohortUserCount);
@@ -108,7 +177,7 @@ public sealed class CohortCalendarRepairServiceTests
         CohortRepairPlan plan = await Service(
                 published: [own, other],
                 Holding(profile, [other]))
-            .PlanAsync(Grade3Turkish, CancellationToken.None);
+            .PlanAsync(Grade3Turkish, removesRetired: false, CancellationToken.None);
 
         CohortRepairUserPlan user = Assert.Single(plan.Users);
         Assert.Equal(1, user.SurplusEventCount);
@@ -127,9 +196,14 @@ public sealed class CohortCalendarRepairServiceTests
             [Holding(affected, [a3, a5]), Holding(correct, [a5])]);
         CohortCalendarRepairService service = Service([a3, a5], store);
 
-        CohortRepairPlan plan = await service.PlanAsync(Grade3Turkish, CancellationToken.None);
+        CohortRepairPlan plan = await service.PlanAsync(Grade3Turkish, removesRetired: false, CancellationToken.None);
         CohortRepairRequestResult result =
-            await service.RequestAsync(Grade3Turkish, plan.PlanHash, NoAudit, CancellationToken.None);
+            await service.RequestAsync(
+                Grade3Turkish,
+                plan.PlanHash,
+                removesRetired: false,
+                NoAudit,
+                CancellationToken.None);
 
         Assert.Equal(CohortRepairOutcome.Requested, result.Outcome);
         Assert.Equal([affected.UserId], store.Requested);
@@ -150,6 +224,7 @@ public sealed class CohortCalendarRepairServiceTests
         CohortRepairRequestResult result = await service.RequestAsync(
             Grade3Turkish,
             "0000000000000000000000000000000000000000000000000000000000000000",
+            removesRetired: false,
             NoAudit,
             CancellationToken.None);
 
@@ -168,11 +243,11 @@ public sealed class CohortCalendarRepairServiceTests
         CohortRepairPlan first = await Service(
                 [a3, a5],
                 Holding(Grade3Profile("A3"), [a3, a5]))
-            .PlanAsync(Grade3Turkish, CancellationToken.None);
+            .PlanAsync(Grade3Turkish, removesRetired: false, CancellationToken.None);
         CohortRepairPlan second = await Service(
                 [a3, a5],
                 Holding(Grade3Profile("A5"), [a3, a5]))
-            .PlanAsync(Grade3Turkish, CancellationToken.None);
+            .PlanAsync(Grade3Turkish, removesRetired: false, CancellationToken.None);
 
         Assert.Equal(first.TotalSurplusEvents, second.TotalSurplusEvents);
         Assert.NotEqual(first.PlanHash, second.PlanHash);
@@ -193,6 +268,7 @@ public sealed class CohortCalendarRepairServiceTests
         CohortRepairRequestResult result = await service.RequestAsync(
             Grade3Turkish,
             "irrelevant-because-the-freeze-is-checked-first",
+            removesRetired: false,
             NoAudit,
             CancellationToken.None);
 
@@ -207,9 +283,14 @@ public sealed class CohortCalendarRepairServiceTests
         RecordingRepairStore store = new([Holding(Grade3Profile("A3"), [a3])]);
         CohortCalendarRepairService service = Service([a3], store);
 
-        CohortRepairPlan plan = await service.PlanAsync(Grade3Turkish, CancellationToken.None);
+        CohortRepairPlan plan = await service.PlanAsync(Grade3Turkish, removesRetired: false, CancellationToken.None);
         CohortRepairRequestResult result =
-            await service.RequestAsync(Grade3Turkish, plan.PlanHash, NoAudit, CancellationToken.None);
+            await service.RequestAsync(
+                Grade3Turkish,
+                plan.PlanHash,
+                removesRetired: false,
+                NoAudit,
+                CancellationToken.None);
 
         Assert.Equal(CohortRepairOutcome.NothingToRepair, result.Outcome);
         Assert.Empty(store.Requested);
@@ -227,12 +308,13 @@ public sealed class CohortCalendarRepairServiceTests
 
         RecordingRepairStore store = new([Holding(profile, [a3, a5])]);
         CohortCalendarRepairService service = Service([a3, a5], store);
-        CohortRepairPlan plan = await service.PlanAsync(Grade3Turkish, CancellationToken.None);
+        CohortRepairPlan plan = await service.PlanAsync(Grade3Turkish, removesRetired: false, CancellationToken.None);
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             service.RequestAsync(
                 Grade3Turkish,
                 plan.PlanHash,
+                removesRetired: false,
                 (_, _) => throw new InvalidOperationException("the audit column rejected it"),
                 CancellationToken.None));
 
@@ -248,12 +330,13 @@ public sealed class CohortCalendarRepairServiceTests
 
         RecordingRepairStore store = new([Holding(profile, [a3, a5])]);
         CohortCalendarRepairService service = Service([a3, a5], store);
-        CohortRepairPlan plan = await service.PlanAsync(Grade3Turkish, CancellationToken.None);
+        CohortRepairPlan plan = await service.PlanAsync(Grade3Turkish, removesRetired: false, CancellationToken.None);
 
         CohortRepairPlan? audited = null;
         await service.RequestAsync(
             Grade3Turkish,
             plan.PlanHash,
+            removesRetired: false,
             (recorded, _) =>
             {
                 // Recorded before the flagging, so the trail can never lag the deletions.
@@ -283,7 +366,7 @@ public sealed class CohortCalendarRepairServiceTests
             Holding(profile, [other]));
 
         CohortRepairPlan plan = Assert.IsType<CohortRepairPlan>(
-            await service.PlanForUserAsync(profile.UserId, CancellationToken.None));
+            await service.PlanForUserAsync(profile.UserId, removesRetired: false, CancellationToken.None));
 
         // The scope is read from the student's own profile rather than supplied by the caller.
         Assert.Equal("2026-2027", plan.Scope.AcademicYear);
@@ -301,7 +384,10 @@ public sealed class CohortCalendarRepairServiceTests
         // plan here would turn a single-user action into a whole-program one.
         CohortCalendarRepairService service = Service(published: [FacultyRecord("A3")]);
 
-        Assert.Null(await service.PlanForUserAsync(Guid.CreateVersion7(), CancellationToken.None));
+        Assert.Null(await service.PlanForUserAsync(
+            Guid.CreateVersion7(),
+            removesRetired: false,
+            CancellationToken.None));
     }
 
     [Fact]
@@ -317,12 +403,13 @@ public sealed class CohortCalendarRepairServiceTests
         CohortCalendarRepairService service = Service([own, other], store);
 
         CohortRepairPlan plan = Assert.IsType<CohortRepairPlan>(
-            await service.PlanForUserAsync(profile.UserId, CancellationToken.None));
+            await service.PlanForUserAsync(profile.UserId, removesRetired: false, CancellationToken.None));
 
         CohortRepairPlan? audited = null;
         CohortRepairRequestResult result = await service.RequestForUserAsync(
             profile.UserId,
             plan.PlanHash,
+            removesRetired: false,
             (recorded, _) =>
             {
                 // Recorded before the flagging, so the trail can never lag the deletions.
@@ -350,6 +437,7 @@ public sealed class CohortCalendarRepairServiceTests
             .RequestForUserAsync(
                 profile.UserId,
                 "a hash from a plan nobody computed",
+                removesRetired: false,
                 NoAudit,
                 CancellationToken.None);
 
@@ -367,7 +455,12 @@ public sealed class CohortCalendarRepairServiceTests
 
         CohortRepairRequestResult result =
             await Service([FacultyRecord("A5")], store, frozen: true)
-                .RequestForUserAsync(profile.UserId, "any", NoAudit, CancellationToken.None);
+                .RequestForUserAsync(
+                    profile.UserId,
+                    "any",
+                    removesRetired: false,
+                    NoAudit,
+                    CancellationToken.None);
 
         Assert.Equal(CohortRepairOutcome.Frozen, result.Outcome);
         Assert.Empty(store.Requested);
@@ -448,6 +541,8 @@ public sealed class CohortCalendarRepairServiceTests
     {
         public List<Guid> Requested { get; } = [];
 
+        public bool RequestedRetiredRemoval { get; private set; }
+
         public Task<IReadOnlyList<CohortRepairHolding>> ListCohortHoldingsAsync(
             CohortRepairScope scope,
             CancellationToken cancellationToken) => Task.FromResult(holdings);
@@ -459,10 +554,12 @@ public sealed class CohortCalendarRepairServiceTests
 
         public Task<int> RequestConvergenceAsync(
             IReadOnlyCollection<Guid> userIds,
+            bool removesRetiredLessons,
             DateTimeOffset atUtc,
             CancellationToken cancellationToken)
         {
             Requested.AddRange(userIds);
+            RequestedRetiredRemoval = removesRetiredLessons;
             return Task.FromResult(userIds.Count);
         }
     }
@@ -474,6 +571,12 @@ public sealed class CohortCalendarRepairServiceTests
     private sealed class StubScheduleReadStore(IReadOnlyList<CanonicalScheduleRecord> published)
         : ICanonicalScheduleReadStore
     {
+        public List<Guid> RevisionsAwaitingDispatch { get; } = [];
+
+        public Task<IReadOnlyList<Guid>> ListRevisionsAwaitingCalendarDispatchAsync(
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<Guid>>([.. RevisionsAwaitingDispatch]);
+
         public Task<IReadOnlyList<CanonicalScheduleRecord>> ListCurrentPublishedRecordsAsync(
             string academicYear,
             int classYear,

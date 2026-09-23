@@ -39,6 +39,7 @@ internal sealed class GoogleCalendarConnectionConfiguration
         builder.Property(connection => connection.ReconciliationCursorDispatchedAtUtc);
         builder.Property(connection => connection.ReconciliationCursorDiffId);
         builder.Property(connection => connection.ProfileResyncRequiredSinceUtc);
+        builder.Property(connection => connection.RetiredRemovalAuthorizedAtUtc);
         builder.Property(connection => connection.RowVersion).IsRowVersion();
 
         // One connection per account: onboarding and the synchronization path both read
@@ -93,6 +94,12 @@ internal sealed class GoogleCalendarConnectionConfiguration
             "\"ProfileResyncRequiredSinceUtc\" IS NULL"
             + " OR (\"ManagedCalendarId\" IS NOT NULL"
             + " AND \"InitialSyncState\" = 'Completed')"));
+        // An authorization to delete from absence is meaningless without the pass it authorizes,
+        // and must never outlive it (ADR-167).
+        builder.ToTable(table => table.HasCheckConstraint(
+            "ck_google_calendar_connections_retired_removal",
+            "\"RetiredRemovalAuthorizedAtUtc\" IS NULL"
+            + " OR \"ProfileResyncRequiredSinceUtc\" IS NOT NULL"));
         builder.ToTable(table => table.HasCheckConstraint(
             "ck_google_calendar_connections_unavailable_calendar",
             "\"ManagedCalendarUnavailableAtUtc\" IS NULL"

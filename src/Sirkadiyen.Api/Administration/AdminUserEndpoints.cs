@@ -383,9 +383,13 @@ public static class AdminUserEndpoints
     private static async Task<IResult> PreviewCalendarRecheckAsync(
         Guid userId,
         CohortCalendarRepairService repairs,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool removesRetired = false)
     {
-        CohortRepairPlan? plan = await repairs.PlanForUserAsync(userId, cancellationToken);
+        CohortRepairPlan? plan = await repairs.PlanForUserAsync(
+            userId,
+            removesRetired,
+            cancellationToken);
         return plan is null ? NotSynchronizable() : Results.Ok(plan);
     }
 
@@ -424,6 +428,7 @@ public static class AdminUserEndpoints
         CohortRepairRequestResult result = await repairs.RequestForUserAsync(
             userId,
             request.PlanHash,
+            request.RemovesRetired,
             (plan, token) => audit.RecordAsync(
                 new AuditEventDraft
                 {
@@ -446,7 +451,8 @@ public static class AdminUserEndpoints
                             scope = plan.Scope.ToString(),
                             surplus = plan.TotalSurplusEvents,
                             missing = plan.TotalMissingEvents,
-                            retiredUntouched = plan.TotalUntouchableRetired,
+                            retired = plan.TotalRetiredEvents,
+                            removesRetired = plan.RemovesRetired,
                         },
                         AuditMetadataOptions),
                 },

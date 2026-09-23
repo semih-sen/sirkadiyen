@@ -89,6 +89,7 @@ public sealed class CohortCalendarRepairStoreTests(PostgresFixture fixture)
         {
             requested = await new CohortCalendarRepairStore(mutate).RequestConvergenceAsync(
                 [ready, inProgress, Guid.CreateVersion7()],
+                removesRetiredLessons: false,
                 Now.AddHours(1),
                 Token);
         }
@@ -114,13 +115,13 @@ public sealed class CohortCalendarRepairStoreTests(PostgresFixture fixture)
         await using (SirkadiyenDbContext first = fixture.CreateProductionLikeContext())
         {
             await new CohortCalendarRepairStore(first)
-                .RequestConvergenceAsync([user], Now, Token);
+                .RequestConvergenceAsync([user], removesRetiredLessons: false, Now, Token);
         }
 
         await using (SirkadiyenDbContext second = fixture.CreateProductionLikeContext())
         {
             await new CohortCalendarRepairStore(second)
-                .RequestConvergenceAsync([user], Now.AddHours(5), Token);
+                .RequestConvergenceAsync([user], removesRetiredLessons: false, Now.AddHours(5), Token);
         }
 
         await using SirkadiyenDbContext context = fixture.CreateContext();

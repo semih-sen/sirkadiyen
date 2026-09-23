@@ -110,6 +110,7 @@ public sealed class CohortCalendarRepairStore(SirkadiyenDbContext dbContext)
 
     public async Task<int> RequestConvergenceAsync(
         IReadOnlyCollection<Guid> userIds,
+        bool removesRetiredLessons,
         DateTimeOffset atUtc,
         CancellationToken cancellationToken)
     {
@@ -128,7 +129,9 @@ public sealed class CohortCalendarRepairStore(SirkadiyenDbContext dbContext)
         // finished absorbs the audience when it runs, and one with no calendar has nothing to
         // converge (ADR-096). An existing request keeps its original timestamp, so a repair never
         // pushes an older unconverged profile change to the back of the queue.
-        int requested = connections.Count(connection => connection.TryRequestProfileResync(atUtc));
+        int requested = connections.Count(connection => removesRetiredLessons
+            ? connection.TryAuthorizeRetiredRemoval(atUtc)
+            : connection.TryRequestProfileResync(atUtc));
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return requested;

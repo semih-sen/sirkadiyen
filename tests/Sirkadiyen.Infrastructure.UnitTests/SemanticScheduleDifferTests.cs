@@ -362,6 +362,190 @@ public sealed class SemanticScheduleDifferTests
         Assert.Equal([current.Id], CurrentIds(entries));
     }
 
+    /// <summary>
+    /// The pharmacology rename: "drog" became "ilaç" in every title, so each lecture of an hour
+    /// scored against its neighbour and the whole revision was held while the calendars kept both
+    /// spellings side by side (ADR-165).
+    /// </summary>
+    [Fact]
+    public void ASourceWideRewordingIsMatchedSlotBySlotInsteadOfHeld()
+    {
+        CanonicalScheduleRecord previousOne = Record(
+            PreviousRevisionId,
+            "previous-one",
+            stableIdentity: "old-droglar-i",
+            title: "1-Eikozanoidler - analjezik ve antiinflamatuar droglar-I",
+            normalizedTitle: "eikozanoidler analjezik ve antiinflamatuar droglar i",
+            hour: 11);
+        CanonicalScheduleRecord previousTwo = Record(
+            PreviousRevisionId,
+            "previous-two",
+            stableIdentity: "old-droglar-ii",
+            title: "2-Eikozanoidler - analjezik ve antiinflamatuar droglar-II",
+            normalizedTitle: "eikozanoidler analjezik ve antiinflamatuar droglar ii",
+            hour: 12);
+        CanonicalScheduleRecord currentOne = Record(
+            CurrentRevisionId,
+            "current-one",
+            stableIdentity: "new-ilaclar-i",
+            title: "1-Eikozanoidler - analjezik ve antiinflamatuar ilaçlar-I",
+            normalizedTitle: "eikozanoidler analjezik ve antiinflamatuar ilaclar i",
+            hour: 11);
+        CanonicalScheduleRecord currentTwo = Record(
+            CurrentRevisionId,
+            "current-two",
+            stableIdentity: "new-ilaclar-ii",
+            title: "2-Eikozanoidler - analjezik ve antiinflamatuar ilaçlar-II",
+            normalizedTitle: "eikozanoidler analjezik ve antiinflamatuar ilaclar ii",
+            hour: 12);
+
+        IReadOnlyList<ScheduleDiffEntry> entries = Differ().Diff(
+            [previousOne, previousTwo],
+            [currentOne, currentTwo]);
+
+        Assert.Equal(2, entries.Count);
+        Assert.All(entries, entry => Assert.Equal(ScheduleDiffChange.Updated, entry.Change));
+        Assert.All(
+            entries,
+            entry => Assert.Equal(ScheduleDiffMatch.SecondaryAttributes, entry.Match));
+        Assert.Contains(
+            entries,
+            entry => entry.PreviousRecordId == previousOne.Id
+                && entry.CurrentRecordId == currentOne.Id);
+        Assert.Contains(
+            entries,
+            entry => entry.PreviousRecordId == previousTwo.Id
+                && entry.CurrentRecordId == currentTwo.Id);
+        AssertEachRecordClassifiedOnce(entries);
+    }
+
+    /// <summary>
+    /// The anchor settles a rename that moved nothing. A lesson that was reworded <em>and</em>
+    /// moved has no candidate in its own slot, so it is held exactly as it was before ADR-165.
+    /// </summary>
+    [Fact]
+    public void ARewordedLessonThatAlsoMovedStaysAmbiguous()
+    {
+        CanonicalScheduleRecord previousOne = Record(
+            PreviousRevisionId,
+            "previous-one",
+            stableIdentity: "old-droglar-i",
+            normalizedTitle: "eikozanoidler analjezik ve antiinflamatuar droglar i",
+            hour: 11);
+        CanonicalScheduleRecord previousTwo = Record(
+            PreviousRevisionId,
+            "previous-two",
+            stableIdentity: "old-droglar-ii",
+            normalizedTitle: "eikozanoidler analjezik ve antiinflamatuar droglar ii",
+            hour: 12);
+        CanonicalScheduleRecord currentOne = Record(
+            CurrentRevisionId,
+            "current-one",
+            stableIdentity: "new-ilaclar-i",
+            normalizedTitle: "eikozanoidler analjezik ve antiinflamatuar ilaclar i",
+            hour: 14);
+        CanonicalScheduleRecord currentTwo = Record(
+            CurrentRevisionId,
+            "current-two",
+            stableIdentity: "new-ilaclar-ii",
+            normalizedTitle: "eikozanoidler analjezik ve antiinflamatuar ilaclar ii",
+            hour: 15);
+
+        IReadOnlyList<ScheduleDiffEntry> entries = Differ().Diff(
+            [previousOne, previousTwo],
+            [currentOne, currentTwo]);
+
+        Assert.Equal(4, entries.Count);
+        Assert.All(entries, entry => Assert.Equal(ScheduleDiffChange.Ambiguous, entry.Change));
+        AssertEachRecordClassifiedOnce(entries);
+    }
+
+    /// <summary>
+    /// Two lessons that genuinely share one slot cannot be told apart by it either, so the
+    /// anchored pass leaves them contested and they are held.
+    /// </summary>
+    [Fact]
+    public void TwoLessonsSharingOneSlotAreNotSettledByTheAnchor()
+    {
+        CanonicalScheduleRecord previousOne = Record(
+            PreviousRevisionId,
+            "previous-one",
+            stableIdentity: "old-one",
+            normalizedTitle: "eikozanoidler analjezik ve antiinflamatuar droglar i",
+            hour: 11);
+        CanonicalScheduleRecord previousTwo = Record(
+            PreviousRevisionId,
+            "previous-two",
+            stableIdentity: "old-two",
+            normalizedTitle: "eikozanoidler analjezik ve antiinflamatuar droglar ii",
+            hour: 11);
+        CanonicalScheduleRecord currentOne = Record(
+            CurrentRevisionId,
+            "current-one",
+            stableIdentity: "new-one",
+            normalizedTitle: "eikozanoidler analjezik ve antiinflamatuar ilaclar i",
+            hour: 11);
+        CanonicalScheduleRecord currentTwo = Record(
+            CurrentRevisionId,
+            "current-two",
+            stableIdentity: "new-two",
+            normalizedTitle: "eikozanoidler analjezik ve antiinflamatuar ilaclar ii",
+            hour: 11);
+
+        IReadOnlyList<ScheduleDiffEntry> entries = Differ().Diff(
+            [previousOne, previousTwo],
+            [currentOne, currentTwo]);
+
+        Assert.Equal(4, entries.Count);
+        Assert.All(entries, entry => Assert.Equal(ScheduleDiffChange.Ambiguous, entry.Change));
+        AssertEachRecordClassifiedOnce(entries);
+    }
+
+    /// <summary>
+    /// An anchored match frees the records it took, and a lesson that was left with one remaining
+    /// candidate is then no longer contested.
+    /// </summary>
+    [Fact]
+    public void AnAnchoredMatchReleasesTheCandidateItWasContestingWith()
+    {
+        CanonicalScheduleRecord stayed = Record(
+            PreviousRevisionId,
+            "stayed",
+            stableIdentity: "old-stayed",
+            normalizedTitle: "eikozanoidler analjezik ve antiinflamatuar droglar i",
+            hour: 11);
+        CanonicalScheduleRecord moved = Record(
+            PreviousRevisionId,
+            "moved",
+            stableIdentity: "old-moved",
+            normalizedTitle: "eikozanoidler analjezik ve antiinflamatuar droglar ii",
+            hour: 12);
+        CanonicalScheduleRecord stayedCurrent = Record(
+            CurrentRevisionId,
+            "stayed-current",
+            stableIdentity: "new-stayed",
+            normalizedTitle: "eikozanoidler analjezik ve antiinflamatuar ilaclar i",
+            hour: 11);
+        CanonicalScheduleRecord movedCurrent = Record(
+            CurrentRevisionId,
+            "moved-current",
+            stableIdentity: "new-moved",
+            normalizedTitle: "eikozanoidler analjezik ve antiinflamatuar ilaclar ii",
+            hour: 15);
+
+        IReadOnlyList<ScheduleDiffEntry> entries = Differ().Diff(
+            [stayed, moved],
+            [stayedCurrent, movedCurrent]);
+
+        Assert.Equal(2, entries.Count);
+        Assert.All(entries, entry => Assert.Equal(ScheduleDiffChange.Updated, entry.Change));
+        Assert.Contains(
+            entries,
+            entry => entry.PreviousRecordId == moved.Id
+                && entry.CurrentRecordId == movedCurrent.Id);
+        AssertEachRecordClassifiedOnce(entries);
+    }
+
     [Fact]
     public void AnAmbiguousSetDoesNotSuppressACleanMatchBesideIt()
     {

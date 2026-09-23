@@ -31,6 +31,70 @@ public sealed class CalendarInventoryReconciliationServiceTests
         Assert.True(harness.Connections.InventoryCompleted);
     }
 
+    /// <summary>
+    /// The duplicate-spelling regression: while a diff sat held, this sweep kept writing the new
+    /// wording of every reworded lesson and could never remove the old one, so students saw both
+    /// (ADR-166). An undispatched revision is now left to the dispatch path entirely.
+    /// </summary>
+    [Fact]
+    public async Task ALessonOfAnUndispatchedRevisionIsNeitherWrittenNorCountedAsDrift()
+    {
+        Harness harness = new();
+        CanonicalScheduleRecord dispatched = CalendarTestData.Record(stableIdentity: "dispatched");
+        CanonicalScheduleRecord awaiting = CalendarTestData.Record(stableIdentity: "awaiting");
+        harness.Records.Add(dispatched);
+        harness.Records.Add(awaiting);
+        harness.AwaitingDispatch.Add(awaiting.ScheduleRevisionId);
+
+        CalendarInventoryUserResult result = await harness.RunSingleAsync();
+
+        Assert.Equal(CalendarInventoryOutcome.Completed, result.Outcome);
+        Assert.Equal(1, result.DeferredToDispatch);
+
+        // Only the dispatched lesson was written, and the deferred one raised no conflict.
+        ManagedCalendarEvent inserted = Assert.Single(harness.Client.Inserts);
+        Assert.Equal(
+            ManagedCalendarEventFactory.DeterministicEventId(
+                harness.UserId,
+                dispatched.StableIdentity),
+            inserted.EventId);
+        CalendarEventMappingView mapping = Assert.Single(harness.Mappings.Items);
+        Assert.Equal("dispatched", mapping.StableIdentity);
+        Assert.Equal(0, result.Conflicts);
+        Assert.Equal(0, result.UnexpectedMappings);
+        Assert.Empty(harness.Client.Deletes);
+    }
+
+    /// <summary>
+    /// A lesson the sweep is deferring may already be in the calendar — dispatched before this
+    /// rule existed, or written by the student's own profile re-synchronization. It is left
+    /// exactly as it is, and is not reported as an unexpected event.
+    /// </summary>
+    [Fact]
+    public async Task AnAlreadyHeldLessonOfAnUndispatchedRevisionIsLeftUntouched()
+    {
+        Harness harness = new();
+        CanonicalScheduleRecord awaiting = CalendarTestData.Record(stableIdentity: "awaiting");
+        harness.Records.Add(awaiting);
+        harness.AwaitingDispatch.Add(awaiting.ScheduleRevisionId);
+
+        ManagedCalendarEvent held =
+            ManagedCalendarEventFactory.ToManagedEvent(harness.UserId, awaiting);
+        harness.Mappings.Seed(Mapping(harness.UserId, awaiting, held.EventId));
+        harness.Client.Events.Add(Snapshot(held) with { Location = "Changed by user" });
+
+        CalendarInventoryUserResult result = await harness.RunSingleAsync();
+
+        Assert.Equal(CalendarInventoryOutcome.Completed, result.Outcome);
+        Assert.Equal(1, result.DeferredToDispatch);
+        Assert.Empty(harness.Client.Patches);
+        Assert.Empty(harness.Client.Inserts);
+        Assert.Empty(harness.Client.Deletes);
+        Assert.Equal(0, result.UnexpectedEvents);
+        Assert.Equal(0, result.UnexpectedMappings);
+        Assert.Equal(0, result.Conflicts);
+    }
+
     [Fact]
     public async Task AnUnledgeredMarkedEventIsAdoptedAndPatchedInPlace()
     {
@@ -399,6 +463,9 @@ public sealed class CalendarInventoryReconciliationServiceTests
 
         public List<CanonicalScheduleRecord> Records { get; } = [];
 
+        /// <summary>Revisions whose diff has not been dispatched (ADR-166).</summary>
+        public List<Guid> AwaitingDispatch { get; } = [];
+
         public FakeTargetStore Targets { get; } = new();
 
         public FakeMappingStore Mappings { get; } = new();
@@ -413,7 +480,7 @@ public sealed class CalendarInventoryReconciliationServiceTests
 
         public CalendarInventoryReconciliationService Build() => new(
             Targets,
-            new FakeScheduleReadStore(Records),
+            new FakeScheduleReadStore(Records, AwaitingDispatch),
             Mappings,
             Connections,
             Client,
@@ -454,9 +521,15 @@ public sealed class CalendarInventoryReconciliationServiceTests
             CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
-    private sealed class FakeScheduleReadStore(IReadOnlyList<CanonicalScheduleRecord> records)
+    private sealed class FakeScheduleReadStore(
+        IReadOnlyList<CanonicalScheduleRecord> records,
+        IReadOnlyList<Guid> awaitingDispatch)
         : ICanonicalScheduleReadStore
     {
+        public Task<IReadOnlyList<Guid>> ListRevisionsAwaitingCalendarDispatchAsync(
+            CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<Guid>>([.. awaitingDispatch]);
+
         public Task<IReadOnlyList<CanonicalScheduleRecord>> ListCurrentPublishedRecordsAsync(
             string academicYear,
             int classYear,

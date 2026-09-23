@@ -24,6 +24,12 @@ namespace Sirkadiyen.Application.Scheduling.Diffing;
 /// converted into a destructive delete-and-create pair. Such a set yields one
 /// ambiguous entry per record it drew in, not one per candidate pair, because a
 /// record may be classified only once within a diff.
+/// <para>
+/// One kind of contested set is settled rather than held: candidates whose two
+/// records kept the very same local slot are offered first, and a candidate that
+/// is unique among those is a match (ADR-165). A source-wide rewording is the
+/// case this exists for; a lesson that was reworded and moved is still held.
+/// </para>
 /// </remarks>
 public sealed class SemanticScheduleDiffer
 {
@@ -148,7 +154,60 @@ public sealed class SemanticScheduleDiffer
         return candidates;
     }
 
+    /// <summary>
+    /// Turns the candidate set into entries: unique pairs become updates, and what stays contested
+    /// becomes ambiguity. Candidates that keep their slot are offered first (ADR-165).
+    /// </summary>
+    /// <remarks>
+    /// A contested set is not the same thing as an undecidable one. When a source rewords a word
+    /// across a whole course — "drog" became "ilaç" in the pharmacology tables — every lesson of
+    /// that hour scores against every other, because secondary matching deliberately ignores the
+    /// start time so that a moved lesson can still be recognized. Lecture I at 11:00 then has two
+    /// plausible successors, and so does lecture II at 11:50, and the whole revision is held.
+    /// <para>
+    /// But those two pairs are not actually in doubt: each candidate's records occupy the very same
+    /// slot, on a date and an audience that <see cref="HasSameStructuralContext"/> has already
+    /// pinned. So a first pass considers only candidates that kept their slot, and accepts the ones
+    /// that are unique among <em>those</em>. It settles a rename that did not move anything, and
+    /// says nothing about a lesson that moved: a reworded <em>and</em> moved lesson has no anchored
+    /// candidate, stays in the second pass, and is held exactly as before.
+    /// </para>
+    /// The second pass then reconsiders what is left over the records the first pass did not take,
+    /// because a record that is now matched is no longer anybody's candidate.
+    /// </remarks>
     private static void AddSecondaryMatches(
+        IReadOnlyCollection<SecondaryCandidate> candidates,
+        List<ScheduleDiffEntry> entries,
+        HashSet<Guid> matchedPrevious,
+        HashSet<Guid> matchedCurrent)
+    {
+        AcceptUncontestedCandidates(
+            [.. candidates.Where(candidate => candidate.SharesExactSlot)],
+            entries,
+            matchedPrevious,
+            matchedCurrent);
+
+        List<SecondaryCandidate> remaining =
+        [
+            .. candidates.Where(candidate =>
+                !matchedPrevious.Contains(candidate.Previous.Id)
+                && !matchedCurrent.Contains(candidate.Current.Id)),
+        ];
+
+        List<SecondaryCandidate> contested = AcceptUncontestedCandidates(
+            remaining,
+            entries,
+            matchedPrevious,
+            matchedCurrent);
+
+        AddAmbiguousSides(contested, entries, matchedPrevious, matchedCurrent);
+    }
+
+    /// <summary>
+    /// Accepts every candidate that is the only one its two records take part in, and returns the
+    /// candidates that were contested within this set.
+    /// </summary>
+    private static List<SecondaryCandidate> AcceptUncontestedCandidates(
         IReadOnlyCollection<SecondaryCandidate> candidates,
         List<ScheduleDiffEntry> entries,
         HashSet<Guid> matchedPrevious,
@@ -179,7 +238,7 @@ public sealed class SemanticScheduleDiffer
             matchedCurrent.Add(candidate.Current.Id);
         }
 
-        AddAmbiguousSides(contested, entries, matchedPrevious, matchedCurrent);
+        return contested;
     }
 
     /// <summary>
@@ -469,6 +528,20 @@ public sealed class SemanticScheduleDiffer
         decimal InstructorScore,
         decimal? DepartmentScore)
     {
+        /// <summary>
+        /// Whether the two records occupy the very same local slot (ADR-165).
+        /// </summary>
+        /// <remarks>
+        /// The date, the audience and the all-day shape are already equal — <see
+        /// cref="HasSameStructuralContext"/> demanded them — so this is the last thing that can
+        /// tell one of an hour's lessons from the next. Two all-day records of one date share a
+        /// slot by this definition, which is correct: neither states a time, so neither can be
+        /// told apart by one, and the uniqueness rule is what protects them.
+        /// </remarks>
+        public bool SharesExactSlot =>
+            Previous.StartLocalTime == Current.StartLocalTime
+            && Previous.EndLocalTime == Current.EndLocalTime;
+
         public ScheduleDiffEntry ToEntry(ScheduleDiffChange change) => new()
         {
             Change = change,
