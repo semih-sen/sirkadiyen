@@ -38,5 +38,25 @@ services:
       timeout: 5s
       retries: 20
 
+  # The personal vault feature's storage (ADR-168). Behind a profile so the
+  # default 'docker compose up' is unchanged: 'docker compose --profile vault up -d minio'.
+  minio:
+    # MinIO no longer publishes to Docker Hub; its own registry still carries the
+    # releases. Pinned: from 2024 releases on the server enforces the conditional
+    # writes the vault store relies on.
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    container_name: sirkadiyen-minio
+    profiles: ["vault"]
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${SIRKADIYEN_MINIO_ROOT_USER:-sirkadiyen}
+      MINIO_ROOT_PASSWORD: ${SIRKADIYEN_MINIO_ROOT_PASSWORD:-sirkadiyen-dev}
+    ports:
+      - "${SIRKADIYEN_MINIO_PORT:-9000}:9000"
+      - "${SIRKADIYEN_MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio-data:/data
+
 volumes:
   postgres-data:
+  minio-data:

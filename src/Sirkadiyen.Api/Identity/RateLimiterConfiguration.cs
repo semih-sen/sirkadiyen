@@ -67,5 +67,18 @@ public static class RateLimiterConfiguration
                     QueueLimit = 0,
                     AutoReplenishment = true,
                 }));
+        options.AddPolicy(
+            RateLimitingPolicies.VaultNote,
+            context => RateLimitPartition.GetFixedWindowLimiter(
+                context.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+                static _ => new FixedWindowRateLimiterOptions
+                {
+                    // One person's notes: far above real use, but a leaked key or a looping shortcut
+                    // cannot queue enough runs to exhaust the subscription.
+                    PermitLimit = 20,
+                    Window = TimeSpan.FromHours(1),
+                    QueueLimit = 0,
+                    AutoReplenishment = true,
+                }));
     }
 }

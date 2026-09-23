@@ -12,4 +12,7 @@ public static class RateLimitingPolicies
     /// The student-list lookup, which answers a ten-digit guess with a name.
     /// </summary>
     public const string RosterLookup = nameof(RosterLookup);
+
+    /// <summary>Vault note submission, which spends the owner's Claude subscription (ADR-168).</summary>
+    public const string VaultNote = nameof(VaultNote);
 }

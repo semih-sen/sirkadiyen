@@ -31,6 +31,7 @@ Deployment order is migrations → parser → worker → API → frontend.
 | `nodejs` (22.x) | the Next.js standalone bundle is `server.js`, which needs a Node runtime; no npm, no lockfile, no `node_modules` install | no |
 | `postgresql-client` | applies the idempotent migration script with `psql`, instead of putting the EF tooling on the host | no |
 | `rsync`, `curl` | transfer and health probes | no |
+| `@anthropic-ai/claude-code` (npm, global) | only for the optional personal vault feature (ADR-168): the API runs the `claude` CLI as a child process | yes — skip it and leave `SIRKADIYEN_VAULT__API_KEY` unset |
 
 ## 1. One-time server preparation
 
@@ -124,7 +125,9 @@ Populate them from `.env.example` in the repository root, split by consumer:
   `SIRKADIYEN_DATAPROTECTION__KEY_RING_PATH=/srv/sirkadiyen/shared/dataprotection-keys`,
   the `SIRKADIYEN_GOOGLE__*` values and the `Logging__LogLevel__*` overrides.
 - `api.env` — `ASPNETCORE_URLS=http://127.0.0.1:5080`, `SIRKADIYEN_WORKER__BASE_URL=http://127.0.0.1:5081`,
-  `SIRKADIYEN_LICENSING__HASH_KEY`.
+  `SIRKADIYEN_LICENSING__HASH_KEY`, and — only if the personal vault feature is wanted — the
+  `SIRKADIYEN_VAULT__*` values and `CLAUDE_CODE_OAUTH_TOKEN` (see
+  [Personal vault](#4-personal-vault-optional)).
 - `worker.env` — `SIRKADIYEN_WORKER__HEALTH_URL=http://127.0.0.1:5081`,
   `SIRKADIYEN_PARSER__BASE_URL=http://127.0.0.1:8000`, the polling, validation,
   diff, sync and retention values, and the `SIRKADIYEN_TELEGRAM__*` alert
@@ -232,6 +235,80 @@ manager:
 ```bash
 shred -u ~/.ssh/sirkadiyen_deploy
 ```
+
+## 4. Personal vault (optional)
+
+The owner's Obsidian vault feature (ADR-168): `POST /api/vault/notes` has the Claude Code CLI write a
+note, which the API stores in a MinIO bucket and links from existing notes. It is off unless
+`SIRKADIYEN_VAULT__API_KEY` is set, and nothing below is needed without it. It shares only the API
+process with the schedule product — no table, no calendar, no student data.
+
+Install the CLI system-wide at a pinned version. It is updated by changing this command, never by
+itself: the runner sets `DISABLE_AUTOUPDATER=1`, and `/usr` is read-only to the service anyway.
+
+```bash
+sudo npm install -g @anthropic-ai/claude-code@2.1.280
+command -v claude   # /usr/bin/claude, which the unit sets as SIRKADIYEN_VAULT__CLAUDE_PATH
+```
+
+Create the directory the CLI keeps its state in. The unit points `CLAUDE_CONFIG_DIR` at it and lists
+it under `ReadWritePaths`; everything else is read-only to the service under `ProtectSystem=strict`.
+
+```bash
+sudo install -d -o sirkadiyen -g sirkadiyen -m 0700 /srv/sirkadiyen/shared/claude
+```
+
+Authenticate with a long-lived subscription token. `claude setup-token` opens a browser, so run it
+**on your workstation**, not on the server:
+
+```bash
+claude setup-token
+```
+
+Then add to `/srv/sirkadiyen/shared/env/api.env`:
+
+```bash
+CLAUDE_CODE_OAUTH_TOKEN=<the token setup-token printed>
+# At least 32 characters; the iPad shortcut sends it as the X-Vault-Key header.
+SIRKADIYEN_VAULT__API_KEY=<openssl rand -base64 48>
+SIRKADIYEN_VAULT__S3_ENDPOINT=http://127.0.0.1:9000
+SIRKADIYEN_VAULT__S3_ACCESS_KEY=<a MinIO user limited to the vault bucket>
+SIRKADIYEN_VAULT__S3_SECRET_KEY=<its secret>
+SIRKADIYEN_VAULT__S3_BUCKET=<the vault bucket>
+# Only if the vault lives under a prefix inside the bucket.
+SIRKADIYEN_VAULT__S3_PREFIX=
+```
+
+Give the API its own MinIO user with read/write on the vault bucket only, rather than the root
+credentials: the key is in a file the service reads, and it is the only thing between the API and
+every other bucket. The MinIO release must be from 2024 or later; older ones ignore the conditional
+writes that keep an edit made in Obsidian from being overwritten (see the
+`Server_enforces_conditional_writes` integration test).
+
+Before restarting the API, prove the CLI works **under the same sandbox as the unit** — the usual
+failure is the CLI trying to write somewhere the unit does not allow, and it only shows here:
+
+```bash
+sudo systemd-run --pipe --wait --collect --uid=sirkadiyen --gid=sirkadiyen \
+  -p ProtectSystem=strict -p ProtectHome=true -p PrivateTmp=true -p NoNewPrivileges=true \
+  -p ReadWritePaths=/srv/sirkadiyen/shared/claude -p WorkingDirectory=/tmp \
+  -p EnvironmentFile=/srv/sirkadiyen/shared/env/api.env \
+  -E CLAUDE_CONFIG_DIR=/srv/sirkadiyen/shared/claude -E DISABLE_AUTOUPDATER=1 \
+  /usr/bin/claude -p --output-format json --restricted --tools "" --model claude-sonnet-5 <<< 'Say ok.'
+```
+
+It must print a JSON object with `"is_error":false`. `Not logged in` means the token did not reach
+the process; an `EROFS` or `EACCES` error names the path the unit would also need.
+
+```bash
+sudo systemctl daemon-reload   # if the unit file was reinstalled
+sudo systemctl restart sirkadiyen-api
+journalctl -u sirkadiyen-api | grep -i vault
+```
+
+The endpoint is reached through the frontend's `/api/*` rewrite, so the shortcut calls
+`https://<your domain>/api/vault/notes` with `X-Vault-Key`, and polls the `Location` it gets back.
+Jobs are kept in memory: a restart loses queued and finished jobs, never notes already written.
 
 ## Rollback
 

@@ -14,6 +14,10 @@
     <InternalsVisibleTo Include="Sirkadiyen.Api.UnitTests" />
   </ItemGroup>
   <ItemGroup>
+    <!-- The vault agent's standing rules, appended to its system prompt on every run (ADR-168). -->
+    <None Update="Vault/AgentInstructions.md" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
     <!--
       Pinned above the 2.0.0 that Microsoft.AspNetCore.OpenApi 10.0.10 pulls in.

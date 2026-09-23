@@ -1,5 +1,44 @@
 # Active Context
 
+## Latest session (2026-09-23, ADR-168: the owner's personal Obsidian vault, written by Claude Code into MinIO)
+
+A personal, single-user feature beside the schedule product, specified in
+`sirkadiyen_api_claude_code_entegrasyon_spesifikasyonu.md`. `POST /api/vault/notes` (header
+`X-Vault-Key`) queues a job; the Claude Code CLI writes the note in a private workspace; the API
+validates it, stores it in the vault bucket and has the CLI add backlinks to up to five existing
+notes; `GET /api/vault/jobs/{id}` reports the outcome. Off unless `SIRKADIYEN_VAULT__API_KEY` is set.
+
+**Where it lives:** `src/Sirkadiyen.Application/Vault/` (job, catalog, path policy, prompts, parsers,
+link normalizer, edit check), `src/Sirkadiyen.Infrastructure/Vault/` (`S3VaultStore`,
+`ClaudeCodeAgentRunner`, `ClaudeCodeOutputReader`), `src/Sirkadiyen.Api/Vault/` (endpoints, key
+filter, `VaultJobProcessor`, composition, `AgentInstructions.md`).
+
+**Deviations from the specification, all in ADR-168:** asynchronous 202 + polling instead of a
+90-second synchronous call; structured JSON (`--json-schema`) instead of a free-text message; one
+workspace per job; the standing rules as `--append-system-prompt` instead of `CLAUDE.md`, because
+`--restricted` turns `CLAUDE.md` discovery off — found by the end-to-end run, proved by a probe.
+
+**Found by running it end to end, fixed:**
+- the model wrote 6 of 9 links with spaces for underscores in one run and none in another →
+  `VaultLinkNormalizer` repairs or unwraps every link of the new note before upload;
+- `--restricted` ignores `CLAUDE.md` → rules moved to the system prompt.
+
+**Verified:** `dotnet build Sirkadiyen.slnx` clean; Infrastructure 1132/1132, Api 29/29; the two
+MinIO integration tests against `quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z` (Docker Hub no
+longer carries `minio/minio`); three end-to-end runs through the API with `claude-sonnet-5`, effort
+`medium`, against a seeded bucket — the last with two requests submitted at once, run in order.
+
+**Unresolved risks / open:**
+- **Not yet deployed, and unverified on Linux.** The CLI under the API unit's
+  `ProtectSystem=strict` sandbox has not run; `deploy/README.md` §4 has the `systemd-run` smoke test
+  to run first. The unit file change must be installed by hand (the pipeline does not install units).
+- **The production MinIO release is unknown.** Before 2024 it ignores conditional writes; the store's
+  HEAD check still refuses stale writes, with a millisecond window left open.
+- **A leaked key spends the subscription** until `SIRKADIYEN_VAULT__API_KEY` is rotated; the rate
+  limit (20/hour/IP) bounds it.
+- In Development a malformed JSON body is a 500, not a 400 — ASP.NET's `ThrowOnBadRequest`, the same
+  for every endpoint, and a 400 in Production. Seen when Git Bash's `curl` sent Windows-1254 text.
+
 ## Latest session (2026-09-23, ADR-165 + ADR-166 + ADR-167: one reworded word duplicated a term's pharmacology lectures)
 
 Reported by the operator with four Google Calendar screenshots (8 Oct 2026, 6 and 12 Nov 2026,

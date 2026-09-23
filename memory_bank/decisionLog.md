@@ -10737,3 +10737,99 @@ a named person said so against a named plan.
   has-pending-model-changes`: none after `AddRetiredRemovalAuthorization`.
 - **Verified:** `dotnet build Sirkadiyen.slnx` clean; `dotnet test Sirkadiyen.slnx` green
   (Infrastructure 1035/1035); `npm run typecheck` clean and `npm test` green (27 files, 225 tests).
+
+## ADR-168: The owner's personal Obsidian vault is served by the API, through the Claude Code CLI and MinIO
+
+**Status:** Accepted
+**Date:** 2026-09-23
+**Scope:** A personal, single-user feature. It shares the API host process with the schedule product
+and nothing else — no table, no calendar, no student data, no user account.
+**Specification:** `sirkadiyen_api_claude_code_entegrasyon_spesifikasyonu.md` (repository root), with
+the deviations recorded below.
+
+### Context
+
+The owner keeps an Obsidian vault (Zettelkasten) in a MinIO bucket and wants to ask for a new note
+from an iPad: the note should be written by Claude Code on the owner's own subscription, link to
+existing notes with `[[...]]`, and have the most relevant existing notes link back to it. The agent
+must never touch the vault itself.
+
+AI_GUIDELINE §4 asks for the need, the comparison and the decision whenever a dependency or pattern is
+introduced. This introduces three: an S3 client, a CLI child process, and an in-memory job queue.
+
+### Decision
+
+**The API owns every vault read and write; the agent only ever sees a private workspace directory.**
+A job catalogs the bucket, runs the CLI once to write `note.md` and propose a placement and backlink
+targets, validates all of it, uploads the note, copies at most `MAX_BACKLINKS` existing notes into the
+workspace, runs the CLI once more to insert the link, checks each edit and writes it back.
+
+- **Layering.** Application `Vault/` holds the job, catalog, path policy, prompts, parsers and checks
+  behind `IVaultStore` and `IVaultAgentRunner`; Infrastructure `Vault/` implements them as
+  `S3VaultStore` and `ClaudeCodeAgentRunner`; Api `Vault/` holds the endpoints, the key filter and
+  the `BackgroundService`. No database, no worker involvement.
+- **Asynchronous.** `POST /api/vault/notes` returns `202` with a `Location`; `GET
+  /api/vault/jobs/{id}` reports progress. The specification's synchronous 90-second request cannot
+  hold: a note takes ~25–40 s and the backlink run ~15–25 s on Sonnet 5.
+- **Jobs live in memory**, one `Channel` reader, so one job at a time. A restart loses queued and
+  finished job records, never a written note. A table was rejected: this serves one person's
+  occasional requests, and a lost job is resubmitted, not recovered.
+- **Access** is a `X-Vault-Key` header compared in constant time (SHA-256 of both sides), at least
+  32 characters, outside cookie authentication and antiforgery, plus a 20-per-hour per-IP rate limit.
+  The feature is off — no route mapped — unless `SIRKADIYEN_VAULT__API_KEY` is set; once it is, the
+  storage settings are required at startup.
+- **Storage: `AWSSDK.S3`** rather than the MinIO SDK: mature, and it carries `If-Match` /
+  `If-None-Match` on `PutObject`. New notes are written `If-None-Match: *`; backlink edits
+  `If-Match: <etag read>`, so an edit made in Obsidian meanwhile wins (`SkippedChanged`). Each write
+  is also preceded by a HEAD check, because MinIO releases before 2024 ignore the conditional headers.
+  `UseChunkEncoding = false` and checksums `WHEN_REQUIRED`, because the SDK v4 defaults (aws-chunked
+  signing, CRC trailers) are rejected by older MinIO.
+- **Agent: `claude -p --output-format json --restricted --tools Read,Write,Edit,Glob
+  --strict-mcp-config --no-session-persistence --permission-mode acceptEdits --permission-prompts
+  none --model claude-sonnet-5 --effort medium`**, prompt on stdin (a catalog outgrows a command
+  line), no shell, `--json-schema` on the note run. `--restricted` removes every command-running and
+  network tool, confines file tools to the working directory, ignores settings files and refuses
+  permission bypass. `--bare` was rejected: it reads no OAuth credential, so it cannot run on a
+  subscription. There is no `--max-turns` in 2.1.280; the ceiling is a timeout (default 5 min) that
+  kills the whole process tree.
+- **Standing rules travel as `--append-system-prompt`, not as a workspace `CLAUDE.md`.** The first
+  end-to-end run wrote notes without the rules; a probe showed `--restricted` disables `CLAUDE.md`
+  discovery (the same file was obeyed without the flag, ignored with it), while an appended system
+  prompt is honoured under it. The rules are `src/Sirkadiyen.Api/Vault/AgentInstructions.md`, shipped
+  with the API output. This supersedes the specification's `CLAUDE.md`.
+- **Nothing the agent proposes is trusted.** Paths go through `VaultPathPolicy` (no `..`, no
+  dot-segments such as `.obsidian/`, no characters Obsidian cannot link); an agent-proposed folder
+  must already exist (else the root, with a warning) while a user-named folder may be new; the title
+  is made unique across the whole vault so the bare title is always an unambiguous link target.
+  A bad or missing proposal degrades to a fallback placement with a warning instead of discarding a
+  note already written.
+- **Links in the new note are normalized before upload (`VaultLinkNormalizer`).** The second
+  end-to-end run wrote 6 dead links out of 9 (`[[Otonom Sinir Sistemi]]` for
+  `Otonom_Sinir_Sistemi`) although the prompt listed exact targets, and the first run wrote none: the
+  behaviour is not stable enough to rely on. A link matching one note loosely (case, `_`/`-`/space,
+  Turkish diacritics) is rewritten to it, keeping the agent's wording as the alias; one matching
+  nothing or two notes becomes plain text and is reported. Links in the user's existing notes are
+  never rewritten.
+- **Backlink edits are checked before write-back (`VaultBacklinkEditCheck`):** the link must be
+  present, the note no more than 10% shorter, and no more than 10% of its lines changed.
+
+### Consequences
+
+- **The Claude subscription is spent by an HTTP call.** The key and the rate limit are the whole
+  guard; a leaked key costs usage until it is rotated in `api.env`. Anthropic's consumer terms apply
+  to headless use of the subscription; this is one person's low-volume automation.
+- **The server gains a runtime:** `@anthropic-ai/claude-code` from npm, globally, at a pinned version
+  (2.1.280), updated only by changing that pin. The unit sets `CLAUDE_CONFIG_DIR` to
+  `/srv/sirkadiyen/shared/claude` under `ReadWritePaths=-…` (the `-` keeps the API starting where the
+  feature was never set up). Workspaces go under the unit's private `/tmp`.
+- **Unverified on Linux.** Everything above ran on Windows against a real MinIO and the real CLI;
+  whether the CLI writes anywhere outside `CLAUDE_CONFIG_DIR` under `ProtectSystem=strict` is not
+  known. `deploy/README.md` §4 gives a `systemd-run` smoke test with the unit's sandbox to run before
+  enabling the feature.
+- **Model output is a moving part.** `structured_output` is the field `--json-schema` fills (seen
+  working end to end); the parser still accepts JSON inside prose, and the normalizer and edit check
+  bound what a misbehaving run can do to the vault.
+- **Verified:** `dotnet build Sirkadiyen.slnx` clean; Infrastructure 1132/1132, Api 29/29; the two
+  `S3VaultStoreIntegrationTests` against MinIO `RELEASE.2025-09-07T16-13-09Z` (which enforces
+  conditional writes itself); three end-to-end runs through the API with Sonnet 5 / medium — the last
+  one two concurrent requests, run in order, 9 backlinks written, every link in both notes resolving.

@@ -9,6 +9,11 @@
     <InternalsVisibleTo Include="Sirkadiyen.Infrastructure.UnitTests" />
   </ItemGroup>
   <ItemGroup>
+    <!--
+      Reads and writes the personal Obsidian vault in MinIO (ADR-168). MinIO speaks the S3
+      protocol, and this SDK carries the conditional-write headers the store relies on.
+    -->
+    <PackageReference Include="AWSSDK.S3" Version="4.0.103.3" />
     <PackageReference Include="DocumentFormat.OpenXml" Version="3.5.1" />
     <PackageReference Include="Google.Apis.Auth" Version="1.75.0" />
     <!-- Writes each user's dedicated calendar during synchronization (ADR-024, ADR-058). -->
