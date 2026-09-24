@@ -19,7 +19,8 @@ export type AdminNavKey =
   | 'colors'
   | 'operations'
   | 'server'
-  | 'access-logs';
+  | 'access-logs'
+  | 'vault';
 
 interface NavItem {
   key: AdminNavKey;
@@ -61,6 +62,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
       { key: 'operations', label: 'Operasyon kontrolü', icon: '⚙', href: '/admin/operations' },
       { key: 'server', label: 'Sunucu', icon: '▣', href: '/admin/server' },
       { key: 'access-logs', label: 'Erişim kayıtları', icon: '☰', href: '/admin/access-logs' },
+      { key: 'vault', label: 'Obsidian notları', icon: '✎', href: '/admin/vault' },
     ],
   },
 ];

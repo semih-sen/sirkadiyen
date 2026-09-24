@@ -15,6 +15,7 @@ using Sirkadiyen.Domain.Scheduling.Publication;
 using Sirkadiyen.Domain.Scheduling.Sources;
 using Sirkadiyen.Domain.StudentProfiles;
 using Sirkadiyen.Domain.StudentRosters;
+using Sirkadiyen.Infrastructure.Persistence.Vault;
 
 namespace Sirkadiyen.Infrastructure.Persistence;
 
@@ -132,6 +133,8 @@ public sealed class SirkadiyenDbContext(DbContextOptions<SirkadiyenDbContext> op
     public DbSet<MealCalendarDelivery> MealCalendarDeliveries => Set<MealCalendarDelivery>();
 
     public DbSet<MealMenuSubscription> MealMenuSubscriptions => Set<MealMenuSubscription>();
+
+    internal DbSet<VaultNoteJobRow> VaultNoteJobs => Set<VaultNoteJobRow>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

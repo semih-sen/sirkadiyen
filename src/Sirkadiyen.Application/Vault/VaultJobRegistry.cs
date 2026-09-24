@@ -1,22 +1,23 @@
-using System.Threading.Channels;
-
 namespace Sirkadiyen.Application.Vault;
 
 /// <summary>
-/// The in-memory queue and status board for note jobs. Deliberately not persisted: this serves one
-/// person's occasional requests, and a job lost to a restart is resubmitted rather than recovered.
-/// The queue has a single reader, so jobs run one at a time.
+/// Submits, finds and advances note jobs. Every change is written to <see cref="IVaultJobStore"/>
+/// before it is reported, so the table is the status board and the history (ADR-169); the queue only
+/// wakes the processor.
 /// </summary>
-public sealed class VaultJobRegistry(VaultNoteOptions options, TimeProvider timeProvider)
+public sealed class VaultJobRegistry(IVaultJobStore store, VaultJobQueue queue, TimeProvider timeProvider)
 {
-    private readonly Lock gate = new();
-    private readonly Dictionary<Guid, Entry> entries = [];
-    private readonly Channel<Guid> queue = Channel.CreateUnbounded<Guid>(
-        new UnboundedChannelOptions { SingleReader = true });
+    /// <summary>Why a job that was running when the process stopped is reported as failed.</summary>
+    public const string InterruptedError =
+        "İş, sunucu yeniden başlarken yarıda kaldı; yeniden gönderin. Not yazılmışsa vault'ta duruyor olabilir.";
 
-    public VaultJobView Submit(VaultNoteRequest request)
+    public async Task<VaultJobView> SubmitAsync(
+        VaultNoteRequest request,
+        VaultJobOrigin origin,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(origin);
 
         VaultJobView view = new()
         {
@@ -25,78 +26,73 @@ public sealed class VaultJobRegistry(VaultNoteOptions options, TimeProvider time
             CreatedAtUtc = timeProvider.GetUtcNow(),
         };
 
-        lock (gate)
-        {
-            entries[view.Id] = new Entry(request, view);
-            ForgetOldestFinished();
-        }
-
-        // Unbounded, so the write cannot fail while the channel is open, and nothing ever completes it.
-        queue.Writer.TryWrite(view.Id);
+        // Stored before it is queued: a process that dies in between leaves a queued row, which the
+        // next startup picks up, rather than a queued id that points at nothing.
+        await store.AddAsync(new VaultJobRecord(view, request, origin), cancellationToken);
+        queue.Enqueue(view.Id);
         return view;
     }
 
-    public VaultJobView? Find(Guid id)
-    {
-        lock (gate)
-        {
-            return entries.TryGetValue(id, out Entry? entry) ? entry.View : null;
-        }
-    }
+    public async Task<VaultJobView?> FindAsync(Guid id, CancellationToken cancellationToken) =>
+        (await store.FindAsync(id, cancellationToken))?.View;
 
-    public VaultNoteRequest? FindRequest(Guid id)
+    public Task<VaultJobRecord?> FindRecordAsync(Guid id, CancellationToken cancellationToken) =>
+        store.FindAsync(id, cancellationToken);
+
+    public Task<IReadOnlyList<VaultJobRecord>> ListRecentAsync(int limit, CancellationToken cancellationToken)
     {
-        lock (gate)
-        {
-            return entries.TryGetValue(id, out Entry? entry) ? entry.Request : null;
-        }
+        ArgumentOutOfRangeException.ThrowIfLessThan(limit, 1);
+        return store.ListRecentAsync(limit, cancellationToken);
     }
 
     /// <summary>Applies a change to a job's view. Stamps the completion time when the change finishes it.</summary>
-    public VaultJobView? Update(Guid id, Func<VaultJobView, VaultJobView> change)
+    public Task<VaultJobView?> UpdateAsync(
+        Guid id,
+        Func<VaultJobView, VaultJobView> change,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(change);
 
-        lock (gate)
-        {
-            if (!entries.TryGetValue(id, out Entry? entry))
+        return store.UpdateAsync(
+            id,
+            view =>
             {
-                return null;
-            }
-
-            VaultJobView updated = change(entry.View);
-            if (updated.IsFinished && updated.CompletedAtUtc is null)
-            {
-                updated = updated with { CompletedAtUtc = timeProvider.GetUtcNow() };
-            }
-
-            entries[id] = entry with { View = updated };
-            return updated;
-        }
+                VaultJobView updated = change(view);
+                return updated.IsFinished && updated.CompletedAtUtc is null
+                    ? updated with { CompletedAtUtc = timeProvider.GetUtcNow() }
+                    : updated;
+            },
+            cancellationToken);
     }
 
-    public IAsyncEnumerable<Guid> ReadQueueAsync(CancellationToken cancellationToken) =>
-        queue.Reader.ReadAllAsync(cancellationToken);
-
-    private void ForgetOldestFinished()
+    /// <summary>
+    /// Picks up what the previous process left behind. Called once before the first job runs: a job
+    /// still queued is queued again, in submission order; a job caught mid-run is reported as failed,
+    /// because running it again could write its note a second time.
+    /// </summary>
+    public async Task<VaultJobRecovery> RecoverAsync(CancellationToken cancellationToken)
     {
-        int excess = entries.Count - options.MaxRetainedJobs;
-        if (excess <= 0)
+        int requeued = 0;
+        int interrupted = 0;
+        foreach (VaultJobRecord job in await store.ListUnfinishedAsync(cancellationToken))
         {
-            return;
+            if (job.View.Status == VaultJobStatus.Queued)
+            {
+                queue.Enqueue(job.View.Id);
+                requeued++;
+            }
+            else
+            {
+                await UpdateAsync(
+                    job.View.Id,
+                    static view => view with { Status = VaultJobStatus.Failed, Error = InterruptedError },
+                    cancellationToken);
+                interrupted++;
+            }
         }
 
-        // Only finished jobs are forgotten; a queued job must stay findable until it has run.
-        foreach (Guid id in entries.Values
-            .Where(static entry => entry.View.IsFinished)
-            .OrderBy(static entry => entry.View.CreatedAtUtc)
-            .Take(excess)
-            .Select(static entry => entry.View.Id)
-            .ToList())
-        {
-            entries.Remove(id);
-        }
+        return new VaultJobRecovery(requeued, interrupted);
     }
-
-    private sealed record Entry(VaultNoteRequest Request, VaultJobView View);
 }
+
+public sealed record VaultJobRecovery(int Requeued, int Interrupted);

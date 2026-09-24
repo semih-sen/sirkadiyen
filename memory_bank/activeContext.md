@@ -1,5 +1,19 @@
 # Active Context
 
+## Latest session (2026-09-24, ADR-169: vault note jobs in PostgreSQL and the admin panel)
+
+The vault's note jobs (ADR-168) are now rows in `sirkadiyen.vault_note_jobs` instead of an in-memory
+dictionary, visible and submittable from `/admin/vault` (Sistem → Obsidian notları). The processor
+re-queues `Queued` rows and fails interrupted ones at startup. The shortcut's API is unchanged.
+
+**Where it lives:** `src/Sirkadiyen.Application/Vault/` (`IVaultJobStore`, `VaultJobQueue`,
+`VaultJobRegistry`), `src/Sirkadiyen.Infrastructure/Persistence/Vault/`,
+`src/Sirkadiyen.Api/Vault/VaultAdminEndpoints.cs`, `web/src/components/AdminVault.tsx`.
+
+**Open:** jobs from before the deploy are gone (they were never stored); not yet run against a live
+API; the migration's designer keeps the `\r\n` check-constraint text of the Windows-generated
+snapshot (generated on Linux, patched to match).
+
 ## Latest session (2026-09-23, ADR-168: the owner's personal Obsidian vault, written by Claude Code into MinIO)
 
 A personal, single-user feature beside the schedule product, specified in

@@ -23,19 +23,20 @@ public static class VaultEndpoints
             .AddEndpointFilter<VaultApiKeyFilter>()
             .WithTags("Vault");
 
-        group.MapPost("/notes", Create)
+        group.MapPost("/notes", CreateAsync)
             .RequireRateLimiting(RateLimitingPolicies.VaultNote)
             .WithSummary("Queues a new vault note; returns the job to poll.");
 
-        group.MapGet("/jobs/{id:guid}", Get)
+        group.MapGet("/jobs/{id:guid}", GetAsync)
             .WithSummary("Returns a vault note job's progress and outcome.");
 
         return builder;
     }
 
-    private static Results<Accepted<VaultJobResponse>, ValidationProblem> Create(
+    private static async Task<Results<Accepted<VaultJobResponse>, ValidationProblem>> CreateAsync(
         CreateVaultNoteRequest request,
-        VaultJobRegistry jobs)
+        VaultJobRegistry jobs,
+        CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
 
@@ -48,12 +49,15 @@ public static class VaultEndpoints
             });
         }
 
-        VaultJobView job = jobs.Submit(accepted);
+        VaultJobView job = await jobs.SubmitAsync(accepted, VaultJobOrigin.Shortcut, cancellationToken);
         return TypedResults.Accepted($"/api/vault/jobs/{job.Id}", VaultJobResponse.From(job));
     }
 
-    private static Results<Ok<VaultJobResponse>, NotFound> Get(Guid id, VaultJobRegistry jobs) =>
-        jobs.Find(id) is { } job
+    private static async Task<Results<Ok<VaultJobResponse>, NotFound>> GetAsync(
+        Guid id,
+        VaultJobRegistry jobs,
+        CancellationToken cancellationToken) =>
+        await jobs.FindAsync(id, cancellationToken) is { } job
             ? TypedResults.Ok(VaultJobResponse.From(job))
             : TypedResults.NotFound();
 }

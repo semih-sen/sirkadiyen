@@ -1943,3 +1943,49 @@ export interface CohortSimulationWeek {
   publishedSourceIds: string[];
   events: CohortSimulationEvent[];
 }
+
+// ---- Personal Obsidian vault (ADR-168, ADR-169) ----------------------------
+
+export type VaultJobStatus = 'Queued' | 'Cataloging' | 'Generating' | 'Uploading' | 'Backlinking' | 'Succeeded' | 'Failed';
+
+export type VaultJobSource = 'Shortcut' | 'Admin';
+
+export type VaultBacklinkStatus = 'Updated' | 'SkippedChanged' | 'SkippedInvalid' | 'SkippedLimit' | 'Failed';
+
+export interface VaultBacklink {
+  target: string;
+  path?: string | null;
+  status: VaultBacklinkStatus;
+  detail?: string | null;
+}
+
+/** One note job with the request that started it, as the admin panel shows it. */
+export interface VaultAdminJob {
+  id: string;
+  source: VaultJobSource;
+  requestedBy?: string | null;
+  prompt: string;
+  folder?: string | null;
+  title?: string | null;
+  status: VaultJobStatus;
+  createdAtUtc: string;
+  completedAtUtc?: string | null;
+  notePath?: string | null;
+  noteLink?: string | null;
+  backlinks: VaultBacklink[];
+  warnings: string[];
+  error?: string | null;
+}
+
+export interface VaultAdminJobList {
+  /** False when the server has no vault configured: history is readable, submitting is not. */
+  enabled: boolean;
+  maxPromptLength: number;
+  jobs: VaultAdminJob[];
+}
+
+export interface CreateVaultNoteRequest {
+  prompt: string;
+  folder?: string | null;
+  title?: string | null;
+}

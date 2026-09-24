@@ -18,13 +18,9 @@ public sealed record VaultNoteOptions
     /// </summary>
     public int MaxBacklinks { get; init; } = 5;
 
-    /// <summary>How many finished jobs are kept for status queries before the oldest are forgotten.</summary>
-    public int MaxRetainedJobs { get; init; } = 100;
-
     public void Validate()
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(WorkspaceRoot);
         ArgumentOutOfRangeException.ThrowIfNegative(MaxBacklinks);
-        ArgumentOutOfRangeException.ThrowIfLessThan(MaxRetainedJobs, 1);
     }
 }

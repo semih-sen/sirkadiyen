@@ -18,6 +18,7 @@ using Sirkadiyen.Application.Scheduling.Publication;
 using Sirkadiyen.Application.Scheduling.Sources;
 using Sirkadiyen.Application.StudentProfiles;
 using Sirkadiyen.Application.StudentRosters;
+using Sirkadiyen.Application.Vault;
 using Sirkadiyen.Infrastructure.Persistence.Administration.Stores;
 using Sirkadiyen.Infrastructure.Persistence.Observability.Stores;
 using Sirkadiyen.Infrastructure.Persistence.Announcements.Stores;
@@ -31,6 +32,7 @@ using Sirkadiyen.Infrastructure.Persistence.Operations.Stores;
 using Sirkadiyen.Infrastructure.Persistence.Scheduling.Stores;
 using Sirkadiyen.Infrastructure.Persistence.StudentProfiles.Stores;
 using Sirkadiyen.Infrastructure.Persistence.StudentRosters.Stores;
+using Sirkadiyen.Infrastructure.Persistence.Vault;
 
 namespace Sirkadiyen.Infrastructure.Persistence;
 
@@ -125,6 +127,10 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IMealMenuStore, MealMenuStore>();
         services.AddScoped<IMealDeliveryStore, MealDeliveryStore>();
         services.AddScoped<IMealSubscriptionStore, MealSubscriptionStore>();
+
+        // Registered whether or not the vault is configured: its job history stays readable in the
+        // panel after the feature is switched off (ADR-169).
+        services.AddScoped<IVaultJobStore, VaultJobStore>();
 
         return services;
     }
