@@ -87,8 +87,11 @@ internal static class VaultComposition
         noteOptions.Validate();
 
         services.AddSingleton(noteOptions);
-        services.AddSingleton<VaultJobRegistry>();
-        services.AddSingleton<VaultNoteJobService>();
+        services.AddSingleton<VaultJobQueue>();
+
+        // Scoped: both reach the job table through the request's (or the processor's per-job) context.
+        services.AddScoped<VaultJobRegistry>();
+        services.AddScoped<VaultNoteJobService>();
         services.AddSingleton<VaultApiKeyFilter>();
         services.AddHostedService<VaultJobProcessor>();
     }

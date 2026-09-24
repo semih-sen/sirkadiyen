@@ -64,6 +64,9 @@ import type {
   AdminServiceHealthSnapshot,
   ServerResourceSnapshot,
   WorkerInstancesResponse,
+  VaultAdminJob,
+  VaultAdminJobList,
+  CreateVaultNoteRequest,
   AdminUserCalendarEventsResponse,
   CalendarVerificationResult,
   AdminUserDetailResponse,
@@ -1020,6 +1023,20 @@ export function getAdminServerResources(): Promise<ServerResourceSnapshot> {
  */
 export function getAdminWorkers(): Promise<WorkerInstancesResponse> {
   return request('/api/admin/workers');
+}
+
+/** The personal vault's note jobs, newest first, and whether this server can run a new one (ADR-169). */
+export function listVaultJobs(limit = 50, signal?: AbortSignal): Promise<VaultAdminJobList> {
+  return request(withQuery('/api/admin/vault/jobs', { limit }), { signal });
+}
+
+export function getVaultJob(id: string): Promise<VaultAdminJob> {
+  return request(`/api/admin/vault/jobs/${encodeURIComponent(id)}`);
+}
+
+/** Queues a new vault note exactly as the iPad shortcut does, recorded against the signed-in admin. */
+export function createVaultNote(body: CreateVaultNoteRequest): Promise<VaultAdminJob> {
+  return request('/api/admin/vault/notes', { method: 'POST', body });
 }
 
 export async function getHealth(path: 'live' | 'ready'): Promise<HealthStatus> {

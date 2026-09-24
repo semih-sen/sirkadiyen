@@ -14,6 +14,7 @@ const AREAS = [
   { href: '/admin/users', icon: '◉', title: 'Kullanıcılar & lisans', text: 'Kullanıcı, profil, giriş ve lisans yaşam döngüsünü incele.', state: 'Canlı' },
   { href: '/admin/server', icon: '▣', title: 'Sistem sağlığı', text: 'API sağlığı ve gerçek operasyon sayaçlarını izle.', state: 'Canlı' },
   { href: '/admin/access-logs', icon: '☰', title: 'Erişim & audit', text: 'Maskeli erişim ve hesap etkinliği kayıtlarını incele.', state: 'Canlı' },
+  { href: '/admin/vault', icon: '✎', title: 'Obsidian notları', text: 'Claude Code ile yazılan vault notlarının geçmişini gör, yeni not iste.', state: 'Canlı' },
 ];
 
 export default function AdminOverviewPage() {

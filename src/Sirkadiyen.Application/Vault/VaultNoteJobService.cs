@@ -39,21 +39,25 @@ public sealed class VaultNoteJobService(
 
     public async Task RunAsync(Guid jobId, CancellationToken cancellationToken)
     {
-        VaultNoteRequest? request = jobs.FindRequest(jobId);
-        if (request is null)
+        // Only a queued job is run. The same id can be queued twice - once on submission and once by
+        // the startup recovery that raced it - and the second read finds it already finished.
+        VaultJobRecord? job = await jobs.FindRecordAsync(jobId, cancellationToken);
+        if (job?.View.Status != VaultJobStatus.Queued)
         {
             return;
         }
+
+        VaultNoteRequest request = job.Request;
 
         string workspace = Path.Combine(options.WorkspaceRoot, jobId.ToString("N"));
         try
         {
             Directory.CreateDirectory(workspace);
 
-            SetStatus(jobId, VaultJobStatus.Cataloging);
+            await SetStatusAsync(jobId, VaultJobStatus.Cataloging);
             VaultCatalog catalog = VaultCatalog.Build(await store.ListPathsAsync(cancellationToken));
 
-            SetStatus(jobId, VaultJobStatus.Generating);
+            await SetStatusAsync(jobId, VaultJobStatus.Generating);
             VaultAgentResult noteRun = await agent.RunAsync(
                 workspace,
                 VaultPromptBuilder.BuildNotePrompt(request, catalog, options.MaxBacklinks),
@@ -61,7 +65,7 @@ public sealed class VaultNoteJobService(
                 cancellationToken);
             if (!noteRun.Succeeded)
             {
-                Fail(jobId, $"Not üretilemedi: {noteRun.Failure}");
+                await FailAsync(jobId, $"Not üretilemedi: {noteRun.Failure}");
                 return;
             }
 
@@ -71,7 +75,7 @@ public sealed class VaultNoteJobService(
                 : null;
             if (string.IsNullOrWhiteSpace(noteContent))
             {
-                Fail(jobId, $"Agent '{VaultPromptBuilder.NoteFileName}' dosyasını yazmadı.");
+                await FailAsync(jobId, $"Agent '{VaultPromptBuilder.NoteFileName}' dosyasını yazmadı.");
                 return;
             }
 
@@ -79,48 +83,49 @@ public sealed class VaultNoteJobService(
             noteContent = links.Content;
             if (links.Removed.Count > 0)
             {
-                AddWarning(jobId, $"Vault'ta karşılığı olmayan bağlantılar düz metne çevrildi: {string.Join(", ", links.Removed.Distinct(StringComparer.Ordinal))}");
+                await AddWarningAsync(jobId, $"Vault'ta karşılığı olmayan bağlantılar düz metne çevrildi: {string.Join(", ", links.Removed.Distinct(StringComparer.Ordinal))}");
             }
 
             VaultNoteDraft? draft = VaultAgentOutputParser.ParseNoteDraft(noteRun.Output, out string? parseError);
             if (draft is null)
             {
-                AddWarning(jobId, $"{parseError} Not varsayılan konuma yazıldı, backlink eklenmedi.");
+                await AddWarningAsync(jobId, $"{parseError} Not varsayılan konuma yazıldı, backlink eklenmedi.");
             }
 
-            VaultNotePlacement placement = Place(jobId, request, draft, catalog);
+            VaultNotePlacement placement = await PlaceAsync(jobId, request, draft, catalog);
 
-            SetStatus(jobId, VaultJobStatus.Uploading);
+            await SetStatusAsync(jobId, VaultJobStatus.Uploading);
             VaultWriteOutcome created = await store.CreateAsync(placement.Path, noteContent, cancellationToken);
             if (created == VaultWriteOutcome.Conflict)
             {
                 // The catalog was read moments ago and the title made unique against it, so this is a
                 // note created in between - rare enough that reporting it beats guessing a new name.
-                Fail(jobId, $"'{placement.Path}' bu sırada vault'ta oluşturulmuş; üzerine yazılmadı.");
+                await FailAsync(jobId, $"'{placement.Path}' bu sırada vault'ta oluşturulmuş; üzerine yazılmadı.");
                 return;
             }
 
-            jobs.Update(jobId, view => view with { NotePath = placement.Path, NoteLink = placement.Title });
+            await jobs.UpdateAsync(
+                jobId, view => view with { NotePath = placement.Path, NoteLink = placement.Title }, CancellationToken.None);
 
             if (draft is { Backlinks.Count: > 0 })
             {
-                SetStatus(jobId, VaultJobStatus.Backlinking);
+                await SetStatusAsync(jobId, VaultJobStatus.Backlinking);
                 IReadOnlyList<VaultBacklinkOutcome> outcomes = await AddBacklinksAsync(
                     workspace, placement.Title, draft.Backlinks, catalog, cancellationToken);
-                jobs.Update(jobId, view => view with { Backlinks = outcomes });
+                await jobs.UpdateAsync(jobId, view => view with { Backlinks = outcomes }, CancellationToken.None);
             }
 
-            SetStatus(jobId, VaultJobStatus.Succeeded);
+            await SetStatusAsync(jobId, VaultJobStatus.Succeeded);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            Fail(jobId, "İş, sunucu kapanırken yarıda kaldı.");
+            await FailAsync(jobId, "İş, sunucu kapanırken yarıda kaldı.");
         }
         catch (Exception exception)
         {
             // A job must end in a reported state whatever went wrong inside it; the status board is
             // the only place its requester looks.
-            Fail(jobId, ExceptionSummary.Describe(exception));
+            await FailAsync(jobId, ExceptionSummary.Describe(exception));
         }
         finally
         {
@@ -128,13 +133,13 @@ public sealed class VaultNoteJobService(
         }
     }
 
-    private VaultNotePlacement Place(Guid jobId, VaultNoteRequest request, VaultNoteDraft? draft, VaultCatalog catalog)
+    private async Task<VaultNotePlacement> PlaceAsync(Guid jobId, VaultNoteRequest request, VaultNoteDraft? draft, VaultCatalog catalog)
     {
         string? title = request.Title ?? VaultPathPolicy.SanitizeTitle(draft?.Title);
         if (title is null)
         {
             title = "Not " + timeProvider.GetUtcNow().ToString("yyyy-MM-dd HHmm", CultureInfo.InvariantCulture);
-            AddWarning(jobId, $"Agent kullanılabilir bir not adı önermedi; '{title}' kullanıldı.");
+            await AddWarningAsync(jobId, $"Agent kullanılabilir bir not adı önermedi; '{title}' kullanıldı.");
         }
 
         string? folder = request.Folder;
@@ -145,19 +150,19 @@ public sealed class VaultNoteJobService(
             folderMustExist = true;
             if (folder is null)
             {
-                AddWarning(jobId, $"Önerilen '{proposed}' klasörü geçersiz; not köke yazıldı.");
+                await AddWarningAsync(jobId, $"Önerilen '{proposed}' klasörü geçersiz; not köke yazıldı.");
             }
         }
 
         VaultNotePlacement placement = VaultPathPolicy.Place(catalog, folder, folderMustExist, title);
         if (placement.Warning is not null)
         {
-            AddWarning(jobId, placement.Warning);
+            await AddWarningAsync(jobId, placement.Warning);
         }
 
         if (!string.Equals(placement.Title, title, StringComparison.Ordinal))
         {
-            AddWarning(jobId, $"'{title}' adlı bir not zaten var; yeni not '{placement.Title}' olarak kaydedildi.");
+            await AddWarningAsync(jobId, $"'{title}' adlı bir not zaten var; yeni not '{placement.Title}' olarak kaydedildi.");
         }
 
         return placement;
@@ -261,14 +266,16 @@ public sealed class VaultNoteJobService(
             : new(note.LinkTarget, note.Path, VaultBacklinkStatus.SkippedChanged, "Not bu sırada değiştirilmiş; yeni hali korundu.");
     }
 
-    private void SetStatus(Guid jobId, VaultJobStatus status) =>
-        jobs.Update(jobId, view => view with { Status = status });
+    // Progress is saved without the job's token: a job cancelled by shutdown must still record that
+    // it failed, and one whose note is already uploaded must still record where.
+    private Task SetStatusAsync(Guid jobId, VaultJobStatus status) =>
+        jobs.UpdateAsync(jobId, view => view with { Status = status }, CancellationToken.None);
 
-    private void Fail(Guid jobId, string error) =>
-        jobs.Update(jobId, view => view with { Status = VaultJobStatus.Failed, Error = error });
+    private Task FailAsync(Guid jobId, string error) =>
+        jobs.UpdateAsync(jobId, view => view with { Status = VaultJobStatus.Failed, Error = error }, CancellationToken.None);
 
-    private void AddWarning(Guid jobId, string warning) =>
-        jobs.Update(jobId, view => view with { Warnings = [.. view.Warnings, warning] });
+    private Task AddWarningAsync(Guid jobId, string warning) =>
+        jobs.UpdateAsync(jobId, view => view with { Warnings = [.. view.Warnings, warning] }, CancellationToken.None);
 
     private static void TryDeleteDirectory(string directory)
     {

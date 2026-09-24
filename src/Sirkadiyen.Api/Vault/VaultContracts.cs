@@ -73,3 +73,70 @@ public sealed record VaultBacklinkResponse
 
     public string? Detail { get; init; }
 }
+
+/// <summary>One vault note job as the administration panel shows it: the request beside its outcome.</summary>
+public sealed record VaultAdminJobResponse
+{
+    public required Guid Id { get; init; }
+
+    public required VaultJobSource Source { get; init; }
+
+    public string? RequestedBy { get; init; }
+
+    public required string Prompt { get; init; }
+
+    public string? Folder { get; init; }
+
+    public string? Title { get; init; }
+
+    public required VaultJobStatus Status { get; init; }
+
+    public required DateTimeOffset CreatedAtUtc { get; init; }
+
+    public DateTimeOffset? CompletedAtUtc { get; init; }
+
+    public string? NotePath { get; init; }
+
+    public string? NoteLink { get; init; }
+
+    public required IReadOnlyList<VaultBacklinkResponse> Backlinks { get; init; }
+
+    public required IReadOnlyList<string> Warnings { get; init; }
+
+    public string? Error { get; init; }
+
+    public static VaultAdminJobResponse From(VaultJobRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+
+        VaultJobResponse job = VaultJobResponse.From(record.View);
+        return new VaultAdminJobResponse
+        {
+            Id = job.Id,
+            Source = record.Origin.Source,
+            RequestedBy = record.Origin.RequestedBy,
+            Prompt = record.Request.Prompt,
+            Folder = record.Request.Folder,
+            Title = record.Request.Title,
+            Status = job.Status,
+            CreatedAtUtc = job.CreatedAtUtc,
+            CompletedAtUtc = job.CompletedAtUtc,
+            NotePath = job.NotePath,
+            NoteLink = job.NoteLink,
+            Backlinks = job.Backlinks,
+            Warnings = job.Warnings,
+            Error = job.Error,
+        };
+    }
+}
+
+/// <summary>The panel's job list, and whether this deployment can run a new job at all.</summary>
+public sealed record VaultAdminJobListResponse
+{
+    /// <summary>False when <c>SIRKADIYEN_VAULT__API_KEY</c> is unset: the history is shown, submitting is not.</summary>
+    public required bool Enabled { get; init; }
+
+    public required int MaxPromptLength { get; init; }
+
+    public required IReadOnlyList<VaultAdminJobResponse> Jobs { get; init; }
+}

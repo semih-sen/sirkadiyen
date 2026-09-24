@@ -1997,3 +1997,12 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
 - **Tests executed:** `dotnet build Sirkadiyen.slnx` clean; Infrastructure 1132/1132, Api 29/29,
   vault integration 2/2 against local MinIO.
 - **Open:** Linux behaviour of the CLI under the unit's sandbox is unverified; see ADR-168.
+
+## Vault job history and admin panel (2026-09-24, ADR-169)
+
+- [x] `vault_note_jobs` table (`AddVaultNoteJobs`), `IVaultJobStore` / `VaultJobStore`
+- [x] Registry and job service read and write the table; queue carries ids; restart recovery
+- [x] `GET/POST /api/admin/vault/*` (SuperAdmin), `/admin/vault` page with history, detail and prompt form
+- [ ] Deploy, then submit one note from the panel and one from the shortcut; restart the API with a
+  job queued and see it run afterwards
+

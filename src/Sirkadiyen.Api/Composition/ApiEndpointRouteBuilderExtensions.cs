@@ -66,6 +66,7 @@ internal static class ApiEndpointRouteBuilderExtensions
         app.MapServiceHealthEndpoints();
         app.MapServerResourcesEndpoints();
         app.MapVaultEndpoints();
+        app.MapVaultAdminEndpoints();
 
         return app;
     }

@@ -10833,3 +10833,56 @@ workspace, runs the CLI once more to insert the link, checks each edit and write
   `S3VaultStoreIntegrationTests` against MinIO `RELEASE.2025-09-07T16-13-09Z` (which enforces
   conditional writes itself); three end-to-end runs through the API with Sonnet 5 / medium — the last
   one two concurrent requests, run in order, 9 backlinks written, every link in both notes resolving.
+
+## ADR-169: Vault note jobs are stored in PostgreSQL and shown in the admin panel
+
+**Status:** Accepted
+**Date:** 2026-09-24
+**Supersedes:** ADR-168's "Jobs live in memory" and its "no table" scope. Everything else in ADR-168
+stands.
+
+### Context
+
+The owner asked to see the vault's note jobs in the admin panel, to keep the jobs that have run in
+the database, and to submit a prompt from the panel as well as from the iPad shortcut. ADR-168 kept
+jobs in an in-memory dictionary capped at 100 finished entries: a restart or deploy erased the
+history and any queued job, and nothing outside the API process could read it.
+
+### Decision
+
+- **The table is the job's only state.** `sirkadiyen.vault_note_jobs` holds the request (prompt,
+  folder, title), where it came from (`Shortcut` or `Admin`, and the admin's e-mail), the status, and
+  the outcome (note path, link, backlink outcomes and warnings as `jsonb`, error). Every status change
+  the job service makes is written there before anything reads it; there is no in-memory copy.
+  `IVaultJobStore` (Application) / `VaultJobStore` (Infrastructure). No retention: one person's
+  notes, a few a day at most.
+- **A persistence record, not a domain entity.** `VaultNoteJobRow` lives in Infrastructure: the vault
+  is not part of the schedule domain, and its model is the application's `VaultJobView`. Status and
+  source are strings without check constraints, as for audit categories.
+- **The queue carries only ids** (`VaultJobQueue`, one `Channel` reader, still one job at a time). The
+  registry and the job service became scoped; the processor opens a scope per job.
+- **Restart recovery.** Before the first job, the processor re-queues every row still `Queued`, in
+  submission order, and marks every row caught mid-run `Failed` with a message saying the note may
+  already be in the vault: running it again could write the note twice. A row is inserted before its
+  id is queued, so a crash in between leaves a queued row, not a lost request. The service runs a job
+  only while it is `Queued`, so an id queued twice (submission racing recovery) runs once.
+- **Admin surface.** `GET /api/admin/vault/jobs`, `GET /api/admin/vault/jobs/{id}`,
+  `POST /api/admin/vault/notes` — SuperAdmin, antiforgery on the POST, the same per-IP rate limit as
+  the shortcut. Mapped whether or not the vault is configured, so the history stays readable when it
+  is switched off; the list reports `enabled` and the POST answers 409 while it is off. Web:
+  `/admin/vault` (Sistem → Obsidian notları), polling every 5 s only while a job is unfinished.
+- The shortcut's endpoints and contract are unchanged; `GET /api/vault/jobs/{id}` now reads the table,
+  so a job id stays answerable across restarts.
+
+### Consequences
+
+- Jobs run before this change lived only in the old process's memory and are not recoverable: the
+  history starts with the first job after the deploy that applies `AddVaultNoteJobs`.
+- A queued job now survives a restart and runs after it; one interrupted mid-run is reported, not
+  retried.
+- **Verified:** `dotnet build Sirkadiyen.slnx` clean; Infrastructure 1133/1133, Api 29/29;
+  `VaultJobStoreTests` (2) against PostgreSQL 16 with every migration applied (the 5
+  `ScheduleSource*` persistence tests fail the same way on `main`: an actor foreign key the tests do
+  not seed); web `npm run typecheck` clean, `npm test` 28 files / 228 tests. Not run end to end
+  against a live API.
+

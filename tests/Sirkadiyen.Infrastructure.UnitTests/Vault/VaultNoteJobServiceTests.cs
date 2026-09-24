@@ -42,9 +42,9 @@ public sealed class VaultNoteJobServiceTests : IDisposable
         });
         agent.Then(AppendLinkTo("backlinks/01.md", "Beta Blokerler"));
 
-        (VaultJobRegistry jobs, Guid id) = await RunAsync(Request());
+        (InMemoryVaultJobStore jobs, Guid id) = await RunAsync(Request());
 
-        VaultJobView job = jobs.Find(id)!;
+        VaultJobView job = (await jobs.FindAsync(id, CancellationToken.None))!.View;
         Assert.Equal(VaultJobStatus.Succeeded, job.Status);
         Assert.Equal("Farmakoloji/Beta Blokerler.md", job.NotePath);
         Assert.Equal("Beta Blokerler", job.NoteLink);
@@ -74,10 +74,10 @@ public sealed class VaultNoteJobServiceTests : IDisposable
             return VaultAgentResult.Success("""{"title":"Beta","backlinks":[]}""");
         });
 
-        (VaultJobRegistry jobs, Guid id) = await RunAsync(Request());
+        (InMemoryVaultJobStore jobs, Guid id) = await RunAsync(Request());
 
         Assert.Equal("[[Hipertansiyon|hipertansiyon]] ve Olmayan.\n", store.Content("Beta.md"));
-        Assert.Contains(jobs.Find(id)!.Warnings, static warning => warning.EndsWith(": Olmayan", StringComparison.Ordinal));
+        Assert.Contains((await jobs.FindAsync(id, CancellationToken.None))!.View.Warnings, static warning => warning.EndsWith(": Olmayan", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -85,9 +85,9 @@ public sealed class VaultNoteJobServiceTests : IDisposable
     {
         agent.Then((_, _) => VaultAgentResult.Failed("zaman aşımı"));
 
-        (VaultJobRegistry jobs, Guid id) = await RunAsync(Request());
+        (InMemoryVaultJobStore jobs, Guid id) = await RunAsync(Request());
 
-        VaultJobView job = jobs.Find(id)!;
+        VaultJobView job = (await jobs.FindAsync(id, CancellationToken.None))!.View;
         Assert.Equal(VaultJobStatus.Failed, job.Status);
         Assert.Contains("zaman aşımı", job.Error, StringComparison.Ordinal);
         Assert.Equal(3, store.Paths.Count);
@@ -99,9 +99,9 @@ public sealed class VaultNoteJobServiceTests : IDisposable
     {
         agent.Then((_, _) => VaultAgentResult.Success("""{"title":"X"}"""));
 
-        (VaultJobRegistry jobs, Guid id) = await RunAsync(Request());
+        (InMemoryVaultJobStore jobs, Guid id) = await RunAsync(Request());
 
-        Assert.Equal(VaultJobStatus.Failed, jobs.Find(id)!.Status);
+        Assert.Equal(VaultJobStatus.Failed, (await jobs.FindAsync(id, CancellationToken.None))!.View.Status);
         Assert.Equal(3, store.Paths.Count);
     }
 
@@ -114,9 +114,9 @@ public sealed class VaultNoteJobServiceTests : IDisposable
             return VaultAgentResult.Success("Tamamladım.");
         });
 
-        (VaultJobRegistry jobs, Guid id) = await RunAsync(Request());
+        (InMemoryVaultJobStore jobs, Guid id) = await RunAsync(Request());
 
-        VaultJobView job = jobs.Find(id)!;
+        VaultJobView job = (await jobs.FindAsync(id, CancellationToken.None))!.View;
         Assert.Equal(VaultJobStatus.Succeeded, job.Status);
         Assert.Equal("Not 2026-09-23 1000.md", job.NotePath);
         Assert.Equal(2, job.Warnings.Count);
@@ -128,9 +128,9 @@ public sealed class VaultNoteJobServiceTests : IDisposable
     {
         agent.Then(WriteNote("""{"folder":"Farmakoloji","title":"Önerilen","backlinks":[]}"""));
 
-        (VaultJobRegistry jobs, Guid id) = await RunAsync(Request(folder: "Yeni Klasör", title: "Aritmi"));
+        (InMemoryVaultJobStore jobs, Guid id) = await RunAsync(Request(folder: "Yeni Klasör", title: "Aritmi"));
 
-        VaultJobView job = jobs.Find(id)!;
+        VaultJobView job = (await jobs.FindAsync(id, CancellationToken.None))!.View;
         Assert.Equal("Yeni Klasör/Aritmi_2.md", job.NotePath);
         Assert.Contains(job.Warnings, static warning => warning.Contains("Aritmi_2", StringComparison.Ordinal));
         Assert.Contains("'Yeni Klasör' klasörüne", agent.Prompts[0], StringComparison.Ordinal);
@@ -146,9 +146,9 @@ public sealed class VaultNoteJobServiceTests : IDisposable
             return AppendLinkTo("backlinks/01.md", "Beta")(workspace, prompt);
         });
 
-        (VaultJobRegistry jobs, Guid id) = await RunAsync(Request());
+        (InMemoryVaultJobStore jobs, Guid id) = await RunAsync(Request());
 
-        Assert.Equal(VaultBacklinkStatus.SkippedChanged, Assert.Single(jobs.Find(id)!.Backlinks).Status);
+        Assert.Equal(VaultBacklinkStatus.SkippedChanged, Assert.Single((await jobs.FindAsync(id, CancellationToken.None))!.View.Backlinks).Status);
         Assert.Equal("Obsidian'da düzenlendi.\n", store.Content(Hypertension));
     }
 
@@ -158,9 +158,9 @@ public sealed class VaultNoteJobServiceTests : IDisposable
         agent.Then(WriteNote("""{"title":"Beta","backlinks":[{"target":"Hipertansiyon"},{"target":"Aritmi"}]}"""));
         agent.Then(AppendLinkTo("backlinks/01.md", "Beta"));
 
-        (VaultJobRegistry jobs, Guid id) = await RunAsync(Request(), maxBacklinks: 1);
+        (InMemoryVaultJobStore jobs, Guid id) = await RunAsync(Request(), maxBacklinks: 1);
 
-        VaultJobView job = jobs.Find(id)!;
+        VaultJobView job = (await jobs.FindAsync(id, CancellationToken.None))!.View;
         Assert.Equal(VaultBacklinkStatus.SkippedLimit, job.Backlinks.Single(static outcome => outcome.Target == "Aritmi").Status);
         Assert.Equal(VaultBacklinkStatus.Updated, job.Backlinks.Single(static outcome => outcome.Target == "Hipertansiyon").Status);
         Assert.Equal(ArrhythmiaContent, store.Content(Arrhythmia));
@@ -176,9 +176,9 @@ public sealed class VaultNoteJobServiceTests : IDisposable
             return VaultAgentResult.Success("tamam");
         });
 
-        (VaultJobRegistry jobs, Guid id) = await RunAsync(Request());
+        (InMemoryVaultJobStore jobs, Guid id) = await RunAsync(Request());
 
-        Assert.Equal(VaultBacklinkStatus.SkippedInvalid, Assert.Single(jobs.Find(id)!.Backlinks).Status);
+        Assert.Equal(VaultBacklinkStatus.SkippedInvalid, Assert.Single((await jobs.FindAsync(id, CancellationToken.None))!.View.Backlinks).Status);
         Assert.Equal(HypertensionContent, store.Content(Hypertension));
     }
 
@@ -188,9 +188,9 @@ public sealed class VaultNoteJobServiceTests : IDisposable
         agent.Then(WriteNote("""{"title":"Beta","backlinks":[{"target":"Hipertansiyon"}]}"""));
         agent.Then((_, _) => VaultAgentResult.Failed("kullanım limiti"));
 
-        (VaultJobRegistry jobs, Guid id) = await RunAsync(Request());
+        (InMemoryVaultJobStore jobs, Guid id) = await RunAsync(Request());
 
-        VaultJobView job = jobs.Find(id)!;
+        VaultJobView job = (await jobs.FindAsync(id, CancellationToken.None))!.View;
         Assert.Equal(VaultJobStatus.Succeeded, job.Status);
         Assert.Equal("Beta.md", job.NotePath);
         Assert.Equal(
@@ -206,22 +206,36 @@ public sealed class VaultNoteJobServiceTests : IDisposable
         Directory.CreateDirectory(leftover);
         File.WriteAllText(Path.Combine(leftover, "note.md"), "x");
 
-        CreateService(new VaultJobRegistry(Options(5), new FixedClock()), 5).SweepWorkspaceRoot();
+        CreateService(new InMemoryVaultJobStore(), 5).SweepWorkspaceRoot();
 
         Assert.False(Directory.Exists(leftover));
         Assert.True(Directory.Exists(workspaceRoot));
     }
 
-    private async Task<(VaultJobRegistry Jobs, Guid Id)> RunAsync(VaultNoteRequest request, int maxBacklinks = 5)
+    [Fact]
+    public async Task Runs_a_job_only_once()
     {
-        VaultJobRegistry jobs = new(Options(maxBacklinks), new FixedClock());
-        Guid id = jobs.Submit(request).Id;
+        agent.Then(WriteNote("""{"title":"Beta","backlinks":[]}"""));
+
+        (InMemoryVaultJobStore jobs, Guid id) = await RunAsync(Request());
+        await CreateService(jobs, 5).RunAsync(id, CancellationToken.None);
+
+        Assert.Single(agent.Prompts);
+        Assert.Equal(VaultJobStatus.Succeeded, (await jobs.FindAsync(id, CancellationToken.None))!.View.Status);
+    }
+
+    private async Task<(InMemoryVaultJobStore Jobs, Guid Id)> RunAsync(VaultNoteRequest request, int maxBacklinks = 5)
+    {
+        InMemoryVaultJobStore jobs = new();
+        Guid id = (await Registry(jobs).SubmitAsync(request, VaultJobOrigin.Shortcut, CancellationToken.None)).Id;
         await CreateService(jobs, maxBacklinks).RunAsync(id, CancellationToken.None);
         return (jobs, id);
     }
 
-    private VaultNoteJobService CreateService(VaultJobRegistry jobs, int maxBacklinks) =>
-        new(store, agent, jobs, Options(maxBacklinks), new FixedClock());
+    private static VaultJobRegistry Registry(InMemoryVaultJobStore jobs) => new(jobs, new VaultJobQueue(), new FixedClock());
+
+    private VaultNoteJobService CreateService(InMemoryVaultJobStore jobs, int maxBacklinks) =>
+        new(store, agent, Registry(jobs), Options(maxBacklinks), new FixedClock());
 
     private VaultNoteOptions Options(int maxBacklinks) => new()
     {

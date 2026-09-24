@@ -240,8 +240,10 @@ shred -u ~/.ssh/sirkadiyen_deploy
 
 The owner's Obsidian vault feature (ADR-168): `POST /api/vault/notes` has the Claude Code CLI write a
 note, which the API stores in a MinIO bucket and links from existing notes. It is off unless
-`SIRKADIYEN_VAULT__API_KEY` is set, and nothing below is needed without it. It shares only the API
-process with the schedule product — no table, no calendar, no student data.
+`SIRKADIYEN_VAULT__API_KEY` is set, and nothing below is needed without it. It shares the API process
+and one table with the schedule product — `vault_note_jobs`, the job history (ADR-169), created by
+the ordinary migration step — and nothing else: no calendar, no student data. The history and a form
+that queues a note are in the admin panel under **Sistem → Obsidian notları** (`/admin/vault`).
 
 Install the CLI system-wide at a pinned version. It is updated by changing this command, never by
 itself: the runner sets `DISABLE_AUTOUPDATER=1`, and `/usr` is read-only to the service anyway.

@@ -7,50 +7,76 @@ public sealed class VaultJobRegistryTests
 {
     private static readonly VaultNoteRequest Request = VaultNoteRequest.Create("x", null, null, out _)!;
 
-    [Fact]
-    public async Task Submit_queues_the_job()
-    {
-        VaultJobRegistry registry = Create(maxRetainedJobs: 10);
+    private readonly InMemoryVaultJobStore store = new();
+    private readonly VaultJobQueue queue = new();
 
-        VaultJobView submitted = registry.Submit(Request);
+    [Fact]
+    public async Task Submit_stores_and_queues_the_job()
+    {
+        VaultJobRegistry registry = Create();
+        VaultJobOrigin origin = new(VaultJobSource.Admin, "admin@example.com");
+
+        VaultJobView submitted = await registry.SubmitAsync(Request, origin, CancellationToken.None);
 
         Assert.Equal(VaultJobStatus.Queued, submitted.Status);
-        Assert.Same(Request, registry.FindRequest(submitted.Id));
-        await using IAsyncEnumerator<Guid> queue = registry.ReadQueueAsync(CancellationToken.None).GetAsyncEnumerator();
-        Assert.True(await queue.MoveNextAsync());
-        Assert.Equal(submitted.Id, queue.Current);
+        VaultJobRecord stored = (await registry.FindRecordAsync(submitted.Id, CancellationToken.None))!;
+        Assert.Same(Request, stored.Request);
+        Assert.Equal(origin, stored.Origin);
+        Assert.Equal([submitted.Id], await DrainAsync(1));
     }
 
     [Fact]
-    public void Update_stamps_completion_once()
+    public async Task Update_stamps_completion_once()
     {
-        VaultJobRegistry registry = Create(maxRetainedJobs: 10);
-        Guid id = registry.Submit(Request).Id;
+        VaultJobRegistry registry = Create();
+        Guid id = (await registry.SubmitAsync(Request, VaultJobOrigin.Shortcut, CancellationToken.None)).Id;
 
-        VaultJobView? running = registry.Update(id, static view => view with { Status = VaultJobStatus.Generating });
-        VaultJobView? finished = registry.Update(id, static view => view with { Status = VaultJobStatus.Succeeded });
+        VaultJobView? running = await registry.UpdateAsync(id, static view => view with { Status = VaultJobStatus.Generating }, CancellationToken.None);
+        VaultJobView? finished = await registry.UpdateAsync(id, static view => view with { Status = VaultJobStatus.Succeeded }, CancellationToken.None);
 
         Assert.Null(running?.CompletedAtUtc);
         Assert.Equal(TestClock.Now, finished?.CompletedAtUtc);
     }
 
     [Fact]
-    public void Retention_forgets_only_finished_jobs()
+    public async Task Recovery_requeues_queued_jobs_and_fails_interrupted_ones()
     {
-        VaultJobRegistry registry = Create(maxRetainedJobs: 2);
-        Guid queued = registry.Submit(Request).Id;
-        Guid finished = registry.Submit(Request).Id;
-        registry.Update(finished, static view => view with { Status = VaultJobStatus.Failed });
+        VaultJobRegistry previous = Create();
+        Guid queued = (await previous.SubmitAsync(Request, VaultJobOrigin.Shortcut, CancellationToken.None)).Id;
+        Guid running = (await previous.SubmitAsync(Request, VaultJobOrigin.Shortcut, CancellationToken.None)).Id;
+        Guid finished = (await previous.SubmitAsync(Request, VaultJobOrigin.Shortcut, CancellationToken.None)).Id;
+        await previous.UpdateAsync(running, static view => view with { Status = VaultJobStatus.Generating }, CancellationToken.None);
+        await previous.UpdateAsync(finished, static view => view with { Status = VaultJobStatus.Succeeded }, CancellationToken.None);
+        await DrainAsync(3);
 
-        Guid latest = registry.Submit(Request).Id;
+        // A new process: the queue is empty, the table is not.
+        VaultJobQueue restartedQueue = new();
+        VaultJobRecovery recovery = await new VaultJobRegistry(store, restartedQueue, new TestClock())
+            .RecoverAsync(CancellationToken.None);
 
-        Assert.NotNull(registry.Find(queued));
-        Assert.Null(registry.Find(finished));
-        Assert.NotNull(registry.Find(latest));
+        Assert.Equal(new VaultJobRecovery(Requeued: 1, Interrupted: 1), recovery);
+        Assert.Equal([queued], await DrainAsync(restartedQueue, 1));
+        VaultJobView interrupted = (await store.FindAsync(running, CancellationToken.None))!.View;
+        Assert.Equal(VaultJobStatus.Failed, interrupted.Status);
+        Assert.Equal(VaultJobRegistry.InterruptedError, interrupted.Error);
+        Assert.Equal(VaultJobStatus.Succeeded, (await store.FindAsync(finished, CancellationToken.None))!.View.Status);
     }
 
-    private static VaultJobRegistry Create(int maxRetainedJobs) =>
-        new(new VaultNoteOptions { WorkspaceRoot = "unused", MaxRetainedJobs = maxRetainedJobs }, new TestClock());
+    private VaultJobRegistry Create() => new(store, queue, new TestClock());
+
+    private Task<List<Guid>> DrainAsync(int count) => DrainAsync(queue, count);
+
+    private static async Task<List<Guid>> DrainAsync(VaultJobQueue source, int count)
+    {
+        List<Guid> ids = [];
+        await using IAsyncEnumerator<Guid> reader = source.ReadAllAsync(CancellationToken.None).GetAsyncEnumerator();
+        while (ids.Count < count && await reader.MoveNextAsync())
+        {
+            ids.Add(reader.Current);
+        }
+
+        return ids;
+    }
 
     private sealed class TestClock : TimeProvider
     {
