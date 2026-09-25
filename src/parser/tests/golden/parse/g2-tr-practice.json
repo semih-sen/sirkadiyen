@@ -2,7 +2,7 @@
   "fixture": "real/g2-tr-practice.snapshot.json",
   "parserEngineVersion": "0.5.0",
   "payload": {
-    "candidateCount": 167,
+    "candidateCount": 169,
     "candidateDigests": [
       "1!R4C3|2025-09-08|08:30-10:20|practice|id:5f186cc0565e3644|content:76ae122da1037730|Fizyoloji",
       "1!R4C4|2025-09-09|08:30-10:20|practice|id:17fc73da25764c25|content:39b71b45e0308e77|Fizyoloji",
@@ -17,6 +17,7 @@
       "1!R7C5|2025-09-19|08:30-10:20|practice|id:75ace523e714c0bc|content:f05d61f4a5fabc3b|Fizyoloji",
       "1!R7C6|2025-09-22|08:30-10:20|practice|id:2649a6b650ef5cfe|content:8d2fa014d6246b85|Fizyoloji",
       "1!R7C7|2025-09-23|10:30-12:20|practice|id:6db9600baab765ad|content:6eac65f438f037ea|Fizyoloji",
+      "1!R7C8|2025-09-24|13:30-15:20|practice|id:0d2a226f2a901174|content:100ff5372287c35a|Fizyoloji",
       "1!R7C9|2025-09-26|08:30-10:20|practice|id:35fe732a8cbd1309|content:f2613a3bca2526d8|Fizyoloji",
       "1!R7C10|2025-10-02|08:30-10:20|practice|id:d240e321ac257d38|content:ea4c840747d5e0e8|Fizyoloji",
       "1!R8C3|2025-09-17|08:30-10:20|practice|id:784e0dfdee42f5fe|content:81e99c3e24114c50|Histoloji",
@@ -24,6 +25,7 @@
       "1!R8C5|2025-09-19|08:30-10:20|practice|id:2eb315c291b7163a|content:7d253c7ddba824bb|Histoloji",
       "1!R8C6|2025-09-22|08:30-10:20|practice|id:fd0ae9322c72360b|content:4c0533f184c19ebc|Histoloji",
       "1!R8C7|2025-09-23|10:30-12:20|practice|id:a492918491285b2f|content:e9bce61167fcd2d7|Histoloji",
+      "1!R8C8|2025-09-24|13:30-15:20|practice|id:1e018ec7cd913747|content:9aa0570100f2c387|Histoloji",
       "1!R8C9|2025-09-26|08:30-10:20|practice|id:934a86465a983170|content:8141cf9561b759bb|Histoloji",
       "1!R8C10|2025-10-02|08:30-10:20|practice|id:0aeb5dd6e0766822|content:41ba14792b771061|Histoloji",
       "1!R34C3|2025-10-08|08:30-10:20|practice|id:de09645094cdddf9|content:ee1fa21ddd4829af|Fizyoloji 1",
@@ -252,6 +254,12 @@
         "score": 0.9
       },
       {
+        "candidateId": "1!R7C8",
+        "field": "localDate",
+        "reason": "approximateMonthNameDate",
+        "score": 0.8
+      },
+      {
         "candidateId": "1!R7C9",
         "field": "localDate",
         "reason": "monthNameDate",
@@ -292,6 +300,12 @@
         "field": "localDate",
         "reason": "monthNameDate",
         "score": 0.9
+      },
+      {
+        "candidateId": "1!R8C8",
+        "field": "localDate",
+        "reason": "approximateMonthNameDate",
+        "score": 0.8
       },
       {
         "candidateId": "1!R8C9",
@@ -1368,12 +1382,12 @@
       {
         "name": "audience.dimension.practiceGroup",
         "unit": null,
-        "value": 196.0
+        "value": 198.0
       },
       {
         "name": "candidates.emitted",
         "unit": null,
-        "value": 167.0
+        "value": 169.0
       },
       {
         "name": "candidates.eventType.exam",
@@ -1383,7 +1397,7 @@
       {
         "name": "candidates.eventType.practice",
         "unit": null,
-        "value": 159.0
+        "value": 161.0
       },
       {
         "name": "candidates.selfDatedCell",
@@ -1393,12 +1407,12 @@
       {
         "name": "cells.ignored",
         "unit": null,
-        "value": 164.0
+        "value": 162.0
       },
       {
         "name": "cells.ignored.cellInRefusedSlot",
         "unit": null,
-        "value": 4.0
+        "value": 2.0
       },
       {
         "name": "cells.ignored.groupsAnnouncedElsewhere",
@@ -1437,6 +1451,11 @@
       },
       {
         "name": "dates.outOfSequence.repaired",
+        "unit": null,
+        "value": 2.0
+      },
+      {
+        "name": "dates.rule.approximateMonthNameDate",
         "unit": null,
         "value": 2.0
       },
@@ -1496,11 +1515,6 @@
         "value": 122.0
       },
       {
-        "name": "slots.ignored.unresolvedSlotDate",
-        "unit": null,
-        "value": 1.0
-      },
-      {
         "name": "slots.ignored.weekdayContradictsSlotDate",
         "unit": null,
         "value": 2.0
@@ -1530,7 +1544,7 @@
       "name": "grade2_practice_v1",
       "version": "1.5.0"
     },
-    "responseDigest": "sha256:81b863a21703dc709f748b7bb1bd97c1ff0b24e6ae2fcf4f6b3007bf29e518cc",
+    "responseDigest": "sha256:2a112456c3b50947b1241c6797351a813b905f09106a309a5d619a24ca064ea3",
     "snapshotId": "fixture:sha256:8f50eb1ea01f9945d5b4cfca7737c83e84fd9642235ab97175e0d8748a2eab27",
     "sourceId": "G2-TR-PRACTICE",
     "status": "completedWithWarnings",
@@ -1561,34 +1575,6 @@
           "sheetTitle": "Sayfa1"
         },
         "message": "Cells were ignored because of rule 'groupsAnnouncedElsewhere'. See metric 'cells.ignored.groupsAnnouncedElsewhere' for the total.",
-        "severity": "information"
-      },
-      {
-        "candidateId": null,
-        "code": "slotHeaderRefused",
-        "detail": null,
-        "evidence": {
-          "extractionRule": "practiceSlots.slotHeader",
-          "range": "H6",
-          "rawText": "2/6\n24 Eylü 2025\nÇarşamba\n13:30-15:20",
-          "sheetId": "1",
-          "sheetTitle": "Sayfa1"
-        },
-        "message": "Slot header date '24 Eylü 2025 Çarşamba' could not be read as a date (unknownMonthName), so nothing was published from it.",
-        "severity": "warning"
-      },
-      {
-        "candidateId": null,
-        "code": "cellsIgnored",
-        "detail": null,
-        "evidence": {
-          "extractionRule": "practiceSlots.groupCell",
-          "range": "H7",
-          "rawText": "F",
-          "sheetId": "1",
-          "sheetTitle": "Sayfa1"
-        },
-        "message": "Cells were ignored because of rule 'cellInRefusedSlot'. See metric 'cells.ignored.cellInRefusedSlot' for the total.",
         "severity": "information"
       },
       {
@@ -1826,6 +1812,20 @@
         },
         "message": "Slot header states '27 Şubat 2025 Cuma', but 2025-02-27 is not a 'Cuma'. The cell contradicts itself, so nothing was published from it; correcting either part would be a guess.",
         "severity": "warning"
+      },
+      {
+        "candidateId": null,
+        "code": "cellsIgnored",
+        "detail": null,
+        "evidence": {
+          "extractionRule": "practiceSlots.groupCell",
+          "range": "F157",
+          "rawText": "D",
+          "sheetId": "1",
+          "sheetTitle": "Sayfa1"
+        },
+        "message": "Cells were ignored because of rule 'cellInRefusedSlot'. See metric 'cells.ignored.cellInRefusedSlot' for the total.",
+        "severity": "information"
       },
       {
         "candidateId": null,

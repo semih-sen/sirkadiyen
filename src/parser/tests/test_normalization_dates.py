@@ -6,6 +6,7 @@ from sirkadiyen_parser.contracts.snapshot import NormalizedCell
 from sirkadiyen_parser.normalization.dates import (
     REASON_NUMERIC_ORDER_CONTRADICTED,
     REASON_NUMERIC_ORDER_NOT_DECLARED,
+    RULE_APPROXIMATE_MONTH_NAME,
     RULE_ISO,
     RULE_MONTH_NAME,
     RULE_NUMERIC_DAY_FIRST,
@@ -169,6 +170,51 @@ def test_resolve_date_text_rejects_unknown_text() -> None:
 
     assert resolution.rule == RULE_UNRESOLVED
     assert resolution.reason == "unrecognizedDateFormat"
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("23 Eylü 2026", date(2026, 9, 23)),
+        ("23 eyl 2026", date(2026, 9, 23)),
+        ("23 Eyll 2026", date(2026, 9, 23)),
+        ("23 Eyuül 2026", date(2026, 9, 23)),
+        ("5 Hazrian 2026", date(2026, 6, 5)),
+        ("3 Kasm 2026", date(2026, 11, 3)),
+        ("3 Ocka 2026", date(2026, 1, 3)),
+        ("3 Septmber 2026", date(2026, 9, 3)),
+    ],
+)
+def test_a_misspelled_or_truncated_month_name_is_read_with_reduced_confidence(
+    text: str, expected: date
+) -> None:
+    resolution = resolve_date_text(text)
+
+    assert resolution.value == expected
+    assert resolution.rule == RULE_APPROXIMATE_MONTH_NAME
+    assert resolution.confidence < 0.9
+
+
+def test_an_approximate_month_name_still_checks_the_stated_weekday() -> None:
+    resolution = resolve_date_text("23 Eylü 2026 Çarşamba")
+
+    assert resolution.value == date(2026, 9, 23)
+    assert resolution.weekday_matches is True
+
+
+@pytest.mark.parametrize(
+    ("text", "reason"),
+    [
+        ("3 Ma 2026", "unknownMonthName"),
+        ("3 Xyz 2026", "unknownMonthName"),
+        ("3 Juny 2026", "ambiguousMonthName"),
+    ],
+)
+def test_a_month_word_that_fits_no_single_month_is_not_guessed(text: str, reason: str) -> None:
+    resolution = resolve_date_text(text)
+
+    assert not resolution.resolved
+    assert resolution.reason == reason
 
 
 def test_resolve_cell_date_reads_a_serial_declared_as_a_date() -> None:

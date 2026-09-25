@@ -39,6 +39,7 @@ RULE_NUMERIC_DAY_FIRST = "numericDayFirstDate"
 RULE_NUMERIC_MONTH_FIRST = "numericMonthFirstDate"
 RULE_NUMERIC_SINGLE_READING = "numericSingleReadingDate"
 RULE_MONTH_NAME = "monthNameDate"
+RULE_APPROXIMATE_MONTH_NAME = "approximateMonthNameDate"
 RULE_UNRESOLVED = "unresolvedDate"
 
 #: The numeric cell has two possible meanings and the profile has not said which
@@ -53,6 +54,9 @@ CONFIDENCE_SERIAL = 1.0
 CONFIDENCE_ISO = 1.0
 CONFIDENCE_NUMERIC = 0.95
 CONFIDENCE_MONTH_NAME = 0.9
+#: A misspelled or truncated month name (``23 Eylü``) is read only when exactly
+#: one month fits it, and is reported below full confidence so it is reviewed.
+CONFIDENCE_APPROXIMATE_MONTH_NAME = 0.8
 #: A year supplied by profile configuration is weaker evidence than a year read
 #: from the source cell.
 CONFIDENCE_YEAR_FROM_PROFILE = 0.7
@@ -111,6 +115,22 @@ _MONTHS_BY_KEY = {
     "nov": 11,
     "dec": 12,
 }
+
+#: English abbreviations are exact keys only. A misspelled or truncated word is
+#: compared with full month names, because one edit away from three letters
+#: would let almost any short word through.
+_MONTH_ABBREVIATION_KEYS = frozenset(
+    {"jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec"}
+)
+_FULL_MONTH_KEYS = tuple(key for key in _MONTHS_BY_KEY if key not in _MONTH_ABBREVIATION_KEYS)
+
+#: A truncated month (``eylu`` for ``eylul``) must keep at least this many
+#: letters, so that ``ma`` or ``ju`` never picks a month.
+_MIN_MONTH_PREFIX_LENGTH = 3
+
+#: A misspelled month (``eyll``, ``haizran``) must be at least this long before a
+#: single edit is forgiven, so that short words cannot drift into a month.
+_MIN_MONTH_TYPO_LENGTH = 4
 
 #: Monday is 0, matching :meth:`datetime.date.weekday`.
 _WEEKDAYS_BY_KEY = {
@@ -300,24 +320,75 @@ def _resolve_date_body(
 
     month_match = _MONTH_NAME_PATTERN.match(text)
     if month_match is not None:
-        month = _MONTHS_BY_KEY.get(comparison_key(month_match.group(2)))
+        month_key = comparison_key(month_match.group(2))
+        month = _MONTHS_BY_KEY.get(month_key)
+        rule = RULE_MONTH_NAME
+        base_confidence = CONFIDENCE_MONTH_NAME
         if month is None:
-            return unresolved_date("unknownMonthName")
-        year, confidence, reason = _resolve_year(
-            month_match.group(3), year_hint, CONFIDENCE_MONTH_NAME
-        )
+            candidates = _approximate_months(month_key)
+            if not candidates:
+                return unresolved_date("unknownMonthName")
+            if len(candidates) > 1:
+                return unresolved_date("ambiguousMonthName")
+            (month,) = candidates
+            rule = RULE_APPROXIMATE_MONTH_NAME
+            base_confidence = CONFIDENCE_APPROXIMATE_MONTH_NAME
+        year, confidence, reason = _resolve_year(month_match.group(3), year_hint, base_confidence)
         if year is None:
             return unresolved_date(reason or "missingYear")
         return _build(
             year,
             month,
             int(month_match.group(1)),
-            rule=RULE_MONTH_NAME,
+            rule=rule,
             confidence=confidence,
             reason=reason,
         )
 
     return unresolved_date("unrecognizedDateFormat")
+
+
+def _approximate_months(key: str) -> set[int]:
+    """Return every month a misspelled or truncated month word could stand for.
+
+    A word is accepted as a truncation (``eylu`` for ``eylul``) or as one edit
+    away from a full month name: one letter missing, extra, wrong, or two
+    neighbours swapped. The caller reads the date only when exactly one month
+    fits, so an ambiguous word stays unresolved instead of being guessed.
+    """
+    months: set[int] = set()
+    if len(key) < _MIN_MONTH_PREFIX_LENGTH:
+        return months
+    for name in _FULL_MONTH_KEYS:
+        if name.startswith(key) or (
+            len(key) >= _MIN_MONTH_TYPO_LENGTH and _within_one_edit(key, name)
+        ):
+            months.add(_MONTHS_BY_KEY[name])
+    return months
+
+
+def _within_one_edit(first: str, second: str) -> bool:
+    """Whether two words differ by at most one insertion, deletion, substitution
+    or swap of adjacent letters."""
+    if first == second:
+        return True
+    if abs(len(first) - len(second)) > 1:
+        return False
+    if len(first) == len(second):
+        differences = [i for i, (a, b) in enumerate(zip(first, second, strict=True)) if a != b]
+        if len(differences) == 1:
+            return True
+        return (
+            len(differences) == 2
+            and differences[1] == differences[0] + 1
+            and first[differences[0]] == second[differences[1]]
+            and first[differences[1]] == second[differences[0]]
+        )
+    shorter, longer = (first, second) if len(first) < len(second) else (second, first)
+    for index in range(len(longer)):
+        if longer[:index] + longer[index + 1 :] == shorter:
+            return True
+    return False
 
 
 def _resolve_numeric(

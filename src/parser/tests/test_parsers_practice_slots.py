@@ -448,13 +448,29 @@ def test_a_slot_whose_weekday_contradicts_its_date_is_refused_with_its_address()
 def test_an_unreadable_slot_date_refuses_only_its_own_column() -> None:
     response = parse(
         build(
-            slots=["1/1\n24 Eylü 2025 Çarşamba\n08:30-10:20", SECOND_SLOT],
+            slots=["1/1\n24 Eyxz 2025 Çarşamba\n08:30-10:20", SECOND_SLOT],
             subject_rows=[["Histoloji", "Histoloji Pratik salonu", "A", "B"]],
         )
     )
 
     assert [candidate.local_date.isoformat() for candidate in response.candidates] == ["2025-09-09"]
     assert metrics(response)["slots.ignored.unresolvedSlotDate"] == 1
+
+
+def test_a_truncated_month_name_still_publishes_its_column() -> None:
+    response = parse(
+        build(
+            slots=["1/1\n24 Eylü 2025 Çarşamba\n08:30-10:20", SECOND_SLOT],
+            subject_rows=[["Histoloji", "Histoloji Pratik salonu", "A", "B"]],
+        )
+    )
+
+    assert [candidate.local_date.isoformat() for candidate in response.candidates] == [
+        "2025-09-24",
+        "2025-09-09",
+    ]
+    assert response.candidates[0].confidence < 1.0
+    assert "slots.ignored.unresolvedSlotDate" not in metrics(response)
 
 
 def test_a_cell_that_dates_itself_is_read_from_the_cell_not_its_column() -> None:
