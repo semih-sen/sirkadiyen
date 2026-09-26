@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { ApiError, createVaultNote, listVaultJobs } from '@/lib/api';
-import { DetailDrawer, LoadState, formatDateTime } from '@/components/AdminData';
-import type { VaultAdminJob, VaultAdminJobList, VaultBacklinkStatus, VaultJobStatus } from '@/lib/types';
+import { DetailDrawer, LoadState, Tabs, formatDateTime } from '@/components/AdminData';
+import { AdminVaultNotes } from '@/components/AdminVaultNotes';
+import type { VaultAdminJob, VaultAdminJobList, VaultBacklinkStatus, VaultFlashcardSummary, VaultJobStatus } from '@/lib/types';
 
 /** How often the list is refreshed while a job is still running; a note takes about a minute. */
 const POLL_INTERVAL_MS = 5000;
@@ -26,6 +27,21 @@ const BACKLINK_LABELS: Record<VaultBacklinkStatus, string> = {
   Failed: 'Başarısız',
 };
 
+/** A flashcard job reads an existing note rather than cataloging and writes cards rather than a note. */
+function statusLabel(job: VaultAdminJob): string {
+  if (job.kind === 'Flashcards' && job.status === 'Cataloging') return 'Not okunuyor';
+  if (job.kind === 'Flashcards' && job.status === 'Generating') return 'Flashcard yazılıyor';
+  return STATUS_LABELS[job.status];
+}
+
+function jobSummary(job: VaultAdminJob): string {
+  return job.kind === 'Flashcards' ? `Flashcard ekle: ${job.targetPath ?? '—'}` : job.prompt ?? '—';
+}
+
+function cardCount(summary?: VaultFlashcardSummary | null): number | null {
+  return summary ? summary.clozeCount + summary.questionCount : null;
+}
+
 function isFinished(status: VaultJobStatus): boolean {
   return status === 'Succeeded' || status === 'Failed';
 }
@@ -42,6 +58,7 @@ export function AdminVault() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [tab, setTab] = useState<'jobs' | 'notes'>('jobs');
 
   const load = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -85,14 +102,22 @@ export function AdminVault() {
         </div>
       )}
 
-      {data?.enabled && <VaultNoteForm maxPromptLength={data.maxPromptLength} onQueued={onQueued} />}
+      <Tabs
+        value={tab}
+        onChange={(value) => setTab(value as 'jobs' | 'notes')}
+        items={[{ value: 'jobs', label: 'Not işleri' }, { value: 'notes', label: 'Vault notları' }]}
+      />
 
-      <section className="card admin-workspace-card">
+      {tab === 'notes' && <AdminVaultNotes jobs={data?.jobs ?? []} onQueued={onQueued} />}
+
+      {tab === 'jobs' && data?.enabled && <VaultNoteForm maxPromptLength={data.maxPromptLength} onQueued={onQueued} />}
+
+      {tab === 'jobs' && <section className="card admin-workspace-card">
         <div className="cluster" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
           <div>
             <h2 style={{ fontSize: 17 }}>Not işleri</h2>
             <p className="muted" style={{ fontSize: 13, marginTop: 4 }}>
-              iPad kısayolundan ve bu panelden gönderilen tüm istekler; en yeni üstte.
+              iPad kısayolundan ve bu panelden gönderilen tüm istekler (yeni not ve flashcard ekleme); en yeni üstte.
               {running && ' Çalışan iş varken liste kendiliğinden yenilenir.'}
             </p>
           </div>
@@ -105,7 +130,7 @@ export function AdminVault() {
           <div className="table-wrap">
             <table className="data-table data-table--stack">
               <thead>
-                <tr><th>Zaman</th><th>Kaynak</th><th>İstek</th><th>Durum</th><th>Not</th><th>Backlink</th></tr>
+                <tr><th>Zaman</th><th>Kaynak</th><th>İstek</th><th>Durum</th><th>Not</th><th>Kart</th><th>Backlink</th></tr>
               </thead>
               <tbody>
                 {data.jobs.map((job) => (
@@ -114,11 +139,12 @@ export function AdminVault() {
                     <td>{job.source === 'Admin' ? <>Panel<small className="muted" style={{ display: 'block' }}>{job.requestedBy}</small></> : 'Kısayol'}</td>
                     <td>
                       <button className="btn btn-tertiary btn-sm" type="button" style={{ textAlign: 'left', whiteSpace: 'normal' }} onClick={() => setSelectedId(job.id)}>
-                        {truncate(job.prompt, 90)}
+                        {truncate(jobSummary(job), 90)}
                       </button>
                     </td>
-                    <td><span className={`badge ${statusClass(job.status)}`}>{STATUS_LABELS[job.status]}</span></td>
+                    <td><span className={`badge ${statusClass(job.status)}`}>{statusLabel(job)}</span></td>
                     <td className="mono">{job.notePath ?? '—'}</td>
+                    <td>{cardCount(job.flashcards) ?? '—'}</td>
                     <td>{job.backlinks.length > 0 ? `${job.backlinks.filter((link) => link.status === 'Updated').length}/${job.backlinks.length}` : '—'}</td>
                   </tr>
                 ))}
@@ -126,7 +152,7 @@ export function AdminVault() {
             </table>
           </div>
         )}
-      </section>
+      </section>}
 
       {selected && <VaultJobDetail job={selected} onClose={() => setSelectedId(null)} />}
     </div>
@@ -169,7 +195,8 @@ function VaultNoteForm({ maxPromptLength, onQueued }: { maxPromptLength: number;
     <form className="card admin-workspace-card" onSubmit={(event) => void submit(event)}>
       <h2 style={{ fontSize: 17 }}>Yeni not iste</h2>
       <p className="muted" style={{ fontSize: 13, marginTop: 4 }}>
-        Claude Code notu yazar, vault&apos;a kaydeder ve ilgili en fazla birkaç nota geri bağlantı ekler.
+        Claude Code notu flashcard&apos;larıyla (deste etiketi, ==cloze== vurguları, soru kartları) yazar, vault&apos;a kaydeder
+        ve ilgili en fazla birkaç nota geri bağlantı ekler.
       </p>
 
       <label htmlFor="vault-prompt">İstek</label>
@@ -207,14 +234,20 @@ function VaultNoteForm({ maxPromptLength, onQueued }: { maxPromptLength: number;
 
 function VaultJobDetail({ job, onClose }: { job: VaultAdminJob; onClose: () => void }) {
   return (
-    <DetailDrawer title={job.noteLink ?? 'Not işi'} subtitle={`${STATUS_LABELS[job.status]} · ${formatDateTime(job.createdAtUtc)}`} onClose={onClose}>
+    <DetailDrawer title={job.noteLink ?? (job.kind === 'Flashcards' ? 'Flashcard işi' : 'Not işi')} subtitle={`${statusLabel(job)} · ${formatDateTime(job.createdAtUtc)}`} onClose={onClose}>
       <div className="stack" style={{ gap: 16 }}>
         <section>
           <h3 style={{ fontSize: 14 }}>İstek</h3>
-          <p style={{ whiteSpace: 'pre-wrap', marginTop: 6 }}>{job.prompt}</p>
-          <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>
-            Klasör: {job.folder === '' ? 'kök' : job.folder ?? 'Claude seçti'} · Başlık: {job.title ?? 'Claude önerdi'}
-          </p>
+          {job.kind === 'Flashcards' ? (
+            <p style={{ marginTop: 6 }}>Mevcut nota flashcard ekle: <span className="mono">{job.targetPath}</span></p>
+          ) : (
+            <>
+              <p style={{ whiteSpace: 'pre-wrap', marginTop: 6 }}>{job.prompt}</p>
+              <p className="muted" style={{ fontSize: 13, marginTop: 6 }}>
+                Klasör: {job.folder === '' ? 'kök' : job.folder ?? 'Claude seçti'} · Başlık: {job.title ?? 'Claude önerdi'}
+              </p>
+            </>
+          )}
           <p className="muted" style={{ fontSize: 13 }}>
             Kaynak: {job.source === 'Admin' ? `Panel (${job.requestedBy ?? '—'})` : 'iPad kısayolu'} · Bitiş: {formatDateTime(job.completedAtUtc)}
           </p>
@@ -224,6 +257,16 @@ function VaultJobDetail({ job, onClose }: { job: VaultAdminJob; onClose: () => v
           <section>
             <h3 style={{ fontSize: 14 }}>Yazılan not</h3>
             <p className="mono" style={{ marginTop: 6 }}>{job.notePath}</p>
+          </section>
+        )}
+
+        {job.flashcards && (
+          <section>
+            <h3 style={{ fontSize: 14 }}>Flashcard</h3>
+            <p style={{ marginTop: 6 }}>
+              {job.flashcards.deck ? <>Deste <span className="mono">{job.flashcards.deck}</span> · </> : 'Deste etiketi yok · '}
+              {job.flashcards.clozeCount} cloze · {job.flashcards.questionCount} soru
+            </p>
           </section>
         )}
 

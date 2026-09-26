@@ -1,5 +1,21 @@
 # Active Context
 
+## Latest session (2026-09-26, ADR-170: Spaced Repetition flashcards in vault notes)
+
+New vault notes now carry Obsidian Spaced Repetition flashcards: a `#flashcards/<folder>` deck line
+after the frontmatter, `==cloze==` highlights on key facts, and a closing `## Flashcards` section of
+`Soru::Cevap` cards. `/admin/vault` has a "Vault notları" tab listing the vault's notes; "Flashcard
+ekle" queues a `Flashcards` job that has the agent convert one existing note in place, checked and
+written back conditionally.
+
+**Where it lives:** `src/Sirkadiyen.Application/Vault/VaultFlashcards.cs` (format, scan, conversion
+check), `VaultFlashcardRequest.cs`, `VaultNoteJobService.AddFlashcardsAsync`,
+`src/Sirkadiyen.Api/Vault/AgentInstructions.md` (the card rules the agent follows),
+`VaultAdminEndpoints.cs`, `web/src/components/AdminVaultNotes.tsx`.
+
+**Open:** not run end to end against a live API, MinIO and Claude Code; the plugin's settings are
+assumed to be its defaults.
+
 ## Latest session (2026-09-24, ADR-169: vault note jobs in PostgreSQL and the admin panel)
 
 The vault's note jobs (ADR-168) are now rows in `sirkadiyen.vault_note_jobs` instead of an in-memory

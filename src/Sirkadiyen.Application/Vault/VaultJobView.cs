@@ -19,6 +19,9 @@ public sealed record VaultJobView
 
     public IReadOnlyList<VaultBacklinkOutcome> Backlinks { get; init; } = [];
 
+    /// <summary>The deck and cards the written note holds (ADR-170); null until a note has been written.</summary>
+    public VaultFlashcardSummary? Flashcards { get; init; }
+
     /// <summary>Things that went differently than asked without failing the job, such as a folder fallback.</summary>
     public IReadOnlyList<string> Warnings { get; init; } = [];
 

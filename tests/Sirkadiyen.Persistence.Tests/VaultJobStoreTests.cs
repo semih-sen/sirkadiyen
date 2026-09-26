@@ -46,10 +46,47 @@ public sealed class VaultJobStoreTests(PostgresFixture fixture)
             new VaultBacklinkOutcome("Hipertansiyon", "Kardiyoloji/Hipertansiyon.md", VaultBacklinkStatus.Updated, null),
             Assert.Single(stored.View.Backlinks));
         Assert.Equal(["uyarı"], stored.View.Warnings);
-        Assert.Equal("Beta blokerler", stored.Request.Prompt);
-        Assert.Equal(string.Empty, stored.Request.Folder);
-        Assert.Equal("Beta Blokerler", stored.Request.Title);
+        VaultNoteRequest note = Assert.IsType<VaultNoteRequest>(stored.Request);
+        Assert.Equal("Beta blokerler", note.Prompt);
+        Assert.Equal(string.Empty, note.Folder);
+        Assert.Equal("Beta Blokerler", note.Title);
+        Assert.Null(stored.View.Flashcards);
         Assert.Equal(new VaultJobOrigin(VaultJobSource.Admin, "admin@example.com"), stored.Origin);
+    }
+
+    [Fact]
+    public async Task RoundTripsAFlashcardJobAndListsJobsByNote()
+    {
+        Assert.SkipUnless(fixture.IsAvailable, PostgresFixture.SkipReason);
+        string path = $"Farmakoloji/{Guid.NewGuid():N}.md";
+        VaultFlashcardRequest request = VaultFlashcardRequest.Create(path, out _)!;
+        VaultJobView queued = new() { Id = Guid.NewGuid(), Status = VaultJobStatus.Queued, CreatedAtUtc = Now.AddYears(-2) };
+        VaultJobView unrelated = new() { Id = Guid.NewGuid(), Status = VaultJobStatus.Queued, CreatedAtUtc = Now.AddYears(-2) };
+
+        await using (SirkadiyenDbContext context = fixture.CreateProductionLikeContext())
+        {
+            VaultJobStore store = new(context);
+            await store.AddAsync(new VaultJobRecord(queued, request, VaultJobOrigin.Shortcut), Token);
+            await store.AddAsync(new VaultJobRecord(unrelated, VaultNoteRequest.Create("x", null, null, out _)!, VaultJobOrigin.Shortcut), Token);
+            await store.UpdateAsync(
+                queued.Id,
+                static view => view with
+                {
+                    Status = VaultJobStatus.Succeeded,
+                    Flashcards = new VaultFlashcardSummary("#flashcards/farmakoloji", 7, 4),
+                },
+                Token);
+        }
+
+        await using SirkadiyenDbContext reader = fixture.CreateContext();
+        VaultJobStore readerStore = new(reader);
+        VaultJobRecord stored = (await readerStore.FindAsync(queued.Id, Token))!;
+
+        Assert.Equal(path, Assert.IsType<VaultFlashcardRequest>(stored.Request).NotePath);
+        Assert.Equal(new VaultFlashcardSummary("#flashcards/farmakoloji", 7, 4), stored.View.Flashcards);
+        List<Guid> forNotes = [.. (await readerStore.ListForNotesAsync(Token)).Select(static job => job.View.Id)];
+        Assert.Contains(queued.Id, forNotes);
+        Assert.DoesNotContain(unrelated.Id, forNotes);
     }
 
     [Fact]

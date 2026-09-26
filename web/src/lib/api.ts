@@ -66,6 +66,8 @@ import type {
   WorkerInstancesResponse,
   VaultAdminJob,
   VaultAdminJobList,
+  VaultAdminNoteList,
+  VaultNoteContent,
   CreateVaultNoteRequest,
   AdminUserCalendarEventsResponse,
   CalendarVerificationResult,
@@ -1037,6 +1039,21 @@ export function getVaultJob(id: string): Promise<VaultAdminJob> {
 /** Queues a new vault note exactly as the iPad shortcut does, recorded against the signed-in admin. */
 export function createVaultNote(body: CreateVaultNoteRequest): Promise<VaultAdminJob> {
   return request('/api/admin/vault/notes', { method: 'POST', body });
+}
+
+/** The vault's notes with the latest job that wrote or converted each (ADR-170). */
+export function listVaultNotes(signal?: AbortSignal): Promise<VaultAdminNoteList> {
+  return request('/api/admin/vault/notes', { signal });
+}
+
+/** One note's current text, read from the vault, and the flashcards the plugin will find in it. */
+export function getVaultNoteContent(path: string, signal?: AbortSignal): Promise<VaultNoteContent> {
+  return request(withQuery('/api/admin/vault/notes/content', { path }), { signal });
+}
+
+/** Queues Claude Code to add Spaced Repetition flashcards to an existing note. */
+export function createVaultFlashcards(path: string): Promise<VaultAdminJob> {
+  return request('/api/admin/vault/flashcards', { method: 'POST', body: { path } });
 }
 
 export async function getHealth(path: 'live' | 'ready'): Promise<HealthStatus> {

@@ -243,7 +243,10 @@ note, which the API stores in a MinIO bucket and links from existing notes. It i
 `SIRKADIYEN_VAULT__API_KEY` is set, and nothing below is needed without it. It shares the API process
 and one table with the schedule product — `vault_note_jobs`, the job history (ADR-169), created by
 the ordinary migration step — and nothing else: no calendar, no student data. The history and a form
-that queues a note are in the admin panel under **Sistem → Obsidian notları** (`/admin/vault`).
+that queues a note are in the admin panel under **Sistem → Obsidian notları** (`/admin/vault`), as is
+the vault's note list, where "Flashcard ekle" has the agent add Spaced Repetition flashcards to an
+existing note (ADR-170). New notes carry flashcards as well; the vault's Obsidian needs the Spaced
+Repetition plugin with its default settings to review them.
 
 Install the CLI system-wide at a pinned version. It is updated by changing this command, never by
 itself: the runner sets `DISABLE_AUTOUPDATER=1`, and `/usr` is read-only to the service anyway.

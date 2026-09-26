@@ -5,7 +5,7 @@ namespace Sirkadiyen.Application.Vault;
 /// of what the agent would otherwise propose; both are already normalized once
 /// <see cref="Create"/> has accepted them.
 /// </summary>
-public sealed record VaultNoteRequest
+public sealed record VaultNoteRequest : VaultJobRequest
 {
     /// <summary>Long enough for a detailed brief; short enough that the prompt leaves room for the catalog.</summary>
     public const int MaxPromptLength = 8000;
@@ -16,6 +16,8 @@ public sealed record VaultNoteRequest
         Folder = folder;
         Title = title;
     }
+
+    public override VaultJobKind Kind => VaultJobKind.Note;
 
     public string Prompt { get; }
 

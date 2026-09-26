@@ -9,6 +9,9 @@ public interface IVaultStore
     /// <summary>Every object path in the vault, notes and otherwise.</summary>
     Task<IReadOnlyList<string>> ListPathsAsync(CancellationToken cancellationToken);
 
+    /// <summary>Every object in the vault with its size and last change, for the panel's note list.</summary>
+    Task<IReadOnlyList<VaultObjectInfo>> ListObjectsAsync(CancellationToken cancellationToken);
+
     /// <summary>A note's text and the version tag it was read at, or null when it does not exist.</summary>
     Task<VaultDocument?> GetAsync(string path, CancellationToken cancellationToken);
 
@@ -25,6 +28,8 @@ public interface IVaultStore
         string expectedETag,
         CancellationToken cancellationToken);
 }
+
+public sealed record VaultObjectInfo(string Path, long Size, DateTimeOffset? LastModifiedUtc);
 
 public sealed record VaultDocument(string Path, string Content, string ETag);
 

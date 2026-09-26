@@ -23,13 +23,23 @@ public sealed class VaultJobStore(SirkadiyenDbContext dbContext) : IVaultJobStor
         VaultNoteJobRow row = new()
         {
             Id = job.View.Id,
+            Kind = job.Request.Kind.ToString(),
             Source = job.Origin.Source.ToString(),
             RequestedBy = job.Origin.RequestedBy,
-            Prompt = job.Request.Prompt,
-            Folder = job.Request.Folder,
-            Title = job.Request.Title,
             CreatedAtUtc = job.View.CreatedAtUtc,
         };
+        switch (job.Request)
+        {
+            case VaultNoteRequest note:
+                row.Prompt = note.Prompt;
+                row.Folder = note.Folder;
+                row.Title = note.Title;
+                break;
+            case VaultFlashcardRequest flashcards:
+                row.TargetPath = flashcards.NotePath;
+                break;
+        }
+
         Apply(row, job.View);
 
         dbContext.VaultNoteJobs.Add(row);
@@ -85,6 +95,17 @@ public sealed class VaultJobStore(SirkadiyenDbContext dbContext) : IVaultJobStor
         return rows.Select(ToRecord).ToList();
     }
 
+    public async Task<IReadOnlyList<VaultJobRecord>> ListForNotesAsync(CancellationToken cancellationToken)
+    {
+        List<VaultNoteJobRow> rows = await dbContext.VaultNoteJobs
+            .AsNoTracking()
+            .Where(job => job.NotePath != null || job.TargetPath != null)
+            .OrderByDescending(job => job.CreatedAtUtc)
+            .ThenByDescending(job => job.Id)
+            .ToListAsync(cancellationToken);
+        return rows.Select(ToRecord).ToList();
+    }
+
     private static void Apply(VaultNoteJobRow row, VaultJobView view)
     {
         row.Status = view.Status.ToString();
@@ -93,16 +114,22 @@ public sealed class VaultJobStore(SirkadiyenDbContext dbContext) : IVaultJobStor
         row.NoteLink = view.NoteLink;
         row.Backlinks = JsonSerializer.Serialize(view.Backlinks, SerializerOptions);
         row.Warnings = JsonSerializer.Serialize(view.Warnings, SerializerOptions);
+        row.Flashcards = view.Flashcards is null ? null : JsonSerializer.Serialize(view.Flashcards, SerializerOptions);
         row.Error = view.Error;
     }
 
     private static VaultJobRecord ToRecord(VaultNoteJobRow row)
     {
         // The request was validated when it was accepted; validating it again only restores the type.
-        // A row edited by hand into something the rules refuse keeps its prompt and loses the rest.
-        VaultNoteRequest request = VaultNoteRequest.Create(row.Prompt, row.Folder, row.Title, out _)
-            ?? VaultNoteRequest.Create(row.Prompt, null, null, out _)
-            ?? throw new InvalidOperationException($"Vault job {row.Id} holds an empty prompt.");
+        // A note row edited by hand into something the rules refuse keeps its prompt and loses the rest.
+        VaultJobRequest request = Enum.Parse<VaultJobKind>(row.Kind) switch
+        {
+            VaultJobKind.Flashcards => VaultFlashcardRequest.Create(row.TargetPath, out _)
+                ?? throw new InvalidOperationException($"Vault job {row.Id} holds an invalid note path."),
+            _ => VaultNoteRequest.Create(row.Prompt, row.Folder, row.Title, out _)
+                ?? VaultNoteRequest.Create(row.Prompt, null, null, out _)
+                ?? throw new InvalidOperationException($"Vault job {row.Id} holds an empty prompt."),
+        };
 
         return new VaultJobRecord(
             ToView(row),
@@ -120,6 +147,7 @@ public sealed class VaultJobStore(SirkadiyenDbContext dbContext) : IVaultJobStor
         NoteLink = row.NoteLink,
         Backlinks = JsonSerializer.Deserialize<List<VaultBacklinkOutcome>>(row.Backlinks, SerializerOptions) ?? [],
         Warnings = JsonSerializer.Deserialize<List<string>>(row.Warnings, SerializerOptions) ?? [],
+        Flashcards = row.Flashcards is null ? null : JsonSerializer.Deserialize<VaultFlashcardSummary>(row.Flashcards, SerializerOptions),
         Error = row.Error,
     };
 }

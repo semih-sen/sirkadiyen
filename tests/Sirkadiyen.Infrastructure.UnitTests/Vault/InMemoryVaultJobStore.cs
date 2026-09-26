@@ -35,4 +35,8 @@ internal sealed class InMemoryVaultJobStore : IVaultJobStore
     public Task<IReadOnlyList<VaultJobRecord>> ListUnfinishedAsync(CancellationToken cancellationToken) =>
         Task.FromResult<IReadOnlyList<VaultJobRecord>>(
             [.. jobs.Values.Where(static job => !job.View.IsFinished).OrderBy(static job => job.View.CreatedAtUtc)]);
+
+    public Task<IReadOnlyList<VaultJobRecord>> ListForNotesAsync(CancellationToken cancellationToken) =>
+        Task.FromResult<IReadOnlyList<VaultJobRecord>>(
+            [.. jobs.Values.Where(static job => job.NotePath is not null).OrderByDescending(static job => job.View.CreatedAtUtc)]);
 }
