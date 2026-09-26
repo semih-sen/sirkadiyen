@@ -1950,6 +1950,16 @@ export type VaultJobStatus = 'Queued' | 'Cataloging' | 'Generating' | 'Uploading
 
 export type VaultJobSource = 'Shortcut' | 'Admin';
 
+/** A new note, or Spaced Repetition flashcards added to an existing one (ADR-170). */
+export type VaultJobKind = 'Note' | 'Flashcards';
+
+/** The deck a note's cards are filed under and how many cards the plugin will find. */
+export interface VaultFlashcardSummary {
+  deck?: string | null;
+  clozeCount: number;
+  questionCount: number;
+}
+
 export type VaultBacklinkStatus = 'Updated' | 'SkippedChanged' | 'SkippedInvalid' | 'SkippedLimit' | 'Failed';
 
 export interface VaultBacklink {
@@ -1959,12 +1969,16 @@ export interface VaultBacklink {
   detail?: string | null;
 }
 
-/** One note job with the request that started it, as the admin panel shows it. */
+/** One vault job with the request that started it, as the admin panel shows it. */
 export interface VaultAdminJob {
   id: string;
+  kind: VaultJobKind;
   source: VaultJobSource;
   requestedBy?: string | null;
-  prompt: string;
+  /** The new note's brief; null for a flashcard job. */
+  prompt?: string | null;
+  /** The existing note a flashcard job converts; null for a note job. */
+  targetPath?: string | null;
   folder?: string | null;
   title?: string | null;
   status: VaultJobStatus;
@@ -1973,6 +1987,7 @@ export interface VaultAdminJob {
   notePath?: string | null;
   noteLink?: string | null;
   backlinks: VaultBacklink[];
+  flashcards?: VaultFlashcardSummary | null;
   warnings: string[];
   error?: string | null;
 }
@@ -1988,4 +2003,39 @@ export interface CreateVaultNoteRequest {
   prompt: string;
   folder?: string | null;
   title?: string | null;
+}
+
+export interface VaultAdminNoteJob {
+  id: string;
+  kind: VaultJobKind;
+  status: VaultJobStatus;
+  createdAtUtc: string;
+  error?: string | null;
+}
+
+/** One note in the vault, with what the job history knows about it (ADR-170). */
+export interface VaultAdminNote {
+  path: string;
+  title: string;
+  /** Empty for the vault root. */
+  folder: string;
+  sizeBytes: number;
+  lastModifiedUtc?: string | null;
+  latestJob?: VaultAdminNoteJob | null;
+  /** The cards the newest successful job left in the note; not a scan of the note now. */
+  flashcards?: VaultFlashcardSummary | null;
+}
+
+export interface VaultAdminNoteList {
+  enabled: boolean;
+  notes: VaultAdminNote[];
+}
+
+/** One note's current text and the cards the plugin will find in it. */
+export interface VaultNoteContent {
+  path: string;
+  title: string;
+  content: string;
+  flashcards: VaultFlashcardSummary;
+  flashcardProblems: string[];
 }

@@ -36,7 +36,7 @@ public sealed class VaultNoteJobServiceTests : IDisposable
     {
         agent.Then((workspace, _) =>
         {
-            File.WriteAllText(Path.Combine(workspace, "note.md"), "# Beta Blokerler\n\n[[Hipertansiyon]] tedavisinde.\n");
+            File.WriteAllText(Path.Combine(workspace, "note.md"), "#flashcards/farmakoloji\n\n# Beta Blokerler\n\n[[Hipertansiyon]] ==tedavi==sinde.\n");
             return VaultAgentResult.Success(
                 """{"folder":"Farmakoloji","title":"Beta Blokerler","backlinks":[{"target":"Hipertansiyon","reason":"tedavi"},{"target":"Yok"},{"target":"Kardiyoloji/Hipertansiyon"}]}""");
         });
@@ -50,7 +50,7 @@ public sealed class VaultNoteJobServiceTests : IDisposable
         Assert.Equal("Beta Blokerler", job.NoteLink);
         Assert.Empty(job.Warnings);
         Assert.Equal(Now, job.CompletedAtUtc);
-        Assert.Equal("# Beta Blokerler\n\n[[Hipertansiyon]] tedavisinde.\n", store.Content("Farmakoloji/Beta Blokerler.md"));
+        Assert.Equal("#flashcards/farmakoloji\n\n# Beta Blokerler\n\n[[Hipertansiyon]] ==tedavi==sinde.\n", store.Content("Farmakoloji/Beta Blokerler.md"));
         Assert.Equal(HypertensionContent + "- [[Beta Blokerler]]\n", store.Content(Hypertension));
         Assert.Equal(
             [
@@ -119,7 +119,7 @@ public sealed class VaultNoteJobServiceTests : IDisposable
         VaultJobView job = (await jobs.FindAsync(id, CancellationToken.None))!.View;
         Assert.Equal(VaultJobStatus.Succeeded, job.Status);
         Assert.Equal("Not 2026-09-23 1000.md", job.NotePath);
-        Assert.Equal(2, job.Warnings.Count);
+        Assert.Equal(2, job.Warnings.Count(static warning => !warning.StartsWith("Flashcard:", StringComparison.Ordinal)));
         Assert.Single(agent.Prompts);
     }
 
@@ -224,7 +224,126 @@ public sealed class VaultNoteJobServiceTests : IDisposable
         Assert.Equal(VaultJobStatus.Succeeded, (await jobs.FindAsync(id, CancellationToken.None))!.View.Status);
     }
 
-    private async Task<(InMemoryVaultJobStore Jobs, Guid Id)> RunAsync(VaultNoteRequest request, int maxBacklinks = 5)
+    [Fact]
+    public async Task Records_the_new_notes_flashcards()
+    {
+        agent.Then((workspace, _) =>
+        {
+            File.WriteAllText(
+                Path.Combine(workspace, "note.md"),
+                "#flashcards/farmakoloji\n# Beta\n\nBeta blokerler ==astım==da kontrendikedir.\n\n## Flashcards\n\nKontrendike hastalık?::Astım\n");
+            return VaultAgentResult.Success("""{"folder":"Farmakoloji","title":"Beta","backlinks":[]}""");
+        });
+
+        (InMemoryVaultJobStore jobs, Guid id) = await RunAsync(Request());
+
+        VaultJobView job = (await jobs.FindAsync(id, CancellationToken.None))!.View;
+        Assert.Equal(new VaultFlashcardSummary("#flashcards/farmakoloji", 1, 1), job.Flashcards);
+        Assert.Empty(job.Warnings);
+        Assert.StartsWith("#flashcards/farmakoloji\n\n# Beta", store.Content("Farmakoloji/Beta.md"), StringComparison.Ordinal);
+        Assert.Contains("Flashcard'lar", agent.Prompts[0], StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Warns_when_the_new_note_has_no_flashcards()
+    {
+        agent.Then(WriteNote("""{"title":"Beta","backlinks":[]}"""));
+
+        (InMemoryVaultJobStore jobs, Guid id) = await RunAsync(Request());
+
+        VaultJobView job = (await jobs.FindAsync(id, CancellationToken.None))!.View;
+        Assert.Equal(VaultJobStatus.Succeeded, job.Status);
+        Assert.Equal(2, job.Warnings.Count(static warning => warning.StartsWith("Flashcard:", StringComparison.Ordinal)));
+        Assert.Equal(new VaultFlashcardSummary(null, 0, 0), job.Flashcards);
+    }
+
+    [Fact]
+    public async Task Adds_flashcards_to_an_existing_note()
+    {
+        agent.Then((workspace, prompt) =>
+        {
+            string copy = Path.Combine(workspace, "note.md");
+            Assert.Equal(HypertensionContent, File.ReadAllText(copy));
+            File.WriteAllText(
+                copy,
+                "#flashcards/kardiyoloji\n# Hipertansiyon\n\nİlk basamak ==ACE inhibitörleri==dir.\n\n## Flashcards\n\nİlk basamak ilaç grubu?::ACE inhibitörleri\n");
+            return VaultAgentResult.Success("tamam");
+        });
+
+        (InMemoryVaultJobStore jobs, Guid id) = await RunAsync(FlashcardRequest(Hypertension));
+
+        VaultJobView job = (await jobs.FindAsync(id, CancellationToken.None))!.View;
+        Assert.Equal(VaultJobStatus.Succeeded, job.Status);
+        Assert.Equal(Hypertension, job.NotePath);
+        Assert.Equal("Hipertansiyon", job.NoteLink);
+        Assert.Equal(new VaultFlashcardSummary("#flashcards/kardiyoloji", 1, 1), job.Flashcards);
+        Assert.StartsWith("#flashcards/kardiyoloji\n\n# Hipertansiyon", store.Content(Hypertension), StringComparison.Ordinal);
+        Assert.Contains("`#flashcards/kardiyoloji`", Assert.Single(agent.Prompts), StringComparison.Ordinal);
+        Assert.Equal([null], agent.Schemas);
+        Assert.Empty(Directory.EnumerateFileSystemEntries(workspaceRoot));
+    }
+
+    [Fact]
+    public async Task Keeps_the_note_when_the_conversion_rewrote_it()
+    {
+        agent.Then((workspace, _) =>
+        {
+            File.WriteAllText(Path.Combine(workspace, "note.md"), "#flashcards/kardiyoloji\n\n# HT\n\nTedavide ==ACEi== kullanılır.\n");
+            return VaultAgentResult.Success("tamam");
+        });
+
+        (InMemoryVaultJobStore jobs, Guid id) = await RunAsync(FlashcardRequest(Hypertension));
+
+        VaultJobView job = (await jobs.FindAsync(id, CancellationToken.None))!.View;
+        Assert.Equal(VaultJobStatus.Failed, job.Status);
+        Assert.Contains("reddedildi", job.Error, StringComparison.Ordinal);
+        Assert.Equal(HypertensionContent, store.Content(Hypertension));
+    }
+
+    [Fact]
+    public async Task Keeps_a_note_changed_while_its_flashcards_were_written()
+    {
+        agent.Then((workspace, _) =>
+        {
+            store.Seed(Hypertension, "Obsidian'da düzenlendi.\n");
+            File.WriteAllText(
+                Path.Combine(workspace, "note.md"),
+                "#flashcards/kardiyoloji\n\n# Hipertansiyon\n\nİlk basamak ==ACE inhibitörleri==dir.\n");
+            return VaultAgentResult.Success("tamam");
+        });
+
+        (InMemoryVaultJobStore jobs, Guid id) = await RunAsync(FlashcardRequest(Hypertension));
+
+        VaultJobView job = (await jobs.FindAsync(id, CancellationToken.None))!.View;
+        Assert.Equal(VaultJobStatus.Failed, job.Status);
+        Assert.Equal("Obsidian'da düzenlendi.\n", store.Content(Hypertension));
+    }
+
+    [Fact]
+    public async Task Does_not_convert_a_note_twice()
+    {
+        store.Seed(Hypertension, "#flashcards/kardiyoloji\n\n# Hipertansiyon\n\nSoru::Cevap\n");
+
+        (InMemoryVaultJobStore jobs, Guid id) = await RunAsync(FlashcardRequest(Hypertension));
+
+        VaultJobView job = (await jobs.FindAsync(id, CancellationToken.None))!.View;
+        Assert.Equal(VaultJobStatus.Failed, job.Status);
+        Assert.Contains("zaten flashcard", job.Error, StringComparison.Ordinal);
+        Assert.Empty(agent.Prompts);
+    }
+
+    [Fact]
+    public async Task Fails_a_conversion_of_a_missing_note()
+    {
+        (InMemoryVaultJobStore jobs, Guid id) = await RunAsync(FlashcardRequest("Yok/Olmayan.md"));
+
+        VaultJobView job = (await jobs.FindAsync(id, CancellationToken.None))!.View;
+        Assert.Equal(VaultJobStatus.Failed, job.Status);
+        Assert.Contains("vault'ta yok", job.Error, StringComparison.Ordinal);
+        Assert.Empty(agent.Prompts);
+    }
+
+    private async Task<(InMemoryVaultJobStore Jobs, Guid Id)> RunAsync(VaultJobRequest request, int maxBacklinks = 5)
     {
         InMemoryVaultJobStore jobs = new();
         Guid id = (await Registry(jobs).SubmitAsync(request, VaultJobOrigin.Shortcut, CancellationToken.None)).Id;
@@ -245,6 +364,8 @@ public sealed class VaultNoteJobServiceTests : IDisposable
 
     private static VaultNoteRequest Request(string? folder = null, string? title = null) =>
         VaultNoteRequest.Create("Beta blokerler hakkında özet", folder, title, out _)!;
+
+    private static VaultFlashcardRequest FlashcardRequest(string path) => VaultFlashcardRequest.Create(path, out _)!;
 
     private static Func<string, string, VaultAgentResult> WriteNote(string answer) => (workspace, _) =>
     {
@@ -293,6 +414,10 @@ public sealed class VaultNoteJobServiceTests : IDisposable
 
         public Task<IReadOnlyList<string>> ListPathsAsync(CancellationToken cancellationToken) =>
             Task.FromResult<IReadOnlyList<string>>([.. objects.Keys]);
+
+        public Task<IReadOnlyList<VaultObjectInfo>> ListObjectsAsync(CancellationToken cancellationToken) =>
+            Task.FromResult<IReadOnlyList<VaultObjectInfo>>(
+                [.. objects.Select(static item => new VaultObjectInfo(item.Key, item.Value.Content.Length, null))]);
 
         public Task<VaultDocument?> GetAsync(string path, CancellationToken cancellationToken) =>
             Task.FromResult(objects.TryGetValue(path, out var stored)

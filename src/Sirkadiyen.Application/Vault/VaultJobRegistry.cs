@@ -12,7 +12,7 @@ public sealed class VaultJobRegistry(IVaultJobStore store, VaultJobQueue queue, 
         "İş, sunucu yeniden başlarken yarıda kaldı; yeniden gönderin. Not yazılmışsa vault'ta duruyor olabilir.";
 
     public async Task<VaultJobView> SubmitAsync(
-        VaultNoteRequest request,
+        VaultJobRequest request,
         VaultJobOrigin origin,
         CancellationToken cancellationToken)
     {

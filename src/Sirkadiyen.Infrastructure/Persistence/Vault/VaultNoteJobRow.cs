@@ -15,16 +15,23 @@ internal sealed class VaultNoteJobRow
 
     public Guid Id { get; set; }
 
+    /// <summary>What the job does (ADR-170): <c>Note</c> or <c>Flashcards</c>.</summary>
+    public string Kind { get; set; } = string.Empty;
+
     public string Source { get; set; } = string.Empty;
 
     public string? RequestedBy { get; set; }
 
+    /// <summary>The new note's brief; empty for a flashcard job, which has none.</summary>
     public string Prompt { get; set; } = string.Empty;
 
     /// <summary>The folder the requester named: empty for the vault root, null to let the agent choose.</summary>
     public string? Folder { get; set; }
 
     public string? Title { get; set; }
+
+    /// <summary>The existing note a flashcard job converts; null for a note job.</summary>
+    public string? TargetPath { get; set; }
 
     public string Status { get; set; } = string.Empty;
 
@@ -41,6 +48,9 @@ internal sealed class VaultNoteJobRow
 
     /// <summary>The warnings as a JSON array of strings.</summary>
     public string Warnings { get; set; } = "[]";
+
+    /// <summary>The written note's deck and card counts as a JSON object; null until a note is written.</summary>
+    public string? Flashcards { get; set; }
 
     public string? Error { get; set; }
 }

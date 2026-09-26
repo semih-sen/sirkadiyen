@@ -51,9 +51,12 @@ public sealed class S3VaultStore(IAmazonS3 client, VaultStorageOptions options) 
         return new AmazonS3Client(new BasicAWSCredentials(options.AccessKey, options.SecretKey), config);
     }
 
-    public async Task<IReadOnlyList<string>> ListPathsAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<string>> ListPathsAsync(CancellationToken cancellationToken) =>
+        [.. (await ListObjectsAsync(cancellationToken)).Select(static item => item.Path)];
+
+    public async Task<IReadOnlyList<VaultObjectInfo>> ListObjectsAsync(CancellationToken cancellationToken)
     {
-        List<string> paths = [];
+        List<VaultObjectInfo> objects = [];
         IListObjectsV2Paginator pages = client.Paginators.ListObjectsV2(new ListObjectsV2Request
         {
             BucketName = options.Bucket,
@@ -68,10 +71,13 @@ public sealed class S3VaultStore(IAmazonS3 client, VaultStorageOptions options) 
                 continue;
             }
 
-            paths.Add(item.Key[prefix.Length..]);
+            DateTimeOffset? lastModified = item.LastModified is { } modified
+                ? new DateTimeOffset(modified.ToUniversalTime(), TimeSpan.Zero)
+                : null;
+            objects.Add(new VaultObjectInfo(item.Key[prefix.Length..], item.Size ?? 0, lastModified));
         }
 
-        return paths;
+        return objects;
     }
 
     public async Task<VaultDocument?> GetAsync(string path, CancellationToken cancellationToken)

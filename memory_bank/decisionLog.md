@@ -10886,3 +10886,81 @@ history and any queued job, and nothing outside the API process could read it.
   not seed); web `npm run typecheck` clean, `npm test` 28 files / 228 tests. Not run end to end
   against a live API.
 
+## ADR-170: Vault notes carry Spaced Repetition flashcards, and old notes get them from the panel
+
+**Status:** Accepted
+**Date:** 2026-09-26
+**Extends:** ADR-168 (note jobs) and ADR-169 (job table and admin panel). Nothing in either is
+superseded.
+
+### Context
+
+The owner installed the Obsidian Spaced Repetition plugin (st3v3nmw/obsidian-spaced-repetition) and
+asked that every new note carry flashcards: important facts in the note's text marked as clozes, and
+a flashcards section of questions on the topic. For the notes written before that, the admin panel
+should list the vault's notes and offer a button that has the agent read a whole note, put the deck
+at its top, and add clozes and question cards to it.
+
+The plugin runs with its defaults, read from its source (`src/data/settings.ts`, `src/parser.ts`) and
+docs, since its documentation site is blocked from the build container:
+
+- Decks are `#flashcards` and nested tags under it. A tag applies to every card after it until the
+  next tag; a tag on the first line of a card applies only to that card; a frontmatter tag applies to
+  the whole note. Cards before any deck tag belong to no deck and are never shown.
+- A card ends at a blank line. `Soru::Cevap` (and `:::`) is a single-line card; a line holding only
+  `?` (or `??`) splits a multi-line card. `==highlight==` is a cloze (`convertHighlightsToClozes`
+  on; the default pattern `==[123;;]answer[;;hint]==` also accepts hints and sequence numbers).
+- A cloze card's text is its whole block: a heading directly above a highlighted paragraph becomes
+  part of that card (confirmed by running the plugin's parser on a sample note), and a multi-line
+  card written directly under single-line cards overlaps their line range, which the plugin uses to
+  write its `<!--SR:...-->` review records.
+
+### Decision
+
+- **The card format lives in the agent's standing rules** (`AgentInstructions.md`): the deck tag
+  alone on its own line after the frontmatter and before the title, followed by a blank line; plain
+  `==...==` highlights on short, exact facts (at most three per block; not in headings, tables, code
+  or links; no hint or numbered syntax, so no two cloze types ever mix in a note); a blank line under
+  every heading; a closing `## Flashcards` section of `Soru::Cevap` lines, multi-line cards set off by
+  blank lines; no stray `::` or lone `?` elsewhere; `<!--SR:...-->` never touched.
+- **The deck follows the folder:** `#flashcards/` plus the note's folder path, each segment
+  lower-cased with Turkish letters folded, as the vault's other tags are written
+  (`VaultFlashcards.DeckForFolder`). The prompt names it when the folder is known; a root note gets a
+  topic deck chosen by the agent.
+- **New notes:** the note prompt asks for the cards; after the run the job puts a blank line under
+  the deck tag if the agent left none (`SeparateDeckTag`) and records warnings for what the plugin
+  would misfile - no deck, no cards, deck after the first card, deck sharing a line with text. A
+  note without cards is still written: its text is the deliverable.
+- **Old notes: a second job kind, `Flashcards`,** on the same queue, table and processor
+  (`VaultJobRequest` with `VaultNoteRequest` / `VaultFlashcardRequest`). The job reads the note from
+  the vault, refuses a note that already has a deck (converting twice would double the highlights
+  and the card section), gives the agent a copy of the whole note to edit in place, and writes it
+  back only if `VaultFlashcards.EvaluateConversion` accepts the edit: it must file cards under a deck,
+  keep the frontmatter byte for byte, and - with highlight markers removed from both sides - keep all
+  but 10% of the original lines and 90% of the length. The write is conditional on the ETag read
+  (ADR-168), so an edit made in Obsidian meanwhile wins and the job reports it. Links are not
+  normalized in a converted note: they are the user's (ADR-168's rule for existing notes).
+- **Table:** `vault_note_jobs` gains `Kind` (`Note` default for existing rows), `TargetPath` (the note
+  a flashcard job converts) and `Flashcards` (`jsonb`: deck, cloze count, question count of the note
+  the job wrote). Migration `AddVaultFlashcardJobs`. A flashcard row stores an empty prompt.
+- **Admin surface:** `GET /api/admin/vault/notes` (the vault's notes with size, last change, the
+  newest job naming each and the cards the newest successful job recorded), `GET
+  /api/admin/vault/notes/content?path=` (the note's text now, scanned for deck and cards), `POST
+  /api/admin/vault/flashcards` (SuperAdmin, antiforgery, the same per-IP rate limit as a note; 409
+  while a flashcard job for the same note is unfinished). The list does not read every note - one
+  S3 GET per note on each load - so its card column is what jobs recorded; the drawer scans the note.
+  Web: `/admin/vault` gains a "Vault notları" tab with search, a "only without flashcards" filter,
+  per-note "Flashcard ekle" and a drawer showing the text with clozes marked.
+
+### Consequences
+
+- The plugin's own settings are assumed to be its defaults; a changed flashcard tag, separator or
+  disabled highlight clozes would need the standing rules and `VaultFlashcards` to follow.
+- A note converted by hand in Obsidian shows "Yok" in the list until opened; the job refuses it.
+- The conversion check is textual: an agent that highlights a whole paragraph passes it. The limits
+  on clozes are the prompt's, reviewed by the owner in the plugin itself.
+- **Verified:** `dotnet build Sirkadiyen.slnx` clean; Infrastructure 1165/1165, Api 31/31;
+  `VaultJobStoreTests` (3) against PostgreSQL 16 with every migration applied (the 5
+  `ScheduleSource*` persistence tests still fail as on `main`); web `npm run typecheck` clean,
+  `npm test` 28 files / 230 tests; the plugin's `parse()` run on a sample note in the prescribed
+  format. Not run end to end against a live API, MinIO and Claude Code.

@@ -14,6 +14,9 @@ public static class VaultPathPolicy
     /// <summary>Long enough for any real title; short enough that a path stays well inside S3's key limit.</summary>
     public const int MaxSegmentLength = 120;
 
+    /// <summary>The job table's path column, and S3's key limit, are 1024.</summary>
+    public const int MaxNotePathLength = 1024;
+
     /// <summary>
     /// File-system reserved characters plus <c># ^ [ ] |</c>, which Obsidian reads as heading, block,
     /// link, and alias syntax inside <c>[[...]]</c> - a note titled with one of them cannot be linked to.
@@ -47,6 +50,33 @@ public static class VaultPathPolicy
         return name.EndsWith(NoteExtension, StringComparison.OrdinalIgnoreCase)
             ? name[..^NoteExtension.Length]
             : name;
+    }
+
+    /// <summary>
+    /// Normalizes the path of an existing note the user picked (ADR-170). Existing notes are named by
+    /// the user, so the stricter rules for a new note's title do not apply; what is refused is what no
+    /// note path can be: a non-note, a hidden or <c>..</c> segment, an empty segment, or a path longer
+    /// than an S3 key. Whether the note exists is for the caller to check against the vault.
+    /// </summary>
+    public static string? NormalizeNotePath(string? path, out string? error)
+    {
+        error = null;
+        string trimmed = (path ?? string.Empty).Trim().Replace('\\', '/').TrimStart('/');
+        if (trimmed.Length == 0)
+        {
+            error = "Not yolu boş olamaz.";
+            return null;
+        }
+
+        if (!IsNote(trimmed)
+            || trimmed.Length > MaxNotePathLength
+            || trimmed.Split('/').Any(static segment => segment.Trim().Length == 0))
+        {
+            error = $"'{trimmed}' geçerli bir not yolu değil.";
+            return null;
+        }
+
+        return trimmed;
     }
 
     /// <summary>

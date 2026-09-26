@@ -8,7 +8,7 @@ export default function Page() {
       <AdminPageHeader
         eyebrow="Kişisel"
         title="Obsidian notları"
-        description="Claude Code ile vault'a yazılan notların geçmişi; buradan yeni not isteği de gönderilebilir."
+        description="Claude Code ile vault'a yazılan notların geçmişi ve vault'taki notlar; buradan yeni not isteyebilir, eski notlara flashcard ekletebilirsin."
       />
       <AdminVault />
     </AdminPageFrame>

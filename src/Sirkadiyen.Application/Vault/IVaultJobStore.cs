@@ -19,10 +19,20 @@ public interface IVaultJobStore
 
     /// <summary>Every job that has not finished, oldest first.</summary>
     Task<IReadOnlyList<VaultJobRecord>> ListUnfinishedAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Every job that names a note - the one it wrote, or the one it adds flashcards to - newest first.
+    /// The panel's note list reads each note's latest job from it (ADR-170).
+    /// </summary>
+    Task<IReadOnlyList<VaultJobRecord>> ListForNotesAsync(CancellationToken cancellationToken);
 }
 
 /// <summary>A job as stored: its progress, the request it runs, and where that request came from.</summary>
-public sealed record VaultJobRecord(VaultJobView View, VaultNoteRequest Request, VaultJobOrigin Origin);
+public sealed record VaultJobRecord(VaultJobView View, VaultJobRequest Request, VaultJobOrigin Origin)
+{
+    /// <summary>The note this job is about: the one it converts, or the one it wrote once it has.</summary>
+    public string? NotePath => Request is VaultFlashcardRequest flashcards ? flashcards.NotePath : View.NotePath;
+}
 
 /// <param name="RequestedBy">The administrator's e-mail when submitted from the panel; null for the shortcut.</param>
 public sealed record VaultJobOrigin(VaultJobSource Source, string? RequestedBy)

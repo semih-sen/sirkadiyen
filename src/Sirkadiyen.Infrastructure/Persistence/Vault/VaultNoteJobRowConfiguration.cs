@@ -15,16 +15,19 @@ internal sealed class VaultNoteJobRowConfiguration : IEntityTypeConfiguration<Va
 
         // Source and status are stored as strings without check constraints, so a new value is a code
         // change and not a data migration.
+        builder.Property(job => job.Kind).HasMaxLength(20).IsRequired();
         builder.Property(job => job.Source).HasMaxLength(20).IsRequired();
         builder.Property(job => job.Status).HasMaxLength(20).IsRequired();
         builder.Property(job => job.RequestedBy).HasMaxLength(VaultNoteJobRow.MaximumRequestedByLength);
         builder.Property(job => job.Prompt).HasMaxLength(VaultNoteJobRow.MaximumPromptLength).IsRequired();
         builder.Property(job => job.Folder).HasMaxLength(VaultNoteJobRow.MaximumPathLength);
         builder.Property(job => job.Title).HasMaxLength(VaultNoteJobRow.MaximumPathLength);
+        builder.Property(job => job.TargetPath).HasMaxLength(VaultNoteJobRow.MaximumPathLength);
         builder.Property(job => job.NotePath).HasMaxLength(VaultNoteJobRow.MaximumPathLength);
         builder.Property(job => job.NoteLink).HasMaxLength(VaultNoteJobRow.MaximumPathLength);
         builder.Property(job => job.Backlinks).HasColumnType("jsonb").IsRequired();
         builder.Property(job => job.Warnings).HasColumnType("jsonb").IsRequired();
+        builder.Property(job => job.Flashcards).HasColumnType("jsonb");
 
         // The panel lists newest first; the startup recovery reads the unfinished ones.
         builder.HasIndex(job => job.CreatedAtUtc);

@@ -2006,3 +2006,14 @@ ADR-111 shipped API-only; the repair is now a control on `/admin/operations` bes
 - [ ] Deploy, then submit one note from the panel and one from the shortcut; restart the API with a
   job queued and see it run afterwards
 
+## Vault flashcards (2026-09-26, ADR-170)
+
+- [x] Standing agent rules for the Spaced Repetition plugin's format (deck tag, clozes, card section)
+- [x] New notes: prompt asks for cards; deck-tag spacing fixed and misfiling reported as warnings
+- [x] `Flashcards` job kind for existing notes, with a conversion check and a conditional write-back
+- [x] `AddVaultFlashcardJobs` migration (`Kind`, `TargetPath`, `Flashcards`)
+- [x] Admin: vault note list, note content with clozes marked, "Flashcard ekle"
+- **Tests executed:** `dotnet build Sirkadiyen.slnx` clean; Infrastructure 1165/1165, Api 31/31,
+  `VaultJobStoreTests` 3/3 on PostgreSQL 16; web typecheck, `npm test` 230/230.
+- **Open:** end-to-end run against a live API, MinIO and Claude Code.
+
